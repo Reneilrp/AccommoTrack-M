@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { AlertTriangle, X, Loader2, AlertCircle } from 'lucide-react';
 import api from '../../utils/api';
-import toast from 'react-hot-toast';
+import { showSuccess, showError } from '../../utils/toast';
 
 const REASONS = [
   'Inaccurate Listing Photos/Details',
@@ -21,18 +21,18 @@ export default function ReportPropertyModal({ propertyId, propertyTitle = 'Prope
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!reason) return toast.error('Please select a reason for your report.');
-    if (description.length < 10) return toast.error('Description must be at least 10 characters.');
+    if (!reason) return showError('Please select a reason for your report.');
+    if (description.length < 10) return showError('Description must be at least 10 characters.');
 
     setSubmitting(true);
     try {
       const __res = await api.post('/reports', { property_id: propertyId, reason, description });
-      toast.success('Report submitted. Admins will review this listing.');
+      showSuccess('Report submitted. Admins will review this listing.');
       setReason('');
       setDescription('');
       onClose();
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to submit report');
+      showError(err.response?.data?.message || 'Failed to submit report');
     } finally {
       setSubmitting(false);
     }

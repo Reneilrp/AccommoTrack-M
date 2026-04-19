@@ -4,7 +4,6 @@ import {
     Text, 
     TextInput, 
     TouchableOpacity, 
-    Alert, 
     Image, 
     ActivityIndicator, 
     ScrollView, 
@@ -17,7 +16,7 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import tenantService from '../../../../services/TenantService.js';
 import { useTheme } from '../../../../contexts/ThemeContext.jsx';
-import { showSuccess, showError } from '../../../../utils/toast.js';
+import { showSuccess, showError, showWarning } from '../../../../utils/toast.js';
 import { getStyles } from '../../../../styles/Tenant/MaintenanceStyles.js';
 import Header from '../../components/Header.jsx';
 
@@ -28,7 +27,6 @@ export default function CreateRequest() {
   const { bookingId = null, propertyId = null, roomId = null } = route.params || {};
   const { theme } = useTheme();
   const styles = React.useMemo(() => getStyles(theme), [theme]);
-  const showAlert = Alert.alert;
 
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -41,7 +39,7 @@ export default function CreateRequest() {
       const ImagePicker = await import('expo-image-picker');
       const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (!perm.granted) {
-        showAlert('Permission required', 'Please grant media library permissions to attach photos.');
+        showWarning('Permission required', 'Please grant media library permissions to attach photos.');
         return;
       }
       const res = await ImagePicker.launchImageLibraryAsync({ 

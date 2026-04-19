@@ -13,7 +13,6 @@ import {
   Image,
   StyleSheet,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -23,6 +22,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useTheme } from "../../../../contexts/ThemeContext.jsx";
 import { getStyles } from "../../../../styles/Tenant/ProfilePage.js";
 import ProfileService from "../../../../services/ProfileService.js";
+import { showError, showSuccess, showWarning } from "../../../../utils/toast.js";
 import Header from "../../components/Header.jsx";
 import {
   tenantQueryKeys,
@@ -33,7 +33,6 @@ import { hasAnyValidationError, normalizeNameInput, validateProfileNameField } f
 export default function ProfilePage() {
   const navigation = useNavigation();
   const { theme } = useTheme();
-  const showAlert = Alert.alert;
   const queryClient = useQueryClient();
   const styles = React.useMemo(() => getStyles(theme), [theme]);
   const [isEditing, setIsEditing] = useState(false);
@@ -155,7 +154,7 @@ export default function ProfilePage() {
 
   useEffect(() => {
     if (!profilePageQuery.error) return;
-    showAlert("Error", profilePageQuery.error.message || "Failed to load profile");
+    showError("Error", profilePageQuery.error.message || "Failed to load profile");
   }, [profilePageQuery.error]);
 
   const loading = profilePageQuery.isLoading && !profilePageQuery.data;
@@ -182,7 +181,7 @@ export default function ProfilePage() {
     if (event.type === "set" || Platform.OS === "ios") {
       const age = calculateAge(currentDate);
       if (age < 18) {
-        showAlert("Age Restriction", "You must be at least 18 years old.");
+        showWarning("Age Restriction", "You must be at least 18 years old.");
         return;
       }
 
@@ -223,7 +222,7 @@ export default function ProfilePage() {
     setNameErrors(nextNameErrors);
 
     if (hasAnyValidationError(nextNameErrors)) {
-      showAlert("Validation Error", "Please fix the name fields before saving.");
+      showWarning("Validation Error", "Please fix the name fields before saving.");
       return;
     }
 
@@ -288,13 +287,13 @@ export default function ProfilePage() {
 
         await AsyncStorage.setItem("user", JSON.stringify(u));
         setIsEditing(false);
-        showAlert("Success", "Profile updated successfully!");
+        showSuccess("Success", "Profile updated successfully!");
       } else {
-        showAlert("Error", res.error || "Failed to update profile");
+        showError("Error", res.error || "Failed to update profile");
       }
     } catch (error) {
       console.error("Error saving profile:", error);
-      showAlert("Error", "Failed to save profile");
+      showError("Error", "Failed to save profile");
     } finally {
       setSaving(false);
     }
@@ -306,21 +305,21 @@ export default function ProfilePage() {
         await ImagePicker.requestMediaLibraryPermissionsAsync();
 
       if (status !== "granted") {
-        showAlert(
+        showWarning(
           "Permission Denied",
           "We need camera roll permissions to change your photo.",
         );
         return;
       }
 
-      showAlert("Change Profile Photo", "Choose an option", [
+      Alert.alert("Change Profile Photo", "Choose an option", [
         {
           text: "Take Photo",
           onPress: async () => {
             const { status: cameraStatus } =
               await ImagePicker.requestCameraPermissionsAsync();
             if (cameraStatus !== "granted") {
-              showAlert(
+              showWarning(
                 "Permission Denied",
                 "We need camera permissions to take a photo.",
               );
@@ -361,7 +360,7 @@ export default function ProfilePage() {
       ]);
     } catch (error) {
       console.error("Error picking image:", error);
-      showAlert("Error", "Failed to pick image");
+      showError("Error", "Failed to pick image");
     }
   };
 
@@ -369,7 +368,7 @@ export default function ProfilePage() {
     const firstNameError = validateProfileNameField(profileData.firstName, { required: true, label: 'First name' });
     const lastNameError = validateProfileNameField(profileData.lastName, { required: true, label: 'Last name' });
     if (firstNameError || lastNameError) {
-      showAlert('Validation Error', firstNameError || lastNameError);
+      showWarning('Validation Error', firstNameError || lastNameError);
       return;
     }
 
@@ -392,13 +391,13 @@ export default function ProfilePage() {
         }));
 
         await AsyncStorage.setItem("user", JSON.stringify(u));
-        showAlert("Success", "Profile photo updated!");
+        showSuccess("Success", "Profile photo updated!");
       } else {
-        showAlert("Error", res.error || "Failed to upload photo");
+        showError("Error", res.error || "Failed to upload photo");
       }
     } catch (error) {
       console.error("Error uploading image:", error);
-      showAlert("Error", "Failed to upload photo");
+      showError("Error", "Failed to upload photo");
     } finally {
       setSaving(false);
     }
@@ -725,7 +724,7 @@ export default function ProfilePage() {
             <TouchableOpacity
               onPress={() => {
                 if (!isEditing) return;
-                showAlert("Sex", "Choose your sex", [
+                Alert.alert("Sex", "Choose your sex", [
                   { text: "Male", onPress: () => handleInputChange("sex", "male") },
                   { text: "Female", onPress: () => handleInputChange("sex", "female") },
                   { text: "Cancel", style: "cancel" },

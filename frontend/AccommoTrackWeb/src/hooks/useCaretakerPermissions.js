@@ -95,5 +95,7 @@ export function useCaretakerPermissions(user) {
     canManageMessages,
     canManageAnalytics,
     fullAccess,
+    hasMaintenanceAssignments: normalizePermissionValue(caretakerPermissions?.has_maintenance_assignments),
+    canAccessMaintenance: hasPermission('maintenance', ['rooms']) || normalizePermissionValue(caretakerPermissions?.has_maintenance_assignments),
   };
 }

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { tenantService } from '../../services/tenantService';
 import { Package, Plus, Minus, X, Loader2, Send, ShoppingBag } from 'lucide-react';
-import toast from 'react-hot-toast';
+import { showSuccess, showError } from '../../utils/toast';
 
 export default function Addons() {
   const [addons, setAddons] = useState([]);
@@ -114,15 +114,15 @@ export default function Addons() {
     try {
       const res = await tenantService.requestAddon(payload);
       if (res.success) {
-        toast.success('Add-on request submitted!');
+        showSuccess('Add-on request submitted!');
         setShowCustomForm(false);
         setCustomData({ name: '', addon_type: 'rental', price_type: 'monthly', note: '', suggested_price: '' });
         await loadAddons();
       } else {
-        toast.error(res.error || 'Failed to request addon');
+        showError(res.error || 'Failed to request addon');
       }
     } catch {
-      toast.error('Failed to request addon');
+      showError('Failed to request addon');
     } finally {
       setSubmittingId(null);
     }
@@ -137,13 +137,13 @@ export default function Addons() {
     try {
       const res = await tenantService.cancelAddonRequest(id);
       if (res.success) {
-        toast.success('Request cancelled');
+        showSuccess('Request cancelled');
         await loadAddons();
       } else {
-        toast.error(res.error || 'Failed to cancel');
+        showError(res.error || 'Failed to cancel');
       }
     } catch {
-      toast.error('Failed to cancel');
+      showError('Failed to cancel');
     } finally {
       setCancelingId(null);
     }

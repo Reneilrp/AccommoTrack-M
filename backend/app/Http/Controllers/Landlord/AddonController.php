@@ -326,6 +326,10 @@ class AddonController extends Controller
             return response()->json([
                 'message' => $e->getMessage(),
             ], 403);
+        } catch (\DomainException $e) {
+            return response()->json([
+                'message' => $e->getMessage(),
+            ], 422);
         } catch (\Illuminate\Validation\ValidationException $e) {
             return response()->json([
                 'message' => 'Validation failed',

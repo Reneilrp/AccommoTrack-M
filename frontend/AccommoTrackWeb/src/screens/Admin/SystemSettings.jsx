@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import toast from 'react-hot-toast';
+import { showSuccess, showError } from '../../utils/toast';
 import { Loader2, Pencil, Save, Smartphone, Wallet, CalendarDays, Cog, RefreshCw, ShieldAlert, Key, Eye, EyeOff } from 'lucide-react';
 import adminService from '../../services/adminService';
 import { cacheManager } from '../../utils/cache';
@@ -38,11 +38,11 @@ export default function SystemSettings() {
   const handleUpdatePassword = async (e) => {
     e.preventDefault();
     if (passwordForm.new_password !== passwordForm.new_password_confirmation) {
-      toast.error('New passwords do not match');
+      showError('New passwords do not match');
       return;
     }
     if (passwordForm.new_password.length < 8) {
-      toast.error('Password must be at least 8 characters');
+      showError('Password must be at least 8 characters');
       return;
     }
     setUpdatingPassword(true);
@@ -51,11 +51,11 @@ export default function SystemSettings() {
       if (!response?.success) {
         throw new Error(response?.error || response?.message || 'Failed to update password');
       }
-      toast.success(response?.message || 'Password updated successfully');
+      showSuccess(response?.message || 'Password updated successfully');
       setPasswordForm({ current_password: '', new_password: '', new_password_confirmation: '' });
       setIsEditingPassword(false);
     } catch (error) {
-      toast.error(error?.message || 'Failed to update password');
+      showError(error?.message || 'Failed to update password');
     } finally {
       setUpdatingPassword(false);
     }
@@ -107,7 +107,7 @@ export default function SystemSettings() {
       setInitialSettings(nextSettings);
       setIsEditing(false);
     } catch (error) {
-      toast.error(error?.message || 'Failed to load settings');
+      showError(error?.message || 'Failed to load settings');
     } finally {
       setLoading(false);
     }
@@ -148,9 +148,9 @@ export default function SystemSettings() {
         systemForcedNow,
       });
       setIsEditing(false);
-      toast.success(response?.message || 'Settings updated');
+      showSuccess(response?.message || 'Settings updated');
     } catch (error) {
-      toast.error(error?.message || 'Failed to save settings');
+      showError(error?.message || 'Failed to save settings');
     } finally {
       setSaving(false);
     }
@@ -166,9 +166,9 @@ export default function SystemSettings() {
       // Also wipe this browser's localStorage cache so the admin's own
       // browser doesn't serve stale property data after the server is purged.
       cacheManager.clearAll();
-      toast.success('Global cache cleared successfully!');
+      showSuccess('Global cache cleared successfully!');
     } catch (error) {
-      toast.error(error?.message || 'Failed to clear cache');
+      showError(error?.message || 'Failed to clear cache');
     } finally {
       setClearingCache(false);
     }
@@ -191,19 +191,19 @@ export default function SystemSettings() {
 
   const handleForceTime = () => {
     if (!tempForcedNow) {
-      toast.error('Please select a date and time first');
+      showError('Please select a date and time first');
       return;
     }
     setSystemForcedNow(tempForcedNow);
     setIsSystemTimeForced(true);
-    toast.success('Forced time staged. Click "Save Changes" to apply.');
+    showSuccess('Forced time staged. Click "Save Changes" to apply.');
   };
 
   const handleResetTime = () => {
     setSystemForcedNow('');
     setTempForcedNow('');
     setIsSystemTimeForced(false);
-    toast.success('System time reset staged. Click "Save Changes" to apply.');
+    showSuccess('System time reset staged. Click "Save Changes" to apply.');
   };
 
   return (

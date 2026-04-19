@@ -27,7 +27,6 @@ export default function AddonsScreen({ hideHeader = false, historyOnly = false }
   const { width: viewportWidth } = useWindowDimensions();
   const { theme } = useTheme();
   const styles = React.useMemo(() => getStyles(theme), [theme]);
-  const showAlert = Alert.alert;
   const route = useRoute();
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
@@ -118,13 +117,13 @@ export default function AddonsScreen({ hideHeader = false, historyOnly = false }
     placeholderData: (previousData) => previousData,
   });
 
-  const addonsBundle = addonsBundleQuery.data || {
+  const addonsBundle = React.useMemo(() => addonsBundleQuery.data || {
     addons: [],
     requests: [],
     noBooking: false,
-  };
-  const addons = addonsBundle.addons || [];
-  const requests = addonsBundle.requests || [];
+  }, [addonsBundleQuery.data]);
+  const addons = React.useMemo(() => addonsBundle.addons || [], [addonsBundle.addons]);
+  const requests = React.useMemo(() => addonsBundle.requests || [], [addonsBundle.requests]);
   const noBooking = addonsBundle.noBooking || false;
   const loading = addonsBundleQuery.isLoading;
   const refetchAddonsBundle = addonsBundleQuery.refetch;
@@ -185,7 +184,7 @@ export default function AddonsScreen({ hideHeader = false, historyOnly = false }
       } else {
         showError('Error', res.error || 'Failed to request addon');
       }
-    } catch (err) {
+    } catch (_err) {
       showError('Error', 'Failed to request addon');
     } finally {
       setSubmittingId(null);
@@ -196,7 +195,7 @@ export default function AddonsScreen({ hideHeader = false, historyOnly = false }
     const id = req.id || req.request_id;
     if (!id) return;
 
-    showAlert('Cancel Request', 'Are you sure you want to cancel this add-on request?', [
+    Alert.alert('Cancel Request', 'Are you sure you want to cancel this add-on request?', [
         { text: 'No', style: 'cancel' },
         { 
             text: 'Yes, Cancel', 
@@ -211,9 +210,9 @@ export default function AddonsScreen({ hideHeader = false, historyOnly = false }
                     } else {
                         showError('Error', res.error || 'Failed to cancel');
                     }
-                } catch (err) {
-                    showError('Error', 'Failed to cancel');
-                } finally {
+                    } catch (_err) {
+                        showError('Error', 'Failed to cancel');
+                    } finally {
                     setCancelingId(null);
                 }
             }

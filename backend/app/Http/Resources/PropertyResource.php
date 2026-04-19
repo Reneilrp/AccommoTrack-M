@@ -66,10 +66,9 @@ class PropertyResource extends JsonResource
             'curfew_time' => $this->curfew_time,
             'curfew_policy' => $this->curfew_policy,
             'total_rooms' => $this->rooms_count ?? ($this->relationLoaded('rooms') ? $this->rooms->count() : 0),
-            'available_rooms' => $this->available_rooms_count ?? (
-                $this->relationLoaded('rooms')
-                ? $this->rooms->filter(fn ($room) => $room->isAvailable())->count()
-                : 0
+            'available_rooms' => $this->whenLoaded('rooms', 
+                fn () => $this->rooms->filter(fn ($room) => $room->isAvailable())->count(),
+                $this->available_rooms_count ?? 0
             ),
             'minPrice' => $minPrice,
             'maxPrice' => $maxPrice,
@@ -116,6 +115,20 @@ class PropertyResource extends JsonResource
             'is_published' => (bool) $this->is_published,
             'is_available' => (bool) $this->is_available,
             'is_eligible' => (bool) $this->is_eligible,
+            'tenant_usage' => $request->user() ? [
+                'normal' => \App\Models\Booking::where('property_id', $this->id)
+                    ->where('tenant_id', $request->user()->id)
+                    ->whereIn('status', ['pending', 'confirmed', 'active'])
+                    ->where(function($q) {
+                        $q->where('booking_mode', '!=', 'proxy')->orWhereNull('booking_mode');
+                    })
+                    ->count(),
+                'proxy' => \App\Models\Booking::where('property_id', $this->id)
+                    ->where('tenant_id', $request->user()->id)
+                    ->whereIn('status', ['pending', 'confirmed', 'active'])
+                    ->where('booking_mode', 'proxy')
+                    ->count(),
+            ] : null,
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,
         ];

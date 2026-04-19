@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useSidebar } from '../../contexts/SidebarContext';
 import AddProperty from './AddProperty';
@@ -15,7 +15,7 @@ import {
   MessageSquare,
 } from 'lucide-react';
 import api, { getImageUrl } from '../../utils/api';
-import toast from 'react-hot-toast';
+import { showSuccess, showError } from '../../utils/toast';
 import { Skeleton, SkeletonStatCard } from '../../components/Shared/Skeleton';
 import { useUIState } from '../../contexts/UIStateContext';
 import { cacheManager } from '../../utils/cache';
@@ -116,16 +116,16 @@ export default function MyProperties({ __user }) {
     };
     window.addEventListener('open-add-property', handleOpenAdd);
     return () => window.removeEventListener('open-add-property', handleOpenAdd);
-  }, [isCaretaker]);
+  }, [isCaretaker, fetchProperties, checkVerificationStatus, updateData]);
 
   useEffect(() => {
     // Sync local state if global state changes from elsewhere
     if (uiState.data?.landlord_property_view && uiState.data.landlord_property_view !== currentView) {
       setCurrentView(uiState.data.landlord_property_view);
     }
-  }, [uiState.data?.landlord_property_view]);
+  }, [uiState.data?.landlord_property_view, currentView]);
 
-  const checkVerificationStatus = async () => {
+  const checkVerificationStatus = useCallback(async () => {
     try {
       const res = await api.get('/landlord/my-verification');
       const status = res.data?.status;
@@ -134,9 +134,9 @@ export default function MyProperties({ __user }) {
     } catch (__err) {
       setIsVerified(false);
     }
-  };
+  }, []);
 
-  const fetchProperties = async () => {
+  const fetchProperties = useCallback(async () => {
     try {
       if (!cachedProperties) setLoading(true);
       setError(null);
@@ -178,7 +178,7 @@ export default function MyProperties({ __user }) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [activeUser, cachedProperties, updateData, uiState.data]);
 
   const stats = {
     activeListings: properties.filter(p => p.current_status === 'active').length,
@@ -258,12 +258,12 @@ export default function MyProperties({ __user }) {
       });
       
       if (response.status === 200) {
-        toast.success(response.data.message || 'Property deleted successfully');
+        showSuccess(response.data.message || 'Property deleted successfully');
         fetchProperties();
       }
     } catch (err) {
       const errorMessage = err.response?.data?.message || 'Failed to delete property';
-      toast.error(errorMessage);
+      showError(errorMessage);
       // If password is wrong, go back to password modal
       if (err.response?.data?.error === 'password_incorrect') {
         setDeleteConfirm({ show: false, property: null });

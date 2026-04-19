@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import api from '../../../utils/api';
-import toast from 'react-hot-toast';
+import { showSuccess, showError, showInfo } from '../../../utils/toast';
 import {
   CreditCard,
   Save,
@@ -84,7 +84,7 @@ export default function PaymentMethods({ user, onUpdate }) {
       mapped.forEach((p) => { initial[p.id] = [...p.accepted_payments]; });
       setPendingPayments(initial);
     } catch (__err) {
-      toast.error('Failed to load properties');
+      showError('Failed to load properties');
     } finally {
       setPropertiesLoading(false);
     }
@@ -120,11 +120,11 @@ export default function PaymentMethods({ user, onUpdate }) {
       setProperties((prev) =>
         prev.map((p) => p.id === propertyId ? { ...p, accepted_payments: [...updated] } : p)
       );
-      toast.success('Payment methods saved');
+      showSuccess('Payment methods saved');
     } catch (err) {
       const saved = properties.find((p) => p.id === propertyId)?.accepted_payments ?? ['cash'];
       setPendingPayments((prev) => ({ ...prev, [propertyId]: [...saved] }));
-      toast.error(err.response?.data?.message || 'Failed to save');
+      showError(err.response?.data?.message || 'Failed to save');
     } finally {
       setSavingId(null);
     }
@@ -137,17 +137,17 @@ export default function PaymentMethods({ user, onUpdate }) {
       const res = await api.get('/me');
       if (onUpdate && res.data?.user) {
         onUpdate(res.data.user);
-        toast.success('Status updated');
+        showSuccess('Status updated');
       }
     } catch (__e) {
-      toast.error('Failed to refresh status');
+      showError('Failed to refresh status');
     } finally {
       setRefreshing(false);
     }
   };
 
   const handleConnectPayMongo = async () => {
-    toast('PayMongo online payment onboarding is currently being set up. We will notify you once it is available.', { icon: 'ℹ️' });
+    showInfo('PayMongo online payment onboarding is currently being set up. We will notify you once it is available.');
   };
 
   const handleToggle = (method) => {
@@ -168,12 +168,12 @@ export default function PaymentMethods({ user, onUpdate }) {
         payment_methods_settings: { allowed, details }
       };
       await api.put('/me', payload);
-      toast.success('Payment settings saved');
+      showSuccess('Payment settings saved');
       if (onUpdate) {
         onUpdate({ ...user, payment_methods_settings: payload.payment_methods_settings });
       }
     } catch (e) {
-      toast.error(e.response?.data?.message || 'Failed to save settings');
+      showError(e.response?.data?.message || 'Failed to save settings');
     } finally {
       setLoading(false);
     }

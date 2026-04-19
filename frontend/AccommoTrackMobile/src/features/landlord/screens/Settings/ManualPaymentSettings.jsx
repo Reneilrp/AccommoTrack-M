@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   RefreshControl,
   ScrollView,
   StatusBar,
@@ -20,14 +19,13 @@ import { useTheme } from '../../../../contexts/ThemeContext.jsx';
 import ProfileService from '../../../../services/ProfileService.js';
 import {
   landlordQueryKeys,
-  refetchLandlordQueries,
   useLandlordFocusRefetch,
   useLandlordRefreshHandler,
 } from '../../hooks/useLandlordQueryHelpers.js';
+import { showError, showSuccess } from '../../../../utils/toast.js';
 
 export default function ManualPaymentSettings({ navigation }) {
   const { theme } = useTheme();
-  const showAlert = Alert.alert;
   const [refreshing, setRefreshing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [gcashInfo, setGcashInfo] = useState('');
@@ -77,7 +75,7 @@ export default function ManualPaymentSettings({ navigation }) {
   useEffect(() => {
     if (!fetchError) return;
     console.error('Failed to load payment settings:', fetchError);
-    showAlert('Error', fetchError);
+    showError('Error', fetchError);
   }, [fetchError]);
 
   const handleSave = async () => {
@@ -116,15 +114,13 @@ export default function ManualPaymentSettings({ navigation }) {
           await AsyncStorage.setItem('user', JSON.stringify(user));
         }
 
-        await refetchLandlordQueries([refetchManualPaymentSettings]);
-        
-        showAlert('Success', 'Payment settings updated successfully');
+        showSuccess('Success', 'Payment settings updated successfully');
         navigation.goBack();
       } else {
         throw new Error(res.error || 'Failed to update settings');
       }
     } catch (error) {
-      showAlert('Error', error.message || 'An error occurred');
+      showError('Error', error.message || 'An error occurred');
     } finally {
       setSaving(false);
     }

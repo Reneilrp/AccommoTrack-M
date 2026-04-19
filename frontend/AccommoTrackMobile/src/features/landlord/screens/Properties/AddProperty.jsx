@@ -32,6 +32,7 @@ import {
   landlordQueryKeys,
   useLandlordFocusRefetch,
 } from "../../hooks/useLandlordQueryHelpers.js";
+import { showError } from "../../../../utils/toast.js";
 
 const PROPERTY_TYPES = [
   { label: "Dormitory", value: "dormitory" },
@@ -93,6 +94,9 @@ const initialForm = {
   forceWalletRefunds: true,
   requireReservationFee: false,
   reservationFeeAmount: "",
+  normalBookingLimit: "1",
+  proxyBookingLimit: "3",
+  minPartialPaymentPct: "20",
 };
 
 const STEPS = [
@@ -195,7 +199,7 @@ export default function AddProperty({ navigation }) {
   const isPayMongoVerified =
     addPropertyVerificationQuery.data?.isPayMongoVerified ?? false;
   const canSubmitForApproval = isCaretaker || isVerified === true;
-  const pickerMode = Platform.OS === 'android' ? 'dropdown' : undefined;
+  const pickerMode = Platform.OS === 'android' ? 'dropdown' : undefined; // eslint-disable-line no-unused-vars
   const refetchAddPropertyVerification = addPropertyVerificationQuery.refetch;
   const addPropertyVerificationRefetchers = useMemo(
     () => [refetchAddPropertyVerification],
@@ -619,6 +623,9 @@ export default function AddProperty({ navigation }) {
       reservation_fee_amount: form.requireReservationFee
         ? form.reservationFeeAmount || "0"
         : "0",
+      normal_booking_limit: form.normalBookingLimit || "1",
+      proxy_booking_limit: form.proxyBookingLimit || "3",
+      min_partial_payment_pct: form.minPartialPaymentPct || "20",
     };
 
     Object.entries(entries).forEach(([key, value]) => {
@@ -706,9 +713,11 @@ export default function AddProperty({ navigation }) {
         // Reset form state so if they come back it's empty
         resetForm();
       } else {
+        showError("Error", res.error || "Failed to save property");
         setError(res.error || "Failed to save property");
       }
     } catch (err) {
+      showError("Error", err.message || "An unexpected error occurred");
       setError(err.message || "An unexpected error occurred");
     } finally {
       setSaving(false);
@@ -1385,6 +1394,65 @@ export default function AddProperty({ navigation }) {
                   ))}
                 </View>
               )}
+            </View>
+
+            <View style={styles.sectionCard}>
+              <Text style={styles.sectionTitle}>Booking Limits</Text>
+              <Text style={styles.sectionSubtitle}>
+                Limit active bookings per tenant (Max 4)
+              </Text>
+
+              <View style={styles.actionRow}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.label}>Self Bookings</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="1-4"
+                    keyboardType="numeric"
+                    value={form.normalBookingLimit}
+                    onChangeText={(val) => {
+                      const num = parseInt(val) || 0;
+                      if (num <= 4) updateForm("normalBookingLimit", val);
+                    }}
+                  />
+                  <Text style={{ fontSize: 10, color: theme.colors.textSecondary }}>
+                    Default: 1
+                  </Text>
+                </View>
+                <View style={{ flex: 1, marginLeft: 16 }}>
+                  <Text style={styles.label}>Proxy Bookings</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="1-4"
+                    keyboardType="numeric"
+                    value={form.proxyBookingLimit}
+                    onChangeText={(val) => {
+                      const num = parseInt(val) || 0;
+                      if (num <= 4) updateForm("proxyBookingLimit", val);
+                    }}
+                  />
+                  <Text style={{ fontSize: 10, color: theme.colors.textSecondary }}>
+                    Default: 3
+                  </Text>
+                </View>
+              </View>
+
+              <View style={{ marginTop: 16 }}>
+                <Text style={styles.label}>Min Partial Payment (%)</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="1-100"
+                  keyboardType="numeric"
+                  value={form.minPartialPaymentPct}
+                  onChangeText={(val) => {
+                    const num = parseInt(val) || 0;
+                    if (num <= 100) updateForm("minPartialPaymentPct", val);
+                  }}
+                />
+                <Text style={{ fontSize: 10, color: theme.colors.textSecondary }}>
+                  Default: 20%
+                </Text>
+              </View>
             </View>
 
             {/* Payment Methods */}

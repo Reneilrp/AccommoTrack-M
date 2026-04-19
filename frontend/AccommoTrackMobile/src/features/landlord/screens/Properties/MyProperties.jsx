@@ -57,6 +57,7 @@ const emptyMetrics = { active: 0, inactive: 0, pending: 0, draft: 0, totalRooms:
 
 export default function MyPropertiesScreen({ navigation }) {
   const { theme } = useTheme();
+  // eslint-disable-next-line no-unused-vars
   const { uiState } = useUIState();
 
   const styles = React.useMemo(() => getStyles(theme), [theme]);

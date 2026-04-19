@@ -1,13 +1,11 @@
 import React from 'react';
 import { Animated, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 // Global Header removed — screens should use TopNavigation when needed
 import BottomNavigation from '../components/BottomNavigation.jsx';
 import Header from '../components/Header.jsx';
 import CartIcon from '../components/CartIcon.jsx';
-import { navigationRef, addNavigationStateListener } from '../../../navigation/RootNavigation.js';
+import { navigationRef, addNavigationStateListener, navigate } from '../../../navigation/RootNavigation.js';
 import TenantNavigator from './TenantNavigator.jsx';
-import { navigate } from '../../../navigation/RootNavigation.js';
 import { useTheme } from '../../../contexts/ThemeContext.jsx';
 
 export default function TenantLayout({ onLogout, isGuest = false, onAuthRequired }) {
@@ -199,9 +197,8 @@ export default function TenantLayout({ onLogout, isGuest = false, onAuthRequired
   // Debug logging for navigation state (keep only route logging)
   React.useEffect(() => {
     try {
-      // eslint-disable-next-line no-console
       console.log('[TenantLayout] activeRouteName=', activeRouteName, 'activeRouteParams=', activeRouteParams, 'showBottom=', showBottom);
-    } catch (err) {
+    } catch {
       // ignore
     }
   }, [activeRouteName, activeRouteParams, showBottom]);
@@ -219,7 +216,7 @@ export default function TenantLayout({ onLogout, isGuest = false, onAuthRequired
         ? 'notifications-outline'
         : null;
   
-  const handleRightPress = () => {
+  const handleRightPress = React.useCallback(() => {
     if (isProfileRoute) {
       if (isGuest) {
         onAuthRequired?.();
@@ -240,7 +237,7 @@ export default function TenantLayout({ onLogout, isGuest = false, onAuthRequired
         navigate('Notifications');
       }
     }
-  };
+  }, [isProfileRoute, isGuest, onAuthRequired, isPaymentsRoute, isDashboardRoute]);
 
   // Build custom right actions for header (cart icon + profile/notifications)
   const rightActions = React.useMemo(() => {
@@ -265,7 +262,7 @@ export default function TenantLayout({ onLogout, isGuest = false, onAuthRequired
     }
     
     return actions;
-  }, [isProfileRoute, showRightHeaderIcon, rightHeaderIcon, isGuest, onAuthRequired]);
+  }, [isProfileRoute, showRightHeaderIcon, rightHeaderIcon, isGuest, onAuthRequired, handleRightPress]);
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.colors.background }}>

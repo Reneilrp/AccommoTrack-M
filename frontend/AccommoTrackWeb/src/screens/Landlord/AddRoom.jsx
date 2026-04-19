@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { X, Upload, Plus, Loader2, HelpCircle } from "lucide-react";
-import toast from "react-hot-toast";
+import { showSuccess, showError } from "../../utils/toast";
 import api from "../../utils/api";
 import PricingHelp from "../../components/Rooms/PricingHelp";
 import PriceRow from "../../components/Shared/PriceRow";
@@ -477,9 +477,9 @@ export default function AddRoomModal({
       }));
       setNewRule("");
       if (onAmenityAdded) onAmenityAdded();
-      toast.success("Rule added");
+      showSuccess("Rule added");
     } catch {
-      toast.error("Failed to add rule");
+      showError("Failed to add rule");
     }
   };
 
@@ -507,9 +507,9 @@ export default function AddRoomModal({
       }
 
       setNewAmenity("");
-      toast.success("Amenity added");
+      showSuccess("Amenity added");
     } catch (err) {
-      setError("Failed to add amenity: " + err.message);
+      showError("Failed to add amenity: " + err.message);
     }
   };
 
@@ -524,18 +524,18 @@ export default function AddRoomModal({
     const validatedFiles = [];
     for (const f of files) {
       if (!allowedTypes.includes(f.type)) {
-        toast.error(`${f.name}: unsupported file type`);
+        showError(`${f.name}: unsupported file type`);
         continue;
       }
       if (f.size > MAX_SIZE) {
-        toast.error(`${f.name}: file too large (max 10 MB)`);
+        showError(`${f.name}: file too large (max 10 MB)`);
         continue;
       }
       validatedFiles.push(f);
     }
 
     if (validatedFiles.length + formData.images.length > 10) {
-      toast.error("Maximum 10 images allowed");
+      showError("Maximum 10 images allowed");
       return;
     }
 
@@ -589,7 +589,7 @@ export default function AddRoomModal({
       setError("Please fix highlighted errors");
       const firstMessage =
         errors[firstInvalidField] || Object.values(errors)[0];
-      if (firstMessage) toast.error(firstMessage);
+      if (firstMessage) showError(firstMessage);
       // focus first invalid field
       if (firstInvalidField === "roomNumber") roomNumberRef.current?.focus();
       else if (firstInvalidField === "monthlyRate")
@@ -696,7 +696,7 @@ export default function AddRoomModal({
 
       // show success message briefly, notify parent, then close modal
       setSuccessMessage("Room added successfully");
-      toast.success("Room added successfully");
+      showSuccess("Room added successfully");
       if (onRoomAdded) onRoomAdded(newRoom);
       setTimeout(() => {
         setSuccessMessage("");
@@ -713,7 +713,7 @@ export default function AddRoomModal({
       }
       setError(msg);
       try {
-        toast.error(msg);
+        showError(msg);
       } catch {
         /* ignore toast errors */
       }

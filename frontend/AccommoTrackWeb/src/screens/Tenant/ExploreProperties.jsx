@@ -16,6 +16,7 @@ import {
   SlidersHorizontal,
 } from "lucide-react";
 import api, { getImageUrl } from "../../utils/api";
+import { showError } from "../../utils/toast";
 import { Skeleton } from "../../components/Shared/Skeleton";
 import { authService } from "../../services/authService";
 import RoomDetailsModal from "../../components/Modals/RoomDetailsModal";
@@ -260,8 +261,9 @@ const ExploreProperties = () => {
       setReviewsLoading(true);
       const res = await api.get(`/public/properties/${propertyId}/reviews`);
       setDrawerReviews(res.data);
-    } catch (err) {
-      console.error("Failed to fetch reviews:", err);
+    } catch (_err) {
+      console.error("Failed to fetch reviews:", _err);
+      showError("Failed to load property reviews.");
       setDrawerReviews({ reviews: [], summary: null });
     } finally {
       setReviewsLoading(false);
@@ -297,8 +299,9 @@ const ExploreProperties = () => {
         }
 
         setPropertyTypeOptions(normalizeTypeOptions(typeOptions));
-      } catch (err) {
-        console.error("Error fetching property types:", err?.response?.data || err);
+      } catch (_err) {
+        console.error("Error fetching property types:", _err?.response?.data || _err);
+        showError("Failed to load property categories.");
         if (isMounted) {
           setPropertyTypeOptions(FALLBACK_TYPE_OPTIONS);
         }
@@ -344,7 +347,9 @@ const ExploreProperties = () => {
         setProperties(data);
       } catch (err) {
         console.error("Error fetching properties:", err?.response?.data || err);
-        setError(err.response?.data?.message || "Error fetching properties");
+        const msg = err.response?.data?.message || "Error fetching properties";
+        setError(msg);
+        showError(msg);
       } finally {
         setLoading(false);
       }
@@ -496,8 +501,9 @@ const ExploreProperties = () => {
             null,
         },
       });
-    } catch (err) {
-      console.error(err);
+    } catch (_err) {
+      console.error(_err);
+      showError("Failed to prepare property details.");
       // Fallback to basic data if fetch fails - ensure room is normalized via mapRoom
       setSelectedRoomData({ room: mapRoom(room), property });
     } finally {

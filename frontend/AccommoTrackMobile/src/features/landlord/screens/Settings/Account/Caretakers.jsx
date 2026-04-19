@@ -16,9 +16,6 @@ import {
   UIManager,
 } from 'react-native';
 
-if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
-  UIManager.setLayoutAnimationEnabledExperimental(true);
-}
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
@@ -31,72 +28,29 @@ import { ListItemSkeleton } from '../../../../../components/Skeletons/index.jsx'
 import { showSuccess, showError } from '../../../../../utils/toast.js';
 import {
   landlordQueryKeys,
-  refetchLandlordQueries,
   useLandlordFocusRefetch,
   useLandlordRefreshHandler,
+  refetchLandlordQueries,
 } from '../../../hooks/useLandlordQueryHelpers.js';
+import {
+  CARETAKER_PERMISSION_FIELDS,
+  MODULE_GROUPS,
+  LANDLORD_LEVEL_PERMISSION_KEYS,
+  LANDLORD_LEVEL_PERMISSION_MESSAGES,
+  ROLE_PRESETS,
+  getRoleLabel,
+  identifyRole,
+  countActivePermissions,
+} from '../../../../../utils/caretakerPermissions.js';
 
-// ── Constants ────────────────────────────────────────────────────────────────
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
+
+// Constants moved to external utility for web/mobile parity.
 const EMPTY_CARETAKERS = [];
 const EMPTY_PROPERTIES = [];
-const TOTAL_PERMISSIONS = 14;
-
-const CARETAKER_PERMISSION_FIELDS = [
-  { key: 'bookings',           label: 'View Bookings',       description: 'View reservation requests.' },
-  { key: 'approve_bookings',   label: 'Approve Bookings',    description: 'Accept pending bookings.' },
-  { key: 'cancel_bookings',    label: 'Cancel Bookings',     description: 'Cancel active/pending bookings.' },
-  { key: 'manual_bookings',    label: 'Manual Bookings',     description: 'Create bookings on behalf of tenants.' },
-  { key: 'tenants',            label: 'Tenants',             description: 'Access profiles and room assignments.' },
-  { key: 'add_tenant_manually',label: 'Add Tenant Manually', description: 'Create tenant profiles without an invite.' },
-  { key: 'messages',           label: 'Messages',            description: 'Chat with prospects and residents.' },
-  { key: 'rooms',              label: 'Room Management',     description: 'Full control over room availability.' },
-  { key: 'properties',         label: 'Properties',          description: 'View and manage property details.' },
-  { key: 'maintenance',        label: 'Maintenance',         description: 'Handle repairs and upkeep requests.' },
-  { key: 'manage_add_ons',     label: 'Manage Add-ons',      description: 'Approve/reject tenant add-ons.' },
-  { key: 'payments',           label: 'Payments',            description: 'Track and verify rental transactions.' },
-  { key: 'analytics',          label: 'Analytics',           description: 'View performance dashboards and trends.' },
-  { key: 'view_audit_logs',    label: 'Audit Logs',          description: 'View tracking of actions & recent activity.' },
-];
-
-const MODULE_GROUPS = [
-  { title: 'Bookings',           icon: 'calendar-outline',    keys: ['bookings', 'approve_bookings', 'cancel_bookings', 'manual_bookings'] },
-  { title: 'Tenant Management',  icon: 'people-outline',      keys: ['tenants', 'messages', 'add_tenant_manually'] },
-  { title: 'Properties & Rooms', icon: 'business-outline',    keys: ['properties', 'rooms', 'maintenance', 'manage_add_ons'] },
-  { title: 'Payments',           icon: 'wallet-outline',      keys: ['payments'] },
-  { title: 'Analytics & Admin',  icon: 'stats-chart-outline', keys: ['analytics', 'view_audit_logs'] },
-];
-
-const LANDLORD_LEVEL_PERMISSION_KEYS = new Set([
-  'rooms', 'properties', 'maintenance', 'payments', 'analytics',
-  'view_audit_logs', 'approve_bookings', 'cancel_bookings',
-  'manage_add_ons', 'add_tenant_manually', 'manual_bookings',
-]);
-
-const LANDLORD_LEVEL_PERMISSION_MESSAGES = {
-  rooms: 'Enables caretakers to modify room availability and tenant placements.',
-  properties: 'Enables caretakers to update core property details and settings.',
-  maintenance: 'Enables caretakers to process and update maintenance workflows.',
-  payments: 'Enables caretakers to manage sensitive billing and payment operations.',
-  analytics: 'Enables caretakers to view occupancy, revenue, and trend insights.',
-  view_audit_logs: 'Enables caretakers to view property actions history.',
-  approve_bookings: 'Gives access to directly accept booking requests.',
-  cancel_bookings: 'Gives access to directly decline or cancel bookings.',
-  manage_add_ons: 'Gives access to modify tenant extra requests.',
-  add_tenant_manually: 'Allows caretakers to inject manual tenant entries.',
-  manual_bookings: 'Allows caretakers to place override bookings.',
-};
-
-/** Returns active group titles for a permissions object */
-function getActiveGroupNames(permissions) {
-  return MODULE_GROUPS
-    .filter((g) => g.keys.some((k) => !!permissions[k]))
-    .map((g) => g.title);
-}
-
-/** Count active permissions */
-function countActive(permissions) {
-  return CARETAKER_PERMISSION_FIELDS.filter((f) => !!permissions[f.key]).length;
-}
+const TOTAL_PERMISSIONS = CARETAKER_PERMISSION_FIELDS.length;
 
 // ── Main Component ────────────────────────────────────────────────────────────
 export default function Caretakers() {
@@ -153,8 +107,12 @@ export default function Caretakers() {
       payments: false,
       analytics: false,
       view_audit_logs: false,
+      delete_tenants: false,
+      record_payments: false,
+      void_payments: false,
     },
     propertyIds: [],
+    customRoleName: '',
   });
 
   const [fieldErrors, setFieldErrors] = useState({});
@@ -216,8 +174,12 @@ export default function Caretakers() {
         payments: false,
         analytics: false,
         view_audit_logs: false,
+        delete_tenants: false,
+        record_payments: false,
+        void_payments: false,
       },
       propertyIds: [],
+      customRoleName: '',
     });
     setFieldErrors({});
     setIsEditing(false);
@@ -270,10 +232,14 @@ export default function Caretakers() {
         properties:         permMap.properties          || permMap.can_view_properties      || false,
         maintenance:        permMap.maintenance         || permMap.can_manage_maintenance   || false,
         payments:           permMap.payments            || permMap.can_manage_payments      || false,
+        record_payments:    permMap.record_payments     || permMap.can_record_payments      || false,
+        void_payments:      permMap.void_payments       || permMap.can_void_payments        || false,
         analytics:          permMap.analytics           || permMap.can_view_analytics       || false,
         view_audit_logs:    permMap.view_audit_logs     || permMap.can_view_audit_logs      || false,
+        delete_tenants:     permMap.delete_tenants      || permMap.can_delete_tenants      || false,
       },
       propertyIds: item.assigned_property_ids || [],
+      customRoleName: item.custom_role_name || '',
     });
     setIsEditing(true);
     setModalTab('permissions'); // jump to permissions tab when editing
@@ -360,7 +326,11 @@ export default function Caretakers() {
           can_manage_payments:     formData.permissions.payments,
           can_view_analytics:      formData.permissions.analytics,
           can_view_audit_logs:     formData.permissions.view_audit_logs,
+          can_delete_tenants:      formData.permissions.delete_tenants,
+          can_record_payments:     formData.permissions.record_payments,
+          can_void_payments:       formData.permissions.void_payments,
         },
+        custom_role_name: formData.customRoleName,
       };
 
       if (!isEditing) {
@@ -522,8 +492,11 @@ export default function Caretakers() {
 
   // ── List card renderer ────────────────────────────────────────────────────
   const renderItem = ({ item }) => {
-    const activeCount = countActive(item.permissions || {});
-    const activeGroupNames = getActiveGroupNames(item.permissions || {});
+    const activeCount = countActivePermissions(item.permissions || {});
+    const roleLabel = getRoleLabel(item.permissions || {}, item.custom_role_name);
+    const activeGroupNames = MODULE_GROUPS.filter((group) =>
+      group.keys.some((k) => !!(item.permissions || {})[k])
+    ).map((g) => g.title);
 
     return (
       <View style={[styles.card, { backgroundColor: theme.colors.surface }]}>
@@ -538,7 +511,13 @@ export default function Caretakers() {
             <Text style={styles.name}>
               {item.caretaker.first_name} {item.caretaker.last_name}
             </Text>
-            <Text style={styles.email}>{item.caretaker.email}</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <Text style={[styles.email, { color: theme.colors.primary, fontWeight: 'bold' }]}>
+                {roleLabel}
+              </Text>
+              <Text style={styles.email}>•</Text>
+              <Text style={styles.email}>{item.caretaker.email}</Text>
+            </View>
           </View>
         </View>
 
@@ -633,8 +612,93 @@ export default function Caretakers() {
     const allKeys = CARETAKER_PERMISSION_FIELDS.map((f) => f.key);
     const allOn = allKeys.every((k) => !!formData.permissions[k]);
 
+    const activeRole = identifyRole(formData.permissions);
+
     return (
       <>
+        {/* Preset Chips — Create Mode Only */}
+        {!isEditing && (
+          <View style={{ marginBottom: 20 }}>
+            <Text style={{ 
+              fontSize: 12, 
+              fontWeight: 'bold', 
+              color: theme.colors.textTertiary, 
+              marginBottom: 10, 
+              marginLeft: 4,
+              textTransform: 'uppercase',
+              letterSpacing: 1
+            }}>
+              Quick Templates
+            </Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
+              {ROLE_PRESETS.map((preset) => {
+                const isSelected = activeRole?.id === preset.id;
+                return (
+                  <TouchableOpacity
+                    key={preset.id}
+                    onPress={() => {
+                      const nextPerms = {};
+                      CARETAKER_PERMISSION_FIELDS.forEach(f => {
+                        nextPerms[f.key] = preset.permissions.includes(f.key);
+                      });
+                      setFormData(prev => ({ ...prev, permissions: nextPerms }));
+                    }}
+                    style={{
+                      paddingHorizontal: 16,
+                      paddingVertical: 8,
+                      borderRadius: 20,
+                      backgroundColor: isSelected ? theme.colors.primary : theme.colors.surface,
+                      borderWidth: 1,
+                      borderColor: isSelected ? theme.colors.primary : theme.colors.border,
+                    }}
+                  >
+                    <Text style={{ 
+                      fontSize: 13, 
+                      fontWeight: 'bold', 
+                      color: isSelected ? '#fff' : theme.colors.textSecondary 
+                    }}>
+                      {preset.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          </View>
+        )}
+
+        {/* Custom Role Title Input */}
+        <View style={{ marginBottom: 24 }}>
+          <Text style={{ 
+            fontSize: 12, 
+            fontWeight: 'bold', 
+            color: theme.colors.textTertiary, 
+            marginBottom: 8, 
+            marginLeft: 4,
+            textTransform: 'uppercase',
+            letterSpacing: 1
+          }}>
+            Custom Role Label
+          </Text>
+          <TextInput
+            placeholder="e.g. Night Shift Receptionist"
+            placeholderTextColor={theme.colors.textTertiary}
+            value={formData.customRoleName}
+            onChangeText={(val) => setFormData(prev => ({ ...prev, customRoleName: val }))}
+            style={{
+              backgroundColor: theme.colors.surface,
+              borderRadius: 12,
+              padding: 14,
+              fontSize: 15,
+              color: theme.colors.text,
+              borderWidth: 2,
+              borderColor: theme.colors.border,
+            }}
+          />
+          <Text style={{ fontSize: 11, color: theme.colors.textTertiary, marginTop: 4, marginLeft: 6, italic: true }}>
+            This replaces the generic role label in the dashboard list.
+          </Text>
+        </View>
+
         {MODULE_GROUPS.map((group) => {
           const isExpanded = expandedGroups.includes(group.title);
           const groupFields = CARETAKER_PERMISSION_FIELDS.filter((f) => group.keys.includes(f.key));

@@ -21,7 +21,11 @@ import {
   useLandlordRefreshHandler,
 } from '../../hooks/useLandlordQueryHelpers.js';
 import api from '../../../../services/api.js';
+import MaintenanceService from '../../../../services/MaintenanceService.js';
 import { getStyles } from '../../../../styles/Landlord/DormProfile.js';
+import AssignWorkerModal from '../../components/Maintenance/AssignWorkerModal.jsx';
+import TransferApprovalModal from '../../components/Tenants/TransferApprovalModal.jsx';
+import { showSuccess, showError } from '../../../../utils/toast.js';
 
 const getThemeColorForType = (type, theme) => {
   switch (type) {
@@ -69,6 +73,9 @@ export default function PropertySummaryScreen({ route, navigation }) {
   const [headerMenuVisible, setHeaderMenuVisible] = useState(false);
   const [filterMenuVisible, setFilterMenuVisible] = useState(false);
   const [activityFilter, setActivityFilter] = useState('all');
+
+  const [maintenanceAssignModal, setMaintenanceAssignModal] = useState({ isOpen: false, item: null });
+  const [transferApprovalModal, setTransferApprovalModal] = useState({ isOpen: false, item: null });
 
   const openAnchoredMenu = (ref, menuWidth, menuHeight, setPosition, setVisible, fallbackTop) => {
     const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
@@ -167,6 +174,57 @@ export default function PropertySummaryScreen({ route, navigation }) {
     refetchers: summaryRefetchers,
   });
 
+  const handleUpdateStatus = async (id, newStatus) => {
+    try {
+      const response = await MaintenanceService.updateStatus(id, newStatus);
+      if (response.success) {
+        showSuccess(`Request marked as ${newStatus.replace('_', ' ')}`);
+        activityQuery.refetch();
+      }
+    } catch {
+      showError('Failed to update status');
+    }
+  };
+
+  const handleCompleteRequest = async (id) => {
+    try {
+      const response = await MaintenanceService.completeRequest(id);
+      if (response.success) {
+        showSuccess(response.message || 'Request resolved');
+        activityQuery.refetch();
+      }
+    } catch {
+      showError('Failed to mark as completed');
+    }
+  };
+
+  const handleMaintenanceAssign = async (id, workerId) => {
+    try {
+      const response = await MaintenanceService.assignWorker(id, workerId);
+      if (response.success) {
+        showSuccess('Worker assigned successfully');
+        activityQuery.refetch();
+      }
+    } catch {
+      showError('Failed to assign worker');
+    }
+  };
+
+  const handleTransferApprove = async (id, payload) => {
+    try {
+      const res = await api.patch(`/landlord/transfers/${id}/handle`, {
+        action: 'approve',
+        ...payload,
+      });
+      if (res.data?.success) {
+        showSuccess('Transfer approved successfully');
+        activityQuery.refetch();
+      }
+    } catch (err) {
+      showError(err.response?.data?.message || 'Failed to approve transfer');
+    }
+  };
+
   const activityItems = useMemo(() => {
     const readName = (entity, fallback = 'Tenant') => {
       if (entity?.name) return entity.name;
@@ -209,44 +267,48 @@ export default function PropertySummaryScreen({ route, navigation }) {
         id: b.id,
         type: 'booking',
         tenant: readName(b.tenant, b.tenant_name || 'Tenant'),
-        room: b.room?.name || b.room_name || 'Room —',
+        room: b.room?.room_number || b.room_number || 'Room —',
         date: b.start_date || b.created_at,
         status: 'Pending',
         amount: null,
         note: b.payment_plan || 'Monthly',
+        raw: b,
       })),
       ...overdueInvoices.map((inv) => ({
         key: `payment-${inv.id}`,
         id: inv.id,
         type: 'payment',
         tenant: readName(inv.tenant, inv.tenant_name || 'Tenant'),
-        room: inv.room?.name || inv.room_name || 'Room —',
+        room: inv.room?.room_number || inv.room_number || 'Room —',
         date: inv.due_date || inv.created_at,
         status: 'Overdue',
         amount: normalizeAmount(inv.amount ?? inv.total_amount),
         note: inv.month || inv.period || 'Invoice',
+        raw: inv,
       })),
       ...maintenanceRequests.map((m) => ({
         key: `maintenance-${m.id}`,
         id: m.id,
         type: 'maintenance',
         tenant: readName(m.tenant, m.tenant_name || 'Tenant'),
-        room: m.room?.name || m.room_name || 'Room —',
+        room: m.room?.room_number || m.room_number || 'Room —',
         date: m.created_at || m.updated_at,
         status: m.status || 'Open',
         amount: null,
         note: m.title || m.issue || 'Maintenance issue',
+        raw: m,
       })),
       ...transferRequests.map((t) => ({
         key: `transfer-${t.id}`,
         id: t.id,
         type: 'transfer',
         tenant: readName(t.tenant, t.tenant_name || 'Tenant'),
-        room: `${t.from_room?.name || t.from_room_name || '—'} → ${t.to_room?.name || t.to_room_name || '—'}`,
+        room: `Room ${t.from_room?.room_number || t.from_room_name || '—'} → ${t.to_room?.room_number || t.to_room_name || '—'}`,
         date: t.created_at || t.updated_at,
         status: t.status || 'Pending',
         amount: null,
         note: 'Room transfer',
+        raw: t,
       })),
       ...pendingAddonRequests.map((req) => {
         const requestNote = req.requestNote || req.request_note || '';
@@ -263,6 +325,7 @@ export default function PropertySummaryScreen({ route, navigation }) {
           status: req.status || 'Pending',
           amount: normalizeAmount(req.suggestedPrice ?? req.suggested_price ?? parsedSuggestedPrice ?? req.price ?? req.amount),
           note: req.addonName || 'Add-on request',
+          raw: req,
         };
       }),
       ...recentReviews.map((r) => ({
@@ -270,7 +333,7 @@ export default function PropertySummaryScreen({ route, navigation }) {
         id: r.id,
         type: 'review',
         tenant: readName(r.tenant, r.reviewer_name || 'Tenant'),
-        room: r.room?.name || r.room_name || 'Room —',
+        room: r.room?.room_number || r.room_name || 'Room —',
         date: r.created_at || r.updated_at,
         status: `${Math.round(Number(r.rating) || 0)} stars`,
         amount: null,
@@ -530,11 +593,102 @@ export default function PropertySummaryScreen({ route, navigation }) {
                           </View>
                           <View style={{ alignItems: 'flex-end' }}>
                             <Text style={{ fontSize: 11, color: theme.colors.textSecondary }}>{formatDisplayDate(item.date)}</Text>
-                            <Text style={{ fontSize: 12, fontWeight: 'bold', marginTop: 4, color: item.status === 'Overdue' || item.status === 'Open' ? theme.colors.error : (item.status === 'Pending' ? '#F59E0B' : theme.colors.textSecondary) }}>{item.status}</Text>
+                            <Text style={{ fontSize: 12, fontWeight: 'bold', marginTop: 4, color: item.status === 'Overdue' || item.status === 'Open' || item.status === 'pending' ? theme.colors.error : (item.status === 'Pending' || item.status === 'pending' ? '#F59E0B' : theme.colors.textSecondary) }}>{item.status}</Text>
                             {item.amount !== null && (
                               <Text style={{ fontSize: 14, fontWeight: 'bold', color: theme.colors.text, marginTop: 4 }}>₱{item.amount.toLocaleString()}</Text>
                             )}
                           </View>
+                        </View>
+
+                        {/* Action Buttons for Mobile Dashboard */}
+                        <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginTop: 12, gap: 8 }}>
+                          {item.type === 'transfer' && item.status.toLowerCase() === 'pending' && (
+                            <TouchableOpacity
+                              onPress={(e) => {
+                                e.stopPropagation();
+                                setTransferApprovalModal({ isOpen: true, item: item.raw });
+                              }}
+                              style={{
+                                backgroundColor: '#16a34a',
+                                paddingHorizontal: 12,
+                                paddingVertical: 6,
+                                borderRadius: 8,
+                                flexDirection: 'row',
+                                alignItems: 'center',
+                                gap: 4,
+                              }}
+                            >
+                              <Ionicons name="checkmark-circle-outline" size={14} color="#FFF" />
+                              <Text style={{ color: '#FFF', fontSize: 12, fontWeight: 'bold' }}>Approve</Text>
+                            </TouchableOpacity>
+                          )}
+
+                          {item.type === 'maintenance' && (
+                            <>
+                              {item.status === 'pending' && (
+                                <>
+                                  <TouchableOpacity
+                                    onPress={(e) => {
+                                      e.stopPropagation();
+                                      handleUpdateStatus(item.id, 'in_progress');
+                                    }}
+                                    style={{
+                                      backgroundColor: '#3B82F6',
+                                      paddingHorizontal: 12,
+                                      paddingVertical: 6,
+                                      borderRadius: 8,
+                                      flexDirection: 'row',
+                                      alignItems: 'center',
+                                      gap: 4,
+                                    }}
+                                  >
+                                    <Ionicons name="play-outline" size={14} color="#FFF" />
+                                    <Text style={{ color: '#FFF', fontSize: 12, fontWeight: 'bold' }}>Start</Text>
+                                  </TouchableOpacity>
+                                  <TouchableOpacity
+                                    onPress={(e) => {
+                                      e.stopPropagation();
+                                      setMaintenanceAssignModal({ isOpen: true, item: item.raw });
+                                    }}
+                                    style={{
+                                      backgroundColor: theme.colors.backgroundSecondary,
+                                      borderWidth: 1,
+                                      borderColor: theme.colors.border,
+                                      paddingHorizontal: 12,
+                                      paddingVertical: 6,
+                                      borderRadius: 8,
+                                      flexDirection: 'row',
+                                      alignItems: 'center',
+                                      gap: 4,
+                                    }}
+                                  >
+                                    <Ionicons name="person-add-outline" size={14} color={theme.colors.textSecondary} />
+                                    <Text style={{ color: theme.colors.textSecondary, fontSize: 12, fontWeight: 'bold' }}>Assign</Text>
+                                  </TouchableOpacity>
+                                </>
+                              )}
+                              {item.status === 'in_progress' && (
+                                <TouchableOpacity
+                                  onPress={(e) => {
+                                    e.stopPropagation();
+                                    handleCompleteRequest(item.id);
+                                  }}
+                                  style={{
+                                    backgroundColor: '#16a34a',
+                                    paddingHorizontal: 12,
+                                    paddingVertical: 6,
+                                    borderRadius: 8,
+                                    flexDirection: 'row',
+                                    alignItems: 'center',
+                                    gap: 4,
+                                  }}
+                                >
+                                  <Ionicons name="checkmark-done-outline" size={14} color="#FFF" />
+                                  <Text style={{ color: '#FFF', fontSize: 12, fontWeight: 'bold' }}>Complete</Text>
+                                </TouchableOpacity>
+                              )}
+                            </>
+                          )}
                         </View>
                       </TouchableOpacity>
                     ))}
@@ -592,6 +746,22 @@ export default function PropertySummaryScreen({ route, navigation }) {
                   </View>
                 </Pressable>
               </Modal>
+
+              {/* Maintenance Modals */}
+              <AssignWorkerModal
+                isOpen={maintenanceAssignModal.isOpen}
+                onClose={() => setMaintenanceAssignModal({ isOpen: false, item: null })}
+                request={maintenanceAssignModal.item}
+                onAssign={handleMaintenanceAssign}
+              />
+
+              {/* Transfer Modals */}
+              <TransferApprovalModal
+                isOpen={transferApprovalModal.isOpen}
+                onClose={() => setTransferApprovalModal({ isOpen: false, item: null })}
+                request={transferApprovalModal.item}
+                onApprove={handleTransferApprove}
+              />
           </>
         </ScrollView>
       )}

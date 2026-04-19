@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Landlord;
 
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Permission\ResolvesLandlordAccess;
+use App\Models\Invoice;
 use App\Models\LandlordSubscription;
 use App\Models\User;
 use App\Services\Subscription\SubscriptionCheckoutService;
@@ -220,6 +221,32 @@ class LandlordSubscriptionController extends Controller
                 'data' => null,
                 'message' => $exception->getMessage(),
             ], 422);
+        }
+    }
+
+    public function invoices(Request $request)
+    {
+        try {
+            $context = $this->resolveLandlordContext($request);
+            $this->ensureCaretakerCan($context, 'can_manage_payments');
+
+            $invoices = Invoice::query()
+                ->where('landlord_id', $context['landlord_id'])
+                ->where('invoice_type', 'subscription')
+                ->latest()
+                ->get();
+
+            return response()->json([
+                'success' => true,
+                'data' => $invoices,
+                'message' => '',
+            ]);
+        } catch (AccessDeniedHttpException $exception) {
+            return response()->json([
+                'success' => false,
+                'data' => null,
+                'message' => $exception->getMessage(),
+            ], 403);
         }
     }
 }

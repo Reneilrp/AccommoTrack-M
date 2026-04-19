@@ -131,6 +131,20 @@ class LandlordDashboardController extends Controller
                         'color' => $this->resolveActivityColor('payment', $status, 'gray'),
                     ];
                 }
+                if ($item instanceof \App\Models\TransferRequest) {
+                    $status = strtolower((string) $item->status);
+
+                    return [
+                        'id' => $item->id, 'type' => 'transfer',
+                        'action' => 'New transfer request',
+                        'description' => ($item->tenant->first_name ?? 'Someone').' requested to transfer from Room '.($item->currentRoom->room_number ?? 'N/A').' to Room '.($item->requestedRoom->room_number ?? 'N/A'),
+                        'by' => ($item->tenant->first_name ?? 'Someone').' '.($item->tenant->last_name ?? ''),
+                        'status' => $status,
+                        'timestamp' => $item->created_at,
+                        'icon' => 'swap-horizontal',
+                        'color' => $this->resolveActivityColor('transfer', $status, 'blue'),
+                    ];
+                }
                 if ($item instanceof \App\Models\PaymentTransaction) {
                     $transactionStatus = strtolower((string) $item->status);
                     $isPending = $item->status === 'pending_offline';

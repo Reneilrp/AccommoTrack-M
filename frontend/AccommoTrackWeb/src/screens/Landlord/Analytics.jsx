@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   Home,
   Users,
@@ -12,19 +12,19 @@ import {
   PieChart as PieChartIcon
 } from 'lucide-react';
 import {
-  BarChart,
-  Bar,
-  LineChart,
-  Line,
-  PieChart,
-  Pie,
-  Cell,
+  ResponsiveContainer,
+  AreaChart,
+  Area,
   XAxis,
   YAxis,
   CartesianGrid,
   Tooltip,
-  Legend,
-  ResponsiveContainer
+  BarChart,
+  Bar,
+  PieChart,
+  Pie,
+  Cell,
+  Legend
 } from 'recharts';
 import api from '../../utils/api';
 import { SkeletonStatCard, SkeletonChart, Skeleton } from '../../components/Shared/Skeleton';
@@ -32,7 +32,7 @@ import { useUIState } from '../../contexts/UIStateContext';
 import { cacheManager } from '../../utils/cache';
 import { usePreferences } from '../../contexts/PreferencesContext';
 import { useSidebar } from '../../contexts/SidebarContext';
-import toast from 'react-hot-toast';
+import { showSuccess, showError, showInfo } from '../../utils/toast';
 
 export default function Analytics() {
   const { effectiveTheme } = usePreferences();
@@ -66,9 +66,9 @@ export default function Analytics() {
 
     // Always refresh property access on analytics entry to avoid stale cached IDs.
     loadProperties();
-  }, [collapse]);
+  }, [collapse, loadProperties]);
 
-  const loadProperties = async () => {
+  const loadProperties = useCallback(async () => {
     try {
       setPropertiesLoading(true);
       const response = await api.get('/properties/accessible');
@@ -81,9 +81,9 @@ export default function Analytics() {
     } finally {
       setPropertiesLoading(false);
     }
-  };
+  }, [updateData]);
 
-  const loadAnalytics = async (isManualRefresh = false) => {
+  const loadAnalytics = useCallback(async (isManualRefresh = false) => {
     const hasSelectedProperty = selectedProperty !== 'all' && properties?.some(p => String(p.id) === String(selectedProperty));
     const cacheKey = `analytics_${hasSelectedProperty ? selectedProperty : 'all'}_${timeRange}`;
     const cachedForFilter = cacheManager.get(cacheKey);
@@ -139,7 +139,7 @@ export default function Analytics() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [didAutoResetProperty, properties, selectedProperty, timeRange, uiState.data?.landlord_analytics, updateData]);
 
   const handleRefresh = () => {
     // Clear all analytics caches for fresh data
@@ -164,11 +164,12 @@ export default function Analytics() {
 
     // Force fresh load
     loadAnalytics(true);
+    showSuccess('Dashboard analytics updated');
   };
 
   useEffect(() => {
     loadAnalytics();
-  }, [timeRange, selectedProperty]);
+  }, [timeRange, selectedProperty, loadAnalytics]);
 
   useEffect(() => {
     if (selectedProperty === 'all') {
@@ -254,6 +255,7 @@ export default function Analytics() {
   // Download analytics as CSV
   const downloadAnalyticsCSV = async (customWindow = null) => {
     if (!analytics) return;
+    showInfo('Preparing your analytics report...');
 
     const defaultWindow = getRangeBounds(timeRange);
     const exportWindow = customWindow || {
@@ -303,7 +305,7 @@ export default function Analytics() {
       }
     } catch (error) {
       if (error.response?.status && error.response.status !== 404) {
-        toast.error('Server export unavailable. Downloading local report instead.');
+        showError('Server export unavailable. Downloading local report instead.');
       }
     }
 
@@ -783,8 +785,18 @@ export default function Analytics() {
                   iconBgClass="bg-purple-100"
                   iconColorClass="text-purple-600"
                   title="New Tenants"
-                  meta={selectedProperty === 'all' ? 'This month across all properties' : 'This month in this property'}
+                  meta="Arrived this month"
                   value={(analytics.overview?.new_tenants_this_month || 0).toLocaleString()}
+                />
+
+                {/* Card 6: Avg Stay */}
+                <MetricCard
+                  Icon={RotateCcw}
+                  iconBgClass="bg-orange-100"
+                  iconColorClass="text-orange-600"
+                  title="Avg Retention"
+                  meta="Average months stay"
+                  value={`${analytics.tenants?.average_stay_months || 0}mo`}
                 />
               </div>
 
@@ -792,23 +804,70 @@ export default function Analytics() {
               <div className="min-w-0 bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-300 dark:border-gray-700 p-6 mb-8">
                 <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-6">{revenueTrendTitle}</h2>
                 <ResponsiveContainer width="100%" height={300} minWidth={0}>
-                  <LineChart data={analytics.revenue.monthly_trend}>
-                    <CartesianGrid strokeDasharray="3 3" stroke={effectiveTheme === 'dark' ? '#374151' : '#f0f0f0'} />
-                    <XAxis dataKey="month" stroke={effectiveTheme === 'dark' ? '#9ca3af' : '#6b7280'} style={{ fontSize: '12px' }} />
-                    <YAxis stroke={effectiveTheme === 'dark' ? '#9ca3af' : '#6b7280'} style={{ fontSize: '12px' }} />
+                  <AreaChart data={analytics.revenue.monthly_trend}>
+                    <defs>
+                      <linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor={COLORS.primary} stopOpacity={0.3}/>
+                        <stop offset="95%" stopColor={COLORS.primary} stopOpacity={0}/>
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={effectiveTheme === 'dark' ? '#374151' : '#f0f0f0'} />
+                    <XAxis dataKey="month" stroke={effectiveTheme === 'dark' ? '#9ca3af' : '#6b7280'} style={{ fontSize: '11px', fontWeight: 'bold' }} tickLine={false} axisLine={false} />
+                    <YAxis stroke={effectiveTheme === 'dark' ? '#9ca3af' : '#6b7280'} style={{ fontSize: '11px' }} tickLine={false} axisLine={false} tickFormatter={(v) => `₱${v >= 1000 ? (v/1000)+'k' : v}`} />
                     <Tooltip
                       contentStyle={{
                         backgroundColor: effectiveTheme === 'dark' ? '#1f2937' : '#fff',
-                        border: effectiveTheme === 'dark' ? '1px solid #374151' : '1px solid #e5e7eb',
-                        borderRadius: '8px',
+                        border: 'none',
+                        borderRadius: '12px',
+                        boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)',
                         color: effectiveTheme === 'dark' ? '#fff' : '#000'
                       }}
-                      itemStyle={{ color: effectiveTheme === 'dark' ? '#fff' : '#000' }}
+                      itemStyle={{ color: effectiveTheme === 'dark' ? '#fff' : '#000', fontWeight: 'bold' }}
                       formatter={(value) => ['₱' + Number(value || 0).toLocaleString(), 'Revenue']}
                     />
-                    <Line type="monotone" dataKey="revenue" stroke={COLORS.primary} strokeWidth={3} dot={{ fill: COLORS.primary, r: 4 }} activeDot={{ r: 6 }} />
-                  </LineChart>
+                    <Area type="monotone" dataKey="revenue" stroke={COLORS.primary} strokeWidth={4} fillOpacity={1} fill="url(#colorRev)" />
+                  </AreaChart>
                 </ResponsiveContainer>
+              </div>
+
+              {/* Room Type Performance */}
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+                <div className="lg:col-span-2 bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-300 dark:border-gray-700 p-6">
+                  <div className="flex items-center justify-between mb-6">
+                    <div>
+                      <h2 className="text-lg font-bold text-gray-900 dark:text-white">Room Type Performance</h2>
+                      <p className="text-xs text-gray-500">Revenue per room category</p>
+                    </div>
+                  </div>
+                  <ResponsiveContainer width="100%" height={250}>
+                    <BarChart data={analytics.roomTypes || []} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={effectiveTheme === 'dark' ? '#374151' : '#f0f0f0'} />
+                      <XAxis dataKey="label" stroke={effectiveTheme === 'dark' ? '#9ca3af' : '#6b7280'} axisLine={false} tickLine={false} style={{ fontSize: '11px', fontWeight: 'bold' }} />
+                      <YAxis stroke={effectiveTheme === 'dark' ? '#9ca3af' : '#6b7280'} axisLine={false} tickLine={false} style={{ fontSize: '11px' }} />
+                      <Tooltip 
+                        cursor={{fill: 'transparent'}}
+                        contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)' }}
+                      />
+                      <Bar dataKey="occupancy_rate" name="Occupancy %" fill={COLORS.secondary} radius={[6, 6, 0, 0]} barSize={40} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+                
+                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-300 dark:border-gray-700 p-6">
+                  <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Move-in Velocity</h2>
+                  <div className="space-y-4">
+                    <div className="p-4 rounded-xl bg-green-50 dark:bg-green-900/20 border border-green-100 dark:border-green-800">
+                      <p className="text-xs text-green-600 dark:text-green-400 font-bold uppercase">Move-ins</p>
+                      <p className="text-2xl font-black text-green-700 dark:text-green-300">+{analytics.tenants?.move_ins || 0}</p>
+                      <p className="text-[10px] text-green-600/70 mt-1">Confirmed stays this period</p>
+                    </div>
+                    <div className="p-4 rounded-xl bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-800">
+                      <p className="text-xs text-red-600 dark:text-red-400 font-bold uppercase">Move-outs</p>
+                      <p className="text-2xl font-black text-red-700 dark:text-red-300">-{analytics.tenants?.move_outs || 0}</p>
+                      <p className="text-[10px] text-red-600/70 mt-1">Checkouts & cancellations</p>
+                    </div>
+                  </div>
+                </div>
               </div>
 
               {/* Income Breakdown */}
@@ -1025,7 +1084,14 @@ export default function Analytics() {
 
                           return (
                             <tr key={property.id || index} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-                              <td className="px-6 py-4 font-medium text-gray-900 dark:text-white">{property.name || property.title}</td>
+                              <td className="px-6 py-4">
+                                <a 
+                                  href={`/properties/${property.id}`}
+                                  className="font-medium text-emerald-600 dark:text-emerald-400 hover:underline"
+                                >
+                                  {property.name || property.title}
+                                </a>
+                              </td>
                               <td className="px-6 py-4">
                                 <div className="flex items-center gap-2">
                                   <div className="w-16 h-2 bg-gray-100 rounded-full overflow-hidden">
@@ -1056,8 +1122,13 @@ export default function Analytics() {
 
                           return (
                             <tr key={room.id || index} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-                              <td className="px-6 py-4 font-medium text-gray-900 dark:text-white">
-                                {room.name || room.room_name || room.room_number || `Room ${index + 1}`}
+                              <td className="px-6 py-4">
+                                <a 
+                                  href="/rooms"
+                                  className="font-medium text-emerald-600 dark:text-emerald-400 hover:underline"
+                                >
+                                  {room.name || room.room_name || room.room_number || `Room ${index + 1}`}
+                                </a>
                               </td>
                               <td className="px-6 py-4">
                                 <div className="flex items-center gap-2">

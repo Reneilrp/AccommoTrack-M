@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { View, TouchableOpacity, Text } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+// eslint-disable-next-line no-unused-vars
 import { useNavigation } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { navigationRef, navigate as rootNavigate } from '../../../navigation/RootNavigation.js';
@@ -9,7 +10,6 @@ import { useTheme } from '../../../contexts/ThemeContext.jsx';
 import { getStyles } from '../../../styles/Tenant/HomePage.js';
 
 export default function BottomNavigation({ activeTab: propActiveTab, onTabPress, isGuest, onAuthRequired, currentRouteName: propRouteName }) {
-  const navigation = useNavigation();
   const { theme } = useTheme();
   const styles = React.useMemo(() => getStyles(theme), [theme]);
   const insets = useSafeAreaInsets();
@@ -22,7 +22,7 @@ export default function BottomNavigation({ activeTab: propActiveTab, onTabPress,
       try {
         const count = await AsyncStorage.getItem('messages_unread_count');
         setUnreadCount(parseInt(count || '0', 10));
-      } catch (e) {}
+      } catch (_e) {}
     };
     
     checkUnreadCount();
@@ -46,7 +46,7 @@ export default function BottomNavigation({ activeTab: propActiveTab, onTabPress,
         return rr?.name || null;
       };
       currentRouteName = getDeepest(r) || 'TenantHome';
-    } catch (e) {
+    } catch (_e) {
       currentRouteName = 'TenantHome';
     }
   }

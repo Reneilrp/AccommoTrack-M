@@ -16,6 +16,7 @@ use App\Services\BookingService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 
 class LandlordBookingController extends Controller
 {
@@ -247,6 +248,10 @@ class LandlordBookingController extends Controller
                 'room_updated' => $result['room_updated'],
                 'tenant_name' => $result['tenant_name'],
             ], 200);
+        } catch (AccessDeniedHttpException $e) {
+            return response()->json([
+                'message' => $e->getMessage(),
+            ], 403);
         } catch (\DomainException $e) {
             return response()->json([
                 'message' => $e->getMessage(),
@@ -664,6 +669,10 @@ class LandlordBookingController extends Controller
                 'booking' => (new BookingResource($booking))->resolve(),
             ], 200);
 
+        } catch (AccessDeniedHttpException $e) {
+            return response()->json(['message' => $e->getMessage()], 403);
+        } catch (\DomainException $e) {
+            return response()->json(['message' => $e->getMessage()], 422);
         } catch (\Exception $e) {
             Log::error('Failed to approve reservation', ['error' => $e->getMessage()]);
 
@@ -698,6 +707,8 @@ class LandlordBookingController extends Controller
                 'booking' => (new BookingResource($result['booking']))->resolve(),
             ], 200);
 
+        } catch (AccessDeniedHttpException $e) {
+            return response()->json(['message' => $e->getMessage()], 403);
         } catch (\DomainException $e) {
             return response()->json(['message' => $e->getMessage()], 422);
         } catch (\Exception $e) {
@@ -732,6 +743,8 @@ class LandlordBookingController extends Controller
                 'tenant' => $result['user'],
             ], 200);
 
+        } catch (AccessDeniedHttpException $e) {
+            return response()->json(['message' => $e->getMessage()], 403);
         } catch (\DomainException $e) {
             return response()->json(['message' => $e->getMessage()], 422);
         } catch (\Exception $e) {

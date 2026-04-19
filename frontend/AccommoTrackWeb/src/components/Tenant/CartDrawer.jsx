@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { X, Trash2, ShoppingCart, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import toast from 'react-hot-toast';
+import { showSuccess, showError } from '../../utils/toast';
 import { useCart } from '../../contexts/CartContext';
 import { getImageUrl } from '../../utils/api';
 
@@ -26,29 +26,29 @@ export default function CartDrawer({ isOpen, onClose }) {
     setRemovingItemId(itemId);
     const res = await removeItem(itemId);
     if (!res.success) {
-      toast.error(res.error || 'Failed to remove item');
+      showError(res.error || 'Failed to remove item');
     } else {
-      toast.success('Item removed');
+      showSuccess('Item removed');
     }
     setRemovingItemId(null);
   };
 
   const handleClearCart = async () => {
-    if (!window.confirm('Are you sure you want to remove all items from your cart?')) return;
+    if (!window.confirm('Are you sure you want to remove all items from your book?')) return;
     const res = await clearCart();
-    if (!res.success) toast.error(res.error || 'Failed to clear cart');
-    else toast.success('Cart cleared');
+    if (!res.success) showError(res.error || 'Failed to clear selection');
+    else showSuccess('Selection cleared');
   };
 
   const handleCheckout = async () => {
     setCheckingOut(true);
     const res = await checkout();
     if (res.success) {
-      toast.success('Your bookings have been created successfully!');
+      showSuccess('Your bookings have been created successfully!');
       onClose();
       navigate('/bookings');
     } else {
-      toast.error(res.error || 'Failed to complete checkout');
+      showError(res.error || 'Failed to complete checkout');
     }
     setCheckingOut(false);
   };
@@ -98,7 +98,7 @@ export default function CartDrawer({ isOpen, onClose }) {
 
         {isExpired() && (
           <div className="px-4 py-3 bg-red-50 dark:bg-red-900/20 border-b border-red-100 dark:border-red-800/30">
-            <p className="text-sm text-red-600 dark:text-red-400 font-medium">⚠️ Cart expired. Please refresh.</p>
+            <p className="text-sm text-red-600 dark:text-red-400 font-medium">⚠️ Selection expired. Please refresh.</p>
           </div>
         )}
 
@@ -106,13 +106,13 @@ export default function CartDrawer({ isOpen, onClose }) {
           {loading && !cart ? (
             <div className="flex flex-col items-center justify-center h-full text-gray-500">
               <Loader2 className="w-8 h-8 animate-spin mb-2 text-green-600" />
-              <p>Loading cart...</p>
+              <p>Loading selection...</p>
             </div>
           ) : !cart || !cart.items || cart.items.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-gray-500 text-center px-4">
               <ShoppingCart className="w-16 h-16 mb-4 text-gray-300 dark:text-gray-600" />
-              <p className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">Your cart is empty</p>
-              <p className="text-sm">Browse properties and add rooms to your cart to book multiple rooms at once.</p>
+              <p className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">Your book is empty</p>
+              <p className="text-sm">Browse properties and add rooms to your book to book multiple rooms at once.</p>
               <button
                 onClick={() => { onClose(); navigate('/explore'); }}
                 className="mt-6 px-6 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors font-medium"

@@ -1,9 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import api, { getImageUrl } from '../../utils/api';
 import roomService from '../../services/roomService';
 import landlordService from '../../services/landlordService';
-import toast from 'react-hot-toast';
+import { showSuccess, showError } from '../../utils/toast';
 import AddRoomModal from './AddRoom';
 import RoomCard from '../../components/Rooms/RoomCard';
 import RoomDetails from '../../components/Rooms/RoomDetails';
@@ -278,9 +278,9 @@ export default function RoomManagement() {
         rules: [...prev.rules, newRule.trim()]
       }));
       setNewRule('');
-      toast.success('Rule added');
+      showSuccess('Rule added');
     } catch (__err) {
-      toast.error('Failed to add rule');
+      showError('Failed to add rule');
     }
   };
 
@@ -296,9 +296,9 @@ export default function RoomManagement() {
         amenities: [...prev.amenities, newAmenity.trim()]
       }));
       setNewAmenity('');
-      toast.success('Amenity added');
+      showSuccess('Amenity added');
     } catch (__err) {
-      toast.error('Failed to add amenity');
+      showError('Failed to add amenity');
     }
   };
 
@@ -327,17 +327,15 @@ export default function RoomManagement() {
     };
 
     loadInitialData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Only run once on mount
+  }, [cachedProps, selectedPropertyId, updateData]);
 
   // Load rooms and stats when property changes
   useEffect(() => {
     if (!selectedPropertyId) return;
     fetchRooms();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedPropertyId]);
+  }, [selectedPropertyId, fetchRooms]);
 
-  const handleOpenRoomDetails = (room) => {
+  const handleOpenRoomDetails = useCallback((room) => {
     // Ensure room object has tenants loaded as array for RoomDetails
     const preparedRoom = {
       ...room,
@@ -346,7 +344,7 @@ export default function RoomManagement() {
     };
     setSelectedRoomDetails(preparedRoom);
     setShowRoomDetails(true);
-  };
+  }, [properties, selectedPropertyId]);
 
   useEffect(() => {
     const params = new URLSearchParams(location.search || '');
@@ -363,10 +361,10 @@ export default function RoomManagement() {
 
     setDrilldownApplied(true);
     handleOpenRoomDetails(targetRoom);
-  }, [location.search, rooms, drilldownApplied, selectedPropertyId]);
+  }, [location.search, rooms, drilldownApplied, handleOpenRoomDetails]);
 
   // Get rooms
-  const fetchRooms = async () => {
+  const fetchRooms = useCallback(async () => {
     if (!selectedPropertyId) return;
     const currentCacheKey = `rooms_property_${selectedPropertyId}`;
     const currentCached = uiState.data?.[currentCacheKey] || cacheManager.get(currentCacheKey);
@@ -402,7 +400,7 @@ export default function RoomManagement() {
     } finally {
       setLoadingRooms(false);
     }
-  };
+  }, [selectedPropertyId, uiState.data, location.search, drilldownApplied, handleOpenRoomDetails, updateData]);
 
   const handleRoomAdded = () => {
     fetchRooms();
@@ -471,11 +469,11 @@ export default function RoomManagement() {
     const validatedFiles = [];
     for (const f of files) {
       if (!allowedTypes.includes(f.type)) {
-        toast.error(`${f.name}: unsupported file type`);
+        showError(`${f.name}: unsupported file type`);
         continue;
       }
       if (f.size > MAX_SIZE) {
-        toast.error(`${f.name}: file too large (max 10 MB)`);
+        showError(`${f.name}: file too large (max 10 MB)`);
         continue;
       }
       validatedFiles.push(f);
@@ -483,7 +481,7 @@ export default function RoomManagement() {
 
     const totalImages = editPreviewImages.length + validatedFiles.length;
     if (totalImages > 10) {
-      toast.error('Maximum 10 images allowed');
+      showError('Maximum 10 images allowed');
       return;
     }
 
@@ -588,7 +586,7 @@ export default function RoomManagement() {
       setEditPreviewImages([]);
       setEditNewImages([]);
       setEditImagesToDelete([]);
-      toast.success('Room updated successfully');
+      showSuccess('Room updated successfully');
     } catch (error) {
       console.error('Failed to update room:', error);
       const errData = error.response?.data;
@@ -614,7 +612,7 @@ export default function RoomManagement() {
       setDeleteConfirmModal({ show: false, room: null });
       setShowEditModal(false);
       setSelectedRoom(null);
-      toast.success('Room deleted successfully');
+      showSuccess('Room deleted successfully');
       return true;
     } catch (error) {
       console.error('Failed to delete room:', error);
@@ -666,7 +664,7 @@ export default function RoomManagement() {
         return nextRooms;
       });
 
-      toast.success('Room status updated successfully');
+      showSuccess('Room status updated successfully');
 
     } catch (__error) {
       setError('Failed to update room status. Please try again.');
@@ -1494,10 +1492,10 @@ export default function RoomManagement() {
               // Non-fatal: if fetching details fails, we still refreshed rooms above
               console.warn('Failed to fetch updated room details', fetchErr);
             }
-
+            showSuccess('Stay extended successfully!');
           } catch (err) {
             console.error('Failed to extend stay', err);
-            setError(err.response?.data?.message || err.message || 'Failed to extend stay');
+            showError(err.response?.data?.message || err.message || 'Failed to extend stay');
             throw err;
           }
         }}

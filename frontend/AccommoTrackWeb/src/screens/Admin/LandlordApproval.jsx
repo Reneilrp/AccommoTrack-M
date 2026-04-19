@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { Eye, Check, CheckCircle, X, XCircle, Ban, Pencil, FileText, Loader2, Image as ImageIcon, AlertTriangle } from 'lucide-react';
 import api, { getImageUrl } from '../../utils/api';
-import toast from 'react-hot-toast';
+import { showSuccess, showError } from '../../utils/toast';
 import ConfirmationModal from '../../components/Shared/ConfirmationModal';
 
 const looksLikeHtmlDocument = (value) => {
@@ -145,7 +145,7 @@ export default function LandlordApproval() {
     const pendingSelectedUserIds = selectedUserIds.filter((id) => selectableUserIds.includes(id));
 
     if (pendingSelectedUserIds.length === 0) {
-      toast.error('Only pending applications can be selected.');
+      showError('Only pending applications can be selected.');
       setSelectedUserIds([]);
       return;
     }
@@ -157,7 +157,7 @@ export default function LandlordApproval() {
     setConfirmModalState({ isOpen: false });
 
     if (action === 'reject' && (!rejectionReason.trim() || rejectionReason.trim().length < 10)) {
-      toast.error('Please provide a detailed rejection reason (at least 10 characters) for bulk reject');
+      showError('Please provide a detailed rejection reason (at least 10 characters) for bulk reject');
       return;
     }
 
@@ -168,7 +168,7 @@ export default function LandlordApproval() {
       if (action === 'reject') payload.reason = rejectionReason.trim();
 
       const res = await api.post(`/admin/users/bulk-${action}`, payload);
-      toast.success(res.data?.message || `Bulk ${action} successful`);
+      showSuccess(res.data?.message || `Bulk ${action} successful`);
 
       setVerifications(prev => prev.map(v => {
         if (pendingSelectedUserIds.includes(v.user_id)) {
@@ -189,7 +189,7 @@ export default function LandlordApproval() {
       }
     } catch (err) {
       console.error(`Failed to bulk ${action}`, err);
-      toast.error(err.response?.data?.message || err.message || `Failed to bulk ${action}`);
+      showError(err.response?.data?.message || err.message || `Failed to bulk ${action}`);
     } finally {
       setActionLoading(null);
     }
@@ -236,11 +236,11 @@ export default function LandlordApproval() {
         };
       }));
 
-      toast.success(res.data?.message || 'Landlord moved to partial verification');
+      showSuccess(res.data?.message || 'Landlord moved to partial verification');
       setShowModal(false);
     } catch (err) {
       console.error('Partial verification failed:', err);
-      toast.error(err.response?.data?.message || 'Failed to set partial verification');
+      showError(err.response?.data?.message || 'Failed to set partial verification');
     } finally {
       setActionLoading(null);
     }
@@ -257,11 +257,11 @@ export default function LandlordApproval() {
           ? { ...v, status: 'approved', user: { ...v.user, is_verified: true } }
           : v
       ));
-      toast.success('Landlord approved successfully! Confirmation email sent.');
+      showSuccess('Landlord approved successfully! Confirmation email sent.');
       setShowModal(false);
     } catch (err) {
       console.error('Approval failed:', err);
-      toast.error('Failed to approve landlord');
+      showError('Failed to approve landlord');
     } finally {
       setActionLoading(null);
     }
@@ -274,7 +274,7 @@ export default function LandlordApproval() {
 
   const confirmReject = () => {
     if (!rejectionReason.trim() || rejectionReason.trim().length < 10) {
-      toast.error('Please provide a detailed rejection reason (at least 10 characters)');
+      showError('Please provide a detailed rejection reason (at least 10 characters)');
       return;
     }
     const isBulk = showRejectModal === 'bulk';
@@ -303,13 +303,13 @@ export default function LandlordApproval() {
           ? { ...v, status: 'rejected', rejection_reason: rejectionReason.trim(), user: { ...v.user, is_verified: false } }
           : v
       ));
-      toast.success('Application rejected. The landlord has been notified via email.');
+      showSuccess('Application rejected. The landlord has been notified via email.');
       setShowRejectModal(false);
       setShowModal(false);
       setRejectionReason('');
     } catch (err) {
       console.error('Rejection failed:', err);
-      toast.error(err.response?.data?.message || 'Failed to reject application');
+      showError(err.response?.data?.message || 'Failed to reject application');
     } finally {
       setActionLoading(null);
     }

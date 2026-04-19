@@ -569,6 +569,26 @@ class PaymentService {
   }
 
   /**
+   * TENANT: Get wallet credit transaction history
+   * Matches: GET /api/tenant/wallet-credit/logs
+   */
+  async getWalletLogs(page = 1) {
+    try {
+      const response = await api.get(`/tenant/wallet-credit/logs?page=${page}`);
+      return {
+        success: true,
+        data: response.data,
+      };
+    } catch (error) {
+      console.error("Error fetching wallet logs:", error);
+      return {
+        success: false,
+        error: error.response?.data?.message || "Failed to fetch transaction history",
+      };
+    }
+  }
+
+  /**
    * Get the stored auth token from AsyncStorage (used for raw fetch calls)
    */
   async getAuthToken() {

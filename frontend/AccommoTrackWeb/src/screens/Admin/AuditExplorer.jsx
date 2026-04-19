@@ -1,8 +1,8 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import { AlertCircle, Clock4, Loader2, Search, Shield, XCircle, Download } from 'lucide-react';
-import toast from 'react-hot-toast';
 import adminService from '../../services/adminService';
 import { exportToCSV } from '../../utils/csvExport';
+import { showError } from '../../utils/toast';
 
 const DEFAULT_FILTERS = {
   domain: '',
@@ -186,7 +186,7 @@ export default function AuditExplorer() {
 
   const runTimelineSearch = async () => {
     if (!timelineQuery.entity_id) {
-      toast.error('Entity ID is required for timeline lookup.');
+      showError('Entity ID is required for timeline lookup.');
       return;
     }
 

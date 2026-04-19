@@ -1,6 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import toast, { Toaster } from "react-hot-toast";
+import { showError } from "../../utils/toast";
 import {
   MapPin,
   Star,
@@ -182,7 +182,7 @@ export default function PropertyDetails({ propertyId, onBack }) {
     return !(normalizedType === "apartment" && normalized === "mixed");
   };
 
-  const openFullGallery = (targetItemIndex = 0) => {
+  const openFullGallery = useCallback((targetItemIndex = 0) => {
     if (!property) return;
 
     const items = [];
@@ -218,33 +218,31 @@ export default function PropertyDetails({ propertyId, onBack }) {
     setGalleryItems(items);
     setGalleryIndex(targetItemIndex);
     setGalleryOpen(true);
-  };
+  }, [property]);
 
   // Reviews State
   const [reviews, setReviews] = useState({ reviews: [], summary: null });
   const [reviewsLoading, setReviewsLoading] = useState(false);
 
   // Fetch reviews for property
-  const fetchReviews = async (propId) => {
+  const fetchReviews = useCallback(async (propId) => {
     try {
       setReviewsLoading(true);
       const res = await api.get(`/public/properties/${propId}/reviews`);
       setReviews(res.data);
-    } catch (err) {
-      console.error("Failed to fetch reviews:", err);
+    } catch (_err) {
+      console.error("Failed to fetch reviews:", _err);
+      showError("Failed to load property reviews.");
       setReviews({ reviews: [], summary: null });
     } finally {
       setReviewsLoading(false);
     }
-  };
+  }, []);
 
   // Contact Landlord handler
   const handleContactLandlord = () => {
     if (!isAuthenticated) {
-      toast.error("Please login to contact the landlord.", {
-        position: "top-center",
-        duration: 4000,
-      });
+      showError("Please login to contact the landlord.");
       return;
     }
 
@@ -253,9 +251,7 @@ export default function PropertyDetails({ propertyId, onBack }) {
 
     if (!landlordId) {
       console.error("Landlord ID missing", property);
-      toast.error("Cannot contact landlord: Owner information is missing.", {
-        position: "top-center",
-      });
+      showError("Cannot contact landlord: Owner information is missing.");
       return;
     }
 
@@ -279,8 +275,7 @@ export default function PropertyDetails({ propertyId, onBack }) {
       fetchProperty();
       fetchReviews(propertyId);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [propertyId]);
+  }, [propertyId, fetchProperty, fetchReviews]);
 
   // If navigation included state or query params to open booking, handle it after property loads
   const location = useLocation();
@@ -310,10 +305,9 @@ export default function PropertyDetails({ propertyId, onBack }) {
         openFullGallery(0);
       }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loading, property, location.search, location.state]);
+  }, [loading, property, location.search, location.state, openFullGallery]);
 
-  const fetchProperty = async () => {
+  const fetchProperty = useCallback(async () => {
     try {
       setLoading(true);
 
@@ -373,10 +367,11 @@ export default function PropertyDetails({ propertyId, onBack }) {
       });
     } catch (error) {
       console.error("Failed to load property", error);
+      showError("Failed to load property details.");
     } finally {
       setLoading(false);
     }
-  };
+  }, [propertyId, isAuthenticated]);
 
   // Optimistically mark a room as occupied in the local `property` state after booking
   const handleBookingSuccessForProperty = (updatedRoom) => {
@@ -448,55 +443,56 @@ export default function PropertyDetails({ propertyId, onBack }) {
 
   const renderRooms = () => {
     const rooms = Array.isArray(property.rooms) ? property.rooms : [];
-    const filteredRooms = rooms.filter((room) => {
-      if (roomFilter === "all") return true;
-      return (room.status || "").toLowerCase() === roomFilter.toLowerCase();
-    });
+              const filteredRooms = rooms.filter((room) => {
+                if (roomFilter === "all") return true;
+                return (room.status || "").toLowerCase() === roomFilter.toLowerCase();
+              });
 
-    return (
-      <div className="animate-in fade-in duration-300 space-y-6">
-        <div className="flex flex-wrap gap-4 pb-4 border-b border-gray-300 dark:border-gray-700">
-          {["all", "available", "occupied", "maintenance"].map((filter) => (
-            <button
-              key={filter}
-              onClick={() => setRoomFilter(filter)}
-              className={`
-                px-4 py-2 rounded-full text-sm font-medium capitalize transition-all
-                ${
-                  roomFilter === filter
-                    ? "bg-green-600 text-white shadow-md"
-                    : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 shadow-sm"
-                }
-              `}
-            >
-              {filter}
-            </button>
-          ))}
-        </div>
-
-        {filteredRooms.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {filteredRooms.map((room) => {
-              const genderBadge = getGenderBadge(room.sex_restriction);
-              const showGenderBadge = shouldShowGenderBadge(
-                room.sex_restriction,
-                property?.property_type,
-              );
-              const displayStatus = (room.display_status || room.status || "available").toString().toLowerCase();
-              const canBook = typeof room.is_available === "boolean"
-                ? room.is_available
-                : (
-                  displayStatus === "available"
-                  && (room.status || "").toString().toLowerCase() === "available"
-                  && Number(room.available_slots ?? 1) > 0
-                  && !room.is_booking_locked
-                );
-              const promoTerms = getRoomPromoTerms(room);
               return (
-              <div
-                key={room.id || `room-${room.room_number}`}
-                className="bg-white dark:bg-gray-800 rounded-xl border border-gray-300 dark:border-gray-700 overflow-hidden shadow-md hover:shadow-lg transition-shadow flex flex-col"
-              >
+                <div className="animate-in fade-in duration-300 space-y-6">
+                  <div className="flex flex-wrap gap-4 pb-4 border-b border-gray-300 dark:border-gray-700">
+                    {["all", "available", "occupied", "maintenance"].map((filter) => (
+                      <button
+                        key={filter}
+                        onClick={() => setRoomFilter(filter)}
+                        className={`
+                          px-4 py-2 rounded-full text-sm font-medium capitalize transition-all
+                          ${
+                            roomFilter === filter
+                              ? "bg-green-600 text-white shadow-md"
+                              : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 shadow-sm"
+                          }
+                        `}
+                      >
+                        {filter}
+                      </button>
+                    ))}
+                  </div>
+                  {filteredRooms.length > 0 ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                      {filteredRooms.map((room) => {
+                        const genderBadge = getGenderBadge(room.sex_restriction);
+                        const showGenderBadge = shouldShowGenderBadge(
+                          room.sex_restriction,
+                          property?.property_type,
+                        );
+                        const displayStatus = (room.display_status || room.status || "available").toString().toLowerCase();
+                        
+                        const isPhysicallyAvailable = room.is_physically_available ?? (
+                          displayStatus === "available"
+                          && Number(room.available_slots ?? 1) > 0
+                          && !room.is_booking_locked
+                        );
+
+                        const isFull = Number(room.available_slots ?? 0) === 0;
+                        const canEnterBookingFlow = isPhysicallyAvailable;
+                        const promoTerms = getRoomPromoTerms(room);
+                        
+                        return (
+                        <div
+                          key={room.id || `room-${room.room_number}`}
+                          className={`bg-white dark:bg-gray-800 rounded-xl border border-gray-300 dark:border-gray-700 overflow-hidden shadow-md hover:shadow-lg transition-all flex flex-col ${isFull ? 'opacity-60 grayscale-[0.5]' : ''}`}
+                        >
                 <div className="h-48 bg-gray-200 dark:bg-gray-700 relative">
                   {/* Placeholder for room image if available, or generic */}
                   {getImageUrl(room.images?.[0] || room.image) ? (
@@ -508,15 +504,20 @@ export default function PropertyDetails({ propertyId, onBack }) {
                   ) : (
                     <ImagePlaceholder className="w-full h-full" />
                   )}
-                  <div className="absolute top-3 left-3 flex">
+                  <div className="absolute top-3 left-3 flex flex-col gap-1.5">
+                    {room.is_tenant && (
+                      <span className="px-4 py-2 rounded-full text-[10px] font-bold uppercase tracking-wider shadow-sm bg-blue-600 text-white border border-blue-700 self-start">
+                        Living Here
+                      </span>
+                    )}
                     {room.reserved_by_me ? (
-                      <span className="px-4 py-2 rounded-full text-xs font-bold uppercase tracking-wider shadow-sm bg-amber-100 text-amber-800 border border-amber-200">
-                        Reserved by you (Pending)
+                      <span className="px-4 py-2 rounded-full text-[10px] font-bold uppercase tracking-wider shadow-sm bg-amber-100 text-amber-800 border border-amber-200 self-start">
+                        Reserved by you
                       </span>
                     ) : (
                       <span
                         className={`
-                          px-4 py-2 rounded-full text-xs font-bold uppercase tracking-wider shadow-sm
+                          px-4 py-2 rounded-full text-[10px] font-bold uppercase tracking-wider shadow-sm self-start
                           ${displayStatus === "available" ? "bg-green-100 text-green-700" : displayStatus === "reserved" ? "bg-amber-100 text-amber-800" : displayStatus === "occupied" ? "bg-red-100 text-red-700" : "bg-yellow-100 text-yellow-700"}
                         `}
                       >
@@ -627,12 +628,12 @@ export default function PropertyDetails({ propertyId, onBack }) {
                   <div className="flex items-center gap-4 text-sm text-gray-500 dark:text-gray-400 mb-6">
                     <div className="flex items-center gap-2">
                       <Users className="w-4 h-4" />
-                      <span>{room.capacity} Pax</span>
+                      <span>{room.occupied || 0} / {room.capacity}</span>
                     </div>
                   </div>
 
                   <div className="mt-auto">
-                    {isAuthenticated && canBook ? (
+                    {isAuthenticated && canEnterBookingFlow ? (
                       <button
                         onClick={() => setSelectedRoom(room)}
                         className="w-full py-4 bg-green-600 text-white rounded-xl font-bold hover:bg-green-700 transition-colors shadow-sm flex items-center justify-center gap-2"
@@ -642,7 +643,7 @@ export default function PropertyDetails({ propertyId, onBack }) {
                     ) : (
                       <button
                         disabled={
-                          !isAuthenticated && canBook
+                          !isAuthenticated && canEnterBookingFlow
                             ? false
                             : true
                         }
@@ -651,15 +652,15 @@ export default function PropertyDetails({ propertyId, onBack }) {
                         }
                         className={`w-full py-4 rounded-xl font-bold flex items-center justify-center gap-2
                           ${
-                            !isAuthenticated && canBook
+                            !isAuthenticated && canEnterBookingFlow
                               ? "bg-green-600 text-white hover:bg-green-700 cursor-pointer"
                               : "bg-gray-100 text-gray-500 cursor-not-allowed shadow-inner"
                           }
                         `}
                       >
-                        {!isAuthenticated && canBook
+                        {!isAuthenticated && canEnterBookingFlow
                           ? "Login to Book"
-                          : canBook
+                          : canEnterBookingFlow
                             ? "Book This Room"
                             : "Not Available"}
                       </button>
@@ -757,6 +758,75 @@ export default function PropertyDetails({ propertyId, onBack }) {
             {property.description || "No description provided by the landlord yet."}
           </p>
         </div>
+
+        {/* ══════ 4. BOOKING LIMITS ══════ */}
+        {property &&
+          (property.normal_booking_limit > 0 ||
+            property.proxy_booking_limit > 0) && (
+            <div className={`${CARD} p-6`}>
+              <p className="text-[11px] font-semibold text-gray-500 dark:text-gray-500 uppercase tracking-widest mb-4">
+                Booking Policy & Limits
+              </p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                {property.normal_booking_limit > 0 && (
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-end">
+                      <span className="text-sm font-bold text-gray-700 dark:text-gray-200">
+                        Standard Bookings
+                      </span>
+                      <span className="text-xs font-bold text-green-600 dark:text-green-400">
+                        {property.tenant_usage?.normal || 0} /{" "}
+                        {property.normal_booking_limit} Slots Used
+                      </span>
+                    </div>
+                    <div className="h-2 w-full bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-green-500 transition-all duration-500"
+                        style={{
+                          width: `${Math.min(
+                            100,
+                            ((property.tenant_usage?.normal || 0) /
+                              property.normal_booking_limit) *
+                              100
+                          )}%`,
+                        }}
+                      />
+                    </div>
+                  </div>
+                )}
+                {property.proxy_booking_limit > 0 && (
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-end">
+                      <span className="text-sm font-bold text-gray-700 dark:text-gray-200">
+                        Proxy Bookings
+                      </span>
+                      <span className="text-xs font-bold text-green-600 dark:text-green-400">
+                        {property.tenant_usage?.proxy || 0} /{" "}
+                        {property.proxy_booking_limit} Slots Used
+                      </span>
+                    </div>
+                    <div className="h-2 w-full bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-green-500 transition-all duration-500"
+                        style={{
+                          width: `${Math.min(
+                            100,
+                            ((property.tenant_usage?.proxy || 0) /
+                              property.proxy_booking_limit) *
+                              100
+                          )}%`,
+                        }}
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+              <p className="text-[11px] text-gray-400 dark:text-gray-500 mt-4 italic">
+                * Limits are enforced per property to ensure fair access for
+                all tenants. Standard and proxy limits are independent.
+              </p>
+            </div>
+          )}
 
         {/* ══════ 4. HOUSE POLICIES + AMENITIES (2-col) ══════ */}
         {(rulesList.length > 0 || property.curfew_time || amenitiesList.length > 0) && (
@@ -1007,7 +1077,7 @@ export default function PropertyDetails({ propertyId, onBack }) {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      <Toaster />
+
       {/* HEADER */}
       <div className="relative w-full h-[350px] md:h-[450px]">
         {/* Multi-image hero carousel */}

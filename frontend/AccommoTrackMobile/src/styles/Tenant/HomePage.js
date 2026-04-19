@@ -1,7 +1,6 @@
 import { StyleSheet } from 'react-native';
 
-export const getStyles = (theme, viewportWidth = 390) => {
-  const sideWidth = Math.max(56, Math.round((viewportWidth || 390) * 0.05));
+export const getStyles = (theme, _viewportWidth = 390) => {
 
   return StyleSheet.create({
   container: {

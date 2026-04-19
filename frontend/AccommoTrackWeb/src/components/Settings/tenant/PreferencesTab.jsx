@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { tenantService } from "../../../services/tenantService";
 import { SkeletonPreferencesTab } from "../../Shared/Skeleton";
 import { useUIState } from "../../../contexts/UIStateContext";
+import { showSuccess, showError } from "../../../utils/toast";
 
 const PreferencesTab = () => {
   const { uiState, updateData } = useUIState();
@@ -9,7 +10,6 @@ const PreferencesTab = () => {
 
   const [loading, setLoading] = useState(!cachedProfile);
   const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState({ type: "", text: "" });
   const [isEditing, setIsEditing] = useState(false);
 
   const [formData, setFormData] = useState({
@@ -23,14 +23,7 @@ const PreferencesTab = () => {
 
   const [newPreference, setNewPreference] = useState("");
 
-  useEffect(() => {
-    if (cachedProfile) {
-      mapDataToForm(cachedProfile);
-    }
-    fetchPreferences();
-  }, []);
-
-  const mapDataToForm = (data) => {
+  const mapDataToForm = useCallback((data) => {
     let prefs = data.tenant_profile?.preference || {};
 
     if (typeof prefs === "string") {
@@ -49,9 +42,9 @@ const PreferencesTab = () => {
       lifestyle_notes: prefs.lifestyle_notes || prefs.lifestyle || "",
       custom_preferences: Array.isArray(prefs.custom_preferences) ? prefs.custom_preferences : [],
     });
-  };
+  }, []);
 
-  const fetchPreferences = async () => {
+  const fetchPreferences = useCallback(async () => {
     try {
       if (!cachedProfile) setLoading(true);
       const data = await tenantService.getProfile();
@@ -60,11 +53,18 @@ const PreferencesTab = () => {
       updateData("profile", data);
     } catch (error) {
       console.error("Failed to load preferences", error);
-      setMessage({ type: "error", text: "Failed to load preferences." });
+      showError("Failed to load preferences.");
     } finally {
       setLoading(false);
     }
-  };
+  }, [cachedProfile, mapDataToForm, updateData]);
+
+  useEffect(() => {
+    if (cachedProfile) {
+      mapDataToForm(cachedProfile);
+    }
+    fetchPreferences();
+  }, [cachedProfile, mapDataToForm, fetchPreferences]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -99,7 +99,6 @@ const PreferencesTab = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSaving(true);
-    setMessage({ type: "", text: "" });
 
     try {
       const data = new FormData();
@@ -111,14 +110,11 @@ const PreferencesTab = () => {
       data.append("preference[custom_preferences]", JSON.stringify(formData.custom_preferences));
 
       await tenantService.updateProfile(data);
-      setMessage({
-        type: "success",
-        text: "Preferences updated successfully!",
-      });
+      showSuccess("Preferences updated successfully!");
       setIsEditing(false);
     } catch (error) {
       console.error("Update failed", error);
-      setMessage({ type: "error", text: "Failed to update preferences." });
+      showError("Failed to update preferences.");
     } finally {
       setSaving(false);
     }
@@ -131,7 +127,6 @@ const PreferencesTab = () => {
       fetchPreferences();
     }
     setIsEditing(!isEditing);
-    setMessage({ type: "", text: "" });
   };
 
   return (
@@ -150,13 +145,6 @@ const PreferencesTab = () => {
         )}
       </div>
 
-      {message.text && (
-        <div
-          className={`mb-6 p-4 rounded-lg ${message.type === "success" ? "bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400" : "bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-400"}`}
-        >
-          {message.text}
-        </div>
-      )}
 
       <form onSubmit={handleSubmit} className="space-y-8">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Alert, Text } from 'react-native';
+import { Alert } from 'react-native';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 
 import LeaveReview from '../features/tenant/screens/Reviews/LeaveReview.jsx';

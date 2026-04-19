@@ -8,6 +8,8 @@ use App\Models\Booking;
 use App\Models\Invoice;
 use App\Models\Room;
 use App\Models\TransferRequest;
+use App\Models\User;
+use App\Notifications\NewTransferRequestNotification;
 use App\Services\RefundService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -185,6 +187,12 @@ class TransferController extends Controller
             'quoted_transfer_fee' => $property->transfer_fee ?? 0,
             'refund_preference' => (bool) ($property->force_wallet_refunds ?? true) ? 'wallet' : $validated['refund_preference'],
         ]);
+
+        // Notify landlord
+        $landlord = User::find($activeBooking->landlord_id);
+        if ($landlord) {
+            $landlord->notify(new NewTransferRequestNotification($transferRequest));
+        }
 
         return response()->json($transferRequest, 201);
     }

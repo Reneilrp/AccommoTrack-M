@@ -1,4 +1,4 @@
-import cacheManager from '../utils/cache.js';
+import { cacheManager } from '../utils/cache.js';
 
 const CACHE_KEYS = {
   FAQS: 'help_faqs',

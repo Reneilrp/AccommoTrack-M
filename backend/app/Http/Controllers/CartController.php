@@ -21,17 +21,50 @@ class CartController extends Controller
     public function index(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'property_id' => 'required|exists:properties,id',
+            'property_id' => 'sometimes|nullable|exists:properties,id',
         ]);
 
         if ($validator->fails()) {
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
-        $cart = $this->cartService->getActiveCart(
-            auth()->id(),
-            $request->property_id
-        );
+        $propertyId = $request->property_id;
+        
+        if (!$propertyId) {
+            // Fetch all active carts
+            $carts = $this->cartService->getAllActiveCarts(auth()->id());
+            
+            if ($carts->isEmpty()) {
+                return response()->json([
+                    'success' => true,
+                    'data' => null,
+                ]);
+            }
+
+            // Create a virtual aggregate cart
+            $allItems = $carts->flatMap->items;
+            
+            // To make it compatible with the frontend, we return a structure 
+            // that represents all items.
+            $data = [
+                'id' => 'all',
+                'items' => $allItems,
+                'status' => 'active',
+                'expires_at' => $carts->max('expires_at'),
+                'total_price' => $allItems->sum('price_snapshot'),
+                'total_beds' => $allItems->sum('bed_count'),
+            ];
+
+            return response()->json([
+                'success' => true,
+                'data' => $data,
+            ]);
+        } else {
+            $cart = $this->cartService->getActiveCart(
+                auth()->id(),
+                $propertyId
+            );
+        }
 
         if (! $cart) {
             return response()->json([
@@ -44,7 +77,7 @@ class CartController extends Controller
 
         return response()->json([
             'cart' => $cart,
-            'items' => $cart->items->load('room'),
+            'items' => $cart->items->load('room.property'),
             'total' => $cart->getTotalPrice(),
             'item_count' => $cart->items->count(),
         ]);
@@ -156,7 +189,7 @@ class CartController extends Controller
     public function clear(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'property_id' => 'required|exists:properties,id',
+            'property_id' => 'sometimes|nullable|exists:properties,id',
         ]);
 
         if ($validator->fails()) {
@@ -194,6 +227,24 @@ class CartController extends Controller
         }
 
         try {
+            if ($cartId === 'all') {
+                $carts = $this->cartService->getAllActiveCarts(auth()->id());
+                if ($carts->isEmpty()) {
+                    return response()->json(['success' => false, 'message' => 'No active carts found.'], 404);
+                }
+
+                $results = [];
+                foreach ($carts as $cart) {
+                    $results[] = $this->cartService->checkout(auth()->id(), $cart->id, $request->all());
+                }
+
+                return response()->json([
+                    'success' => true,
+                    'message' => 'All carts checked out successfully',
+                    'data' => $results,
+                ]);
+            }
+
             $result = $this->cartService->checkout(auth()->id(), $cartId, $request->all());
 
             return response()->json([

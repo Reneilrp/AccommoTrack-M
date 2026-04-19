@@ -15,7 +15,7 @@ import {
   RefreshCw 
 } from 'lucide-react';
 import api from '../../utils/api';
-import toast from 'react-hot-toast';
+import { showSuccess, showError } from '../../utils/toast';
 import { getImageUrl } from '../../utils/api';
 import { useUIState } from '../../contexts/UIStateContext';
 import { cacheManager } from '../../utils/cache';
@@ -46,7 +46,7 @@ export default function LandlordReviews() {
       cacheManager.set('landlord_reviews', newState);
     } catch (err) {
       console.error('Failed to fetch reviews', err);
-      toast.error('Failed to load reviews');
+      showError('Failed to load reviews');
     } finally {
       setLoading(false);
     }
@@ -63,12 +63,12 @@ export default function LandlordReviews() {
       await api.post(`/landlord/reviews/${reviewId}/respond`, {
         response: replyText
       });
-      toast.success('Response added successfully');
+      showSuccess('Response added successfully');
       setReplyingTo(null);
       setReplyText('');
       fetchReviews(); // Refresh list
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to submit response');
+      showError(err.response?.data?.message || 'Failed to submit response');
     } finally {
       setSubmitting(false);
     }

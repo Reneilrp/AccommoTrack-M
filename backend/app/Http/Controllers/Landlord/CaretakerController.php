@@ -56,14 +56,18 @@ class CaretakerController extends Controller
                         'properties' => $assignment->can_view_properties,
                         'maintenance' => $assignment->can_manage_maintenance,
                         'payments' => $assignment->can_manage_payments,
+                        'record_payments' => $assignment->can_record_payments,
+                        'void_payments' => $assignment->can_void_payments,
                         'analytics' => $assignment->can_view_analytics,
                         'view_audit_logs' => $assignment->can_view_audit_logs,
+                        'delete_tenants' => $assignment->can_delete_tenants,
                     ],
                     'assigned_properties' => $assignment->properties->map(fn ($p) => [
                         'id' => $p->id,
                         'name' => $p->title,
                     ])->toArray(),
                     'assigned_property_ids' => $assignment->properties->pluck('id')->toArray(),
+                    'custom_role_name' => $assignment->custom_role_name,
                     'created_at' => $assignment->created_at,
                 ];
             });
@@ -99,10 +103,14 @@ class CaretakerController extends Controller
             'permissions.can_manage_maintenance' => 'sometimes|boolean',
             'permissions.can_manage_add_ons' => 'sometimes|boolean',
             'permissions.can_manage_payments' => 'sometimes|boolean',
+            'permissions.can_record_payments' => 'sometimes|boolean',
+            'permissions.can_void_payments' => 'sometimes|boolean',
             'permissions.can_view_audit_logs' => 'sometimes|boolean',
             'permissions.can_view_analytics' => 'sometimes|boolean',
+            'permissions.can_delete_tenants' => 'sometimes|boolean',
             'property_ids' => 'sometimes|array',
             'property_ids.*' => 'integer|exists:properties,id',
+            'custom_role_name' => 'nullable|string|max:100',
         ]);
 
         $propertyIds = collect($validated['property_ids'] ?? [])
@@ -137,8 +145,11 @@ class CaretakerController extends Controller
                 'can_view_properties' => data_get($validated, 'permissions.can_view_properties', false),
                 'can_manage_maintenance' => data_get($validated, 'permissions.can_manage_maintenance', false),
                 'can_manage_payments' => data_get($validated, 'permissions.can_manage_payments', false),
+                'can_record_payments' => data_get($validated, 'permissions.can_record_payments', false),
+                'can_void_payments' => data_get($validated, 'permissions.can_void_payments', false),
                 'can_view_analytics' => data_get($validated, 'permissions.can_view_analytics', false),
                 'can_add_tenant_manually' => data_get($validated, 'permissions.can_add_tenant_manually', false),
+                'can_delete_tenants' => data_get($validated, 'permissions.can_delete_tenants', false),
                 'can_add_manual_bookings' => data_get($validated, 'permissions.can_add_manual_bookings', false),
             ];
 
@@ -146,6 +157,7 @@ class CaretakerController extends Controller
                 [
                     'landlord_id' => $context['landlord_id'],
                     'caretaker_id' => $caretaker->id,
+                    'custom_role_name' => $validated['custom_role_name'] ?? null,
                 ],
                 $permissions
             ));
@@ -178,6 +190,7 @@ class CaretakerController extends Controller
                 'email' => $caretaker->email,
                 'phone' => $caretaker->phone,
                 'date_of_birth' => $caretaker->date_of_birth,
+                'custom_role_name' => $assignment->custom_role_name,
                 'permissions' => [
                     'bookings' => $permissions['can_view_bookings'],
                     'approve_bookings' => $permissions['can_approve_bookings'] ?? false,
@@ -191,8 +204,11 @@ class CaretakerController extends Controller
                     'properties' => $permissions['can_view_properties'],
                     'maintenance' => $permissions['can_manage_maintenance'],
                     'payments' => $permissions['can_manage_payments'],
+                    'record_payments' => $permissions['can_record_payments'] ?? false,
+                    'void_payments' => $permissions['can_void_payments'] ?? false,
                     'analytics' => $permissions['can_view_analytics'],
                     'view_audit_logs' => $permissions['can_view_audit_logs'] ?? false,
+                    'delete_tenants' => $permissions['can_delete_tenants'] ?? false,
                 ],
                 'assigned_properties' => $assignment->properties->map(fn ($p) => [
                     'id' => $p->id,
@@ -233,10 +249,14 @@ class CaretakerController extends Controller
             'permissions.can_manage_maintenance' => 'sometimes|boolean',
             'permissions.can_manage_add_ons' => 'sometimes|boolean',
             'permissions.can_manage_payments' => 'sometimes|boolean',
+            'permissions.can_record_payments' => 'sometimes|boolean',
+            'permissions.can_void_payments' => 'sometimes|boolean',
             'permissions.can_view_audit_logs' => 'sometimes|boolean',
             'permissions.can_view_analytics' => 'sometimes|boolean',
+            'permissions.can_delete_tenants' => 'sometimes|boolean',
             'property_ids' => 'sometimes|array|min:1',
             'property_ids.*' => 'integer|exists:properties,id',
+            'custom_role_name' => 'sometimes|nullable|string|max:100',
         ]);
 
         $propertyIds = null;
@@ -281,6 +301,12 @@ class CaretakerController extends Controller
                 'can_manage_payments' => array_key_exists('can_manage_payments', $payload)
                     ? (bool) $payload['can_manage_payments']
                     : $assignment->can_manage_payments,
+                'can_record_payments' => array_key_exists('can_record_payments', $payload)
+                    ? (bool) $payload['can_record_payments']
+                    : $assignment->can_record_payments,
+                'can_void_payments' => array_key_exists('can_void_payments', $payload)
+                    ? (bool) $payload['can_void_payments']
+                    : $assignment->can_void_payments,
                 'can_approve_bookings' => array_key_exists('can_approve_bookings', $payload)
                     ? (bool) $payload['can_approve_bookings']
                     : $assignment->can_approve_bookings,
@@ -293,6 +319,9 @@ class CaretakerController extends Controller
                 'can_add_tenant_manually' => array_key_exists('can_add_tenant_manually', $payload)
                     ? (bool) $payload['can_add_tenant_manually']
                     : $assignment->can_add_tenant_manually,
+                'can_delete_tenants' => array_key_exists('can_delete_tenants', $payload)
+                    ? (bool) $payload['can_delete_tenants']
+                    : $assignment->can_delete_tenants,
                 'can_manage_add_ons' => array_key_exists('can_manage_add_ons', $payload)
                     ? (bool) $payload['can_manage_add_ons']
                     : $assignment->can_manage_add_ons,
@@ -301,7 +330,13 @@ class CaretakerController extends Controller
                     : $assignment->can_view_audit_logs,
             ];
 
+            if (array_key_exists('custom_role_name', $validated)) {
+                $updates['custom_role_name'] = $validated['custom_role_name'];
+            }
+
             $assignment->update($updates);
+        } elseif (array_key_exists('custom_role_name', $validated)) {
+            $assignment->update(['custom_role_name' => $validated['custom_role_name']]);
         }
 
         if (is_array($propertyIds)) {
@@ -321,6 +356,7 @@ class CaretakerController extends Controller
                 'email' => $assignment->caretaker->email,
                 'phone' => $assignment->caretaker->phone,
                 'date_of_birth' => $assignment->caretaker->date_of_birth,
+                'custom_role_name' => $assignment->custom_role_name,
                 'permissions' => [
                     'bookings' => $assignment->can_view_bookings,
                     'approve_bookings' => $assignment->can_approve_bookings,
@@ -334,8 +370,11 @@ class CaretakerController extends Controller
                     'properties' => $assignment->can_view_properties,
                     'maintenance' => $assignment->can_manage_maintenance,
                     'payments' => $assignment->can_manage_payments,
+                    'record_payments' => $assignment->can_record_payments,
+                    'void_payments' => $assignment->can_void_payments,
                     'analytics' => $assignment->can_view_analytics,
                     'view_audit_logs' => $assignment->can_view_audit_logs,
+                    'delete_tenants' => $assignment->can_delete_tenants,
                 ],
                 'assigned_properties' => $assignment->properties->map(fn ($p) => [
                     'id' => $p->id,

@@ -46,6 +46,8 @@ class TenantDashboardService
 
         $unreadNotifications = User::find($tenantId)->unreadNotifications()->count();
 
+        $walletBalanceCents = \App\Models\TenantCredit::getBalance($tenantId);
+
         $bookings = [
             'active' => $activeBookings,
             'confirmed' => $confirmedBookings,
@@ -55,6 +57,7 @@ class TenantDashboardService
             'monthlyDue' => (float) ($monthlyDueCents / 100),
             'totalDue' => (float) ($totalDueCents / 100),
             'totalPaid' => (float) ($totalPaidCents / 100),
+            'walletBalance' => (float) ($walletBalanceCents / 100),
             'pendingAmount' => (float) ($totalDueCents / 100),
             'latestUnpaidInvoiceId' => $latestUnpaidInvoice ? $latestUnpaidInvoice->id : null,
             'hasOverdueInvoices' => $hasOverdueInvoices,

@@ -60,7 +60,11 @@ class CaretakerAssignment extends Model
         'can_manage_maintenance',
         'can_manage_add_ons',
         'can_manage_payments',
+        'can_record_payments',
+        'can_void_payments',
         'can_view_audit_logs',
+        'can_delete_tenants',
+        'custom_role_name',
     ];
 
     protected $casts = [
@@ -77,7 +81,10 @@ class CaretakerAssignment extends Model
         'can_manage_maintenance' => 'boolean',
         'can_manage_add_ons' => 'boolean',
         'can_manage_payments' => 'boolean',
+        'can_record_payments' => 'boolean',
+        'can_void_payments' => 'boolean',
         'can_view_audit_logs' => 'boolean',
+        'can_delete_tenants' => 'boolean',
     ];
 
     public function landlord(): BelongsTo

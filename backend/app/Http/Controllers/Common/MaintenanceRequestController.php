@@ -6,8 +6,11 @@ use App\Http\Controllers\Controller;
 use App\Http\Controllers\Permission\ResolvesLandlordAccess;
 use App\Models\Booking;
 use App\Models\MaintenanceRequest;
+use App\Models\MaintenanceUpdate;
+use App\Events\MaintenanceStatusChanged;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 
 class MaintenanceRequestController extends Controller
 {
@@ -38,23 +41,34 @@ class MaintenanceRequestController extends Controller
             }
         }
 
-        $maintenanceRequest = MaintenanceRequest::create([
-            'tenant_id' => Auth::id(),
-            'landlord_id' => $booking->landlord_id,
-            'property_id' => $booking->property_id,
-            'booking_id' => $booking->id,
-            'title' => $request->title,
-            'description' => $request->description,
-            'priority' => $request->priority,
-            'status' => 'pending',
-            'images' => ! empty($imagePaths) ? $imagePaths : null,
-        ]);
+        DB::beginTransaction();
+        try {
+            $maintenanceRequest = MaintenanceRequest::create([
+                'tenant_id' => Auth::id(),
+                'landlord_id' => $booking->landlord_id,
+                'property_id' => $booking->property_id,
+                'booking_id' => $booking->id,
+                'title' => $request->title,
+                'description' => $request->description,
+                'priority' => $request->priority,
+                'status' => 'pending',
+                'images' => ! empty($imagePaths) ? $imagePaths : null,
+            ]);
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Maintenance request submitted successfully',
-            'data' => $maintenanceRequest,
-        ], 201);
+            $update = $this->logUpdate($maintenanceRequest, 'status_change', 'Maintenance request submitted', null, 'pending');
+            broadcast(new MaintenanceStatusChanged($maintenanceRequest, $update));
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Maintenance request submitted successfully',
+                'data' => $maintenanceRequest,
+            ], 201);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['success' => false, 'message' => 'Failed to submit request'], 500);
+        }
     }
 
     /**
@@ -63,7 +77,7 @@ class MaintenanceRequestController extends Controller
     public function index()
     {
         $requests = MaintenanceRequest::where('tenant_id', Auth::id())
-            ->with(['property:id,title', 'booking.room:id,room_number'])
+            ->with(['property:id,title', 'booking.room:id,room_number', 'assignedTo:id,first_name,last_name'])
             ->orderBy('created_at', 'desc')
             ->paginate(15);
 
@@ -74,19 +88,53 @@ class MaintenanceRequestController extends Controller
     }
 
     /**
+     * Get single maintenance request with history (Timeline)
+     */
+    public function show($id)
+    {
+        $request = MaintenanceRequest::where('tenant_id', Auth::id())
+            ->with([
+                'property:id,title,address', 
+                'booking.room:id,room_number,floor', 
+                'assignedTo:id,first_name,last_name,profile_image',
+                'updates.user:id,first_name,last_name,profile_image,role'
+            ])
+            ->findOrFail($id);
+
+        return response()->json([
+            'success' => true,
+            'data' => $request,
+        ]);
+    }
+
+    /**
      * Get maintenance requests for the landlord/caretaker.
      */
     public function indexForLandlord(Request $request)
     {
         $context = $this->resolveLandlordContext($request);
-        $this->ensureCaretakerCan($context, 'can_manage_maintenance');
+        
+        $hasGlobalPermission = $context['is_caretaker'] 
+            ? (bool) ($context['assignment']->can_manage_maintenance ?? false)
+            : true;
+
+        $hasAssignments = (bool) \App\Models\MaintenanceRequest::where('assigned_to', $context['user']->id)->exists();
+
+        if (! $hasGlobalPermission && ! $hasAssignments) {
+            return response()->json(['message' => 'Unauthorized access to maintenance module.'], 403);
+        }
 
         $query = MaintenanceRequest::where('landlord_id', $context['landlord_id'])
-            ->with(['property:id,title', 'tenant:id,first_name,last_name', 'booking.room:id,room_number']);
+            ->with(['property:id,title', 'tenant:id,first_name,last_name', 'booking.room:id,room_number', 'assignedTo:id,first_name,last_name']);
 
-        if ($context['is_caretaker'] && $context['assignment']) {
-            $assignedPropertyIds = $context['assignment']->getAssignedPropertyIds();
-            $query->whereIn('property_id', $assignedPropertyIds);
+        if ($context['is_caretaker']) {
+            if (! $hasGlobalPermission) {
+                // Strictly filter to ONLY assigned tasks if no global permission
+                $query->where('assigned_to', $context['user']->id);
+            } else if ($context['assignment']) {
+                $assignedPropertyIds = $context['assignment']->getAssignedPropertyIds();
+                $query->whereIn('property_id', $assignedPropertyIds);
+            }
         }
 
         if ($request->has('property_id')) {
@@ -103,9 +151,109 @@ class MaintenanceRequestController extends Controller
     }
 
     /**
+     * Get maintenance summary for the dashboard.
+     */
+    public function summary(Request $request)
+    {
+        $context = $this->resolveLandlordContext($request);
+        
+        $hasGlobalPermission = $context['is_caretaker'] 
+            ? (bool) ($context['assignment']->can_manage_maintenance ?? false)
+            : true;
+
+        $baseQuery = MaintenanceRequest::where('landlord_id', $context['landlord_id']);
+
+        if ($context['is_caretaker']) {
+            if (! $hasGlobalPermission) {
+                // Only see stats for their own assignments
+                $baseQuery->where('assigned_to', $context['user']->id);
+            } else if ($context['assignment']) {
+                $assignedPropertyIds = $context['assignment']->getAssignedPropertyIds();
+                $baseQuery->whereIn('property_id', $assignedPropertyIds);
+            }
+        }
+
+        if ($request->has('property_id')) {
+            $baseQuery->where('property_id', $request->property_id);
+        }
+
+        $stats = [
+            'total' => (clone $baseQuery)->count(),
+            'pending' => (clone $baseQuery)->where('status', 'pending')->count(),
+            'in_progress' => (clone $baseQuery)->where('status', 'in_progress')->count(),
+            'completed_today' => (clone $baseQuery)
+                ->where('status', 'completed')
+                ->whereDate('resolved_at', now()->toDateString())
+                ->count(),
+            'assigned_to_me' => MaintenanceRequest::where('assigned_to', $context['user']->id)
+                ->whereNotIn('status', ['completed', 'cancelled'])
+                ->count(),
+        ];
+
+        return response()->json([
+            'success' => true,
+            'data' => $stats,
+        ]);
+    }
+
+    /**
      * Update maintenance request status (Landlord/Caretaker)
      */
     public function updateStatus(Request $request, $id)
+    {
+        $context = $this->resolveLandlordContext($request);
+        
+        $maintenanceRequest = MaintenanceRequest::where('landlord_id', $context['landlord_id'])
+            ->findOrFail($id);
+
+        $hasGlobalPermission = $context['is_caretaker'] 
+            ? (bool) ($context['assignment']->can_manage_maintenance ?? false)
+            : true;
+
+        if ($context['is_caretaker']) {
+            if (! $hasGlobalPermission) {
+                // If no global permission, user CAN ONLY update if it's assigned to them
+                if ($maintenanceRequest->assigned_to !== $context['user']->id) {
+                    return response()->json(['message' => 'You can only update tasks assigned to you.'], 403);
+                }
+            } else if ($context['assignment']) {
+                $assignedPropertyIds = $context['assignment']->getAssignedPropertyIds();
+                if (! in_array($maintenanceRequest->property_id, $assignedPropertyIds)) {
+                    return response()->json(['message' => 'Unauthorized access to this property'], 403);
+                }
+            }
+        }
+
+        $request->validate([
+            'status' => 'required|in:pending,in_progress,completed,cancelled',
+            'notes' => 'nullable|string',
+        ]);
+
+        $oldStatus = $maintenanceRequest->status;
+        $maintenanceRequest->status = $request->status;
+        if ($request->status === 'completed') {
+            $maintenanceRequest->resolved_at = now();
+        }
+        $maintenanceRequest->save();
+
+        $updateContent = "Status changed from " . ucfirst($oldStatus) . " to " . ucfirst($request->status);
+        if ($request->status === 'completed') $updateContent = "Maintenance task resolved";
+        if ($request->status === 'cancelled') $updateContent = "Maintenance task cancelled";
+
+        $update = $this->logUpdate($maintenanceRequest, 'status_change', $updateContent, $request->notes, $oldStatus, $request->status);
+        broadcast(new MaintenanceStatusChanged($maintenanceRequest, $update));
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Maintenance request status updated',
+            'data' => $maintenanceRequest->load('assignedTo:id,first_name,last_name'),
+        ]);
+    }
+
+    /**
+     * Assign a maintenance request to a worker (Landlord/Caretaker)
+     */
+    public function assign(Request $request, $id)
     {
         $context = $this->resolveLandlordContext($request);
         $this->ensureCaretakerCan($context, 'can_manage_maintenance');
@@ -113,27 +261,105 @@ class MaintenanceRequestController extends Controller
         $maintenanceRequest = MaintenanceRequest::where('landlord_id', $context['landlord_id'])
             ->findOrFail($id);
 
-        if ($context['is_caretaker'] && $context['assignment']) {
-            $assignedPropertyIds = $context['assignment']->getAssignedPropertyIds();
-            if (! in_array($maintenanceRequest->property_id, $assignedPropertyIds)) {
-                return response()->json(['message' => 'Unauthorized access to this property'], 403);
-            }
-        }
-
         $request->validate([
-            'status' => 'required|in:pending,in_progress,completed,cancelled',
+            'worker_id' => 'required|exists:users,id',
         ]);
 
-        $maintenanceRequest->status = $request->status;
-        if ($request->status === 'completed') {
-            $maintenanceRequest->resolved_at = now();
+        // Verify worker is assigned to this property and has maintenance permission
+        $workerAssignment = \App\Models\CaretakerAssignment::where('caretaker_id', $request->worker_id)
+            ->where('landlord_id', $context['landlord_id'])
+            ->where('can_manage_maintenance', true)
+            ->whereHas('properties', function ($q) use ($maintenanceRequest) {
+                $q->where('properties.id', $maintenanceRequest->property_id);
+            })
+            ->first();
+
+        if (! $workerAssignment && $request->worker_id != $context['landlord_id']) {
+            return response()->json([
+                'success' => false,
+                'message' => 'The selected worker is not authorized to handle maintenance for this property.',
+            ], 403);
         }
+
+        $oldStatus = $maintenanceRequest->status;
+        $maintenanceRequest->assigned_to = $request->worker_id;
+        $maintenanceRequest->assigned_at = now();
+
+        if ($maintenanceRequest->status === 'pending') {
+            $maintenanceRequest->status = 'in_progress';
+        }
+
         $maintenanceRequest->save();
+
+        $worker = \App\Models\User::find($request->worker_id);
+        $updateContent = "Assigned to " . $worker->full_name;
+        
+        $update = $this->logUpdate($maintenanceRequest, 'assignment', $updateContent, null, $oldStatus, $maintenanceRequest->status);
+        broadcast(new MaintenanceStatusChanged($maintenanceRequest, $update));
 
         return response()->json([
             'success' => true,
-            'message' => 'Maintenance request status updated',
-            'data' => $maintenanceRequest,
+            'message' => 'Maintenance request assigned successfully',
+            'data' => $maintenanceRequest->load('assignedTo:id,first_name,last_name'),
+        ]);
+    }
+
+    /**
+     * Mark a maintenance request as completed (Landlord/Caretaker)
+     */
+    public function complete(Request $request, $id)
+    {
+        $context = $this->resolveLandlordContext($request);
+        
+        $maintenanceRequest = MaintenanceRequest::where('landlord_id', $context['landlord_id'])
+            ->findOrFail($id);
+
+        $hasGlobalPermission = $context['is_caretaker'] 
+            ? (bool) ($context['assignment']->can_manage_maintenance ?? false)
+            : true;
+
+        // Security check for caretakers
+        if ($context['is_caretaker']) {
+            if (! $hasGlobalPermission && $maintenanceRequest->assigned_to !== $context['user']->id) {
+                return response()->json(['message' => 'You are not assigned to this request.'], 403);
+            }
+            
+            if ($hasGlobalPermission && $context['assignment']) {
+                 $assignedPropertyIds = $context['assignment']->getAssignedPropertyIds();
+                 if (! in_array($maintenanceRequest->property_id, $assignedPropertyIds)) {
+                     return response()->json(['message' => 'Unauthorized access to this property'], 403);
+                 }
+            }
+        }
+
+        $oldStatus = $maintenanceRequest->status;
+        $maintenanceRequest->status = 'completed';
+        $maintenanceRequest->resolved_at = now();
+        $maintenanceRequest->save();
+
+        $update = $this->logUpdate($maintenanceRequest, 'status_change', 'Maintenance task completed', $request->notes, $oldStatus, 'completed');
+        broadcast(new MaintenanceStatusChanged($maintenanceRequest, $update));
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Maintenance request marked as completed',
+            'data' => $maintenanceRequest->load('assignedTo:id,first_name,last_name'),
+        ]);
+    }
+
+    /**
+     * Helper to log maintenance updates
+     */
+    private function logUpdate($request, $type, $content, $notes = null, $from = null, $to = null)
+    {
+        return MaintenanceUpdate::create([
+            'maintenance_request_id' => $request->id,
+            'user_id' => Auth::id(),
+            'update_type' => $type,
+            'content' => $content,
+            'notes' => $notes,
+            'status_from' => $from,
+            'status_to' => $to,
         ]);
     }
 }

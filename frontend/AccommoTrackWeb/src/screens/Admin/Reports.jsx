@@ -14,7 +14,7 @@ import {
   MoreVertical
 } from 'lucide-react';
 import { reportService } from '../../services/reportService';
-import toast from 'react-hot-toast';
+import { showSuccess, showError } from '../../utils/toast';
 
 export default function Reports() {
   const [reports, setReports] = useState([]);
@@ -33,7 +33,7 @@ export default function Reports() {
       setReports(res.data.data || res.data || []);
     } catch (err) {
       console.error('Failed to fetch reports', err);
-      toast.error('Failed to load reports');
+      showError('Failed to load reports');
     } finally {
       setLoading(false);
     }
@@ -47,14 +47,14 @@ export default function Reports() {
     setActionLoading(true);
     try {
       const res = await reportService.updateStatus(id, status, adminNotes, issueStrike);
-      toast.success(res.data?.message || `Report marked as ${status}`);
+      showSuccess(res.data?.message || `Report marked as ${status}`);
       fetchReports();
       setShowModal(false);
       setSelectedReport(null);
       setAdminNotes('');
       setIssueStrike(false);
     } catch (__err) {
-      toast.error('Failed to update report');
+      showError('Failed to update report');
     } finally {
       setActionLoading(false);
     }

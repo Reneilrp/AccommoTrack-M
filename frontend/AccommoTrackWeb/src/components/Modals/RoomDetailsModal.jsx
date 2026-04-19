@@ -12,7 +12,7 @@ import {
   ArrowLeft,
   AlertTriangle,
 } from "lucide-react";
-import toast from "react-hot-toast";
+import { showSuccess, showError, showLoading } from "../../utils/toast";
 import api from "../../utils/api";
 import ImagePlaceholder from "../Shared/ImagePlaceholder";
 import ImageCarousel from "../Shared/ImageCarousel";
@@ -61,6 +61,7 @@ export default function RoomDetailsModal({
   const [bookingMode, setBookingMode] = useState("normal");
   const [proxyOccupants, setProxyOccupants] = useState([]);
   const [reservationFeeTempDisabled, setReservationFeeTempDisabled] = useState(DEFAULT_TOGGLES.reservationFeeDisabled);
+  const [selectedBedNumbers, setSelectedBedNumbers] = useState([]);
 
   const createEmptyOccupant = (defaultSex = "") => ({
     first_name: "",
@@ -71,6 +72,7 @@ export default function RoomDetailsModal({
     relationship_to_booker: "",
     phone: "",
     email: "",
+    bed_number: null,
   });
 
   const normalizePropertyTypeToken = (propertyType) =>
@@ -316,12 +318,8 @@ export default function RoomDetailsModal({
       ),
     ),
   );
-  const normalizedRoomType = String(
-    room?.room_type || room?.type_label || room?.name || "",
-  )
-    .toLowerCase()
-    .replace(/[\s_-]/g, "");
-  const isBedSpacerRoom = normalizedRoomType === "bedspacer";
+
+
   const maxBookableBeds = pricingModel === "per_bed"
     ? Math.max(
       1,
@@ -531,6 +529,21 @@ export default function RoomDetailsModal({
     paymentPlan,
   ]);
 
+  const isLimitReached = React.useMemo(() => {
+    if (!property || !property.tenant_usage) return false;
+    const usage = property.tenant_usage;
+    if (bookingMode === "normal") {
+      return (
+        property.normal_booking_limit > 0 &&
+        usage.normal >= property.normal_booking_limit
+      );
+    }
+    return (
+      property.proxy_booking_limit > 0 &&
+      usage.proxy >= property.proxy_booking_limit
+    );
+  }, [property, bookingMode]);
+
   if (!room) return null;
 
   const handleStartDateChange = (e) => {
@@ -584,7 +597,7 @@ export default function RoomDetailsModal({
     }
 
     if (!startDate || (isDailyContract && !endDate)) {
-      toast.error(isDailyContract
+      showError(isDailyContract
         ? "Please select both check-in and check-out dates."
         : "Please select a move-in date.");
       return;
@@ -598,19 +611,19 @@ export default function RoomDetailsModal({
       const tomorrow = new Date(today);
       tomorrow.setDate(tomorrow.getDate() + 1);
       if (start < tomorrow) {
-        toast.error("For daily rentals, check-in must be at least one day after today.");
+        showError("For daily rentals, check-in must be at least one day after today.");
         return;
       }
     } else {
       if (start < today) {
-        toast.error(`${isDailyContract ? 'Check-in' : 'Move-in'} date cannot be in the past.`);
+        showError(`${isDailyContract ? 'Check-in' : 'Move-in'} date cannot be in the past.`);
         return;
       }
     }
 
     const hasCheckout = Boolean(endDate) && new Date(endDate) > start;
     if (endDate && !hasCheckout) {
-      toast.error(`${isDailyContract ? 'Check-out' : 'Move-out'} date must be after ${isDailyContract ? 'check-in' : 'move-in'} date.`);
+      showError(`${isDailyContract ? 'Check-out' : 'Move-out'} date must be after ${isDailyContract ? 'check-in' : 'move-in'} date.`);
       return;
     }
 
@@ -625,17 +638,17 @@ export default function RoomDetailsModal({
 
     if (hasCheckout && diffDays < effectiveMinStay) {
       const msg = `The minimum stay for this room is ${effectiveMinStay} days.`;
-      toast.error(msg);
+      showError(msg);
       return;
     }
 
     if (!isDailyContract && duration?.extraDays > 0 && !endDate) {
-      toast.error("A move-out date is required for stays with extra days.");
+      showError("A move-out date is required for stays with extra days.");
       return;
     }
 
     if (hasCheckout && !isDailyContract && duration && duration.extraDays > 0) {
-      toast.error(
+      showError(
         `Billing Policy: Stays with extra days (${duration.extraDays} days extra) will be charged for the full next month under the Monthly policy.`,
         { duration: 6000 }
       );
@@ -645,7 +658,7 @@ export default function RoomDetailsModal({
     threeMonthsFromNow.setMonth(threeMonthsFromNow.getMonth() + 3);
 
     if (start > threeMonthsFromNow) {
-      toast.error("You cannot book a room more than 3 months in advance.");
+      showError("You cannot book a room more than 3 months in advance.");
       return;
     }
 
@@ -660,18 +673,19 @@ export default function RoomDetailsModal({
           relationship_to_booker: String(occupant.relationship_to_booker || "").trim(),
           phone: String(occupant.phone || "").trim(),
           email: String(occupant.email || "").trim(),
+          bed_number: occupant.bed_number || null,
         };
       })
       .filter((occupant) => hasAnyProxyOccupantValue(occupant));
 
     if (bookingMode === "proxy") {
       if (normalizedOccupants.length === 0) {
-        toast.error("Proxy booking requires at least one occupant.");
+        showError("Proxy booking requires at least one occupant.");
         return;
       }
 
       if (normalizedOccupants.length > occupantLimit) {
-        toast.error(
+        showError(
           `This booking can only hold up to ${occupantLimit} occupant${occupantLimit > 1 ? "s" : ""}.`,
         );
         return;
@@ -684,29 +698,29 @@ export default function RoomDetailsModal({
         const occupant = normalizedOccupants[i];
         const missingFieldMessage = getProxyOccupantMissingFieldMessage(occupant, i);
         if (missingFieldMessage) {
-          toast.error(missingFieldMessage);
+          showError(missingFieldMessage);
           return;
         }
 
         const parsedDob = parseIsoDateOnly(occupant.date_of_birth);
         if (!parsedDob) {
-          toast.error(`Occupant ${i + 1}: please select a valid date of birth.`);
+          showError(`Occupant ${i + 1}: please select a valid date of birth.`);
           return;
         }
 
         if (parsedDob >= today) {
-          toast.error(`Occupant ${i + 1}: date of birth must be before today.`);
+          showError(`Occupant ${i + 1}: date of birth must be before today.`);
           return;
         }
 
         const age = getAgeInYears(parsedDob, today);
         if (age < PROXY_MINIMUM_AGE) {
-          toast.error(`Occupant ${i + 1} must be at least ${PROXY_MINIMUM_AGE} years old.`);
+          showError(`Occupant ${i + 1} must be at least ${PROXY_MINIMUM_AGE} years old.`);
           return;
         }
 
         if (requiredProxyGender && occupant.sex !== requiredProxyGender) {
-          toast.error(
+          showError(
             `Occupant ${i + 1} must be ${requiredProxyGender}. This room is ${requiredProxyGender === "male" ? "for boys" : "for girls"} only.`,
           );
           return;
@@ -740,10 +754,32 @@ export default function RoomDetailsModal({
         finalBedCount = Math.max(bedCount, normalizedOccupants.length);
       }
 
+      if (bookingMode === "normal" && room.available_bed_numbers?.length > 0) {
+        if (selectedBedNumbers.filter(Boolean).length < finalBedCount) {
+          showError(`Please select ${finalBedCount > 1 ? "all bed numbers" : "a bed number"}.`);
+          setIsSubmitting(false);
+          return;
+        }
+      }
+
+      if (bookingMode === "proxy") {
+        const occupantsWithBeds = normalizedOccupants.filter(o => o.bed_number);
+        if (room.available_bed_numbers?.length > 0 && occupantsWithBeds.length < normalizedOccupants.length) {
+          showError("Please assign a bed number for all occupants.");
+          setIsSubmitting(false);
+          return;
+        }
+      }
+
+      const bedNumbersString = bookingMode === "normal" 
+        ? selectedBedNumbers.filter(Boolean).join(',')
+        : normalizedOccupants.map(o => o.bed_number).filter(Boolean).join(',');
+
       const payload = {
         room_id: room.id,
         booking_mode: bookingMode,
         bed_count: finalBedCount,
+        bed_numbers: bedNumbersString,
         start_date: startDate,
         end_date: hasCheckout ? endDate : null,
         notes: notes || "",
@@ -757,7 +793,7 @@ export default function RoomDetailsModal({
 
       if (isCartMode) {
         if (payload.occupants) {
-          payload.occupants = payload.occupants.map((o, index) => {
+          payload.occupants = payload.occupants.map((o) => {
             return {
               first_name: o.first_name,
               middle_name: o.middle_name || null,
@@ -767,15 +803,19 @@ export default function RoomDetailsModal({
               relationship_to_booker: o.relationship_to_booker,
               phone: o.phone,
               email: o.email,
-              bed_number: index + 1,
+              bed_number: o.bed_number,
             };
           });
+        }
+
+        if (bookingMode === "normal" && pricingModel === "per_bed" && selectedBedNumbers[0]) {
+          payload.bed_number = selectedBedNumbers[0];
         }
 
         try {
           const addToCartAction = typeof addToCart === "function" ? addToCart : addItem;
           if (typeof addToCartAction !== "function") {
-            toast.error("Cart is not ready. Please refresh and try again.");
+            showError("Selection is not ready. Please refresh and try again.");
             setIsSubmitting(false);
             return;
           }
@@ -783,19 +823,19 @@ export default function RoomDetailsModal({
           const result = await addToCartAction(payload);
           if (result && result.success) {
             window.dispatchEvent(new CustomEvent('accommo:cart-updated'));
-            toast.success("Room added to cart successfully!");
+            showSuccess("Room added to your book successfully!");
             onClose();
           } else {
             const validationMessage = formatApiValidationMessage(result?.details || result?.errors);
-            toast.error(
+            showError(
               validationMessage
               || result?.message
-              || "Failed to add room to cart.",
+              || "Failed to add room to your book.",
             );
           }
         } catch (error) {
           const validationMessage = formatApiValidationMessage(error?.response?.data?.errors);
-          toast.error(
+          showError(
             validationMessage
             || error?.response?.data?.message
             || "Failed to add room to cart.",
@@ -814,7 +854,7 @@ export default function RoomDetailsModal({
         const errorData = svcError.response?.data;
         const validationMsg = formatApiValidationMessage(errorData?.errors || errorData?.details);
         const finalMsg = validationMsg || errorData?.error || errorData?.message || "Booking failed. Please try again.";
-        toast.error(finalMsg);
+        showError(finalMsg);
         setIsSubmitting(false);
         return;
       }
@@ -825,7 +865,7 @@ export default function RoomDetailsModal({
 
       // If there's an instant reservation invoice, immediately route to PayMongo
       if (invoiceObj && invoiceObj.checkout_url) {
-        toast.loading('Redirecting to secure checkout...');
+        showLoading('Redirecting to secure checkout...');
         window.location.href = invoiceObj.checkout_url;
         return; // Halt execution and wait for redirect
       }
@@ -855,7 +895,7 @@ export default function RoomDetailsModal({
       console.error("Booking failed", error?.response?.data || error);
       const validationMessage = formatApiValidationMessage(error?.response?.data?.errors);
       if (validationMessage) {
-        toast.error(validationMessage);
+        showError(validationMessage);
         return;
       }
 
@@ -867,27 +907,27 @@ export default function RoomDetailsModal({
 
       // Enhanced error messages for booking limits
       if (errMsg.includes('Normal booking allows only 1')) {
-        toast.error(
+        showError(
           `Normal Booking Limit Reached\n\nYou already have 1 active or pending normal booking in this property.\n\nNote: Normal (1) and Proxy (3) booking limits are independent. You can still create proxy bookings.`,
           { duration: 6000 }
         );
       } else if (errMsg.includes('Proxy booking limit reached')) {
-        toast.error(
+        showError(
           `Proxy Booking Limit Reached\n\nYou have reached the maximum of 3 active or pending proxy bookings in this property.\n\nNote: Normal (1) and Proxy (3) booking limits are independent. You can still create 1 normal booking.`,
           { duration: 6000 }
         );
       } else if (errMsg.includes('already have an active or pending booking for this room')) {
-        toast.error(
+        showError(
           `Room Already Reserved\n\nYou already have an active or pending booking for this specific room.\n\nTip: Check your bookings page to view or manage your existing reservation.`,
           { duration: 6000 }
         );
       } else if (errMsg.includes('overdue invoices')) {
-        toast.error(
+        showError(
           `Payment Required\n\nYou cannot create new bookings while you have overdue invoices.\n\nTip: Please settle your outstanding balance in the Payments section first.`,
           { duration: 6000 }
         );
       } else {
-        toast.error(errMsg);
+        showError(errMsg);
       }
     } finally {
       setIsSubmitting(false);
@@ -1065,14 +1105,9 @@ export default function RoomDetailsModal({
                     </div>
 
                     <div className="flex flex-wrap gap-4 text-sm text-gray-600 dark:text-gray-300">
-                      <div className="flex items-center gap-2 bg-white dark:bg-gray-700 px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-600 shadow-sm">
-                        <Users className="w-4 h-4 text-gray-500 dark:text-gray-500" />
-                        <span>
-                          {isBedSpacerRoom
-                            ? `${resolvedOccupiedCount} / ${resolvedCapacity} Beds taken`
-                            : `${resolvedCapacity} Pax`
-                          }
-                        </span>
+                      <span className="text-gray-900 dark:text-gray-100 font-bold text-sm bg-gray-100 dark:bg-gray-700 px-3 py-1.5 rounded-lg border border-gray-200 dark:border-gray-600 shadow-sm flex items-center gap-2">
+                        <Users className="w-3.5 h-3.5" />
+                        {resolvedOccupiedCount} / {resolvedCapacity}
                         {showGenderBadge && (
                           <>
                             <span className="text-gray-300 dark:text-gray-500">•</span>
@@ -1081,7 +1116,7 @@ export default function RoomDetailsModal({
                             </span>
                           </>
                         )}
-                      </div>
+                      </span>
                       {room.floor && (
                         <div className="flex items-center gap-2 bg-white dark:bg-gray-700 px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-600 shadow-sm">
                           <Layers className="w-4 h-4 text-gray-500 dark:text-gray-500" />
@@ -1103,12 +1138,52 @@ export default function RoomDetailsModal({
                           <span className="font-semibold text-xs text-pretty">Normal booking is incompatible with your sex profile</span>
                         </div>
                       )}
+                      {room.is_tenant && (
+                        <div className="flex items-center gap-2 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 border border-blue-200 dark:border-blue-800 px-4 py-2 rounded-lg shadow-sm">
+                          <Users className="w-4 h-4 shrink-0" />
+                          <span className="font-semibold text-xs">You are already an occupant of this room. You can book more beds using Proxy mode.</span>
+                        </div>
+                      )}
+                      {room.reserved_by_me && !room.is_tenant && (
+                        <div className="flex items-center gap-2 bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-700 px-4 py-2 rounded-lg shadow-sm">
+                          <Shield className="w-4 h-4 shrink-0" />
+                          <span className="font-semibold text-xs text-pretty">You have a pending reservation for this room. Proxy mode is available for additional beds.</span>
+                        </div>
+                      )}
                       {(room.require_advance || room.requireAdvance || property?.require_advance) && (
                         <div className="flex items-center gap-2 bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-700 px-4 py-2 rounded-lg shadow-sm">
                           <Shield className="w-4 h-4 shrink-0" />
                           <span className="font-semibold text-xs">1 Month Advance Required</span>
                         </div>
                       )}
+                    </div>
+
+                    {/* Room Capacity Progress Bar */}
+                    <div className="bg-white dark:bg-gray-800 p-5 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm">
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-2">
+                          <Users className="w-5 h-5 text-gray-400" />
+                          <span className="text-sm font-bold text-gray-900 dark:text-white">Room Capacity</span>
+                        </div>
+                        <span className={`text-xs font-bold px-2 py-1 rounded-md ${resolvedAvailableSlots <= 1 ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-600'}`}>
+                          {resolvedAvailableSlots} {resolvedAvailableSlots === 1 ? 'Bed' : 'Beds'} Available
+                        </span>
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <div className="h-3 w-full bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden border border-gray-200 dark:border-gray-600">
+                          <div 
+                            className={`h-full transition-all duration-700 rounded-full ${
+                              (resolvedOccupiedCount / resolvedCapacity) > 0.8 ? 'bg-orange-500' : 'bg-green-500'
+                            }`}
+                            style={{ width: `${(resolvedOccupiedCount / resolvedCapacity) * 100}%` }}
+                          />
+                        </div>
+                        <div className="flex justify-between text-[11px] font-bold uppercase tracking-tighter text-gray-500">
+                          <span>{resolvedOccupiedCount} Occupied</span>
+                          <span>{resolvedCapacity} Total Capacity</span>
+                        </div>
+                      </div>
                     </div>
 
                     <div>
@@ -1211,7 +1286,7 @@ export default function RoomDetailsModal({
                       }`}
                   >
                     {canOpenBookingFlow
-                      ? "Book This Room"
+                      ? "Book Now"
                       : "Not Available"}
                   </button>
                 </div>
@@ -1240,7 +1315,7 @@ export default function RoomDetailsModal({
                   <ArrowLeft className="w-5 h-5 text-gray-600 dark:text-gray-400 group-hover:text-gray-900 dark:group-hover:text-white" />
                 </button>
                 <h2 className="text-xl font-bold text-gray-900 dark:text-white">
-                  {isCartMode ? 'Add to Book' : 'Book This Room'}
+                  {isCartMode ? 'Add to Book' : 'Book Now'}
                 </h2>
               </div>
               <button
@@ -1321,6 +1396,23 @@ export default function RoomDetailsModal({
                     </div>
                   )}
 
+                  {isLimitReached && (
+                    <div className="bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800/30 p-4 rounded-xl flex items-start gap-3">
+                      <AlertTriangle className="w-5 h-5 text-orange-600 dark:text-orange-400 shrink-0 mt-0.5" />
+                      <div>
+                        <p className="text-sm font-bold text-orange-800 dark:text-orange-300">
+                          {bookingMode === "normal" ? "Standard" : "Proxy"} Limit
+                          Reached
+                        </p>
+                        <p className="text-xs text-orange-700 dark:text-orange-400 mt-1">
+                          You have reached the maximum allowed{" "}
+                          {bookingMode === "normal" ? "standard" : "proxy"}{" "}
+                          bookings for this property.
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
                   <div className="bg-gray-50 dark:bg-gray-900/50 p-4 rounded-xl border border-gray-200 dark:border-gray-700">
                     <label className="block text-sm font-bold text-gray-900 dark:text-white mb-2">
                       Booking Type
@@ -1383,33 +1475,131 @@ export default function RoomDetailsModal({
 
                   {/* Date Selection */}
                   <div className="space-y-4">
-                    {showBedCountSelector && (
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                          Number of Beds <span className="text-red-500">*</span>
-                        </label>
-                        {maxBookableBeds > 1 ? (
-                          <select
-                            value={bedCount}
-                            onChange={(e) => setBedCount(parseInt(e.target.value, 10))}
-                            className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                          >
-                            {[...Array(maxBookableBeds)].map((_, i) => (
-                              <option key={i + 1} value={i + 1}>
-                                {i + 1} {i === 0 ? 'Bed' : 'Beds'}
-                              </option>
-                            ))}
-                          </select>
-                        ) : (
-                          <div className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700/70 text-gray-700 dark:text-gray-200">
-                            1 Bed
+                    {/* Property Booking Limit Guardrails */}
+                    {isAuthenticated && (
+                      <div className="bg-blue-50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-900/30 p-4 rounded-xl space-y-3">
+                        <div className="flex items-center justify-between">
+                          <h4 className="text-xs font-bold text-blue-800 dark:text-blue-300 uppercase tracking-wider">
+                            Property Booking Limits
+                          </h4>
+                          <Shield className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                        </div>
+                        
+                        <div className="space-y-2">
+                          {/* Normal Limit */}
+                          <div>
+                            <div className="flex justify-between text-[11px] mb-1">
+                              <span className="text-gray-600 dark:text-gray-400 font-medium">Normal (Personal)</span>
+                              <span className="text-blue-700 dark:text-blue-400 font-bold">
+                                {property?.tenant_usage?.normal || 0} / {property?.normal_booking_limit || 1}
+                              </span>
+                            </div>
+                            <div className="h-1.5 w-full bg-blue-200/50 dark:bg-blue-900/30 rounded-full overflow-hidden">
+                              <div 
+                                className="h-full bg-blue-600 rounded-full transition-all duration-500"
+                                style={{ width: `${Math.min(100, ((property?.tenant_usage?.normal || 0) / (property?.normal_booking_limit || 1)) * 100)}%` }}
+                              />
+                            </div>
+                          </div>
+
+                          {/* Proxy Limit */}
+                          <div>
+                            <div className="flex justify-between text-[11px] mb-1">
+                              <span className="text-gray-600 dark:text-gray-400 font-medium">Proxy (For Others)</span>
+                              <span className="text-emerald-700 dark:text-emerald-400 font-bold">
+                                {property?.tenant_usage?.proxy || 0} / {property?.proxy_booking_limit || 3}
+                              </span>
+                            </div>
+                            <div className="h-1.5 w-full bg-emerald-200/50 dark:bg-emerald-900/30 rounded-full overflow-hidden">
+                              <div 
+                                className="h-full bg-emerald-500 rounded-full transition-all duration-500"
+                                style={{ width: `${Math.min(100, ((property?.tenant_usage?.proxy || 0) / (property?.proxy_booking_limit || 3)) * 100)}%` }}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                        
+                        {(property?.tenant_usage?.normal >= property?.normal_booking_limit && bookingMode === 'normal') && (
+                          <div className="pt-1 flex items-start gap-2 text-[10px] text-amber-700 dark:text-amber-400 font-medium">
+                            <AlertTriangle className="w-3 h-3 shrink-0" />
+                            <span>You have reached your personal booking limit for this property.</span>
                           </div>
                         )}
-                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-2 font-medium">
-                          Occupied: {resolvedOccupiedCount} / {resolvedCapacity}
-                        </p>
                       </div>
                     )}
+                    {showBedCountSelector && (
+                      <div className="space-y-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            Number of Beds <span className="text-red-500">*</span>
+                          </label>
+                          {maxBookableBeds > 1 ? (
+                            <select
+                              value={bedCount}
+                              onChange={(e) => {
+                                const newCount = parseInt(e.target.value, 10);
+                                setBedCount(newCount);
+                                if (bookingMode === "normal") {
+                                  setSelectedBedNumbers([]);
+                                }
+                              }}
+                              className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                            >
+                              {[...Array(maxBookableBeds)].map((_, i) => (
+                                <option key={i + 1} value={i + 1}>
+                                  {i + 1} {i === 0 ? "Bed" : "Beds"}
+                                </option>
+                              ))}
+                            </select>
+                          ) : (
+                            <div className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700/70 text-gray-700 dark:text-gray-200">
+                              1 Bed
+                            </div>
+                          )}
+                          <p className="text-xs text-gray-500 dark:text-gray-400 mt-2 font-medium">
+                            Occupied: {resolvedOccupiedCount} / {resolvedCapacity}
+                          </p>
+                        </div>
+
+                        {bookingMode === "normal" && room.available_bed_numbers?.length > 0 && (
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                              Select Bed {bedCount > 1 ? "Numbers" : "Number"} <span className="text-red-500">*</span>
+                            </label>
+                            <div className="space-y-3">
+                              {[...Array(bedCount)].map((_, idx) => {
+                                const currentBedValue = selectedBedNumbers[idx] || "";
+                                return (
+                                  <select
+                                    key={idx}
+                                    value={currentBedValue}
+                                    onChange={(e) => {
+                                      const newNumbers = [...selectedBedNumbers];
+                                      newNumbers[idx] = e.target.value;
+                                      setSelectedBedNumbers(newNumbers);
+                                    }}
+                                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                                  >
+                                    <option value="">-- Choose Bed {bedCount > 1 ? `#${idx + 1}` : ""} --</option>
+                                    {room.available_bed_numbers.map((bed) => {
+                                      const isTakenByOther = selectedBedNumbers.some(
+                                        (val, sIdx) => sIdx !== idx && String(val) === String(bed)
+                                      );
+                                      return (
+                                        <option key={bed} value={bed} disabled={isTakenByOther}>
+                                          Bed #{bed} {isTakenByOther ? "(Selected)" : ""}
+                                        </option>
+                                      );
+                                    })}
+                                  </select>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
                     <div>
                       {supportsContractModeSwitch && (
                         <div>
@@ -1681,6 +1871,33 @@ export default function RoomDetailsModal({
                                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                               />
                             </div>
+
+                            {room.available_bed_numbers?.length > 0 && (
+                              <div>
+                                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                                  Bed Number <span className="text-red-500">*</span>
+                                </label>
+                                <select
+                                  value={occupant.bed_number || ""}
+                                  onChange={(e) =>
+                                    handleProxyOccupantChange(index, "bed_number", e.target.value)
+                                  }
+                                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                                >
+                                  <option value="">-- Select Bed --</option>
+                                  {room.available_bed_numbers.map((bed) => {
+                                    const isTakenByOther = proxyOccupants.some(
+                                      (p, pIdx) => pIdx !== index && String(p.bed_number) === String(bed)
+                                    );
+                                    return (
+                                      <option key={bed} value={bed} disabled={isTakenByOther}>
+                                        Bed #{bed} {isTakenByOther ? "(Selected)" : ""}
+                                      </option>
+                                    );
+                                  })}
+                                </select>
+                              </div>
+                            )}
                           </div>
                         </div>
                       ))}

@@ -264,4 +264,28 @@ class TenantPaymentController extends Controller
             ], 500);
         }
     }
+
+    /**
+     * Get wallet credit transaction history for tenant
+     */
+    public function getWalletLogs(Request $request)
+    {
+        try {
+            $tenantId = Auth::id();
+
+            $logs = \App\Models\TenantCredit::with(['property' => function ($q) {
+                $q->select('id', 'title');
+            }])
+                ->where('tenant_id', $tenantId)
+                ->orderBy('created_at', 'desc')
+                ->paginate(20);
+
+            return response()->json($logs, 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Failed to fetch wallet logs',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
 }

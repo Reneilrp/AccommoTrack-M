@@ -128,19 +128,34 @@ class CartService
     }
 
     /**
+     * Get all active carts for a user
+     */
+    public function getAllActiveCarts(int $userId)
+    {
+        return Cart::with(['items.room.property', 'property'])
+            ->where('user_id', $userId)
+            ->active()
+            ->get();
+    }
+
+    /**
      * Clear cart
      */
-    public function clearCart(int $userId, int $propertyId): bool
+    public function clearCart(int $userId, ?int $propertyId = null): bool
     {
-        $cart = Cart::where('user_id', $userId)
-            ->where('property_id', $propertyId)
-            ->active()
-            ->first();
+        $query = Cart::where('user_id', $userId)->active();
 
-        if ($cart) {
-            $cart->items()->delete();
-            $cart->delete();
+        if ($propertyId) {
+            $query->where('property_id', $propertyId);
+        }
 
+        $carts = $query->get();
+
+        if ($carts->isNotEmpty()) {
+            foreach ($carts as $cart) {
+                $cart->items()->delete();
+                $cart->delete();
+            }
             return true;
         }
 
@@ -199,6 +214,7 @@ class CartService
                 'notes' => $checkoutData['notes'] ?? null,
                 'payment_plan' => $checkoutData['payment_plan'] ?? 'monthly',
                 'receipt_image' => $checkoutData['receipt_image'] ?? null,
+                'skip_limit_check' => true,
             ], $userId);
 
             // Mark cart as completed
@@ -295,6 +311,7 @@ class CartService
      */
     public function cleanupExpiredCarts(): int
     {
+        /** @var \Illuminate\Database\Eloquent\Collection|\App\Models\Cart[] $expiredCarts */
         $expiredCarts = Cart::expired()->get();
         $count = 0;
 

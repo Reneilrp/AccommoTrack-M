@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import api from '../../utils/api';
-import toast from 'react-hot-toast';
+import { showSuccess, showError } from '../../utils/toast';
 import { Archive, RefreshCcw, Search, MapPin, CalendarDays, KeyRound, Users, Home } from 'lucide-react';
 import ConfirmationModal from '../../components/Shared/ConfirmationModal';
 
@@ -31,7 +31,7 @@ const ArchivedProperties = () => {
       }
     } catch (err) {
       console.error(`Failed to fetch archived ${activeTab}`, err);
-      toast.error(`Failed to load ${activeTab} archives`);
+      showError(`Failed to load ${activeTab} archives`);
     } finally {
       setLoading(false);
     }
@@ -48,10 +48,10 @@ const ArchivedProperties = () => {
     try {
       if (action === 'restore') {
         await api.post(`/admin/${type}/${id}/restore`);
-        toast.success(`${type === 'users' ? 'User' : 'Property'} successfully restored`);
+        showSuccess(`${type === 'users' ? 'User' : 'Property'} successfully restored`);
       } else if (action === 'purge') {
         await api.delete(`/admin/${type}/${id}/force`, { data: { password: passwordValueRef.current } });
-        toast.success(`${type === 'users' ? 'User' : 'Property'} permanently deleted`);
+        showSuccess(`${type === 'users' ? 'User' : 'Property'} permanently deleted`);
       }
 
       if (type === 'properties') {
@@ -62,7 +62,7 @@ const ArchivedProperties = () => {
       setPasswordValue('');
     } catch (err) {
       console.error(`Failed to ${action} ${type}`, err);
-      toast.error(err.response?.data?.message || err.message || `Failed to ${action}`);
+      showError(err.response?.data?.message || err.message || `Failed to ${action}`);
       if (action === 'purge') setPasswordValue('');
     } finally {
       setActionLoading(null);

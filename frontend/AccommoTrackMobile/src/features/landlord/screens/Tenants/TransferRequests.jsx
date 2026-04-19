@@ -8,12 +8,11 @@ import {
   ActivityIndicator,
   RefreshControl,
   TextInput,
-  Alert,
-  Modal,
-  KeyboardAvoidingView,
-  Platform,
   Keyboard,
-  TouchableWithoutFeedback
+  TouchableWithoutFeedback,
+  KeyboardAvoidingView,
+  Modal,
+  Platform
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -27,6 +26,7 @@ import {
 } from '../../hooks/useLandlordQueryHelpers.js';
 import PropertyService from '../../../../services/PropertyService.js';
 import { getStyles } from '../../../../styles/Landlord/TransferRequests.js';
+import { showSuccess, showError, showWarning } from '../../../../utils/toast.js';
 
 const EMPTY_TRANSFER_REQUESTS = [];
 const EMPTY_PROPERTIES = [];
@@ -34,7 +34,6 @@ const EMPTY_PROPERTIES = [];
 export default function TransferRequests({ navigation, route }) {
   const { theme } = useTheme();
   const styles = React.useMemo(() => getStyles(theme), [theme]);
-  const showAlert = Alert.alert;
 
   const [refreshing, setRefreshing] = useState(false);
   const [statusFilter, setStatusFilter] = useState('pending');
@@ -191,13 +190,13 @@ export default function TransferRequests({ navigation, route }) {
         });
       } else {
         updateTransferForm(transferId, { loadingProration: false, prorationDetails: null });
-        showAlert('Warning', 'Failed to calculate rent proration details. You can still proceed with manual values.');
+        showWarning('Warning', 'Failed to calculate rent proration details. You can still proceed with manual values.');
       }
     } catch (err) {
       console.error('Failed to load proration:', err);
       updateTransferForm(transferId, { loadingProration: false, prorationDetails: null });
       if (err.message === 'Request timeout') {
-        showAlert('Warning', 'Proration calculation timed out. You can proceed with manual values.');
+        showWarning('Warning', 'Proration calculation timed out. You can proceed with manual values.');
       }
     }
   };
@@ -208,12 +207,12 @@ export default function TransferRequests({ navigation, route }) {
     const landlordNotes = String(form.landlord_notes || '').trim();
 
     if (action === 'approve' && damageCharge > 0 && !String(form.damage_description || '').trim()) {
-      showAlert('Error', 'Damage description is required when damage charge is set.');
+      showError('Error', 'Damage description is required when damage charge is set.');
       return;
     }
 
     if (action === 'reject' && !landlordNotes) {
-      showAlert('Error', 'Please provide a reason before rejecting this request.');
+      showError('Error', 'Please provide a reason before rejecting this request.');
       return;
     }
 
@@ -232,7 +231,7 @@ export default function TransferRequests({ navigation, route }) {
     try {
       const res = await PropertyService.handleTransferRequest(transferId, payload);
       if (res.success) {
-        showAlert('Success', `Transfer request ${action}d successfully`);
+        showSuccess(`Transfer request ${action}d successfully`);
         setActionError('');
         
         // Close modal first before refetching to prevent UI issues
@@ -249,13 +248,13 @@ export default function TransferRequests({ navigation, route }) {
       } else {
         const errorMsg = res.error || `Failed to ${action} transfer request`;
         setActionError(errorMsg);
-        showAlert('Error', errorMsg);
+        showError('Error', errorMsg);
       }
     } catch (err) {
       console.error(`Failed to ${action} request`, err);
       const errorMsg = err?.response?.data?.message || err?.message || `Failed to ${action} transfer request. Please try again.`;
       setActionError(errorMsg);
-      showAlert('Error', errorMsg);
+      showError('Error', errorMsg);
     } finally {
       setHandlingAction('');
     }

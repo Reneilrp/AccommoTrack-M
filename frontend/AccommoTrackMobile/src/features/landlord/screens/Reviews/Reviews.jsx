@@ -8,7 +8,6 @@ import {
   Modal,
   TextInput,
   ActivityIndicator,
-  Alert,
   KeyboardAvoidingView,
   Platform
 } from 'react-native';
@@ -26,6 +25,7 @@ import {
   useLandlordFocusRefetch,
   useLandlordRefreshHandler,
 } from '../../hooks/useLandlordQueryHelpers.js';
+import { showSuccess, showError } from '../../../../utils/toast.js';
 
 const EMPTY_REVIEWS = [];
 const EMPTY_PROPERTIES = [];
@@ -35,7 +35,6 @@ export default function Reviews({ route }) {
   const navigation = useNavigation();
   const { theme } = useTheme();
   const styles = React.useMemo(() => getStyles(theme), [theme]);
-  const showAlert = Alert.alert;
 
   const [refreshing, setRefreshing] = useState(false);
   const routePropertyId = route?.params?.propertyId || route?.params?.property?.id;
@@ -126,7 +125,7 @@ export default function Reviews({ route }) {
 
   const handleReply = async () => {
     if (!responseText.trim()) {
-      showAlert('Error', 'Please enter a response');
+      showError('Error', 'Please enter a response');
       return;
     }
 
@@ -135,13 +134,13 @@ export default function Reviews({ route }) {
     setSubmitting(false);
 
     if (res.success) {
-      showAlert('Success', 'Response submitted successfully');
+      showSuccess('Success', 'Response submitted successfully');
       await refetchLandlordQueries(reviewRefetchers);
       setReplyVisible(false);
       setResponseText('');
       setSelectedReview(null);
     } else {
-      showAlert('Error', res.error);
+      showError('Error', res.error);
     }
   };
 

@@ -2,7 +2,7 @@ import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   ArrowLeft, Search, RefreshCw, Loader2, Receipt, ChevronDown, ChevronUp,
-  Archive, FileText, CheckCircle, Clock, AlertTriangle, XCircle, RotateCcw
+  Archive, FileText, CheckCircle, Clock, AlertTriangle, XCircle, RotateCcw, Eye
 } from 'lucide-react';
 import { paymentService } from '../../services/paymentService';
 
@@ -23,9 +23,15 @@ const getStatusMeta = (status) => {
     case 'paid':
       return { label: 'Paid', icon: CheckCircle, cls: 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20' };
     case 'partial':
+      return { label: 'Partial', icon: Clock, cls: 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/20' };
     case 'awaiting verification':
     case 'pending_verification':
-      return { label: s === 'pending_verification' || s === 'awaiting verification' ? 'Awaiting Verify' : 'Partial', icon: Clock, cls: 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/20' };
+    case 'pending_offline':
+      return { 
+        label: 'Awaiting Verify', 
+        icon: Clock, 
+        cls: 'bg-amber-50 text-amber-600 border-amber-200 dark:bg-amber-500/10 dark:text-amber-400/80 dark:border-amber-500/20' 
+      };
     case 'overdue':
       return { label: 'Overdue', icon: AlertTriangle, cls: 'bg-red-50 text-red-700 border-red-200 dark:bg-red-500/10 dark:text-red-400 dark:border-red-500/20' };
     case 'refunded':
@@ -45,10 +51,11 @@ const formatDate = (d) => {
 
 // ─── Payment Row ──────────────────────────────────────────────────────────────
 
-function PaymentRow({ payment, navigate }) {
+function PaymentRow({ payment, navigate, onViewProof }) {
   const meta = getStatusMeta(payment.status);
   const StatusIcon = meta.icon;
   const isPayable = ['pending', 'unpaid', 'partial', 'overdue'].includes((payment.status || '').toLowerCase());
+  const hasProof = !!(payment.proofImage || payment.proof_image || payment.proof_url);
 
   return (
     <tr
@@ -87,14 +94,25 @@ function PaymentRow({ payment, navigate }) {
         </span>
       </td>
       <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
-        {isPayable && (
-          <button
-            onClick={() => navigate(`/checkout/${payment.invoiceId || payment.invoice_id || payment.id}`)}
-            className="px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white text-xs font-bold rounded-lg transition-colors whitespace-nowrap"
-          >
-            Pay
-          </button>
-        )}
+        <div className="flex items-center gap-2">
+          {hasProof && (
+            <button
+              onClick={() => onViewProof(payment)}
+              className="p-1.5 text-gray-500 hover:text-green-600 hover:bg-green-50 dark:hover:bg-green-500/10 rounded-lg transition-colors"
+              title="View Proof of Payment"
+            >
+              <Eye className="w-4 h-4" />
+            </button>
+          )}
+          {isPayable && (
+            <button
+              onClick={() => navigate(`/checkout/${payment.invoiceId || payment.invoice_id || payment.id}`)}
+              className="px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white text-xs font-bold rounded-lg transition-colors whitespace-nowrap"
+            >
+              Pay
+            </button>
+          )}
+        </div>
       </td>
     </tr>
   );
@@ -112,6 +130,7 @@ export default function TenantPaymentLogs({ _user }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [archiveOpen, setArchiveOpen] = useState(false);
+  const [proofModal, setProofModal] = useState({ open: false, payment: null });
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -269,7 +288,12 @@ export default function TenantPaymentLogs({ _user }) {
                     {tableHead}
                     <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
                       {filteredArchived.map((p) => (
-                        <PaymentRow key={p.id} payment={p} navigate={navigate} />
+                        <PaymentRow 
+                          key={p.id} 
+                          payment={p} 
+                          navigate={navigate} 
+                          onViewProof={(payment) => setProofModal({ open: true, payment })}
+                        />
                       ))}
                     </tbody>
                   </table>
@@ -347,7 +371,12 @@ export default function TenantPaymentLogs({ _user }) {
                 {tableHead}
                 <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
                   {filteredAll.map((p) => (
-                    <PaymentRow key={p.id} payment={p} navigate={navigate} />
+                    <PaymentRow 
+                      key={p.id} 
+                      payment={p} 
+                      navigate={navigate} 
+                      onViewProof={(payment) => setProofModal({ open: true, payment })}
+                    />
                   ))}
                 </tbody>
               </table>
@@ -357,6 +386,49 @@ export default function TenantPaymentLogs({ _user }) {
 
         <div className="h-8" />
       </div>
+
+      {/* Proof Modal */}
+      {proofModal.open && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div 
+            className="bg-white dark:bg-gray-800 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-bold text-gray-900 dark:text-white uppercase tracking-tight">Proof of Payment</h3>
+                <p className="text-xs text-gray-500 dark:text-gray-400 font-bold mt-1">
+                  {proofModal.payment?.referenceNo || 'Transaction Reference'}
+                </p>
+              </div>
+              <button 
+                onClick={() => setProofModal({ open: false, payment: null })}
+                className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+              >
+                <XCircle className="w-5 h-5 text-gray-400" />
+              </button>
+            </div>
+            <div className="p-6 bg-gray-50 dark:bg-gray-900/30 flex items-center justify-center min-h-[300px]">
+              <img 
+                src={proofModal.payment?.proofImage || proofModal.payment?.proof_image || proofModal.payment?.proof_url} 
+                alt="Proof of Payment"
+                className="max-w-full max-h-[60vh] object-contain rounded-lg shadow-lg"
+                onError={(e) => {
+                  e.target.src = 'https://placehold.co/400x600?text=Image+Not+Found';
+                }}
+              />
+            </div>
+            <div className="px-6 py-4 bg-gray-50 dark:bg-gray-800/80 border-t border-gray-100 dark:border-gray-700 flex justify-end">
+              <button 
+                onClick={() => setProofModal({ open: false, payment: null })}
+                className="px-6 py-2 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl text-sm font-bold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
+              >
+                Close Preview
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

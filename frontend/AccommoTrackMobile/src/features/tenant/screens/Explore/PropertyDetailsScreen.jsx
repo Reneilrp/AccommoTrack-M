@@ -26,6 +26,7 @@ import PropertyService from "../../../../services/PropertyService.js";
 import ReviewService from "../../../../services/ReviewService.js";
 import { useTheme } from "../../../../contexts/ThemeContext.jsx";
 import { getImageUrl } from "../../../../utils/imageUtils.js";
+import { showError, showWarning } from "../../../../utils/toast.js";
 import {
   tenantQueryKeys,
   useTenantFocusRefetch,
@@ -49,15 +50,29 @@ const transformPropertyDetailsPayload = (rawData) => {
     available_rooms: rawData.available_rooms,
     priceRange: rawData.price_range,
     amenities: rawData.amenities || [],
+    normal_booking_limit: rawData.normal_booking_limit,
+    proxy_booking_limit: rawData.proxy_booking_limit,
+    tenant_usage: rawData.tenant_usage || { normal: 0, proxy: 0 },
   };
 
   const rooms = (rawData.rooms || [])
-    .map((room) => ({
-      ...room,
-      images: room.images || [],
-      monthly_rate: parseFloat(room.monthly_rate) || 0,
-      status: (room.display_status || room.status || "unknown").toString().toLowerCase(),
-    }))
+    .map((room) => {
+      const isPhysicallyAvailable = (room.is_physically_available ?? Number(room.available_slots ?? 0) > 0) && room.status !== 'maintenance';
+      const rawStatus = (room.display_status || room.status || "unknown").toString().toLowerCase();
+      
+      // Override status to 'occupied' if it's supposed to be available but has no slots
+      const resolvedStatus = (rawStatus === 'available' && !isPhysicallyAvailable) ? 'occupied' : rawStatus;
+
+      return {
+        ...room,
+        images: room.images || [],
+        monthly_rate: parseFloat(room.monthly_rate) || 0,
+        status: resolvedStatus,
+        is_physically_available: isPhysicallyAvailable,
+        is_tenant: room.is_tenant || false,
+        reserved_by_me: room.reserved_by_me || false,
+      };
+    })
     .sort((a, b) => {
       const aAvailable = (a.status || "unknown").toLowerCase() === "available";
       const bAvailable = (b.status || "unknown").toLowerCase() === "available";
@@ -81,7 +96,6 @@ export default function PropertyDetailsScreen({
   const { width: viewportWidth } = useWindowDimensions();
   const { theme } = useTheme();
   const styles = React.useMemo(() => getStyles(theme, viewportWidth), [theme, viewportWidth]);
-  const showAlert = Alert.alert;
   const routeParams = route?.params || {};
   const {
     accommodation,
@@ -292,14 +306,18 @@ export default function PropertyDetailsScreen({
       property_rules:
         sourceProperty.property_rules || sourceProperty.propertyRules,
       nearby_landmarks: sourceProperty.nearby_landmarks,
+      
+      // Booking Limits & Usage
+      normal_booking_limit: sourceProperty.normal_booking_limit,
+      proxy_booking_limit: sourceProperty.proxy_booking_limit,
+      tenant_usage: sourceProperty.tenant_usage || { normal: 0, proxy: 0 },
     };
 
     console.log("Property data being passed to RoomDetails:", {
       id: propertyData.id,
       landlord_id: propertyData.landlord_id,
-      user_id: propertyData.user_id,
-      landlord_name: propertyData.landlord_name,
-      landlord: propertyData.landlord,
+      normalLimit: propertyData.normal_booking_limit,
+      usage: propertyData.tenant_usage,
     }); // DEBUG
 
     navigation.navigate("RoomDetails", {
@@ -350,7 +368,7 @@ export default function PropertyDetailsScreen({
     const src = detailedAccommodation || accommodation;
     const { latitude, longitude } = src || {};
     if (!latitude || !longitude) {
-      showAlert(
+      showWarning(
         "Location Not Available",
         "Map coordinates are not set for this property.",
       );
@@ -400,7 +418,7 @@ export default function PropertyDetailsScreen({
       console.log("Extracted landlord info:", { landlordId, landlordName });
 
       if (!landlordId) {
-        showAlert(
+        Alert.alert(
           "Error",
           "Landlord information not available. Please try refreshing the property details.",
           [
@@ -437,7 +455,7 @@ export default function PropertyDetailsScreen({
       });
     } catch (error) {
       console.error("Error navigating to messages:", error);
-      showAlert(
+      showError(
         "Error",
         `Failed to open messages: ${error.message}\n\nPlease try again.`,
       );
@@ -882,6 +900,149 @@ export default function PropertyDetailsScreen({
             </View>
           )}
 
+          {/* Booking limits */}
+          {active &&
+            (active.normal_booking_limit > 0 ||
+              active.proxy_booking_limit > 0) && (
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>Booking Policy & Limits</Text>
+                <View
+                  style={{
+                    backgroundColor: theme.colors.backgroundSecondary || "#f8fafc",
+                    borderRadius: 12,
+                    padding: 16,
+                    borderLeftWidth: 4,
+                    borderLeftColor: theme.colors.primary,
+                  }}
+                >
+                  {active.normal_booking_limit > 0 && (
+                    <View
+                      style={{
+                        marginBottom: active.proxy_booking_limit > 0 ? 12 : 0,
+                      }}
+                    >
+                      <View
+                        style={{
+                          flexDirection: "row",
+                          justifyContent: "space-between",
+                          marginBottom: 6,
+                        }}
+                      >
+                        <Text
+                          style={{
+                            fontSize: 13,
+                            fontWeight: "700",
+                            color: theme.colors.text,
+                          }}
+                        >
+                          Standard Bookings
+                        </Text>
+                        <Text
+                          style={{
+                            fontSize: 13,
+                            fontWeight: "700",
+                            color: theme.colors.primary,
+                          }}
+                        >
+                          {active.tenant_usage?.normal || 0} /{" "}
+                          {active.normal_booking_limit} slots
+                        </Text>
+                      </View>
+                      <View
+                        style={{
+                          height: 6,
+                          backgroundColor: "rgba(0,0,0,0.05)",
+                          borderRadius: 3,
+                        }}
+                      >
+                        <View
+                          style={{
+                            height: 6,
+                            backgroundColor: theme.colors.primary,
+                            borderRadius: 3,
+                            width: `${Math.min(
+                              100,
+                              ((active.tenant_usage?.normal || 0) /
+                                active.normal_booking_limit) *
+                                100
+                            )}%`,
+                          }}
+                        />
+                      </View>
+                    </View>
+                  )}
+                  {active.proxy_booking_limit > 0 && (
+                    <View
+                      style={{
+                        marginTop: active.normal_booking_limit > 0 ? 4 : 0,
+                      }}
+                    >
+                      <View
+                        style={{
+                          flexDirection: "row",
+                          justifyContent: "space-between",
+                          marginBottom: 6,
+                        }}
+                      >
+                        <Text
+                          style={{
+                            fontSize: 13,
+                            fontWeight: "700",
+                            color: theme.colors.text,
+                          }}
+                        >
+                          Proxy Bookings
+                        </Text>
+                        <Text
+                          style={{
+                            fontSize: 13,
+                            fontWeight: "700",
+                            color: theme.colors.primary,
+                          }}
+                        >
+                          {active.tenant_usage?.proxy || 0} /{" "}
+                          {active.proxy_booking_limit} slots
+                        </Text>
+                      </View>
+                      <View
+                        style={{
+                          height: 6,
+                          backgroundColor: "rgba(0,0,0,0.05)",
+                          borderRadius: 3,
+                        }}
+                      >
+                        <View
+                          style={{
+                            height: 6,
+                            backgroundColor: theme.colors.primary,
+                            borderRadius: 3,
+                            width: `${Math.min(
+                              100,
+                              ((active.tenant_usage?.proxy || 0) /
+                                active.proxy_booking_limit) *
+                                100
+                            )}%`,
+                          }}
+                        />
+                      </View>
+                    </View>
+                  )}
+                  <Text
+                    style={{
+                      fontSize: 11,
+                      color: theme.colors.textSecondary,
+                      marginTop: 12,
+                      fontStyle: "italic",
+                      lineHeight: 16,
+                    }}
+                  >
+                    Limits are enforced per property to ensure fair access for
+                    all tenants. Normal and proxy limits are independent.
+                  </Text>
+                </View>
+              </View>
+            )}
+
           {/* Amenities */}
           {active && active.amenities && active.amenities.length > 0 && (
             <View style={styles.section}>
@@ -1251,11 +1412,11 @@ export default function PropertyDetailsScreen({
             ) : (
               <View style={styles.roomsList}>
                 {filteredRooms.map((room) => {
-                  const isOccupied = room.status === "occupied";
+                  const isFull = parseInt(room.available_slots || 0) === 0;
                   return (
                     <TouchableOpacity
                       key={room.id}
-                      style={[styles.roomCard, isOccupied && styles.roomCardOccupied]}
+                      style={[styles.roomCard, isFull && styles.roomCardOccupied]}
                       onPress={() => handleRoomPress(room)}
                     >
                       <View style={styles.roomImageWrapper}>
@@ -1284,15 +1445,10 @@ export default function PropertyDetailsScreen({
 
                         {/* Second Row: Status Badge and Price Label */}
                         <View style={styles.roomStatusRow}>
-                          <View
-                            style={[
-                              styles.statusBadge,
-                              {
-                                backgroundColor:
-                                  getStatusColor(room.status) + "20",
-                              },
-                            ]}
-                          >
+                          <View style={[
+                            styles.statusBadge,
+                            { backgroundColor: `${getStatusColor(room.status)}15` }
+                          ]}>
                             <Ionicons
                               name={getStatusIcon(room.status)}
                               size={14}
@@ -1307,6 +1463,24 @@ export default function PropertyDetailsScreen({
                             >
                               {capitalizeStatus(room.status)}
                             </Text>
+                          </View>
+                          
+                          {/* New Badges for Tenancy/Reservation */}
+                          <View style={{ flexDirection: 'row', gap: 6 }}>
+                            {room.is_tenant && (
+                              <View style={[styles.statusBadge, { backgroundColor: theme.colors.primary, paddingHorizontal: 10 }]}>
+                                <Text style={[styles.statusText, { color: '#FFFFFF', fontWeight: 'bold' }]}>
+                                  Living here
+                                </Text>
+                              </View>
+                            )}
+                            {room.reserved_by_me && !room.is_tenant && (
+                              <View style={[styles.statusBadge, { backgroundColor: '#FEF3C7', borderColor: '#F59E0B', borderWidth: 1 }]}>
+                                <Text style={[styles.statusText, { color: '#92400E' }]}>
+                                  Reserved
+                                </Text>
+                              </View>
+                            )}
                           </View>
                           <Text style={styles.priceLabel} numberOfLines={1}>
                             /month
@@ -1341,7 +1515,7 @@ export default function PropertyDetailsScreen({
                               color="#6b7280"
                             />
                             <Text style={styles.roomDetailText} numberOfLines={1}>
-                              Capacity: {room.capacity}
+                              {room.occupied || 0} / {room.capacity}
                             </Text>
                           </View>
                           <View style={styles.viewDetailsButton}>

@@ -530,7 +530,7 @@ class Room extends Model
         // Check if room has physical space for more active tenants/beds
         $currentOccupied = $this->occupied;
         if ($currentOccupied + $requestedBeds > $this->capacity) {
-            throw new \Exception('Room has insufficient available beds');
+            throw new \DomainException('Room has insufficient available beds');
         }
 
         // Add tenant to room_tenant_assignments

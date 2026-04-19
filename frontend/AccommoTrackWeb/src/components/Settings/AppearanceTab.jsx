@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { usePreferences } from '../../contexts/PreferencesContext';
 import { Type, Check, Sun, Moon, Monitor } from 'lucide-react';
 import { SkeletonAppearanceTab } from '../../components/Shared/Skeleton';
-import toast from 'react-hot-toast';
+import { showSuccess, showError } from '../../utils/toast';
 import api from '../../utils/api';
 
 export default function AppearanceTab({ loading = false, user, onUserUpdate }) {
@@ -44,9 +44,9 @@ export default function AppearanceTab({ loading = false, user, onUserUpdate }) {
       const nextUser = response.data?.user || { ...user, preferences: nextPreferences };
       if (onUserUpdate) onUserUpdate(nextUser);
 
-      toast.success('Appearance preferences saved');
+      showSuccess('Appearance preferences saved');
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Failed to save appearance preferences');
+      showError(error.response?.data?.message || 'Failed to save appearance preferences');
     } finally {
       setIsSaving(false);
     }

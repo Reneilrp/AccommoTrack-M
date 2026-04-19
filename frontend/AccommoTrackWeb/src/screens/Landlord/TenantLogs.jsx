@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { 
   Loader2, 
@@ -22,7 +22,7 @@ import api from '../../utils/api';
 import { useUIState } from '../../contexts/UIStateContext';
 import { cacheManager } from '../../utils/cache';
 import PriceRow from '../../components/Shared/PriceRow';
-import toast from 'react-hot-toast';
+import { showSuccess, showError } from '../../utils/toast';
 
 export default function TenantLogs() {
   const { id } = useParams();
@@ -106,7 +106,7 @@ export default function TenantLogs() {
     const damageCharge = Number(form.damage_charge || 0);
 
     if (action === 'approve' && damageCharge > 0 && !String(form.damage_description || '').trim()) {
-      toast.error('Damage description is required when damage charge is set.');
+      showError('Damage description is required when damage charge is set.');
       return;
     }
 
@@ -138,119 +138,119 @@ export default function TenantLogs() {
         ),
       }));
 
-      toast.success(`Transfer ${nextStatus} successfully.`);
+      showSuccess(`Transfer ${nextStatus} successfully.`);
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to update transfer request.');
+      showError(err.response?.data?.message || 'Failed to update transfer request.');
     } finally {
       setHandlingTransferId(null);
     }
   };
 
-  useEffect(() => {
-    const load = async () => {
-      try {
-        if (!cachedData) setLoading(true);
-        setError(null);
+  const load = useCallback(async () => {
+    try {
+      if (!cachedData) setLoading(true);
+      setError(null);
 
-        let tenantId = id || null;
+      let tenantId = id || null;
 
-        if (!tenantId && searchParam) {
-          try {
-            const res = await api.get(`/landlord/tenants?search=${encodeURIComponent(searchParam)}`);
-            const list = Array.isArray(res.data) ? res.data : (res.data?.data || []);
-            if (list.length === 1) {
-              tenantId = list[0].id || list[0].tenant_id || list[0].tenantId || (list[0].user && list[0].user.id) || null;
-            } else if (list.length > 1) {
-              setTenant(null);
-              setPayments([]);
-              setSearchResults(list);
-              setLoading(false);
-              return;
-            }
-          } catch (e) { console.error(e); }
-        }
-
-        if (!tenantId) {
-          setTenant(null);
-          setPayments([]);
-          setSearchResults([]);
-          setLoading(false);
-          return;
-        }
-
-        // Fetch Detailed Tenant Data
-        const tRes = await api.get(`/landlord/tenants/${tenantId}`);
-        const tenantData = tRes.data || null;
-        setTenant(tenantData);
-        if (tenantData.history) {
-          setHistoryData({
-            bookings: tenantData.history.bookings || [],
-            maintenance: tenantData.history.maintenance || [],
-            addons: tenantData.history.addons || [],
-            transfers: tenantData.history.transfers || [],
-          });
-        }
-
-        let payList = [];
-        let paid = [];
-        let dueSumCents = 0;
-
+      if (!tenantId && searchParam) {
         try {
-          const payRes = await api.get(`/invoices?tenant_id=${tenantId}&t=${Date.now()}`);
-          payList = Array.isArray(payRes.data) ? payRes.data : (payRes.data?.data || payRes.data || []);
-          setPayments(payList);
-
-          paid = payList.filter(inv => (inv.status === 'paid') || inv.paid_at);
-          const unpaid = payList.filter(inv => {
-            const status = String(inv.status || '').toLowerCase();
-            const isCancelled = status === 'cancelled' || status === 'void';
-            return !isCancelled && !(inv.status === 'paid' || inv.paid_at);
-          });
-          setPreviousPayments(paid);
-          dueSumCents = unpaid.reduce((sum, inv) => sum + (inv.amount_cents || inv.total_cents || 0), 0);
-          setDueAmount(dueSumCents / 100);
-
-          if (tenantData && tenantData.room) {
-            setCurrentRoom(tenantData.room);
-          } else {
-            const invoiceWithBooking = payList.find(inv => inv.booking_id);
-            if (invoiceWithBooking?.booking_id) {
-              try {
-                const bRes = await api.get(`/bookings/${invoiceWithBooking.booking_id}`);
-                const booking = bRes.data;
-                if (booking?.room) {
-                  setCurrentRoom({
-                    room_number: booking.room.room_number,
-                    type_label: booking.room.room_type || booking.room.room_type_label,
-                    id: booking.room.id
-                  });
-                }
-              } catch { /* ignore */ }
-            }
+          const res = await api.get(`/landlord/tenants?search=${encodeURIComponent(searchParam)}`);
+          const list = Array.isArray(res.data) ? res.data : (res.data?.data || []);
+          if (list.length === 1) {
+            tenantId = list[0].id || list[0].tenant_id || list[0].tenantId || (list[0].user && list[0].user.id) || null;
+          } else if (list.length > 1) {
+            setTenant(null);
+            setPayments([]);
+            setSearchResults(list);
+            setLoading(false);
+            return;
           }
-        } catch {
-          setPayments([]);
-        }
-
-        const combined = { 
-          tenant: tenantData, 
-          payments: payList, 
-          previousPayments: paid, 
-          dueAmount: dueSumCents / 100, 
-          currentRoom: tenantData?.room || null,
-          historyData: tenantData?.history || { bookings: [], maintenance: [], addons: [], transfers: [] }
-        };
-        updateData(cacheKey, combined);
-        cacheManager.set(cacheKey, combined);
-      } catch (err) {
-        setError(err.response?.data?.message || err.message || 'Failed to load tenant');
-      } finally {
-        setLoading(false);
+        } catch (e) { console.error(e); }
       }
-    };
 
+      if (!tenantId) {
+        setTenant(null);
+        setPayments([]);
+        setSearchResults([]);
+        setLoading(false);
+        return;
+      }
+
+      // Fetch Detailed Tenant Data
+      const tRes = await api.get(`/landlord/tenants/${tenantId}`);
+      const tenantData = tRes.data || null;
+      setTenant(tenantData);
+      if (tenantData.history) {
+        setHistoryData({
+          bookings: tenantData.history.bookings || [],
+          maintenance: tenantData.history.maintenance || [],
+          addons: tenantData.history.addons || [],
+          transfers: tenantData.history.transfers || [],
+        });
+      }
+
+      let payList = [];
+      let paid = [];
+      let dueSumCents = 0;
+
+      try {
+        const payRes = await api.get(`/invoices?tenant_id=${tenantId}&t=${Date.now()}`);
+        payList = Array.isArray(payRes.data) ? payRes.data : (payRes.data?.data || payRes.data || []);
+        setPayments(payList);
+
+        paid = payList.filter(inv => (inv.status === 'paid') || inv.paid_at);
+        const unpaid = payList.filter(inv => {
+          const status = String(inv.status || '').toLowerCase();
+          const isCancelled = status === 'cancelled' || status === 'void';
+          return !isCancelled && !(inv.status === 'paid' || inv.paid_at);
+        });
+        setPreviousPayments(paid);
+        dueSumCents = unpaid.reduce((sum, inv) => sum + (inv.amount_cents || inv.total_cents || 0), 0);
+        setDueAmount(dueSumCents / 100);
+
+        if (tenantData && tenantData.room) {
+          setCurrentRoom(tenantData.room);
+        } else {
+          const invoiceWithBooking = payList.find(inv => inv.booking_id);
+          if (invoiceWithBooking?.booking_id) {
+            try {
+              const bRes = await api.get(`/bookings/${invoiceWithBooking.booking_id}`);
+              const booking = bRes.data;
+              if (booking?.room) {
+                setCurrentRoom({
+                  room_number: booking.room.room_number,
+                  type_label: booking.room.room_type || booking.room.room_type_label,
+                  id: booking.room.id
+                });
+              }
+            } catch { /* ignore */ }
+          }
+        }
+      } catch {
+        setPayments([]);
+      }
+
+      const combined = { 
+        tenant: tenantData, 
+        payments: payList, 
+        previousPayments: paid, 
+        dueAmount: dueSumCents / 100, 
+        currentRoom: tenantData?.room || null,
+        historyData: tenantData?.history || { bookings: [], maintenance: [], addons: [], transfers: [] }
+      };
+      updateData(cacheKey, combined);
+      cacheManager.set(cacheKey, combined);
+    } catch (err) {
+      setError(err.response?.data?.message || err.message || 'Failed to load tenant');
+    } finally {
+      setLoading(false);
+    }
+  }, [id, searchParam, cachedData, updateData, cacheKey]);
+
+  useEffect(() => {
     load();
-  }, [id, searchParam]);
+  }, [load]);
 
   // Helper formatting functions
   const getAmountNumber = (inv) => {
@@ -690,7 +690,7 @@ export default function TenantLogs() {
                                           const val = e.target.value;
                                           const max = getTransferForm(req.id).prorationDetails?.quoted_transfer_fee || 0;
                                           if (Number(val) > max) {
-                                            toast.error(`You cannot charge more than the quoted fee of ₱${max}`);
+                                            showError(`You cannot charge more than the quoted fee of ₱${max}`);
                                             return;
                                           }
                                           updateTransferForm(req.id, { transfer_fee: val });

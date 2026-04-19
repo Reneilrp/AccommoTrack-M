@@ -44,7 +44,7 @@ const CARETAKER_MENU_DEFINITIONS = [
   { path: '/dashboard',  label: 'Dashboard',    icon: LayoutDashboard, permKey: null /* always */ },
   { path: '/properties', label: 'My Properties', icon: Building2,       permKey: 'canManageProperties' },
   { path: '/rooms',      label: 'Rooms',         icon: Home,            permKey: 'canManageRooms' },
-  { path: '/maintenance',label: 'Maintenance',   icon: Wrench,          permKey: 'canManageMaintenance' },
+  { path: '/maintenance',label: 'Maintenance',   icon: Wrench,          permKey: 'canAccessMaintenance' },
   { path: '/addons',     label: 'Add-ons',       icon: Sparkles,        permKey: 'canManageAddons' },
   { path: '/bookings',   label: 'Bookings',      icon: Calendar,        permKey: 'canManageBookings' },
   { path: '/payments',   label: 'Payments',      icon: Banknote,        permKey: 'canManagePayments' },

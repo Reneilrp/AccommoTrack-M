@@ -111,6 +111,29 @@ export const invoiceService = {
       return { success: false, error: err.response?.data?.message || err.message };
     }
   },
+
+  /**
+   * Get the printable receipt URL for an invoice
+   */
+  getReceiptUrl(invoiceId) {
+    const baseUrl = api.defaults.baseURL || '';
+    // ensure we don't end up with double slashes if baseURL ends in /
+    const cleanBase = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
+    return `${cleanBase}/invoices/${invoiceId}/receipt?print=1`;
+  },
+
+  /**
+   * Fetch landlord's own subscription invoices
+   * GET /landlord/subscriptions/invoices
+   */
+  async getSubscriptionInvoices(params = {}) {
+    try {
+      const res = await api.get('/landlord/subscriptions/invoices', { params });
+      return { success: true, data: res.data?.data || res.data };
+    } catch (err) {
+      return { success: false, error: err.response?.data?.message || err.message };
+    }
+  },
 };
 
 export default invoiceService;

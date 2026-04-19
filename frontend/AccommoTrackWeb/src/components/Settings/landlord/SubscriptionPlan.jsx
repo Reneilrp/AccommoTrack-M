@@ -14,7 +14,7 @@ import {
   ShieldAlert,
   ShieldCheck,
 } from 'lucide-react';
-import toast from 'react-hot-toast';
+import { showSuccess, showError } from '../../../utils/toast';
 import landlordService from '../../../services/landlordService';
 
 const formatMoney = (cents, currency = 'PHP') => {
@@ -307,7 +307,7 @@ export default function SubscriptionPlan({ onOpenBillingCenter }) {
       setPlans(Array.isArray(plansResponse.data) ? plansResponse.data : []);
       setBundle(currentResponse.data || null);
     } catch (error) {
-      toast.error(error.message || 'Unable to load subscription details.');
+      showError(error.message || 'Unable to load subscription details.');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -336,7 +336,7 @@ export default function SubscriptionPlan({ onOpenBillingCenter }) {
 
   const beginPaymongoCheckoutForSubscription = async (subscriptionId) => {
     if (!subscriptionId) {
-      toast.error('Unable to continue payment. Subscription checkout context is missing.');
+      showError('Unable to continue payment. Subscription checkout context is missing.');
       return false;
     }
 
@@ -370,7 +370,7 @@ export default function SubscriptionPlan({ onOpenBillingCenter }) {
 
       return true;
     } catch (error) {
-      toast.error(error.message || 'Unable to open PayMongo checkout.');
+      showError(error.message || 'Unable to open PayMongo checkout.');
       return false;
     } finally {
       setPaymongoInvoiceId(null);
@@ -379,7 +379,7 @@ export default function SubscriptionPlan({ onOpenBillingCenter }) {
 
   const handleCheckout = async (plan) => {
     if (!plan?.id || plan?.is_active === false) {
-      toast.error('This plan is not currently available for checkout.');
+      showError('This plan is not currently available for checkout.');
       return;
     }
 
@@ -399,18 +399,18 @@ export default function SubscriptionPlan({ onOpenBillingCenter }) {
 
       if (paymentRequired) {
         const subscriptionId = response.data?.subscription?.id;
-        toast.success('Subscription started. Continue with PayMongo payment to activate your plan.');
+        showSuccess('Subscription started. Continue with PayMongo payment to activate your plan.');
 
         const launched = await beginPaymongoCheckoutForSubscription(subscriptionId);
         if (!launched) {
           await loadData(true);
         }
       } else {
-        toast.success('Subscription activated successfully.');
+        showSuccess('Subscription activated successfully.');
         await loadData(true);
       }
     } catch (error) {
-      toast.error(error.message || 'Unable to start checkout.');
+      showError(error.message || 'Unable to start checkout.');
     } finally {
       setCheckoutPlanId(null);
     }
@@ -427,14 +427,14 @@ export default function SubscriptionPlan({ onOpenBillingCenter }) {
       }
 
       if (response.data?.activated) {
-        toast.success('Subscription activated after payment confirmation.');
+        showSuccess('Subscription activated after payment confirmation.');
       } else {
-        toast.success('Payment is still pending confirmation.');
+        showSuccess('Payment is still pending confirmation.');
       }
 
       await loadData(true);
     } catch (error) {
-      toast.error(error.message || 'Unable to sync checkout status.');
+      showError(error.message || 'Unable to sync checkout status.');
     } finally {
       setSyncing(false);
     }

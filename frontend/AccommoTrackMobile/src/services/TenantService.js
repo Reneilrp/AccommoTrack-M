@@ -1,5 +1,4 @@
 import api from "./api.js";
-import { API_BASE_URL as API_URL } from "../config/index.js";
 
 const toNonEmptyString = (value) => {
   if (value === null || value === undefined) return "";
@@ -474,6 +473,23 @@ class TenantService {
   }
 
   /**
+   * Get details for a specific maintenance request, including history timeline.
+   */
+  async getRequestDetails(requestId) {
+    try {
+      const response = await api.get(`/tenant/maintenance-requests/${requestId}`);
+      return { success: true, data: response.data.data || response.data };
+    } catch (error) {
+      console.error("Error fetching maintenance request details:", error);
+      return {
+        success: false,
+        error:
+          error.response?.data?.message || "Failed to fetch request details",
+      };
+    }
+  }
+
+  /**
    * Get tenant's maintenance requests (list)
    */
   async getMyMaintenanceRequests(page = 1) {
@@ -585,12 +601,108 @@ class TenantService {
   async getTenants(params = {}) {
     try {
       const response = await api.get(`/landlord/tenants`, { params });
-      return { success: true, data: response.data };
+      return { success: true, data: response.data?.data || response.data };
     } catch (error) {
       console.error("Error fetching tenants:", error);
       return {
         success: false,
         error: error.response?.data?.message || "Failed to fetch tenants",
+      };
+    }
+  }
+
+  /**
+   * Schedule a tenant eviction
+   */
+  async scheduleEviction(tenantId, data) {
+    try {
+      const response = await api.post(`/landlord/tenants/${tenantId}/evictions/schedule`, data);
+      return { success: true, data: response.data?.data || response.data };
+    } catch (error) {
+      console.error("Error scheduling eviction:", error);
+      return {
+        success: false,
+        error: error.response?.data?.message || "Failed to schedule eviction",
+      };
+    }
+  }
+
+  /**
+   * Finalize a tenant eviction
+   */
+  async finalizeEviction(tenantId) {
+    try {
+      const response = await api.post(`/landlord/tenants/${tenantId}/evictions/finalize`);
+      return { success: true, data: response.data?.data || response.data };
+    } catch (error) {
+      console.error("Error finalizing eviction:", error);
+      return {
+        success: false,
+        error: error.response?.data?.message || "Failed to finalize eviction",
+      };
+    }
+  }
+
+  /**
+   * Cancel a scheduled eviction
+   */
+  async cancelEviction(tenantId) {
+    try {
+      const response = await api.post(`/landlord/tenants/${tenantId}/evictions/cancel`);
+      return { success: true, data: response.data?.data || response.data };
+    } catch (error) {
+      console.error("Error cancelling eviction:", error);
+      return {
+        success: false,
+        error: error.response?.data?.message || "Failed to cancel eviction",
+      };
+    }
+  }
+
+  /**
+   * Undo a finalized eviction
+   */
+  async undoEviction(tenantId, data = {}) {
+    try {
+      const response = await api.post(`/landlord/tenants/${tenantId}/evictions/undo`, data);
+      return { success: true, data: response.data?.data || response.data };
+    } catch (error) {
+      console.error("Error undoing eviction:", error);
+      return {
+        success: false,
+        error: error.response?.data?.message || "Failed to undo eviction",
+      };
+    }
+  }
+
+  /**
+   * Get a pre-filled "Notice to Vacate" template for a tenant
+   */
+  async getEvictionNotice(tenantId) {
+    try {
+      const response = await api.get(`/landlord/tenants/${tenantId}/evictions/notice`);
+      return { success: true, data: response.data?.data || response.data };
+    } catch (error) {
+      console.error("Error fetching eviction notice:", error);
+      return {
+        success: false,
+        error: error.response?.data?.message || "Failed to fetch eviction notice",
+      };
+    }
+  }
+
+  /**
+   * Generate a one-time claim code for an existing tenant account
+   */
+  async generateTenantClaimCode(tenantId) {
+    try {
+      const response = await api.post(`/landlord/tenants/${tenantId}/claim-code`);
+      return { success: true, data: response.data?.data || response.data };
+    } catch (error) {
+      console.error("Error generating claim code:", error);
+      return {
+        success: false,
+        error: error.response?.data?.message || "Failed to generate claim code",
       };
     }
   }
@@ -641,12 +753,60 @@ class TenantService {
   async deleteTenant(tenantId) {
     try {
       const response = await api.delete(`/landlord/tenants/${tenantId}`);
-      return { success: true, data: response.data };
+      return { success: true, data: response.data?.data || response.data };
     } catch (error) {
       console.error("Error deleting tenant:", error);
       return {
         success: false,
         error: error.response?.data?.message || "Failed to delete tenant",
+      };
+    }
+  }
+
+  /**
+   * Assign a room to a tenant
+   */
+  async assignRoom(tenantId, payload) {
+    try {
+      const response = await api.post(`/landlord/tenants/${tenantId}/assign-room`, payload);
+      return { success: true, data: response.data?.data || response.data };
+    } catch (error) {
+      console.error("Error assigning room:", error);
+      return {
+        success: false,
+        error: error.response?.data?.message || "Failed to assign room",
+      };
+    }
+  }
+
+  /**
+   * Unassign a tenant from their room
+   */
+  async unassignRoom(tenantId) {
+    try {
+      const response = await api.delete(`/landlord/tenants/${tenantId}/unassign-room`);
+      return { success: true, data: response.data?.data || response.data };
+    } catch (error) {
+      console.error("Error unassigning room:", error);
+      return {
+        success: false,
+        error: error.response?.data?.message || "Failed to unassign room",
+      };
+    }
+  }
+
+  /**
+   * Transfer a tenant to a different room
+   */
+  async transferRoom(tenantId, data) {
+    try {
+      const response = await api.post(`/landlord/tenants/${tenantId}/transfer-room`, data);
+      return { success: true, data: response.data?.data || response.data };
+    } catch (error) {
+      console.error("Error transferring room:", error);
+      return {
+        success: false,
+        error: error.response?.data?.message || "Failed to transfer room",
       };
     }
   }

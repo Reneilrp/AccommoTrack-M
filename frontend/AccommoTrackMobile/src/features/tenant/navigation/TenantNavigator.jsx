@@ -1,7 +1,6 @@
 import React from 'react';
 import { View } from 'react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { useTheme } from '../../../contexts/ThemeContext.jsx';
 
 import TenantHomePage from '../screens/Explore/ExploreScreen.jsx';
 import MessagesPage from '../screens/Messages/MessagesPage.jsx';
@@ -14,6 +13,7 @@ import PreferencesLifestyle from '../screens/Settings/PreferencesLifestyle.jsx';
 import MyBookings from '../screens/Bookings/MyBookings.jsx';
 import PaymentsScreen from '../screens/Payments/PaymentsScreen.jsx';
 import DashboardScreen from '../screens/Dashboard/DashboardScreen.jsx';
+import UnitHubScreen from '../screens/Dashboard/UnitHubScreen.jsx';
 import Notifications from '../screens/Notifications/Notifications.jsx';
 import TenantMenuModal from '../screens/Explore/TenantMenuModal.jsx';
 import PaymentDetail from '../screens/Payments/PaymentDetail.jsx';
@@ -31,6 +31,7 @@ import MyRequests from '../screens/Maintenance/MyRequests.jsx';
 import LeaveReview from '../screens/Reviews/LeaveReview.jsx';
 import MyReviews from '../screens/Reviews/MyReviews.jsx';
 import BookingDetails from '../screens/Bookings/BookingDetails.jsx';
+import MaintenanceDetailScreen from '../screens/Maintenance/MaintenanceDetailScreen.jsx';
 import ReportProperty from '../screens/Support/ReportProperty.jsx';
 import ServiceRequests from '../screens/ServiceRequests/ServiceRequests.jsx';
 import CartScreen from '../screens/CartScreen.jsx';
@@ -42,7 +43,6 @@ const RootStack = createNativeStackNavigator();
 const MainStack = createNativeStackNavigator();
 
 function TenantMain({ onLogout, isGuest = false, onAuthRequired }) {
-  const { theme } = useTheme();
 
   // Ensure guests always start at TenantHome
   const initialRouteName = isGuest ? 'TenantHome' : 'TenantHome';
@@ -131,6 +131,7 @@ function TenantMain({ onLogout, isGuest = false, onAuthRequired }) {
                 <DashboardScreen {...props} />
               )}
             </MainStack.Screen>
+            <MainStack.Screen name="UnitHub" component={UnitHubScreen} options={{ animation: 'none' }} />
             <MainStack.Screen name="Notifications" component={Notifications} options={{ animation: 'none' }} />
             <MainStack.Screen name="Profile" component={ProfilePage} options={{ animation: 'none' }} />
             <MainStack.Screen name="NotificationPreferences" component={NotificationPreferences} options={{ animation: 'none' }} />
@@ -152,6 +153,7 @@ function TenantMain({ onLogout, isGuest = false, onAuthRequired }) {
             <MainStack.Screen name="CreateMaintenanceRequest" component={CreateRequest} options={{ animation: 'none' }} />
             <MainStack.Screen name="Addons" component={AddonsScreen} options={{ animation: 'none' }} />
             <MainStack.Screen name="MyMaintenanceRequests" component={MyRequests} options={{ animation: 'none' }} />
+            <MainStack.Screen name="MaintenanceDetail" component={MaintenanceDetailScreen} options={{ animation: 'none' }} />
             <MainStack.Screen name="ServiceRequests" component={ServiceRequests} options={{ animation: 'none' }} />
             <MainStack.Screen name="BookingDetails" component={BookingDetails} options={{ animation: 'none' }} />
             <MainStack.Screen name="LeaveReview" component={LeaveReview} options={{ animation: 'none' }} />

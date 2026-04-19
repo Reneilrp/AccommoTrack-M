@@ -23,7 +23,7 @@ const MessageService = {
 
   async getConversationMessages(conversationId) {
     try {
-      const response = await api.get(`/messages/${conversationId}`);
+      const response = await api.get(`/messages/conversations/${conversationId}`);
       const payload = Array.isArray(response.data) ? response.data : [];
       return { success: true, data: payload };
     } catch (error) {
@@ -31,25 +31,32 @@ const MessageService = {
     }
   },
 
-  async sendMessage(conversationId, message, imageUri = null) {
+  async sendMessage(conversationId, message, imageUri = null, replyToId = null, fileUri = null, fileName = null) {
     try {
       let payload;
       let headers = {};
 
-      if (imageUri) {
+      if (imageUri || fileUri) {
         payload = new FormData();
         payload.append('conversation_id', conversationId);
         if (message) payload.append('message', message);
+        if (replyToId) payload.append('reply_to_id', replyToId);
         
-        // Append image
-        const filename = imageUri.split('/').pop();
-        const match = /\.(\w+)$/.exec(filename);
-        const type = match ? `image/${match[1]}` : `image`;
-        payload.append('image', { uri: imageUri, name: filename, type });
+        if (imageUri) {
+          const filename = imageUri.split('/').pop();
+          const match = /\.(\w+)$/.exec(filename);
+          const type = match ? `image/${match[1]}` : `image`;
+          payload.append('image', { uri: imageUri, name: filename, type });
+        }
+
+        if (fileUri) {
+          const type = fileName.toLowerCase().endsWith('.pdf') ? 'application/pdf' : 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+          payload.append('file', { uri: fileUri, name: fileName, type });
+        }
         
         headers['Content-Type'] = 'multipart/form-data';
       } else {
-        payload = { conversation_id: conversationId, message };
+        payload = { conversation_id: conversationId, message, reply_to_id: replyToId };
       }
 
       const response = await api.post('/messages/send', payload, { headers });
@@ -77,6 +84,15 @@ const MessageService = {
     }
   },
 
+  async editMessage(messageId, newMessage) {
+    try {
+      const response = await api.patch(`/messages/${messageId}/edit`, { message: newMessage });
+      return { success: true, data: response.data };
+    } catch (error) {
+      return { success: false, error: extractError(error, 'Unable to edit message') };
+    }
+  },
+
   async startLandlordChat() {
     try {
       const response = await api.post('/messages/start-landlord-chat');
@@ -92,6 +108,15 @@ const MessageService = {
       return { success: true, data: response.data };
     } catch (error) {
       return { success: false, error: extractError(error, 'Unable to assign caretaker') };
+    }
+  },
+
+  async markAsRead(conversationId) {
+    try {
+      const response = await api.post(`/messages/${conversationId}/read`);
+      return { success: true, data: response.data };
+    } catch (error) {
+      return { success: false, error: extractError(error, 'Unable to mark messages as read') };
     }
   }
 };

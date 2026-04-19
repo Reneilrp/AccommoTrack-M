@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import toast from "react-hot-toast";
+import { showError } from "./utils/toast";
 import api, {
   clearStoredTokenAuth,
   clearPersistedAuthMode,
@@ -141,9 +141,7 @@ function App() {
       clearStoredTokenAuth();
       clearPersistedAuthMode();
       cacheManager.clearAll();
-      toast.error("Your account has been blocked. Please contact support.", {
-        duration: 6000,
-      });
+      showError("Your account has been blocked. Please contact support.");
       navigate("/login", { replace: true });
     };
     window.addEventListener("auth:blocked", handleBlocked);

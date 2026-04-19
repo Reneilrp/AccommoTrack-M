@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, ActivityIndicator } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import Toast from 'react-native-toast-message';
+import { showError } from '../utils/toast.js';
 
 /* Core */
 import LandingPages from '../features/auth/screens/LandingPages.jsx';
@@ -41,12 +41,7 @@ export default function AppNavigator() {
         await AsyncStorage.removeItem('isGuest');
       } catch {}
       if (isBlocked) {
-        Toast.show({
-          type: 'error',
-          text1: 'Account Blocked',
-          text2: 'Your account has been blocked. Please contact support.',
-          visibilityTime: 6000,
-        });
+        showError('Account Blocked', 'Your account has been blocked. Please contact support.', 6000);
       }
       setAuthContext('returning');
       setUserRole('auth');
@@ -116,7 +111,7 @@ export default function AppNavigator() {
     setUserRole(role);
   };
 
-  const checkAppState = async () => {
+  const checkAppState = React.useCallback(async () => {
     try {
       const hasLaunched = await AsyncStorage.getItem('hasLaunched');
       // Prefer persisted user info to determine logged-in state
@@ -163,11 +158,11 @@ export default function AppNavigator() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [clearAuthSession, setAuthSession]);
 
   useEffect(() => {
     checkAppState();
-  }, []);
+  }, [checkAppState]);
 
   useEffect(() => {
     const canRegisterPush = ['tenant', 'landlord', 'caretaker'].includes(String(userRole || '').toLowerCase());

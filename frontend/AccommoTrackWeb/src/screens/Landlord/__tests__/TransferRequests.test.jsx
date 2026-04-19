@@ -1,6 +1,6 @@
 import React from 'react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import toast from 'react-hot-toast';
+import { showSuccess, showError } from '../../../utils/toast';
 import api from '../../../utils/api';
 import TransferRequests from '../TransferRequests';
 
@@ -12,9 +12,9 @@ jest.mock('react-router-dom', () => ({
   useLocation: () => ({ search: mockSearch }),
 }));
 
-jest.mock('react-hot-toast', () => ({
-  success: jest.fn(),
-  error: jest.fn(),
+jest.mock('../../../utils/toast', () => ({
+  showSuccess: jest.fn(),
+  showError: jest.fn(),
 }));
 
 jest.mock('../../../utils/api', () => ({
@@ -91,7 +91,7 @@ describe('Landlord TransferRequests screen', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Reject' }));
 
-    expect(toast.error).toHaveBeenCalledWith('Please provide a reason before rejecting this request.');
+    expect(showError).toHaveBeenCalledWith('Please provide a reason before rejecting this request.');
     expect(api.patch).not.toHaveBeenCalled();
   });
 
@@ -117,7 +117,7 @@ describe('Landlord TransferRequests screen', () => {
       );
     });
 
-    expect(toast.success).toHaveBeenCalledWith('Transfer request rejectd successfully');
+    expect(showSuccess).toHaveBeenCalledWith('Transfer request rejectd successfully');
     await screen.findByText('Request already rejected');
   });
 
@@ -161,7 +161,7 @@ describe('Landlord TransferRequests screen', () => {
       );
     });
 
-    expect(toast.success).toHaveBeenCalledWith('Transfer request approved successfully');
+    expect(showSuccess).toHaveBeenCalledWith('Transfer request approved successfully');
 
     await screen.findByText('Request already approved');
   });
@@ -184,7 +184,7 @@ describe('Landlord TransferRequests screen', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Confirm Approval' }));
 
-    expect(toast.error).toHaveBeenCalledWith('Damage description is required when damage charge is set.');
+    expect(showError).toHaveBeenCalledWith('Damage description is required when damage charge is set.');
     expect(api.patch).not.toHaveBeenCalled();
   });
 
@@ -208,7 +208,7 @@ describe('Landlord TransferRequests screen', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Approve' }));
 
     await waitFor(() => {
-      expect(toast.error).toHaveBeenCalledWith('Failed to calculate rent proration details');
+      expect(showError).toHaveBeenCalledWith('Failed to calculate rent proration details');
     });
 
     expect(api.patch).not.toHaveBeenCalled();

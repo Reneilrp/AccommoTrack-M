@@ -2,6 +2,7 @@ import React, { useRef } from 'react';
 import { View, Text, Image, TouchableOpacity, Animated } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { getStyles } from '../../../styles/Tenant/HomePage.js';
+// eslint-disable-next-line no-unused-vars
 import { API_BASE_URL, BASE_URL } from '../../../config/index.js';
 import { useTheme } from '../../../contexts/ThemeContext.jsx';
 import { getImageUrl } from '../../../utils/imageUtils.js';

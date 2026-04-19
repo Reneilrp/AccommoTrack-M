@@ -18,11 +18,11 @@ export const CartProvider = ({ children }) => {
   const [error, setError] = useState(null);
 
   // Fetch cart from backend
-  const fetchCart = useCallback(async () => {
+  const fetchCart = useCallback(async (propertyId = null) => {
     setLoading(true);
     setError(null);
     try {
-      const result = await cartService.getCart();
+      const result = await cartService.getCart(propertyId);
       if (result.success) {
         setCart(result.data);
       } else {

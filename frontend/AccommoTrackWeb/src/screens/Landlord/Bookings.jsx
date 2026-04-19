@@ -1,8 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Eye, X, CheckCircle, XCircle, Calendar, Search, Plus, Loader2, Clock, Edit3, Shuffle, Check, RefreshCw, CalendarDays, Calculator, Users, UserPlus } from 'lucide-react';
 import AddBookingModal from './AddBookingModal';
-import toast from 'react-hot-toast';
+import { showSuccess, showError, showLoading } from '../../utils/toast';
 import PriceRow from '../../components/Shared/PriceRow';
 import bookingService from '../../services/bookingService';
 import { SkeletonStatCard, SkeletonTableRow } from '../../components/Shared/Skeleton';
@@ -134,19 +134,19 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
 
   const guardAnyBookingAction = () => {
     if (canManageBookings) return false;
-    toast.error('Caretaker booking actions are disabled.');
+    showError('Caretaker booking actions are disabled.');
     return true;
   };
 
   const guardApprovalAction = () => {
     if (canApproveBookings) return false;
-    toast.error('You do not have approval permission for this booking action.');
+    showError('You do not have approval permission for this booking action.');
     return true;
   };
 
   const guardCancellationAction = () => {
     if (canCancelBookings) return false;
-    toast.error('You do not have cancellation permission for this booking action.');
+    showError('You do not have cancellation permission for this booking action.');
     return true;
   };
 
@@ -183,7 +183,7 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
     const handleOpenAdd = () => setShowAddBookingModal(true);
     window.addEventListener('open-add-booking', handleOpenAdd);
     return () => window.removeEventListener('open-add-booking', handleOpenAdd);
-  }, []);
+  }, [fetchBookings, fetchStats, fetchExtensions, fetchTransfers]);
 
   useEffect(() => {
     const params = new URLSearchParams(location.search || '');
@@ -216,9 +216,9 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
 
     setDrilldownApplied(true);
     handleOpenDetailModal(targetBooking);
-  }, [location.search, bookings, drilldownApplied]);
+  }, [location.search, bookings, drilldownApplied, handleOpenDetailModal]);
 
-  const fetchBookings = async () => {
+  const fetchBookings = useCallback(async () => {
     try {
       if (!cachedData) setLoading(true);
       const response = await bookingService.getBookings();
@@ -240,9 +240,9 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
       if (err.response?.status === 404 || err.response?.status === 204) setBookings([]);
       else setError(err.response?.data?.message || 'Failed to fetch bookings');
     } finally { setLoading(false); }
-  };
+  }, [cachedData, updateData, uiState.data?.landlord_bookings]);
 
-  const fetchStats = async () => {
+  const fetchStats = useCallback(async () => {
     try {
       const response = await bookingService.getStats();
       if (response.success) {
@@ -251,9 +251,9 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
         updateData('landlord_bookings', { ...uiState.data?.landlord_bookings, stats: data });
       }
     } catch (err) { console.error('Error fetching stats:', err); }
-  };
+  }, [updateData, uiState.data?.landlord_bookings]);
 
-  const fetchExtensions = async () => {
+  const fetchExtensions = useCallback(async () => {
     try {
       setLoadingExtensions(true);
       const response = await bookingService.getExtensions();
@@ -270,9 +270,9 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
     } finally {
       setLoadingExtensions(false);
     }
-  };
+  }, []);
 
-  const fetchTransfers = async () => {
+  const fetchTransfers = useCallback(async () => {
     try {
       setLoadingTransfers(true);
       const response = await bookingService.getTransfers();
@@ -289,45 +289,45 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
     } finally {
       setLoadingTransfers(false);
     }
-  };
+  }, []);
 
   const handleHandleExtension = async (id, action, modifyData = null) => {
     if (guardAnyBookingAction()) return;
-    const toastId = toast.loading(`${action === 'modify' ? 'Modifying' : 'Updating'} request...`);
+    const toastId = showLoading(`${action === 'modify' ? 'Modifying' : 'Updating'} request...`);
     try {
       const response = await bookingService.handleExtension(id, action, modifyData || {});
       if (!response.success) {
         throw new Error(response.error || 'Failed to handle request');
       }
-      toast.success(`Request ${action === 'modify' ? 'modified' : action} successfully!`, { id: toastId });
+      showSuccess(`Request ${action === 'modify' ? 'modified' : action} successfully!`, toastId);
       refreshLandlordMutationViews();
       fetchExtensions();
       fetchBookings(); // Refresh bookings to reflect new dates
     } catch (err) {
       console.error('Error handling extension:', err);
-      toast.error(err.response?.data?.message || 'Failed to handle request', { id: toastId });
+      showError(err.response?.data?.message || 'Failed to handle request', toastId);
     }
   };
 
   const handleHandleTransfer = async (id, action, transferData = null) => {
     if (guardAnyBookingAction()) return;
-    const toastId = toast.loading(`${action === 'approve' ? 'Approving' : 'Rejecting'} transfer...`);
+    const toastId = showLoading(`${action === 'approve' ? 'Approving' : 'Rejecting'} transfer...`);
     try {
       const response = await bookingService.handleTransfer(id, action, transferData || {});
       if (!response.success) {
         throw new Error(response.error || 'Failed to handle transfer');
       }
-      toast.success(`Transfer ${action}d successfully!`, { id: toastId });
+      showSuccess(`Transfer ${action}d successfully!`, toastId);
       refreshLandlordMutationViews();
       fetchTransfers();
       fetchBookings(); // Refresh bookings to reflect new room
     } catch (err) {
       console.error('Error handling transfer:', err);
-      toast.error(
+      showError(
         err.response?.data?.message ||
         err.response?.data?.error ||
         'Failed to handle transfer',
-        { id: toastId }
+        toastId
       );
     }
   };
@@ -345,11 +345,11 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
       : bookings.find((booking) => booking.id === bookingId);
 
     if (newStatus === 'completed' && Number(activeBooking?.deposit_balance || 0) > 0) {
-      toast.error(`Settle the deposit balance (₱${Number(activeBooking.deposit_balance).toLocaleString()}) before completing this booking.`);
+      showError(`Settle the deposit balance (₱${Number(activeBooking.deposit_balance).toLocaleString()}) before completing this booking.`);
       return;
     }
 
-    const toastId = toast.loading(`${newStatus === 'cancelled' ? 'Cancelling' : 'Updating'} booking...`);
+    const toastId = showLoading(`${newStatus === 'cancelled' ? 'Cancelling' : 'Updating'} booking...`);
     setProcessing(true);
     try {
       const response = await bookingService.updateStatus(bookingId, newStatus, {
@@ -372,13 +372,13 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
         const amountLabel = refundedAmount > 0
           ? ` (₱${refundedAmount.toLocaleString()})`
           : '';
-        toast.success(`Booking cancelled and refund sent to tenant${amountLabel}.`, { id: toastId });
+        showSuccess(`Booking cancelled and refund sent to tenant${amountLabel}.`, toastId);
       } else {
-        toast.success(`Booking ${newStatus} successfully!`, { id: toastId });
+        showSuccess(`Booking ${newStatus} successfully!`, toastId);
       }
     } catch (err) {
       console.error('Error updating status:', err);
-      toast.error(err.message || err.response?.data?.message || 'Failed to update booking status', { id: toastId });
+      showError(err.message || err.response?.data?.message || 'Failed to update booking status', toastId);
     } finally {
       setProcessing(false);
     }
@@ -386,7 +386,7 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
 
   const handleApproveReservation = async (bookingId) => {
     if (guardApprovalAction()) return;
-    const toastId = toast.loading('Approving reservation...');
+    const toastId = showLoading('Approving reservation...');
     setProcessing(true);
     try {
       const response = await bookingService.approveReservation(bookingId);
@@ -394,12 +394,12 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
         throw new Error(response.error || 'Failed to approve reservation');
       }
       refreshLandlordMutationViews();
-      toast.success('Reservation approved!', { id: toastId });
+      showSuccess('Reservation approved!', toastId);
       await fetchBookings();
       await fetchStats();
       closeDetailModal();
     } catch (err) {
-      toast.error(err.message || err.response?.data?.message || 'Failed to approve reservation', { id: toastId });
+      showError(err.message || err.response?.data?.message || 'Failed to approve reservation', toastId);
     } finally {
       setProcessing(false);
     }
@@ -407,7 +407,7 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
 
   const handleCheckInTenant = async (bookingId) => {
     if (guardApprovalAction()) return;
-    const toastId = toast.loading('Checking in tenant...');
+    const toastId = showLoading('Checking in tenant...');
     setProcessing(true);
     try {
       const response = await bookingService.checkIn(bookingId);
@@ -415,12 +415,12 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
         throw new Error(response.error || 'Failed to check in tenant');
       }
       refreshLandlordMutationViews();
-      toast.success('Tenant checked in successfully!', { id: toastId });
+      showSuccess('Tenant checked in successfully!', toastId);
       await fetchBookings();
       await fetchStats();
       closeDetailModal();
     } catch (err) {
-      toast.error(err.message || err.response?.data?.message || 'Failed to check in tenant', { id: toastId });
+      showError(err.message || err.response?.data?.message || 'Failed to check in tenant', toastId);
     } finally {
       setProcessing(false);
     }
@@ -459,17 +459,17 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
 
       // Show appropriate message
       if (result.completion_blocked) {
-        toast.success(result.message || 'Payment updated, but deposit must be settled before completion.');
+        showSuccess(result.message || 'Payment updated, but deposit must be settled before completion.');
       } else if (result.status_upgraded) {
-        toast.success('Payment updated! Booking automatically upgraded to Completed.');
+        showSuccess('Payment updated! Booking automatically upgraded to Completed.');
       } else if (paymentStatus === 'refunded') {
-        toast.success(result.message || 'Tenant payment was marked as refunded.');
+        showSuccess(result.message || 'Tenant payment was marked as refunded.');
       } else {
-        toast.success(result.message || 'Payment status updated!');
+        showSuccess(result.message || 'Payment status updated!');
       }
     } catch (err) {
       console.error('Error updating payment:', err);
-      toast.error(err.message || err.response?.data?.message || 'Failed to update payment status');
+      showError(err.message || err.response?.data?.message || 'Failed to update payment status');
     }
   };
 
@@ -477,7 +477,7 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
     if (guardApprovalAction()) return;
 
     if (!bookingId) {
-      toast.error('Unable to finalize checkout: booking reference is missing.');
+      showError('Unable to finalize checkout: booking reference is missing.');
       return;
     }
 
@@ -486,23 +486,23 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
       : bookings.find((booking) => booking.id === bookingId);
 
     if (!activeBooking) {
-      toast.error('Unable to finalize checkout: booking details are unavailable.');
+      showError('Unable to finalize checkout: booking details are unavailable.');
       return;
     }
 
     const status = String(activeBooking?.status || '').toLowerCase();
     if (!['confirmed', 'partial-completed', 'partial_completed'].includes(status)) {
-      toast.error('Checkout can only be finalized for confirmed stays.');
+      showError('Checkout can only be finalized for confirmed stays.');
       return;
     }
 
     // Validate deposit balance before proceeding
     if (Number(activeBooking?.deposit_balance || 0) > 0) {
-      toast.error(`Please settle the deposit balance of ₱${Number(activeBooking.deposit_balance).toLocaleString()} before finalizing checkout.`);
+      showError(`Please settle the deposit balance of ₱${Number(activeBooking.deposit_balance).toLocaleString()} before finalizing checkout.`);
       return;
     }
 
-    const toastId = toast.loading('Finalizing checkout...');
+    const toastId = showLoading('Finalizing checkout...');
     setProcessing(true);
     try {
       const response = await bookingService.finalizeCheckout(bookingId, payload);
@@ -516,10 +516,10 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
       setShowFinalizeModal(false);
       closeDetailModal();
 
-      toast.success(response.message || 'Checkout finalized successfully.', { id: toastId });
+      showSuccess(response.message || 'Checkout finalized successfully.', toastId);
     } catch (err) {
       console.error('Error finalizing checkout:', err);
-      toast.error(err.message || err.response?.data?.message || 'Failed to finalize checkout', { id: toastId });
+      showError(err.message || err.response?.data?.message || 'Failed to finalize checkout', toastId);
     } finally {
       setProcessing(false);
     }
@@ -540,12 +540,12 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
     if (guardApprovalAction()) return;
 
     if (!booking?.id) {
-      toast.error('Unable to finalize checkout: booking details are unavailable.');
+      showError('Unable to finalize checkout: booking details are unavailable.');
       return;
     }
 
     if (Number(booking?.deposit_balance || 0) > 0) {
-      toast.error(`Please settle the deposit balance of ₱${Number(booking.deposit_balance).toLocaleString()} before finalizing checkout.`);
+      showError(`Please settle the deposit balance of ₱${Number(booking.deposit.balance).toLocaleString()} before finalizing checkout.`);
       return;
     }
 
@@ -553,7 +553,7 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
     setShowFinalizeModal(true);
   };
 
-  const fetchDepositSettlementHistory = async (bookingId, showError = true) => {
+  const fetchDepositSettlementHistory = useCallback(async (bookingId, showErrorFlag = true) => {
     try {
       setLoadingDepositSettlementHistory(true);
       const response = await bookingService.getDepositSettlements(bookingId);
@@ -576,22 +576,22 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
           : booking
       )));
     } catch (err) {
-      if (showError) {
-        toast.error(err.message || err.response?.data?.message || 'Failed to fetch deposit settlement history');
+      if (showErrorFlag) {
+        showError(err.message || err.response?.data?.message || 'Failed to fetch deposit settlement history');
       }
     } finally {
       setLoadingDepositSettlementHistory(false);
     }
-  };
+  }, []);
 
-  const handleOpenDetailModal = async (booking) => {
+  const handleOpenDetailModal = useCallback(async (booking) => {
     setSelectedBooking(booking);
     setShowDetailModal(true);
     resetDepositSettlementState();
     if (canShowDepositSettlement(booking)) {
       await fetchDepositSettlementHistory(booking.id, false);
     }
-  };
+  }, [fetchDepositSettlementHistory]);
 
   const handleDepositSettlementInput = (field, value) => {
     setDepositSettlementForm((prev) => ({
@@ -611,12 +611,12 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
     const totalDeductions = damageFee + cleaningFee + otherFee;
 
     if (totalDeductions <= 0 && !markRefunded) {
-      toast.error('Add a deduction or mark the remaining balance as refunded.');
+      showError('Add a deduction or mark the remaining balance as refunded.');
       return;
     }
 
     if (markRefunded && !depositSettlementForm.refundMethod.trim()) {
-      toast.error('Refund method is required when marking as refunded.');
+      showError('Refund method is required when marking as refunded.');
       return;
     }
 
@@ -669,9 +669,9 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
       });
 
       refreshLandlordMutationViews();
-      toast.success('Deposit settlement recorded successfully.');
+      showSuccess('Deposit settlement recorded successfully.');
     } catch (err) {
-      toast.error(err.message || err.response?.data?.message || 'Failed to settle deposit.');
+      showError(err.message || err.response?.data?.message || 'Failed to settle deposit.');
     } finally {
       setSubmittingDepositSettlement(false);
     }
@@ -680,12 +680,12 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
   const handleCancelConfirm = () => {
     if (guardCancellationAction()) return;
     if (!cancellationData.reason.trim()) {
-      toast.error('Please provide a cancellation reason');
+      showError('Please provide a cancellation reason');
       return;
     }
 
     if (cancellationData.shouldRefund && cancellationData.refundAmount <= 0) {
-      toast.error('Please enter a valid refund amount');
+      showError('Please enter a valid refund amount');
       return;
     }
 
@@ -703,12 +703,12 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
   const handleConvertOccupant = async () => {
     if (!occupantToConvert) return;
     if (!convertEmail.trim()) {
-      toast.error('Email is required');
+      showError('Email is required');
       return;
     }
     
     setProcessing(true);
-    const toastId = toast.loading('Registering occupant as tenant...');
+    const toastId = showLoading('Registering occupant as tenant...');
     try {
       const response = await bookingService.convertOccupantToTenant(selectedBooking.id, occupantToConvert.id, {
         email: convertEmail.trim()
@@ -717,7 +717,7 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
         throw new Error(response.error || 'Failed to convert occupant');
       }
       
-      toast.success(response.message || 'Occupant registered as tenant successfully!', { id: toastId });
+      showSuccess(response.message || 'Occupant registered as tenant successfully!', toastId);
       setShowConvertModal(false);
       setOccupantToConvert(null);
       setConvertEmail('');
@@ -737,7 +737,7 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
         }
       }
     } catch (err) {
-      toast.error(err.message || err.response?.data?.message || 'Failed to convert occupant', { id: toastId });
+      showError(err.message || err.response?.data?.message || 'Failed to convert occupant', toastId);
     } finally {
       setProcessing(false);
     }
@@ -1409,7 +1409,7 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
                               onClick={async () => {
                                 if (window.confirm('Mark this booking as fully completed and paid?')) {
                                   if (Number(selectedBooking.deposit_balance || 0) > 0) {
-                                    toast.error(`Settle the deposit balance (₱${Number(selectedBooking.deposit_balance).toLocaleString()}) before completing this booking.`);
+                                    showError(`Settle the deposit balance (₱${Number(selectedBooking.deposit_balance).toLocaleString()}) before completing this booking.`);
                                     return;
                                   }
 
@@ -2050,7 +2050,7 @@ const TransferRequestsList = ({ requests, loading, onHandle }) => {
 
     const landlordNotes = reason.trim();
     if (!landlordNotes) {
-      toast.error('Rejection reason is required.');
+      showError('Rejection reason is required.');
       return;
     }
 

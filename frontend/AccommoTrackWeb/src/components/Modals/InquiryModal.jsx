@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { X, Send, Mail, Phone, User, MessageSquare } from 'lucide-react';
 import api from '../../utils/api';
-import toast from 'react-hot-toast';
+import { showSuccess, showError } from '../../utils/toast';
 
 const InquiryModal = ({ onClose }) => {
   const [formData, setFormData] = useState({
@@ -23,11 +23,11 @@ const InquiryModal = ({ onClose }) => {
 
     try {
       await api.post('/inquiries', formData);
-      toast.success('Message sent! We will reply to your email shortly.');
+      showSuccess('Message sent! We will reply to your email shortly.');
       onClose();
     } catch (error) {
       console.error('Inquiry failed', error);
-      toast.error(error.response?.data?.message || 'Failed to send message. Please try again.');
+      showError(error.response?.data?.message || 'Failed to send message. Please try again.');
     } finally {
       setSubmitting(false);
     }

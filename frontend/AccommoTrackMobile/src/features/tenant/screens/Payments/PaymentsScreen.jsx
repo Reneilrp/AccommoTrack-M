@@ -18,11 +18,10 @@ import SystemToggleService from '../../../../services/SystemToggleService.js';
 import { useNavigation } from '@react-navigation/native';
 import { useTheme } from '../../../../contexts/ThemeContext.jsx';
 import { ListItemSkeleton } from '../../../../components/Skeletons/index.jsx';
-import { showError } from '../../../../utils/toast.js';
+import { showSuccess, showError, showWarning } from '../../../../utils/toast.js';
 import { getStyles } from '../../../../styles/Tenant/WalletStyles.js';
 import createEcho from '../../../../services/echo.js';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import Toast from 'react-native-toast-message';
 import {
   refetchTenantQueries,
   tenantQueryKeys,
@@ -100,8 +99,8 @@ export default function PaymentsScreen() {
     placeholderData: (previousData) => previousData,
   });
 
-  const payments = paymentsQuery.data || [];
-  const stats = statsQuery.data || {};
+  const payments = React.useMemo(() => paymentsQuery.data || [], [paymentsQuery.data]);
+  const stats = React.useMemo(() => statsQuery.data || {}, [statsQuery.data]);
   const paymentsLoading = paymentsQuery.isLoading;
   const statsLoading = statsQuery.isLoading;
   const refetchPayments = paymentsQuery.refetch;
@@ -151,12 +150,7 @@ export default function PaymentsScreen() {
         .listen('.invoice.updated', (e) => {
           console.log('[PaymentsScreen] Real-time update:', e);
           triggerPaymentDataRefresh();
-          Toast.show({
-            type: 'success',
-            text1: 'Payment Updated',
-            text2: 'Your payment status has been updated.',
-            position: 'bottom'
-          });
+          showSuccess('Payment Updated', 'Your payment status has been updated.');
         });
     };
 
@@ -197,7 +191,7 @@ export default function PaymentsScreen() {
     const monthsCount = Math.max(1, Math.min(Number(options?.monthsCount) || 1, 2));
 
     if (tenantPaymentsTempDisabled) {
-      showAlert('Payments Temporarily Disabled', 'Tenant payments are temporarily unavailable while payment compliance updates are in progress.');
+      showWarning('Payments Temporarily Disabled', 'Tenant payments are temporarily unavailable while payment compliance updates are in progress.');
       return;
     }
 
@@ -210,7 +204,7 @@ export default function PaymentsScreen() {
     if (startFrom === 'next') {
       const bookingId = item?.bookingId || item?.booking_id || null;
       if (!bookingId) {
-        showAlert('Payment Error', 'This payment does not have a booking link for advance invoice generation.');
+        showError('Payment Error', 'This payment does not have a booking link for advance invoice generation.');
         return;
       }
 
@@ -219,13 +213,13 @@ export default function PaymentsScreen() {
 
         const response = await PaymentService.createAdvanceBookingInvoices(bookingId, monthsCount);
         if (!response.success || !response.data) {
-          showAlert('Payment Error', response.error || 'Failed to prepare advance invoice checkout.');
+          showError('Payment Error', response.error || 'Failed to prepare advance invoice checkout.');
           return;
         }
 
         const invoiceId = resolveAdvanceInvoiceId(response.data);
         if (!invoiceId) {
-          showAlert('Payment Error', 'No payable advance invoice was generated for this booking.');
+          showError('Payment Error', 'No payable advance invoice was generated for this booking.');
           return;
         }
 
@@ -236,19 +230,14 @@ export default function PaymentsScreen() {
           ].filter((invoice) => invoice && invoice.id).length;
 
           if (generatedCount > 1) {
-            Toast.show({
-              type: 'success',
-              text1: 'Advance Invoices Ready',
-              text2: 'Opening the nearest due invoice first.',
-              position: 'bottom',
-            });
+            showSuccess('Advance Invoices Ready', 'Opening the nearest due invoice first.');
           }
         }
 
         navigation.navigate('PaymentDetail', { invoiceId });
       } catch (error) {
         console.error('Advance invoice resolution error:', error);
-        showAlert('Payment Error', 'Failed to prepare advance invoice checkout.');
+        showError('Payment Error', 'Failed to prepare advance invoice checkout.');
       } finally {
         setResolvingPaymentId(null);
       }
@@ -261,7 +250,7 @@ export default function PaymentsScreen() {
     if (!invoiceId) {
       const bookingId = item?.bookingId || item?.booking_id || null;
       if (!bookingId) {
-        showAlert('Payment Error', 'No booking or invoice linked to this payment. Please contact the landlord.');
+        showError('Payment Error', 'No booking or invoice linked to this payment. Please contact the landlord.');
         return;
       }
 
@@ -270,14 +259,14 @@ export default function PaymentsScreen() {
 
         const response = await PaymentService.createBookingInvoice(bookingId);
         if (!response.success || !response.data) {
-          showAlert('Payment Error', response.error || 'Failed to prepare invoice checkout.');
+          showError('Payment Error', response.error || 'Failed to prepare invoice checkout.');
           return;
         }
 
         invoiceId = response.data?.id || response.data?.data?.id || null;
       } catch (error) {
         console.error('Invoice resolution error:', error);
-        showAlert('Payment Error', 'Failed to prepare invoice checkout.');
+        showError('Payment Error', 'Failed to prepare invoice checkout.');
         return;
       } finally {
         setResolvingPaymentId(null);
@@ -285,7 +274,7 @@ export default function PaymentsScreen() {
     }
 
     if (!invoiceId) {
-      showAlert('Payment Error', 'Unable to resolve invoice checkout for this payment.');
+      showError('Payment Error', 'Unable to resolve invoice checkout for this payment.');
       return;
     }
 

@@ -18,7 +18,6 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTheme } from '../../../../contexts/ThemeContext.jsx';
-import { useUIState } from '../../../../contexts/UIStateContext.jsx';
 import {
   landlordQueryKeys,
   refetchLandlordQueries,
@@ -27,6 +26,8 @@ import {
 } from '../../hooks/useLandlordQueryHelpers.js';
 import PropertyService from '../../../../services/PropertyService.js';
 import { getStyles } from '../../../../styles/Landlord/Bookings.js';
+import { hasPermission as checkPermission } from '../../../../utils/permissionHelpers.js';
+import { showSuccess, showError, showWarning, showInfo } from '../../../../utils/toast.js';
 
 const FILTERS = ['all', 'pending', 'confirmed', 'completed', 'cancelled'];
 
@@ -97,7 +98,6 @@ const getOccupancyLabel = (booking) => {
 
 export default function BookingsScreen({ navigation, route }) {
   const { theme } = useTheme();
-  const { showAlert } = useUIState();
   const styles = React.useMemo(() => getStyles(theme), [theme]);
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState('bookings'); // bookings, transfers, extensions
@@ -116,11 +116,6 @@ export default function BookingsScreen({ navigation, route }) {
   const [submittingSettlement, setSubmittingSettlement] = useState(false);
   const [pendingFocusBookingId, setPendingFocusBookingId] = useState(null);
   const [user, setUser] = useState(null);
-  
-  const [showConvertModal, setShowConvertModal] = useState(false);
-  const [occupantToConvert, setOccupantToConvert] = useState(null);
-  const [convertEmail, setConvertEmail] = useState('');
-  const [processingConvert, setProcessingConvert] = useState(false);
 
   const [settlementForm, setSettlementForm] = useState({
     damageFee: '',
@@ -154,48 +149,10 @@ export default function BookingsScreen({ navigation, route }) {
 
   const normalizedRole = user?.role || 'landlord';
   const isCaretaker = normalizedRole === 'caretaker';
-  const caretakerPermissions = user?.caretaker_permissions || {};
-
-  const normalizePermissionValue = useCallback((value) => {
-    if (typeof value === 'string') {
-      const normalized = value.trim().toLowerCase();
-      return normalized === '1' || normalized === 'true' || normalized === 'yes' || normalized === 'allowed';
-    }
-
-    return Boolean(value);
-  }, []);
-
-  const buildPermissionCandidates = useCallback((key, aliases = []) => {
-    const base = String(key || '').trim();
-    const singular = base.endsWith('ies')
-      ? `${base.slice(0, -3)}y`
-      : base.endsWith('s')
-        ? base.slice(0, -1)
-        : base;
-    const plural = base.endsWith('s')
-      ? base
-      : singular === 'property'
-        ? 'properties'
-        : `${singular}s`;
-
-    const keys = new Set([base, singular, plural, ...aliases]);
-    const expanded = [];
-
-    keys.forEach((entry) => {
-      if (!entry) return;
-      expanded.push(entry, `can_view_${entry}`, `can_manage_${entry}`);
-    });
-
-    return expanded;
-  }, []);
 
   const hasCaretakerPermission = useCallback((key, aliases = []) => {
-    if (!isCaretaker) return true;
-
-    return buildPermissionCandidates(key, aliases).some((candidate) =>
-      normalizePermissionValue(caretakerPermissions?.[candidate]),
-    );
-  }, [buildPermissionCandidates, caretakerPermissions, isCaretaker, normalizePermissionValue]);
+    return checkPermission(user?.caretaker_permissions, isCaretaker, key, aliases);
+  }, [isCaretaker, user?.caretaker_permissions]);
 
   const canApproveBookings = hasCaretakerPermission('approve_bookings', ['approve_booking']);
   const canCancelBookings = hasCaretakerPermission('cancel_bookings', ['cancel_booking']);
@@ -203,21 +160,21 @@ export default function BookingsScreen({ navigation, route }) {
 
   const guardAnyBookingAction = useCallback(() => {
     if (canManageBookings) return false;
-    showAlert('Permission Required', 'Caretaker booking actions are disabled.');
+    showWarning('Permission Required', 'Caretaker booking actions are disabled.');
     return true;
-  }, [canManageBookings, showAlert]);
+  }, [canManageBookings]);
 
   const guardApprovalAction = useCallback(() => {
     if (canApproveBookings) return false;
-    showAlert('Permission Required', 'You do not have approval permission for this booking action.');
+    showWarning('Permission Required', 'You do not have approval permission for this booking action.');
     return true;
-  }, [canApproveBookings, showAlert]);
+  }, [canApproveBookings]);
 
   const guardCancellationAction = useCallback(() => {
     if (canCancelBookings) return false;
-    showAlert('Permission Required', 'You do not have cancellation permission for this booking action.');
+    showWarning('Permission Required', 'You do not have cancellation permission for this booking action.');
     return true;
-  }, [canCancelBookings, showAlert]);
+  }, [canCancelBookings]);
 
   const bookingsQuery = useQuery({
     queryKey: landlordQueryKeys.bookings(),
@@ -355,10 +312,10 @@ export default function BookingsScreen({ navigation, route }) {
       if (!response.success) throw new Error(response.error || 'Unable to update extension request');
       setActionError('');
       await refetchLandlordQueries([refetchExtensionRequests]);
-      showAlert('Extension Request', `Request ${action}d successfully.`);
+      showSuccess('Extension Request', `Request ${action}d successfully.`);
     } catch (err) {
       setActionError(err.message || 'Unable to process extension request');
-      showAlert('Extension Request', err.message || 'Unable to process extension request');
+      showError('Extension Request', err.message || 'Unable to process extension request');
     } finally {
       setRequestActionLoading(false);
     }
@@ -440,7 +397,7 @@ export default function BookingsScreen({ navigation, route }) {
       ));
     } catch (err) {
       if (showErrors) {
-        showAlert('Deposit Settlement', err.message || 'Unable to fetch settlement history.');
+        showError('Deposit Settlement', err.message || 'Unable to fetch settlement history.');
       }
     } finally {
       setSettlementHistoryLoading(false);
@@ -508,7 +465,7 @@ export default function BookingsScreen({ navigation, route }) {
     }
 
     if (status === 'completed' && Number(selectedBooking.deposit_balance || 0) > 0) {
-      showAlert(
+      showWarning(
         'Deposit Settlement Required',
         `Settle the deposit balance of ${formatCurrency(selectedBooking.deposit_balance)} before completing this booking.`
       );
@@ -525,7 +482,7 @@ export default function BookingsScreen({ navigation, route }) {
       if (status === 'cancelled') closeDetailModal();
     } catch (err) {
       setActionError(err.message || 'Unable to update booking');
-      showAlert('Booking', err.message || 'Unable to update booking');
+      showError('Booking', err.message || 'Unable to update booking');
     } finally {
       setActionLoading(false);
     }
@@ -549,13 +506,13 @@ export default function BookingsScreen({ navigation, route }) {
       updateSelectedBooking({ paymentStatus, ...response.data?.booking });
 
       if (response.data?.completion_blocked) {
-        showAlert('Payment Updated', response.data?.message || 'Payment updated, but booking cannot be completed until deposit is settled.');
+        showInfo('Payment Updated', response.data?.message || 'Payment updated, but booking cannot be completed until deposit is settled.');
       }
 
       return true;
     } catch (err) {
       setActionError(err.message || 'Unable to update payment');
-      showAlert('Payment', err.message || 'Unable to update payment');
+      showError('Payment', err.message || 'Unable to update payment');
       return false;
     } finally {
       setActionLoading(false);
@@ -566,7 +523,7 @@ export default function BookingsScreen({ navigation, route }) {
     if (!selectedBooking) return;
 
     if (Number(selectedBooking.deposit_balance || 0) > 0) {
-      showAlert(
+      showWarning(
         'Deposit Settlement Required',
         `Settle the deposit balance of ${formatCurrency(selectedBooking.deposit_balance)} before completing this booking.`
       );
@@ -582,7 +539,7 @@ export default function BookingsScreen({ navigation, route }) {
   };
 
   const confirmResolvePartialCompleted = () => {
-    showAlert(
+    Alert.alert(
       'Mark Fully Paid & Completed',
       'Mark this booking as fully completed and paid?',
       [
@@ -605,10 +562,10 @@ export default function BookingsScreen({ navigation, route }) {
       await refetchLandlordQueries([refetchBookings, refetchStats]);
       closeDetailModal();
 
-      showAlert('Checkout Finalized', response.message || 'Checkout finalized successfully.');
+      showSuccess('Checkout Finalized', response.message || 'Checkout finalized successfully.');
     } catch (err) {
       setActionError(err.message || 'Unable to finalize checkout.');
-      showAlert('Checkout', err.message || 'Unable to finalize checkout.');
+      showError('Checkout', err.message || 'Unable to finalize checkout.');
     } finally {
       setActionLoading(false);
     }
@@ -625,12 +582,12 @@ export default function BookingsScreen({ navigation, route }) {
     const totalDeductions = damageFee + cleaningFee + otherFee;
 
     if (totalDeductions <= 0 && !markRefunded) {
-      showAlert('Deposit Settlement', 'Add at least one deduction or mark remaining balance as refunded.');
+      showWarning('Deposit Settlement', 'Add at least one deduction or mark remaining balance as refunded.');
       return;
     }
 
     if (markRefunded && !settlementForm.refundMethod.trim()) {
-      showAlert('Deposit Settlement', 'Refund method is required when marking as refunded.');
+      showWarning('Deposit Settlement', 'Refund method is required when marking as refunded.');
       return;
     }
 
@@ -676,10 +633,10 @@ export default function BookingsScreen({ navigation, route }) {
       });
 
       setActionError('');
-      showAlert('Deposit Settlement', response.message || 'Deposit settlement recorded successfully.');
+      showSuccess('Deposit Settlement', response.message || 'Deposit settlement recorded successfully.');
     } catch (err) {
       setActionError(err.message || 'Unable to settle deposit.');
-      showAlert('Deposit Settlement', err.message || 'Unable to settle deposit.');
+      showError('Deposit Settlement', err.message || 'Unable to settle deposit.');
     } finally {
       setSubmittingSettlement(false);
     }
@@ -689,7 +646,7 @@ export default function BookingsScreen({ navigation, route }) {
     if (guardCancellationAction()) return;
 
     if (!cancelForm.reason.trim()) {
-      showAlert('Cancellation', 'Provide a reason before cancelling.');
+      showWarning('Cancellation', 'Provide a reason before cancelling.');
       return;
     }
     const payload = {
@@ -764,10 +721,10 @@ export default function BookingsScreen({ navigation, route }) {
       if (!response.success) throw new Error(response.error || 'Unable to update transfer request');
       setActionError('');
       await refetchLandlordQueries([refetchTransferRequests]);
-      showAlert('Transfer Request', `Request ${action}d successfully.`);
+      showSuccess('Transfer Request', `Request ${action}d successfully.`);
     } catch (err) {
       setActionError(err.message || 'Unable to process transfer request');
-      showAlert('Transfer Request', err.message || 'Unable to process transfer request');
+      showError('Transfer Request', err.message || 'Unable to process transfer request');
     } finally {
       setRequestActionLoading(false);
     }

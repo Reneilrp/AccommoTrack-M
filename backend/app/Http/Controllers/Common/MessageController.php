@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Common;
 
 use App\Events\MessageSent;
+use App\Events\MessageRead;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Permission\ResolvesLandlordAccess;
 use App\Http\Resources\ConversationResource;
@@ -73,7 +74,7 @@ class MessageController extends Controller
             ]);
 
         $messages = Message::where('conversation_id', $conversationId)
-            ->with(['sender:id,first_name,last_name,role', 'actualSender:id,first_name,last_name'])
+            ->with(['sender:id,first_name,last_name,role', 'actualSender:id,first_name,last_name', 'replyTo.sender'])
             ->orderBy('created_at', 'asc')
             ->get();
 
@@ -98,8 +99,10 @@ class MessageController extends Controller
             'conversation_id' => 'required_without:recipient_id|exists:conversations,id',
             'recipient_id' => 'required_without:conversation_id|exists:users,id',
             'property_id' => 'nullable|exists:properties,id',
-            'message' => 'required_without:image|nullable|string|max:2000',
+            'reply_to_id' => 'nullable|exists:messages,id',
+            'message' => 'required_without_all:image,file|nullable|string|max:2000',
             'image' => 'nullable|image|mimes:jpeg,png,jpg,webp|max:5120',
+            'file' => 'nullable|file|mimes:pdf,docx|max:10240',
         ]);
 
         $userId = $actorUserId;
@@ -118,7 +121,15 @@ class MessageController extends Controller
             \Illuminate\Support\Facades\Storage::put($path, (string) $encoded);
             $imageUrl = $path;
         }
-
+        // Handle File Upload
+        $fileUrl = null;
+        $fileName = null;
+        if ($request->hasFile('file')) {
+            $uploadedFile = $request->file('file');
+            $fileName = $uploadedFile->getClientOriginalName();
+            $path = $uploadedFile->store('message_files', 'public');
+            $fileUrl = $path;
+        }
         // Find or create conversation
         if ($request->conversation_id) {
             $conversation = Conversation::findOrFail($request->conversation_id);
@@ -156,13 +167,16 @@ class MessageController extends Controller
             'sender_role' => $senderRole,
             'receiver_id' => $recipientId,
             'message' => $request->message ?? '',
+            'reply_to_id' => $request->reply_to_id,
             'image_url' => $imageUrl,
+            'file_url' => $fileUrl,
+            'file_name' => $fileName,
             'is_read' => false,
         ]);
 
         $conversation->update(['last_message_at' => now()]);
 
-        $message->load(['sender', 'actualSender']);
+        $message->load(['sender', 'actualSender', 'replyTo.sender']);
 
         // Broadcast the message
         try {
@@ -351,6 +365,74 @@ class MessageController extends Controller
         }
 
         return response()->json(new MessageResource($message));
+    }
+
+    // Edit a message
+    public function edit(Request $request, $id)
+    {
+        $user = $request->user();
+        $message = Message::findOrFail($id);
+
+        // Check ownership (similar to unsend)
+        $isOwner = false;
+        if ($user->role === 'landlord') {
+            $isOwner = (int) $message->sender_id === (int) $user->id;
+        } elseif ($user->role === 'caretaker') {
+            $isOwner = (int) $message->sender_id === (int) $user->effectiveLandlordId();
+        } else {
+            $isOwner = (int) $message->sender_id === (int) $user->id;
+        }
+
+        if (! $isOwner) {
+            throw new AccessDeniedHttpException('You can only edit your own messages.');
+        }
+
+        if ($message->is_unsent) {
+            return response()->json(['message' => 'Cannot edit an unsent message.'], 422);
+        }
+
+        $request->validate([
+            'message' => 'required|string|max:2000',
+        ]);
+
+        $message->update([
+            'message' => $request->message,
+            'is_edited' => true,
+        ]);
+
+        // Broadcast the update
+        try {
+            broadcast(new MessageSent($message->load(['sender', 'actualSender', 'replyTo.sender'])))->toOthers();
+        } catch (\Exception $e) {
+            \Log::error('Broadcasting edit failed: '.$e->getMessage());
+        }
+
+        return response()->json(new MessageResource($message));
+    }
+
+    // Mark all unread messages in a conversation as read
+    public function markAsRead(Request $request, $id)
+    {
+        $context = $this->resolveMessageContext($request);
+        $ownerId = $context['owner_id'];
+
+        $updated = Message::where('conversation_id', $id)
+            ->where('receiver_id', $ownerId)
+            ->where('is_read', false)
+            ->update([
+                'is_read' => true,
+                'read_at' => now(),
+            ]);
+
+        if ($updated > 0) {
+            try {
+                broadcast(new MessageRead($id, $ownerId))->toOthers();
+            } catch (\Exception $e) {
+                \Log::error('Broadcasting message read failed: '.$e->getMessage());
+            }
+        }
+
+        return response()->json(['success' => true]);
     }
 
     protected function resolveMessageContext(Request $request): array

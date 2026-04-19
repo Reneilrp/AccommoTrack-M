@@ -2,6 +2,7 @@ import React from 'react';
 import { View } from 'react-native';
 import { navigationRef, addNavigationStateListener } from '../../../navigation/RootNavigation.js';
 import LandlordNavigator from './LandlordNavigator.jsx';
+// eslint-disable-next-line no-unused-vars
 import Header from '../components/Header.jsx';
 import { useTheme } from '../../../contexts/ThemeContext.jsx';
 import StaffToolbelt from '../../../components/StaffToolbelt.jsx';
@@ -38,7 +39,7 @@ export default function LandlordLayout({ onLogout }) {
             const stored = await AsyncStorage.getItem('user');
             if (!stored) return null;
             return JSON.parse(stored);
-        } catch (e) {
+        } catch (_e) {
             return null;
         }
     },
@@ -75,13 +76,11 @@ export default function LandlordLayout({ onLogout }) {
     return unsubscribe;
   }, []);
 
-  // Configure which screens should hide the global header
-  // Usually screens that have their own custom header logic or full-screen views
   const hideHeaderRoutes = new Set(['MyProfile', 'Settings', 'AddProperty', 'PropertySummary', 'Chat', 'DevTeam']);
   
-  const showHeader = !hideHeaderRoutes.has(activeRouteName);
+  const showHeader = !hideHeaderRoutes.has(activeRouteName); // eslint-disable-line no-unused-vars
 
-  const title = React.useMemo(() => {
+  const title = React.useMemo(() => { // eslint-disable-line no-unused-vars
     const nameMap = {
       Home: 'Dashboard',
       Properties: 'My Properties',
@@ -109,6 +108,8 @@ export default function LandlordLayout({ onLogout }) {
 
     return 'AccommoTrack';
   }, [activeRouteName, activeRouteParams]);
+
+
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.colors.background }}>

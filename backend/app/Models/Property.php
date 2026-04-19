@@ -337,6 +337,19 @@ class Property extends Model
     }
 
     /**
+     * Relationship: Property has many caretakers assigned to it.
+     */
+    public function caretakerAssignments()
+    {
+        return $this->belongsToMany(
+            CaretakerAssignment::class,
+            'caretaker_property_assignments',
+            'property_id',
+            'caretaker_assignment_id'
+        )->withTimestamps();
+    }
+
+    /**
      * Get active addons for this property
      */
     public function activeAddons()

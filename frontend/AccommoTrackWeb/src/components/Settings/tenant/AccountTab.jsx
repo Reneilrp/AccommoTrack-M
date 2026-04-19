@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import toast from 'react-hot-toast';
+import { showSuccess, showError } from '../../../utils/toast';
 import { tenantService } from '../../../services/tenantService';
 import { SkeletonAccountTab } from '../../Shared/Skeleton';
 import { CheckCircle2, XCircle, AlertTriangle } from 'lucide-react';
@@ -66,19 +66,19 @@ const AccountTab = ({ user }) => {
 		setSaving(true);
 
 		if (passwordData.new_password !== passwordData.confirm_password) {
-			toast.error('New passwords do not match.');
+			showError('New passwords do not match.');
 			setSaving(false);
 			return;
 		}
 
 		if (!allComplexityMet) {
-			toast.error('Password does not meet complexity requirements.');
+			showError('Password does not meet complexity requirements.');
 			setSaving(false);
 			return;
 		}
 
 		if (isSameAsOld) {
-			toast.error('New password must be different from current password.');
+			showError('New password must be different from current password.');
 			setSaving(false);
 			return;
 		}
@@ -89,12 +89,12 @@ const AccountTab = ({ user }) => {
 				passwordData.new_password,
 				passwordData.confirm_password
 			);
-			toast.success('Password changed successfully!');
+			showSuccess('Password changed successfully!');
 			setPasswordData({ current_password: '', new_password: '', confirm_password: '' });
 			setIsEditing(false);
 		} catch (error) {
 			console.error('Password change failed', error);
-			toast.error(
+			showError(
 				error.response?.data?.message || 'Failed to change password. Please check your current password.'
 			);
 		} finally {

@@ -3,7 +3,7 @@ import {
   Megaphone, Plus, Trash2, ToggleLeft, ToggleRight, Loader2, AlertTriangle, X, ChevronDown,
 } from 'lucide-react';
 import api from '../../utils/api';
-import { toast } from 'react-hot-toast';
+import { showSuccess, showError } from '../../utils/toast';
 
 const TYPE_CONFIG = {
   info: { label: 'Info', cls: 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300', bar: 'border-l-4 border-l-blue-500' },
@@ -93,7 +93,7 @@ function CreateBroadcastModal({ isOpen, onClose, onCreate }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!form.title.trim() || !form.message.trim()) {
-      toast.error('Title and message are required.');
+      showError('Title and message are required.');
       return;
     }
     setLoading(true);
@@ -101,12 +101,12 @@ function CreateBroadcastModal({ isOpen, onClose, onCreate }) {
       const payload = { ...form };
       if (!payload.expires_at) delete payload.expires_at;
       const res = await api.post('/admin/broadcasts', payload);
-      toast.success(res.data?.message || 'Broadcast sent!');
+      showSuccess(res.data?.message || 'Broadcast sent!');
       onCreate(res.data?.data);
       setForm(DEFAULT_FORM);
       onClose();
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to create broadcast.');
+      showError(err.response?.data?.message || 'Failed to create broadcast.');
     } finally {
       setLoading(false);
     }
@@ -246,12 +246,12 @@ export default function GlobalBroadcast() {
   const handleToggle = async (broadcast) => {
     try {
       const res = await api.patch(`/admin/broadcasts/${broadcast.id}/toggle`);
-      toast.success(res.data?.message || 'Toggled.');
+      showSuccess(res.data?.message || 'Toggled.');
       setBroadcasts((prev) =>
         prev.map((b) => (b.id === broadcast.id ? { ...b, is_active: !b.is_active } : b))
       );
     } catch {
-      toast.error('Failed to toggle broadcast.');
+      showError('Failed to toggle broadcast.');
     }
   };
 
@@ -259,10 +259,10 @@ export default function GlobalBroadcast() {
     if (!window.confirm(`Delete broadcast "${broadcast.title}"? This cannot be undone.`)) return;
     try {
       await api.delete(`/admin/broadcasts/${broadcast.id}`);
-      toast.success('Broadcast deleted.');
+      showSuccess('Broadcast deleted.');
       setBroadcasts((prev) => prev.filter((b) => b.id !== broadcast.id));
     } catch {
-      toast.error('Failed to delete broadcast.');
+      showError('Failed to delete broadcast.');
     }
   };
 

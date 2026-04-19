@@ -8,11 +8,11 @@ import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { getStyles } from '../../../../styles/Tenant/ReviewStyles.js';
 import { tenantQueryKeys, useTenantFocusRefetch } from '../../hooks/useTenantQueryHelpers.js';
+import { showError, showSuccess } from '../../../../utils/toast.js';
 
 export default function MyReviews({ hideHeader = false, historyOnly = false }) {
   const { theme } = useTheme();
   const styles = React.useMemo(() => getStyles(theme), [theme]);
-  const showAlert = Alert.alert;
   const navigation = useNavigation();
   const queryClient = useQueryClient();
   const [deletingId, setDeletingId] = useState(null);
@@ -43,11 +43,11 @@ export default function MyReviews({ hideHeader = false, historyOnly = false }) {
 
   useEffect(() => {
     if (!myReviewsQuery.error) return;
-    showAlert('Error', myReviewsQuery.error.message || 'Failed to load your reviews');
+    showError('Error', myReviewsQuery.error.message || 'Failed to load your reviews');
   }, [myReviewsQuery.error]);
 
   const confirmDelete = (id) => {
-    showAlert('Delete Review', 'Are you sure you want to delete this review?', [
+    Alert.alert('Delete Review', 'Are you sure you want to delete this review?', [
       { text: 'Cancel', style: 'cancel' },
       { text: 'Delete', style: 'destructive', onPress: () => handleDelete(id) }
     ]);
@@ -58,17 +58,17 @@ export default function MyReviews({ hideHeader = false, historyOnly = false }) {
     try {
       const res = await tenantService.deleteReview(id);
       if (res.success) {
-        showAlert('Deleted', 'Review deleted');
+        showSuccess('Deleted', 'Review deleted');
         queryClient.setQueryData(tenantQueryKeys.myReviews(), (prev) => {
           if (!Array.isArray(prev)) return [];
           return prev.filter((review) => review.id !== id);
         });
       } else {
-        showAlert('Error', res.error || 'Failed to delete review');
+        showError('Error', res.error || 'Failed to delete review');
       }
-    } catch (err) {
-      console.error('Delete review error', err);
-      showAlert('Error', 'Failed to delete review');
+    } catch (_err) {
+      console.error('Delete review error', _err);
+      showError('Error', 'Failed to delete review');
     } finally {
       setDeletingId(null);
     }

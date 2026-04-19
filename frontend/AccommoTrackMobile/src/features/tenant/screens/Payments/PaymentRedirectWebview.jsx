@@ -1,13 +1,13 @@
 import React, { useRef, useEffect } from 'react';
-import { View, ActivityIndicator, Alert } from 'react-native';
+import { View, ActivityIndicator } from 'react-native';
 import homeStyles from '../../../../styles/Tenant/HomePage.js';
 import { WebView } from 'react-native-webview';
 import PaymentService from '../../../../services/PaymentService.js';
+import { showError } from '../../../../utils/toast.js';
 
 export default function PaymentRedirectWebview({ route, navigation }) {
   const { checkoutUrl, invoiceId } = route.params || {};
   const webviewRef = useRef(null);
-  const showAlert = Alert.alert;
 
   useEffect(() => {
     // noop
@@ -32,7 +32,7 @@ export default function PaymentRedirectWebview({ route, navigation }) {
       }
     } catch (e) {
       console.error('Error handling redirect navigation', e);
-      showAlert('Error', 'Failed to refresh payment status');
+      showError('Error', 'Failed to refresh payment status');
       navigation.goBack();
     }
   };

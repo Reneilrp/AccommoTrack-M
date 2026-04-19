@@ -1,5 +1,4 @@
 import React from 'react';
-import { Text, View } from 'react-native';
 import { render, waitFor } from '@testing-library/react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import App from '../../App.jsx';

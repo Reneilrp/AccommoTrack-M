@@ -1,5 +1,4 @@
 import api from './api.js';
-import { API_BASE_URL as API_URL } from '../config/index.js';
 
   /**
    * Get all reviews for a specific property (Public)

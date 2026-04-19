@@ -15,7 +15,7 @@ import {
   ArrowLeftRight
 } from 'lucide-react';
 import api from '../../utils/api';
-import toast from 'react-hot-toast';
+import { showSuccess, showError } from '../../utils/toast';
 import { authService } from '../../services/authService';
 
 // Get base storage URL from environment
@@ -153,7 +153,7 @@ export default function VerificationStatus() {
       }
     } catch (err) {
       console.error('Failed to switch role:', err);
-      toast.error('Failed to switch to tenant mode');
+      showError('Failed to switch to tenant mode');
     } finally {
       setIsSwitching(false);
     }
@@ -192,15 +192,15 @@ export default function VerificationStatus() {
     e.preventDefault();
 
     if (!resubmitForm.validIdType) {
-      toast.error('Please select a valid ID type');
+      showError('Please select a valid ID type');
       return;
     }
     if (resubmitForm.validIdType === 'other' && !resubmitForm.validIdOther) {
-      toast.error('Please specify your ID type');
+      showError('Please specify your ID type');
       return;
     }
     if (!resubmitForm.validId || !resubmitForm.permit) {
-      toast.error('Please upload both documents');
+      showError('Please upload both documents');
       return;
     }
 
@@ -226,13 +226,13 @@ export default function VerificationStatus() {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
 
-      toast.success('Documents submitted successfully! Please wait for admin review.');
+      showSuccess('Documents submitted successfully! Please wait for admin review.');
       setShowResubmitForm(false);
       setResubmitForm({ validIdType: '', validIdOther: '', validId: null, validIdBack: null, permit: null });
       fetchVerificationStatus();
     } catch (err) {
       console.error('Resubmission failed:', err);
-      toast.error(err.response?.data?.message || 'Failed to resubmit documents');
+      showError(err.response?.data?.message || 'Failed to resubmit documents');
     } finally {
       setSubmitting(false);
     }

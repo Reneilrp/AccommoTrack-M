@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { ArrowLeftRight, ShieldCheck, Clock, ShieldAlert, X, Upload } from 'lucide-react';
 import { authService } from '../../services/authService';
 import api from '../../utils/api';
-import toast from 'react-hot-toast';
+import { showSuccess, showError } from '../../utils/toast';
 
 export default function SwitchRoleTab({ user: userProp }) {
   const user = userProp || authService.getCurrentUser();
@@ -144,16 +144,16 @@ export default function SwitchRoleTab({ user: userProp }) {
         localStorage.setItem('userData', JSON.stringify(response.user));
       }
 
-      toast.success(response.message || `Switched to ${targetRole} mode.`);
+      showSuccess(response.message || `Switched to ${targetRole} mode.`);
       window.location.href = '/dashboard';
       return true;
     } catch (error) {
       console.error('Failed to switch role:', error);
       if (error.response?.status === 401) {
-        toast.error('Your session has expired. Please log in again, then retry role switch.');
+        showError('Your session has expired. Please log in again, then retry role switch.');
         return false;
       }
-      toast.error(error.response?.data?.message || 'Failed to switch role. Please try again.');
+      showError(error.response?.data?.message || 'Failed to switch role. Please try again.');
       return false;
     } finally {
       setIsSwitching(false);
@@ -189,7 +189,7 @@ export default function SwitchRoleTab({ user: userProp }) {
     }
 
     if (isWaitingForPartial) {
-      toast.error('Your registration is waiting for admin partial verification. You can switch once that step is completed.');
+      showError('Your registration is waiting for admin partial verification. You can switch once that step is completed.');
       return;
     }
 
@@ -299,7 +299,7 @@ export default function SwitchRoleTab({ user: userProp }) {
 
       setVerificationStatus('pending');
       setShowRegistrationModal(false);
-      toast.success(res.data?.message || 'Landlord registration submitted. Please wait for admin review.');
+      showSuccess(res.data?.message || 'Landlord registration submitted. Please wait for admin review.');
     } catch (error) {
       if (error.response?.data?.errors) {
         const mappedErrors = {};
@@ -315,7 +315,7 @@ export default function SwitchRoleTab({ user: userProp }) {
         }));
       }
 
-      toast.error(error.response?.data?.message || 'Failed to submit landlord registration.');
+      showError(error.response?.data?.message || 'Failed to submit landlord registration.');
     } finally {
       setIsSubmittingRegistration(false);
     }

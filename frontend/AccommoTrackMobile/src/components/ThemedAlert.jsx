@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect } from 'react';
+import React, { useCallback, useEffect, useMemo } from 'react';
 import {
   Alert,
   Modal,
@@ -18,8 +18,8 @@ const ThemedAlert = () => {
   const { theme } = useTheme();
   const uiContext = useUIState();
   const uiState = uiContext?.uiState || {};
-  const hideAlert = uiContext?.hideAlert || (() => {});
-  const showAlert = uiContext?.showAlert || (() => {});
+  const hideAlert = useMemo(() => uiContext?.hideAlert || (() => {}), [uiContext?.hideAlert]);
+  const showAlert = useMemo(() => uiContext?.showAlert || (() => {}), [uiContext?.showAlert]);
   const alert = uiState?.alert || {
     visible: false,
     title: '',

@@ -50,16 +50,19 @@ class MaintenanceRequest extends Model
         'booking_id',
         'tenant_id',
         'landlord_id',
+        'assigned_to',
         'title',
         'description',
         'priority',
         'status',
         'images',
         'resolved_at',
+        'assigned_at',
     ];
 
     protected $casts = [
         'resolved_at' => 'datetime',
+        'assigned_at' => 'datetime',
         'images' => 'array',
     ];
 
@@ -81,5 +84,15 @@ class MaintenanceRequest extends Model
     public function booking()
     {
         return $this->belongsTo(Booking::class);
+    }
+
+    public function assignedTo()
+    {
+        return $this->belongsTo(User::class, 'assigned_to');
+    }
+
+    public function updates()
+    {
+        return $this->hasMany(MaintenanceUpdate::class)->orderBy('created_at', 'desc');
     }
 }

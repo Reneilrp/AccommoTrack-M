@@ -25,6 +25,7 @@ import {
   useLandlordFocusRefetch,
   useLandlordRefreshHandler,
 } from '../../hooks/useLandlordQueryHelpers.js';
+import { showError } from '../../../../utils/toast.js';
 import analyticsService from '../../../../services/AnalyticsService.js';
 
 const EMPTY_PROPERTIES = [];
@@ -102,7 +103,6 @@ export default function Analytics({ navigation }) {
   const { width: viewportWidth } = useWindowDimensions();
   const { theme } = useTheme();
   const styles = React.useMemo(() => getStyles(theme, viewportWidth), [theme, viewportWidth]);
-  const showAlert = Alert.alert;
   const chartWidth = React.useMemo(
     () => Math.max(260, Math.min(viewportWidth - 64, 920)),
     [viewportWidth],
@@ -328,7 +328,7 @@ export default function Analytics({ navigation }) {
         await FileSystem.writeAsStringAsync(serverFileUri, exportResponse.data, {
           encoding: FileSystem.EncodingType.UTF8
         });
-        await shareOrNotify(serverFileUri, showAlert);
+        await shareOrNotify(serverFileUri, Alert.alert);
         return;
       }
 
@@ -350,9 +350,9 @@ export default function Analytics({ navigation }) {
       const csv = rows.map(r => r.map(formatCsvVal).join(',')).join('\n');
       const fileUri = `${FileSystem.documentDirectory}Analytics_${Date.now()}.csv`;
       await FileSystem.writeAsStringAsync(fileUri, csv);
-      await shareOrNotify(fileUri, showAlert);
+      await shareOrNotify(fileUri, Alert.alert);
     } catch (_err) {
-      showAlert('Error', 'Failed to export report');
+      showError('Error', 'Failed to export report');
     } finally {
       setExporting(false);
     }
@@ -799,18 +799,29 @@ export default function Analytics({ navigation }) {
     );
   };
 
+  if (loading && !refreshing && !analytics) {
+    return (
+      <SafeAreaView style={styles.container} edges={['top']}>
+        <StatusBar barStyle="light-content" backgroundColor="#16a34a" />
+        <View style={styles.loadingState}>
+          <ActivityIndicator size="large" color="#16a34a" />
+          <Text style={styles.loadingLabel}>Loading dashboard...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top']}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       <StatusBar barStyle="light-content" backgroundColor="#16a34a" />
-      {/* Standard Header */}
       <View style={styles.header}>
-        <TouchableOpacity style={styles.iconButton} onPress={() => navigation.goBack()}>
+        <TouchableOpacity style={styles.iconButton} onPress={() => navigation.goBack()} testID="analytics-back-button">
           <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Analytics</Text>
-        <View style={{ flexDirection: 'row' }}>
-          <TouchableOpacity 
-            style={[styles.iconButton, { marginRight: 8 }]} 
+        <View style={styles.headerActions}>
+          <TouchableOpacity
+            style={styles.iconButton}
             onPress={handleRefresh}
             testID="analytics-refresh-button"
             disabled={isAnalyticsFetching}

@@ -28,6 +28,7 @@ import {
 import AddonService from '../../../../services/AddonService.js';
 import PropertyService from '../../../../services/PropertyService.js';
 import { getStyles } from '../../../../styles/Landlord/AddonManagement.js';
+import { showSuccess, showError, showWarning } from '../../../../utils/toast.js';
 
 const EMPTY_ADDONS = [];
 const EMPTY_PENDING_REQUESTS = [];
@@ -37,7 +38,6 @@ const EMPTY_PROPERTIES = [];
 export default function AddonManagement({ route, navigation }) {
   const { width: viewportWidth } = useWindowDimensions();
   const { theme } = useTheme();
-  const showAlert = Alert.alert;
   const insets = useSafeAreaInsets();
   const styles = React.useMemo(() => getStyles(theme), [theme]);
   const contentWrapStyle = useMemo(
@@ -315,12 +315,12 @@ export default function AddonManagement({ route, navigation }) {
 
   const handleOpenCreateModal = () => {
     if (properties.length === 0) {
-      showAlert('No Properties', 'Create a property first before adding usage fees.');
+      showWarning('No Properties', 'Create a property first before adding usage fees.');
       return;
     }
 
     if (effectivePropertyScope === 'all') {
-      showAlert('Select Property', 'Select a specific property before creating a new add-on.');
+      showWarning('Select Property', 'Select a specific property before creating a new add-on.');
       return;
     }
 
@@ -330,13 +330,13 @@ export default function AddonManagement({ route, navigation }) {
 
   const handleSubmit = async () => {
     if (!formData.name.trim() || !formData.price) {
-      showAlert('Validation', 'Name and Price are required.');
+      showWarning('Validation', 'Name and Price are required.');
       return;
     }
 
     const targetPropertyId = resolveMutationPropertyId();
     if (!targetPropertyId) {
-      showAlert('Select Property', 'Select a specific property before saving this add-on.');
+      showWarning('Select Property', 'Select a specific property before saving this add-on.');
       return;
     }
 
@@ -359,11 +359,12 @@ export default function AddonManagement({ route, navigation }) {
         setShowModal(false);
         resetForm();
         await refetchLandlordQueries(addonRefetchers);
+        showSuccess('Success', `Add-on ${editingAddon ? 'updated' : 'created'} successfully.`);
       } else {
-        showAlert('Error', res.error || 'Failed to save addon');
+        showError('Error', res.error || 'Failed to save addon');
       }
     } catch (_error) {
-      showAlert('Error', 'An unexpected error occurred');
+      showError('Error', 'An unexpected error occurred');
     } finally {
       setSubmitting(false);
     }
@@ -372,11 +373,11 @@ export default function AddonManagement({ route, navigation }) {
   const handleDelete = (addon) => {
     const targetPropertyId = Number(addon?.propertyId);
     if (!Number.isFinite(targetPropertyId)) {
-      showAlert('Error', 'Unable to determine the property for this add-on.');
+      showError('Error', 'Unable to determine the property for this add-on.');
       return;
     }
 
-    showAlert(
+    Alert.alert(
       'Delete Add-on',
       'Are you sure you want to delete this add-on? This action cannot be undone.',
       [
@@ -388,8 +389,9 @@ export default function AddonManagement({ route, navigation }) {
             const res = await AddonService.deleteAddon(targetPropertyId, addon.id);
             if (res.success) {
               await refetchLandlordQueries(addonRefetchers);
+              showSuccess('Deleted', 'Add-on deleted successfully.');
             } else {
-              showAlert('Error', res.error || 'Failed to delete addon');
+              showError('Error', res.error || 'Failed to delete addon');
             }
           }
         }
@@ -403,7 +405,7 @@ export default function AddonManagement({ route, navigation }) {
       setRejectNote('');
       setShowRejectNoteModal(true);
     } else {
-      showAlert(
+      Alert.alert(
         'Approve Request',
         'Approve this add-on request?',
         [
@@ -430,8 +432,9 @@ export default function AddonManagement({ route, navigation }) {
     const res = await AddonService.handleAddonRequest(bookingId, addonId, action, note, approvedPrice);
     if (res.success) {
       await refetchLandlordQueries(addonRefetchers);
+      showSuccess('Success', `Request ${action === 'approve' ? 'approved' : 'rejected'} successfully.`);
     } else {
-      showAlert('Error', res.error || `Failed to ${action} request`);
+      showError('Error', res.error || `Failed to ${action} request`);
     }
   };
 
@@ -549,7 +552,7 @@ export default function AddonManagement({ route, navigation }) {
       <View>
         {pendingRequests.map((request) => (
           <View key={request.requestId} style={styles.requestCard}>
-            <View style={styles.requestHeader}>
+            <View style={request.is_active === false ? [styles.requestHeader, { opacity: 0.6 }] : styles.requestHeader}>
               <View style={styles.flex1}>
                 <Text style={styles.addonName}>{request.addonName}</Text>
                 <View style={styles.requestTenantInfo}>

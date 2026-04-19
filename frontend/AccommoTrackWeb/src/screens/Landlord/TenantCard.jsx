@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Home, Mail, Phone, Calendar, MessageSquare, AlertCircle, ShieldAlert, Clock, Shuffle, CreditCard, UserX, UserPlus, UserMinus, RefreshCw, CheckCircle, Clock3, FileText, ChevronDown, KeyRound } from 'lucide-react';
+import { Home, Mail, Phone, Calendar, MessageSquare, AlertCircle, ShieldAlert, Clock, Shuffle, CreditCard, UserX, UserPlus, UserMinus, CheckCircle, Clock3, FileText, ChevronDown, KeyRound, CalendarClock } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 export default function TenantCard({
@@ -7,15 +7,11 @@ export default function TenantCard({
   onTransfer,
   onAssign,
   onUnassign,
-  onEvict,
-  onEvictionFinalize,
-  onEvictionCancel,
-  onEvictionUndo,
+  onLifecycle,
   onGenerateClaimCode,
   onApproveReservation,
   onCheckIn,
   canTransfer = true,
-  isEvictionDue = false,
 }) {
   const profile = tenant.tenantProfile;
   const navigate = useNavigate();
@@ -32,20 +28,13 @@ export default function TenantCard({
     return diffDays >= 0 && diffDays <= 30;
   })();
   const hasPendingEviction = Boolean(tenant.pending_eviction);
-  const canUndoEviction = Boolean(tenant.can_undo_eviction);
-  const evictionFinalizeAtLabel = (() => {
+  const evictionScheduleLabel = (() => {
     const scheduledFor = tenant?.pending_eviction?.scheduled_for;
     if (!scheduledFor) return null;
-
     const dueDate = new Date(scheduledFor);
     if (Number.isNaN(dueDate.getTime())) return null;
-
     return dueDate.toLocaleString(undefined, {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-      hour: 'numeric',
-      minute: '2-digit',
+      month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit',
     });
   })();
   const latestBookingStatus = tenant.latestBooking?.status || '';
@@ -240,48 +229,25 @@ export default function TenantCard({
             >
               <UserMinus className="w-3.5 h-3.5 text-amber-600" /> Unassign
             </button>
-            {hasPendingEviction && (
-              <>
-                <button
-                  onClick={() => onEvictionFinalize?.(tenant)}
-                  disabled={!canTransfer || !isEvictionDue}
-                  title={!isEvictionDue && evictionFinalizeAtLabel ? `Available on ${evictionFinalizeAtLabel}` : undefined}
-                  className="flex items-center gap-2 px-3 py-2 text-red-700 dark:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md text-xs font-semibold transition-colors disabled:opacity-50"
-                >
-                  <UserX className="w-3.5 h-3.5" /> Finalize Eviction
-                </button>
-                {!isEvictionDue && evictionFinalizeAtLabel && (
-                  <p className="px-3 -mt-1 text-[10px] text-amber-700 dark:text-amber-300">
-                    Finalize available on {evictionFinalizeAtLabel}
-                  </p>
-                )}
-                <button
-                  onClick={() => onEvictionCancel?.(tenant)}
-                  disabled={!canTransfer}
-                  className="flex items-center gap-2 px-3 py-2 text-amber-700 dark:text-amber-300 hover:bg-amber-50 dark:hover:bg-amber-900/20 rounded-md text-xs font-semibold transition-colors disabled:opacity-50"
-                >
-                  <RefreshCw className="w-3.5 h-3.5" /> Cancel Eviction Schedule
-                </button>
-              </>
-            )}
-            {!hasPendingEviction && (
-              <button
-                onClick={() => onEvict?.(tenant)}
-                disabled={!canTransfer}
-                className="flex items-center gap-2 px-3 py-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md text-xs font-semibold transition-colors disabled:opacity-50"
-              >
-                <UserX className="w-3.5 h-3.5" /> Schedule Eviction
-              </button>
-            )}
-            {canUndoEviction && !hasPendingEviction && (
-              <button
-                onClick={() => onEvictionUndo?.(tenant)}
-                disabled={!canTransfer}
-                className="flex items-center gap-2 px-3 py-2 text-blue-700 dark:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-md text-xs font-semibold transition-colors disabled:opacity-50"
-              >
-                <RefreshCw className="w-3.5 h-3.5" /> Undo Eviction
-              </button>
-            )}
+            {/* Unified Lifecycle Manager button */}
+            <button
+              onClick={() => onLifecycle?.(tenant)}
+              disabled={!canTransfer}
+              className="flex items-center gap-2 px-3 py-2 rounded-md text-xs font-semibold transition-colors disabled:opacity-50
+                text-amber-700 dark:text-amber-300 hover:bg-amber-50 dark:hover:bg-amber-900/20"
+            >
+              <CalendarClock className="w-3.5 h-3.5" />
+              {hasPendingEviction ? (
+                <span className="flex items-center gap-1">
+                  Lifecycle Manager
+                  {evictionScheduleLabel && (
+                    <span className="ml-1 bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 px-1.5 py-0.5 rounded text-[9px] font-bold">
+                      {evictionScheduleLabel}
+                    </span>
+                  )}
+                </span>
+              ) : 'Lifecycle Manager'}
+            </button>
             <button
               onClick={() => setShowEmergency(!showEmergency)}
               className={`flex items-center gap-2 px-3 py-2 rounded-md text-xs font-semibold transition-colors

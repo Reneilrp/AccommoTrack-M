@@ -38,7 +38,7 @@ export function triggerRoleSwitch(role) {
 const _stateListeners = new Set();
 export function notifyNavigationStateChange(route) {
   for (const cb of _stateListeners) {
-    try { cb(route); } catch (e) { /* ignore listener errors */ }
+    try { cb(route); } catch (_e) { /* ignore listener errors */ }
   }
 }
 

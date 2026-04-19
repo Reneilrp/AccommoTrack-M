@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import api from '../../utils/api';
 import { ArrowLeft, CreditCard, Wallet, Landmark, Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
 import PriceRow from '../../components/Shared/PriceRow';
-import toast from 'react-hot-toast';
+import { showSuccess, showError } from '../../utils/toast';
 import systemToggleService from '../../services/systemToggleService';
 import paymentService from '../../services/paymentService';
 
@@ -162,31 +162,33 @@ export default function InvoiceCheckout() {
   }, []);
 
   const handlePayMongoSource = async (method) => {
+    if (processing) return;
+
     if (String(invoice?.status || '').toLowerCase() === 'pending_verification') {
-      return toast.error('This invoice is awaiting manual payment verification. Online checkout is temporarily disabled to prevent duplicate payments.');
+      return showError('This invoice is awaiting manual payment verification. Online checkout is temporarily disabled to prevent duplicate payments.');
     }
 
     if (invoicePaymongoDisabled) {
-      return toast.error('Online invoice payments are temporarily unavailable while payment compliance updates are in progress.');
+      return showError('Online invoice payments are temporarily unavailable while payment compliance updates are in progress.');
     }
 
     if (tenantPaymentsTempDisabled) {
-      return toast.error('Tenant payments are temporarily unavailable while payment compliance updates are in progress.');
+      return showError('Tenant payments are temporarily unavailable while payment compliance updates are in progress.');
     }
 
     const amountToPay = Number(paymentAmount);
     if (isNaN(amountToPay) || amountToPay <= 0) {
-      return toast.error('Please enter a valid amount');
+      return showError('Please enter a valid amount');
     }
 
     const prop = invoice?.property || invoice?.booking?.property;
     const allowPartial = prop?.allow_partial_payments !== 0 && prop?.allow_partial_payments !== false;
     if (!allowPartial && amountToPay !== remainingBalance) {
-      return toast.error('Partial payments are disabled. Please pay the exact remaining balance.');
+      return showError('Partial payments are disabled. Please pay the exact remaining balance.');
     }
 
     if (amountToPay > remainingBalance) {
-      return toast.error(`Amount cannot exceed the remaining balance of ₱${remainingBalance.toLocaleString()}`);
+      return showError(`Amount cannot exceed the remaining balance of ₱${remainingBalance.toLocaleString()}`);
     }
 
     setProcessing(true);
@@ -203,20 +205,22 @@ export default function InvoiceCheckout() {
       // Redirect user to PayMongo checkout
       window.location.href = checkoutUrl;
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to initiate payment');
+      showError(err.response?.data?.message || 'Failed to initiate payment');
       setProcessing(false);
     }
   };
 
   const handleWalletCreditPayment = async () => {
+    if (processing) return;
+
     if (tenantPaymentsTempDisabled) {
-      return toast.error('Tenant payments are temporarily unavailable while payment compliance updates are in progress.');
+      return showError('Tenant payments are temporarily unavailable while payment compliance updates are in progress.');
     }
 
     const amountToPay = Math.min(remainingBalance, walletBalance);
     
     if (amountToPay <= 0) {
-      return toast.error('No remaining balance or wallet credits available.');
+      return showError('No remaining balance or wallet credits available.');
     }
 
     const amountCents = Math.round(amountToPay * 100);
@@ -225,13 +229,13 @@ export default function InvoiceCheckout() {
     try {
       const result = await paymentService.applyWalletCredit(id, amountCents);
       if (result.success) {
-        toast.success('Wallet credits applied successfully!');
+        showSuccess('Wallet credits applied successfully!');
         navigate('/payments');
       } else {
-        toast.error(result.error || 'Failed to apply wallet credits');
+        showError(result.error || 'Failed to apply wallet credits');
       }
     } catch (_err) {
-      toast.error('Failed to apply wallet credits');
+      showError('Failed to apply wallet credits');
     } finally {
       setProcessing(false);
     }
@@ -241,7 +245,7 @@ export default function InvoiceCheckout() {
     const file = e.target.files[0];
     if (file) {
       if (file.size > 10 * 1024 * 1024) {
-        toast.error('Image size must be less than 10MB');
+        showError('Image size must be less than 10MB');
         return;
       }
       setOfflineDetails({ ...offlineDetails, proofImage: file });
@@ -250,24 +254,26 @@ export default function InvoiceCheckout() {
   };
 
   const handleOfflinePayment = async () => {
+    if (processing) return;
+
     if (tenantPaymentsTempDisabled) {
-      return toast.error('Tenant payments are temporarily unavailable while payment compliance updates are in progress.');
+      return showError('Tenant payments are temporarily unavailable while payment compliance updates are in progress.');
     }
 
     const amountToPay = Number(paymentAmount);
     if (isNaN(amountToPay) || amountToPay <= 0) {
-      return toast.error('Please enter a valid amount');
+      return showError('Please enter a valid amount');
     }
 
     const prop = invoice?.property || invoice?.booking?.property;
     const allowPartial = prop?.allow_partial_payments !== 0 && prop?.allow_partial_payments !== false;
     if (!allowPartial && amountToPay !== remainingBalance) {
-      return toast.error('Partial payments are disabled. Please pay the exact remaining balance.');
+      return showError('Partial payments are disabled. Please pay the exact remaining balance.');
     }
 
     const hasProofImage = offlineDetails.proofImage instanceof File;
     if (!hasProofImage) {
-      return toast.error('Please upload a proof of payment image before checkout.');
+      return showError('Please upload a proof of payment image before checkout.');
     }
 
     setProcessing(true);
@@ -283,10 +289,10 @@ export default function InvoiceCheckout() {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
 
-      toast.success('Offline payment recorded! Please wait for landlord verification.');
+      showSuccess('Offline payment recorded! Please wait for landlord verification.');
       navigate('/payments');
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to record payment');
+      showError(err.response?.data?.message || 'Failed to record payment');
     } finally {
       setProcessing(false);
     }
@@ -583,8 +589,8 @@ export default function InvoiceCheckout() {
                       <button
                         onClick={() => {
                           const parsed = Number(paymentAmount);
-                          if (isNaN(parsed) || parsed <= 0) return toast.error('Please enter a valid amount first.');
-                          if (parsed > remainingBalance) return toast.error(`Amount cannot exceed ₱${remainingBalance.toLocaleString()}`);
+                          if (isNaN(parsed) || parsed <= 0) return showError('Please enter a valid amount first.');
+                          if (parsed > remainingBalance) return showError(`Amount cannot exceed ₱${remainingBalance.toLocaleString()}`);
                           setOfflineDetails({ method: 'gcash', reference: '', notes: '', show: true });
                         }}
                         disabled={processing}
@@ -596,7 +602,7 @@ export default function InvoiceCheckout() {
                           </div>
                           <div>
                             <p className="font-bold text-gray-900 dark:text-white text-lg uppercase tracking-tight">Manual GCash</p>
-                            <p className="text-xs text-blue-600 dark:text-blue-400 font-bold mt-2">Auto-approved securely upon upload</p>
+                            <p className="text-xs text-blue-600 dark:text-blue-400 font-bold mt-2">Pending landlord verification upon upload</p>
                           </div>
                         </div>
                       </button>
@@ -607,8 +613,8 @@ export default function InvoiceCheckout() {
                       <button
                         onClick={() => {
                           const parsed = Number(paymentAmount);
-                          if (isNaN(parsed) || parsed <= 0) return toast.error('Please enter a valid amount first.');
-                          if (parsed > remainingBalance) return toast.error(`Amount cannot exceed ₱${remainingBalance.toLocaleString()}`);
+                          if (isNaN(parsed) || parsed <= 0) return showError('Please enter a valid amount first.');
+                          if (parsed > remainingBalance) return showError(`Amount cannot exceed ₱${remainingBalance.toLocaleString()}`);
                           setOfflineDetails({ method: 'cash', reference: '', notes: '', show: true });
                         }}
                         disabled={processing}

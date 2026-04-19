@@ -1,5 +1,5 @@
 import React, { useContext, useState, useEffect, useRef } from 'react';
-import toast from 'react-hot-toast';
+import { showSuccess, showError } from '../../utils/toast';
 import { useSearchParams, useLocation } from 'react-router-dom';
 import { ShieldCheck, Palette, User, Bell, Lock, Users, CreditCard, ArrowLeftRight, Rocket, Receipt } from 'lucide-react';
 import api from '../../utils/api';
@@ -143,7 +143,17 @@ export default function Settings({ user, accessRole = 'landlord', onUserUpdate }
   // --- Caretaker State ---
   const [caretakers, setCaretakers] = useState(() => Array.isArray(cachedData?.caretakers) ? cachedData.caretakers : []);
   const [landlordProperties, setLandlordProperties] = useState(() => Array.isArray(cachedData?.landlordProperties) ? cachedData.landlordProperties : []);
-  const [caretakerForm, setCaretakerForm] = useState({ first_name: '', middle_name: '', last_name: '', email: '', phone: '', date_of_birth: '', password: '', password_confirmation: '' });
+  const [caretakerForm, setCaretakerForm] = useState({ 
+    first_name: '', 
+    middle_name: '', 
+    last_name: '', 
+    email: '', 
+    phone: '', 
+    date_of_birth: '', 
+    password: '', 
+    password_confirmation: '',
+    custom_role_name: '' 
+  });
   const [selectedPropertyIds, setSelectedPropertyIds] = useState([]);
   const [caretakerPermissions, setCaretakerPermissions] = useState(createCaretakerPermissionDefaults());
   const [caretakerState, setCaretakerState] = useState({ loading: false, error: '' });
@@ -192,7 +202,7 @@ export default function Settings({ user, accessRole = 'landlord', onUserUpdate }
   const handlePhotoSelect = (e) => {
     const file = e.target.files[0];
     if (file) {
-      if (file.size > 5 * 1024 * 1024) return toast.error('Image size must be less than 5MB');
+      if (file.size > 5 * 1024 * 1024) return showError('Image size must be less than 5MB');
       setPhotoPreview(URL.createObjectURL(file));
     }
   };
@@ -207,9 +217,9 @@ export default function Settings({ user, accessRole = 'landlord', onUserUpdate }
       await api.delete('/me/profile-image');
       setProfilePhoto(null);
       onUserUpdate({ ...user, profile_image: null });
-      toast.success('Photo removed');
+      showSuccess('Photo removed');
     } catch {
-      toast.error('Failed to remove photo');
+      showError('Failed to remove photo');
     }
   };
 
@@ -220,7 +230,7 @@ export default function Settings({ user, accessRole = 'landlord', onUserUpdate }
     const lastNameError = validateProfileNameField(lastName, { required: true, label: 'Last name' });
 
     if (firstNameError || lastNameError) {
-      toast.error(firstNameError || lastNameError);
+      showError(firstNameError || lastNameError);
       return;
     }
 
@@ -244,26 +254,26 @@ export default function Settings({ user, accessRole = 'landlord', onUserUpdate }
       onUserUpdate(res.data.user);
       setIsEditingProfile(false);
       setPhotoPreview(null);
-      toast.success('Profile updated!');
+      showSuccess('Profile updated!');
     } catch (e) {
-      toast.error(e.response?.data?.message || e.response?.data?.error || 'Update failed');
+      showError(e.response?.data?.message || e.response?.data?.error || 'Update failed');
     }
   };
 
   // --- Security Handlers ---
   const handleUpdatePassword = async () => {
-    if (passwordData.newPassword !== passwordData.confirmPassword) return toast.error('Passwords do not match');
+    if (passwordData.newPassword !== passwordData.confirmPassword) return showError('Passwords do not match');
     try {
       await api.post('/change-password', {
         current_password: passwordData.currentPassword,
         new_password: passwordData.newPassword,
         new_password_confirmation: passwordData.confirmPassword
       });
-      toast.success('Password changed!');
+      showSuccess('Password changed!');
       setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
       setIsEditingPassword(false);
     } catch (e) {
-      toast.error(e.response?.data?.message || 'Failed to change password');
+      showError(e.response?.data?.message || 'Failed to change password');
     }
   };
 
@@ -303,10 +313,10 @@ export default function Settings({ user, accessRole = 'landlord', onUserUpdate }
       };
 
       await persistUserPreferences(nextPreferences);
-      toast.success('Security settings updated!');
+      showSuccess('Security settings updated!');
       setIsEditingSecurity(false);
     } catch (e) {
-      toast.error(e.response?.data?.message || 'Failed to save security settings');
+      showError(e.response?.data?.message || 'Failed to save security settings');
     } finally {
       setIsSavingSecurity(false);
     }
@@ -325,9 +335,9 @@ export default function Settings({ user, accessRole = 'landlord', onUserUpdate }
     try {
       const response = await api.post('/landlord/security/email-recovery/send-otp');
       applySecurityActionUser(response.data?.user);
-      toast.success(response.data?.message || 'Verification code sent to your email address.');
+      showSuccess(response.data?.message || 'Verification code sent to your email address.');
     } catch (e) {
-      toast.error(e.response?.data?.message || 'Failed to send verification code');
+      showError(e.response?.data?.message || 'Failed to send verification code');
     } finally {
       setIsSendingEmailRecoveryOtp(false);
     }
@@ -338,7 +348,7 @@ export default function Settings({ user, accessRole = 'landlord', onUserUpdate }
 
     const normalizedCode = (emailRecoveryOtpCode || '').trim();
     if (!/^\d{6}$/.test(normalizedCode)) {
-      toast.error('Enter the 6-digit verification code');
+      showError('Enter the 6-digit verification code');
       return;
     }
 
@@ -349,9 +359,9 @@ export default function Settings({ user, accessRole = 'landlord', onUserUpdate }
       });
       applySecurityActionUser(response.data?.user);
       setEmailRecoveryOtpCode('');
-      toast.success(response.data?.message || 'Email recovery verified successfully.');
+      showSuccess(response.data?.message || 'Email recovery verified successfully.');
     } catch (e) {
-      toast.error(e.response?.data?.message || 'Failed to verify code');
+      showError(e.response?.data?.message || 'Failed to verify code');
     } finally {
       setIsVerifyingEmailRecoveryOtp(false);
     }
@@ -365,9 +375,9 @@ export default function Settings({ user, accessRole = 'landlord', onUserUpdate }
       const response = await api.post('/landlord/security/email-recovery/disable');
       applySecurityActionUser(response.data?.user);
       setEmailRecoveryOtpCode('');
-      toast.success(response.data?.message || 'Email recovery has been disabled.');
+      showSuccess(response.data?.message || 'Email recovery has been disabled.');
     } catch (e) {
-      toast.error(e.response?.data?.message || 'Failed to disable email recovery');
+      showError(e.response?.data?.message || 'Failed to disable email recovery');
     } finally {
       setIsDisablingEmailRecoveryOtp(false);
     }
@@ -424,12 +434,12 @@ export default function Settings({ user, accessRole = 'landlord', onUserUpdate }
       });
       await fetchCaretakers();
 
-      toast.success('Caretaker added!');
-      setCaretakerForm({ first_name: '', middle_name: '', last_name: '', email: '', phone: '', date_of_birth: '', password: '', password_confirmation: '' });
       setSelectedPropertyIds([]);
       resetCaretakerPermissions();
+      setCaretakerForm(prev => ({ ...prev, custom_role_name: '' }));
+      showSuccess('Caretaker created successfully!');
     } catch (e) {
-      toast.error(e.response?.data?.message || 'Failed to add caretaker');
+      showError(e.response?.data?.message || 'Failed to add caretaker');
     } finally {
       setCaretakerState(s => ({ ...s, loading: false }));
     }
@@ -459,7 +469,8 @@ export default function Settings({ user, accessRole = 'landlord', onUserUpdate }
       const response = await api.patch(`/landlord/caretakers/${id}`, {
         ...caretakerForm,
         property_ids: selectedPropertyIds,
-        permissions: mappedPermissions
+        permissions: mappedPermissions,
+        custom_role_name: caretakerForm.custom_role_name
       });
 
       const updatedCaretakerData = response.data.caretaker;
@@ -483,9 +494,9 @@ export default function Settings({ user, accessRole = 'landlord', onUserUpdate }
       };
 
       setCaretakers(prev => prev.map(c => c.id === id ? transformedCaretaker : c));
-      toast.success('Caretaker updated!');
+      showSuccess('Caretaker updated!');
     } catch (e) {
-      toast.error(e.response?.data?.message || 'Update failed');
+      showError(e.response?.data?.message || 'Update failed');
     } finally {
       setCaretakerState(s => ({ ...s, loading: false }));
     }
@@ -495,9 +506,9 @@ export default function Settings({ user, accessRole = 'landlord', onUserUpdate }
     try {
       await api.delete(`/landlord/caretakers/${id}`, { data: { reason } });
       fetchCaretakers();
-      toast.success('Access revoked');
+      showSuccess('Access revoked');
     } catch {
-      toast.error('Revocation failed');
+      showError('Revocation failed');
     }
   };
 

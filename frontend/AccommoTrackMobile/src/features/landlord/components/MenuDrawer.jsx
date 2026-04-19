@@ -12,6 +12,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../../../contexts/ThemeContext.jsx";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { getImageUrl } from "../../../utils/imageUtils.js";
+import PermissionBlockedModal from "./PermissionBlockedModal.jsx";
 
 const menuItems = [
   {
@@ -20,6 +21,8 @@ const menuItems = [
     icon: "business-outline",
     color: "#16a34a",
     screen: "MyProperties",
+    permissionKey: "properties",
+    aliases: ["property", "property_management"]
   },
   {
     id: 2,
@@ -27,6 +30,7 @@ const menuItems = [
     icon: "bed-outline",
     color: "#8B5CF6",
     screen: "RoomManagement",
+    permissionKey: "rooms",
   },
   {
     id: 3,
@@ -34,6 +38,7 @@ const menuItems = [
     icon: "people-outline",
     color: "#2196F3",
     screen: "Tenants",
+    permissionKey: "tenants",
   },
   {
     id: 4,
@@ -41,6 +46,7 @@ const menuItems = [
     icon: "card-outline",
     color: "#FF9800",
     screen: "Payments",
+    permissionKey: "payments",
   },
   {
     id: 5,
@@ -48,6 +54,7 @@ const menuItems = [
     icon: "bar-chart-outline",
     color: "#9C27B0",
     screen: "Analytics",
+    permissionKey: "analytics",
   },
 ];
 
@@ -71,6 +78,10 @@ export default function MenuDrawer({
   const [userRole, setUserRole] = useState("landlord");
   const [userPermissions, setUserPermissions] = useState({});
   const [userProfileImage, setUserProfileImage] = useState(null);
+  const [permissionModal, setPermissionModal] = useState({
+    visible: false,
+    actionTitle: "",
+  });
 
   useEffect(() => {
     if (visible) {
@@ -99,10 +110,22 @@ export default function MenuDrawer({
   };
 
   const handleItemPress = (item) => {
-    onClose();
     if (item.action === "logout") {
+      onClose();
       onLogout?.();
-    } else if (item.screen) {
+      return;
+    }
+
+    if (item.permissionKey && !hasPermission(item.permissionKey, item.aliases || [])) {
+      setPermissionModal({
+        visible: true,
+        actionTitle: item.title,
+      });
+      return;
+    }
+
+    onClose();
+    if (item.screen) {
       onMenuItemPress?.(item.screen);
     }
   };
@@ -146,17 +169,6 @@ export default function MenuDrawer({
     );
   };
 
-  const filteredMenuItems = menuItems.filter((item) => {
-    if (userRole !== "caretaker") return true;
-
-    if (item.screen === "MyProperties") return hasPermission("properties", ["property", "property_management"]);
-    if (item.screen === "RoomManagement") return hasPermission("rooms");
-    if (item.screen === "Tenants") return hasPermission("tenants");
-    if (item.screen === "Payments") return hasPermission("payments");
-    if (item.screen === "Analytics") return hasPermission("analytics");
-
-    return true;
-  });
 
   return (
     <Modal
@@ -223,7 +235,7 @@ export default function MenuDrawer({
             style={styles.menuItems}
             showsVerticalScrollIndicator={false}
           >
-            {filteredMenuItems.map((item) => (
+            {menuItems.map((item) => (
               <TouchableOpacity
                 key={item.id}
                 style={styles.menuItem}
@@ -265,6 +277,11 @@ export default function MenuDrawer({
           onPress={onClose}
         />
       </View>
+      <PermissionBlockedModal
+        visible={permissionModal.visible}
+        onClose={() => setPermissionModal({ visible: false, actionTitle: "" })}
+        actionTitle={permissionModal.actionTitle}
+      />
     </Modal>
   );
 }

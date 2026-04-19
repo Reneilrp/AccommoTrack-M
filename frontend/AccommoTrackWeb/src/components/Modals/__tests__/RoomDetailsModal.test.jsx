@@ -1,6 +1,6 @@
 import React from 'react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import toast from 'react-hot-toast';
+import { showError } from '../../../utils/toast';
 import api from '../../../utils/api';
 import RoomDetailsModal from '../RoomDetailsModal';
 
@@ -11,9 +11,8 @@ jest.mock('react-router-dom', () => ({
   useNavigate: () => mockNavigate,
 }));
 
-jest.mock('react-hot-toast', () => ({
-  error: jest.fn(),
-  loading: jest.fn(),
+jest.mock('../../../utils/toast', () => ({
+  showError: jest.fn(),
 }));
 
 jest.mock('../../../utils/api', () => ({
@@ -136,9 +135,7 @@ describe('RoomDetailsModal proxy booking', () => {
     fireEvent.click(screen.getByRole('checkbox'));
     fireEvent.click(screen.getByRole('button', { name: 'Confirm Booking Request' }));
 
-    await waitFor(() => {
-      expect(toast.error).toHaveBeenCalledWith('Proxy booking requires at least one occupant.');
-    });
+      expect(showError).toHaveBeenCalledWith('Proxy booking requires at least one occupant.');
 
     expect(createBooking).not.toHaveBeenCalled();
   });
@@ -303,9 +300,7 @@ describe('RoomDetailsModal proxy booking', () => {
     fireEvent.click(screen.getByRole('checkbox'));
     fireEvent.click(screen.getByRole('button', { name: 'Confirm Booking Request' }));
 
-    await waitFor(() => {
-      expect(toast.error).toHaveBeenCalledWith('Occupant 1 must be at least 18 years old.');
-    });
+      expect(showError).toHaveBeenCalledWith('Occupant 1 must be at least 18 years old.');
 
     expect(createBooking).not.toHaveBeenCalled();
   });
@@ -434,9 +429,7 @@ describe('RoomDetailsModal proxy booking', () => {
     fireEvent.change(dateInputs[0], { target: { value: '' } });
     agreeToRulesAndSubmit();
 
-    await waitFor(() => {
-      expect(toast.error).toHaveBeenCalledWith('Please select a move-in date.');
-    });
+      expect(showError).toHaveBeenCalledWith('Please select a move-in date.');
     expect(createBooking).not.toHaveBeenCalled();
 
     unmount();
@@ -456,9 +449,7 @@ describe('RoomDetailsModal proxy booking', () => {
     fireEvent.change(secondDateInputs[1], { target: { value: tomorrow } });
     agreeToRulesAndSubmit();
 
-    await waitFor(() => {
-      expect(toast.error).toHaveBeenCalledWith('Move-out date must be after move-in date.');
-    });
+      expect(showError).toHaveBeenCalledWith('Move-out date must be after move-in date.');
     expect(createBooking).not.toHaveBeenCalled();
 
     second.unmount();
@@ -478,9 +469,7 @@ describe('RoomDetailsModal proxy booking', () => {
     fireEvent.change(thirdDateInputs[1], { target: { value: nextDay } });
     agreeToRulesAndSubmit();
 
-    await waitFor(() => {
-      expect(toast.error).toHaveBeenCalledWith('The minimum stay for this room is 30 days.');
-    });
+      expect(showError).toHaveBeenCalledWith('The minimum stay for this room is 30 days.');
     expect(createBooking).not.toHaveBeenCalled();
 
     third.unmount();
@@ -500,9 +489,7 @@ describe('RoomDetailsModal proxy booking', () => {
     });
     agreeToRulesAndSubmit();
 
-    await waitFor(() => {
-      expect(toast.error).toHaveBeenCalledWith('You cannot book a room more than 3 months in advance.');
-    });
+      expect(showError).toHaveBeenCalledWith('You cannot book a room more than 3 months in advance.');
     expect(createBooking).not.toHaveBeenCalled();
   });
 
@@ -523,9 +510,7 @@ describe('RoomDetailsModal proxy booking', () => {
 
     agreeToRulesAndSubmit();
 
-    await waitFor(() => {
-      expect(toast.error).toHaveBeenCalledWith('Occupant 1: last name is required.');
-    });
+      expect(showError).toHaveBeenCalledWith('Occupant 1: last name is required.');
     expect(createBooking).not.toHaveBeenCalled();
 
     unmount();
@@ -565,9 +550,7 @@ describe('RoomDetailsModal proxy booking', () => {
 
     agreeToRulesAndSubmit();
 
-    await waitFor(() => {
-      expect(toast.error).toHaveBeenCalledWith('Occupant 1: date of birth must be before today.');
-    });
+      expect(showError).toHaveBeenCalledWith('Occupant 1: date of birth must be before today.');
     expect(createBooking).not.toHaveBeenCalled();
   });
 

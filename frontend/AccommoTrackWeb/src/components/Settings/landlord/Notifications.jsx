@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import api from '../../../utils/api';
-import toast from 'react-hot-toast';
+import { showSuccess, showError } from '../../../utils/toast';
 
 export default function Notifications({ user, onUpdate }) {
   const [isEditing, setIsEditing] = useState(false);
@@ -36,9 +36,9 @@ export default function Notifications({ user, onUpdate }) {
       });
       onUpdate?.(res.data.user);
       setIsEditing(false);
-      toast.success('Preferences updated');
+      showSuccess('Preferences updated');
     } catch (__err) {
-      toast.error('Failed to save preferences');
+      showError('Failed to save preferences');
     } finally {
       setSaving(false);
     }

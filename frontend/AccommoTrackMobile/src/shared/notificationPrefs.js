@@ -1,4 +1,4 @@
-﻿export const STORAGE_KEYS = {
+export const STORAGE_KEYS = {
   email_booking: 'notif_email_booking',
   email_payment: 'notif_email_payment',
   email_maintenance: 'notif_email_maintenance',

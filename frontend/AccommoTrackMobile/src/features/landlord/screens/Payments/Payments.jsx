@@ -10,20 +10,18 @@ import {
   FlatList,
   RefreshControl,
   Modal,
-  Alert,
   KeyboardAvoidingView,
   Platform,
   Dimensions,
   Pressable,
   Image,
-  Linking,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 
 import { useQuery } from '@tanstack/react-query';
 import { useTheme } from '../../../../contexts/ThemeContext.jsx';
-import { useUIState } from '../../../../contexts/UIStateContext.jsx';
 import {
   landlordQueryKeys,
   refetchLandlordQueries,
@@ -33,10 +31,12 @@ import {
 import PaymentService from '../../../../services/PaymentService.js';
 import { normalizeActionError } from '../../../../utils/error.js';
 import { getStyles } from '../../../../styles/Landlord/Payments.js';
+import { hasPermission as checkPermission } from '../../../../utils/permissionHelpers.js';
+import { showError, showSuccess, showWarning } from '../../../../utils/toast.js';
 
 const STATUS_FILTERS = ['all', 'pending', 'pending_verification', 'paid', 'unpaid', 'partial', 'overdue', 'cancelled', 'refunded'];
 
-const REFUND_FIXED_PENALTY_CENTS = 0;
+const REFUND_FIXED_PENALTY_CENTS = 0; // Sync with VITE_REFUND_FIXED_PENALTY_CENTS if needed
 const REFUND_ELIGIBLE_STATUSES = ['succeeded', 'paid', 'partially_refunded', 'refunded'];
 const EMPTY_INVOICES = [];
 
@@ -243,7 +243,9 @@ const getTransactionRefundPreview = (invoice, tx, booking) => {
 
   const paidBaseCents = (invoice.transactions || []).filter(l => Number(l.amount_cents || 0) > 0).filter(l => REFUND_ELIGIBLE_STATUSES.includes((l.status || '').toLowerCase())).reduce((s, l) => s + Math.max(0, Number(l.amount_cents || 0)), 0);
   const alreadyRefundedCents = (invoice.transactions || []).filter(l => Number(l.amount_cents || 0) > 0).reduce((s, l) => s + Math.max(0, Number(l.refunded_amount_cents || 0)), 0);
-  const proratedCents = Math.floor((paidBaseCents * stayProgress.refundableUnits) / stayProgress.totalUnits);
+  const proratedCents = stayProgress.totalUnits > 0 
+    ? Math.floor((paidBaseCents * stayProgress.refundableUnits) / stayProgress.totalUnits)
+    : 0;
   const invoiceCapCents = Math.max(0, proratedCents - REFUND_FIXED_PENALTY_CENTS - alreadyRefundedCents);
   return { maxRefundableCents: Math.min(txRemainingCents, invoiceCapCents), txRemainingCents, fixedPenaltyCents: REFUND_FIXED_PENALTY_CENTS, stayProgress };
 };
@@ -261,7 +263,9 @@ const getInvoiceRefundPreview = (invoice, booking) => {
 
   if (totalPaidCents <= 0) return { maxRefundableCents: 0, fixedPenaltyCents: REFUND_FIXED_PENALTY_CENTS, stayProgress };
 
-  const proratedCents = Math.floor((totalPaidCents * stayProgress.refundableUnits) / stayProgress.totalUnits);
+  const proratedCents = stayProgress.totalUnits > 0 
+    ? Math.floor((totalPaidCents * stayProgress.refundableUnits) / stayProgress.totalUnits)
+    : 0;
   const invoiceCapCents = Math.max(0, proratedCents - REFUND_FIXED_PENALTY_CENTS - alreadyRefundedCents);
 
   return {
@@ -273,13 +277,33 @@ const getInvoiceRefundPreview = (invoice, booking) => {
 
 export default function Payments({ navigation, route }) {
   const { theme } = useTheme();
-  const { showAlert } = useUIState();
   const styles = React.useMemo(() => getStyles(theme), [theme]);
 
   const screenWidth = Dimensions.get('window').width;
   const isTablet = screenWidth > 768;
   const cardWidth = isTablet ? 170 : 142;
   const cardHeight = isTablet ? 132 : 116;
+
+  const [user, setUser] = useState(null);
+  useEffect(() => {
+    const loadUser = async () => {
+      try {
+        const userString = await AsyncStorage.getItem('user');
+        if (userString) {
+          setUser(JSON.parse(userString));
+        }
+      } catch (_error) {}
+    };
+    loadUser();
+  }, []);
+
+  const isCaretaker = user?.role === 'caretaker';
+  const hasPermission = useCallback((key, aliases = []) => {
+    return checkPermission(user?.caretaker_permissions, isCaretaker, key, aliases);
+  }, [isCaretaker, user?.caretaker_permissions]);
+
+  const canRecordPayments = !isCaretaker || hasPermission('record_payments');
+  const canVoidPayments = !isCaretaker || hasPermission('void_payments');
 
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -290,6 +314,10 @@ export default function Payments({ navigation, route }) {
   const [updating, setUpdating] = useState(false);
   const [recording, setRecording] = useState(false);
   const [refundingTxId, setRefundingTxId] = useState(null);
+  const [showRefundPreview, setShowRefundPreview] = useState(false);
+  const [refundPreviewData, setRefundPreviewData] = useState(null);
+  const [refundTargetType, setRefundTargetType] = useState('merged'); // 'single' | 'merged'
+  const [targetTx, setTargetTx] = useState(null);
   const [isRefundingInvoice, setIsRefundingInvoice] = useState(false);
 
   const handleMergedRefund = async () => {
@@ -297,49 +325,67 @@ export default function Payments({ navigation, route }) {
 
     const booking = selectedInvoice.booking || null;
     const preview = getInvoiceRefundPreview(selectedInvoice, booking);
-    const maxRefund = preview ? preview.maxRefundableCents : 0;
 
-    if (maxRefund <= 0) {
-      showAlert('No Refund Available', 'This invoice has no refundable amount remaining based on the stay progress.');
+    if (!preview || preview.maxRefundableCents <= 0) {
+      showWarning('No Refund Available', 'This invoice has no refundable amount remaining based on the stay progress.');
       return;
     }
 
-    const stayInfo = preview?.stayProgress
-      ? `\n\nStay Progress: ${preview.stayProgress.usedUnits}/${preview.stayProgress.totalUnits} ${preview.stayProgress.unitLabel} used`
-      + (preview.fixedPenaltyCents > 0 ? `\nPenalty: ₱${(preview.fixedPenaltyCents / 100).toLocaleString()}` : '')
-      : '';
+    setRefundTargetType('merged');
+    setTargetTx(null);
+    setRefundPreviewData(preview);
+    setShowRefundPreview(true);
+  };
 
-    showAlert(
-      'Confirm Merged Refund',
-      `You are about to issue a merged refund for all payments on this invoice.\n\nMax refundable: ₱${(maxRefund / 100).toLocaleString()}${stayInfo}\n\nProceed?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Yes, Refund All',
-          style: 'destructive',
-          onPress: async () => {
-            setIsRefundingInvoice(true);
-            try {
-              const res = await PaymentService.refundInvoice(selectedInvoice.id, maxRefund);
-              if (res.success) {
-                if (selectedInvoice.booking_id) {
-                  await PaymentService.updateBookingPayment(selectedInvoice.booking_id, { payment_status: 'refunded' });
-                }
-                showAlert('Success', `Merged refund of ₱${(maxRefund / 100).toLocaleString()} processed successfully.`);
-                await refetchLandlordQueries(invoiceRefetchers);
-                setShowModal(false);
-              } else {
-                showAlert('Error', getPaymentError(res.error, 'Unable to process merged refund.'));
-              }
-            } catch (error) {
-              showAlert('Error', getPaymentError(error, 'Unable to process merged refund.'));
-            } finally {
-              setIsRefundingInvoice(false);
-            }
+  const confirmMergedRefund = async () => {
+    if (!selectedInvoice || !refundPreviewData) return;
+    const maxRefund = refundPreviewData.maxRefundableCents;
+
+    if (refundTargetType === 'single' && targetTx) {
+      setRefundingTxId(targetTx.id);
+      try {
+        const res = await PaymentService.refundTransaction(targetTx.id, maxRefund);
+        if (res.success) {
+          if (selectedInvoice.booking_id) {
+            await PaymentService.updateBookingPayment(selectedInvoice.booking_id, { payment_status: 'refunded' });
           }
+          showSuccess('Success', `Refunded ₱${(maxRefund / 100).toLocaleString()} successfully`);
+          setShowRefundPreview(false);
+          setRefundPreviewData(null);
+          setTargetTx(null);
+          setShowModal(false);
+          await refetchLandlordQueries(invoiceRefetchers);
+        } else {
+          showError('Error', getPaymentError(res.error, 'Unable to process refund.'));
         }
-      ]
-    );
+      } catch (error) {
+        showError('Error', getPaymentError(error, 'Unable to process refund.'));
+      } finally {
+        setRefundingTxId(null);
+      }
+      return;
+    }
+
+    setIsRefundingInvoice(true);
+    try {
+      const res = await PaymentService.refundInvoice(selectedInvoice.id, maxRefund);
+      if (res.success) {
+        if (selectedInvoice.booking_id) {
+          await PaymentService.updateBookingPayment(selectedInvoice.booking_id, { payment_status: 'refunded' });
+        }
+        showSuccess('Success', `Merged refund of ₱${(maxRefund / 100).toLocaleString()} processed successfully.`);
+        setShowRefundPreview(false);
+        setRefundPreviewData(null);
+        setShowModal(false);
+        await refetchLandlordQueries(invoiceRefetchers);
+      } else {
+        showError('Error', getPaymentError(res.error, 'Unable to process merged refund.'));
+      }
+    } catch (error) {
+      showError('Error', getPaymentError(error, 'Unable to process merged refund.'));
+    } finally {
+      setIsRefundingInvoice(false);
+    }
   };
   const [verifyingAction, setVerifyingAction] = useState(null);
   const [showRejectModal, setShowRejectModal] = useState(false);
@@ -491,12 +537,12 @@ export default function Payments({ navigation, route }) {
       if (res.success) {
         setShowModal(false);
         await refetchLandlordQueries(invoiceRefetchers);
-        showAlert('Success', 'Payment status updated');
+        showSuccess('Success', 'Payment status updated');
       } else {
-        showAlert('Error', getPaymentError(res.error, 'Unable to update payment status.'));
+        showError('Error', getPaymentError(res.error, 'Unable to update payment status.'));
       }
     } catch (error) {
-      showAlert('Error', getPaymentError(error, 'Unable to update payment status.'));
+      showError('Error', getPaymentError(error, 'Unable to update payment status.'));
     } finally {
       setUpdating(false);
     }
@@ -507,7 +553,7 @@ export default function Payments({ navigation, route }) {
 
     const action = payload?.action;
     if (!action || !['approve', 'reject'].includes(action)) {
-      showAlert('Validation', 'Please choose a valid verification action.');
+      showWarning('Validation', 'Please choose a valid verification action.');
       return;
     }
 
@@ -515,11 +561,11 @@ export default function Payments({ navigation, route }) {
     const reason = String(payload?.reason || '').trim();
     if (action === 'reject') {
       if (!CASH_REJECTION_REASON_IDS.includes(reasonCode)) {
-        showAlert('Validation', 'Please select a rejection reason.');
+        showWarning('Validation', 'Please select a rejection reason.');
         return;
       }
       if (!reason) {
-        showAlert('Validation', 'Please provide details for this rejection.');
+        showWarning('Validation', 'Please provide details for this rejection.');
         return;
       }
     }
@@ -533,7 +579,7 @@ export default function Payments({ navigation, route }) {
     try {
       const response = await PaymentService.verifyCash(selectedInvoice.id, verificationPayload);
       if (!response.success) {
-        showAlert('Error', getPaymentError(response.error, 'Unable to verify cash payment.'));
+        showError('Error', getPaymentError(response.error, 'Unable to verify cash payment.'));
         return;
       }
 
@@ -542,14 +588,14 @@ export default function Payments({ navigation, route }) {
       setRejectReasonCode('unclear_image');
       setRejectReason('');
       await refetchLandlordQueries(invoiceRefetchers);
-      showAlert(
+      showSuccess(
         'Success',
         action === 'approve'
           ? 'Cash payment approved and invoice marked as paid.'
           : 'Cash payment rejected. The tenant can resubmit correct proof.',
       );
     } catch (error) {
-      showAlert('Error', getPaymentError(error, 'Unable to verify cash payment.'));
+      showError('Error', getPaymentError(error, 'Unable to verify cash payment.'));
     } finally {
       setVerifyingAction(null);
     }
@@ -572,11 +618,11 @@ export default function Payments({ navigation, route }) {
   const handleRecordPayment = async () => {
     const amountNum = parseFloat(recordData.amount);
     if (!recordData.amount || isNaN(amountNum) || amountNum <= 0) {
-      showAlert('Validation', 'Please enter a valid amount.');
+      showWarning('Validation', 'Please enter a valid amount.');
       return;
     }
     if (!selectedInvoice?.id) {
-      showAlert('Error', 'No invoice selected.');
+      showError('Error', 'No invoice selected.');
       return;
     }
     setRecording(true);
@@ -600,12 +646,12 @@ export default function Payments({ navigation, route }) {
         setShowModal(false);
         setRecordData({ amount: '', method: 'cash', reference: '', notes: '' });
         await refetchLandlordQueries(invoiceRefetchers);
-        showAlert('Success', 'Payment recorded successfully.');
+        showSuccess('Success', 'Payment recorded successfully.');
       } else {
-        showAlert('Error', getPaymentError(res.error, 'Unable to record payment.'));
+        showError('Error', getPaymentError(res.error, 'Unable to record payment.'));
       }
     } catch (error) {
-      showAlert('Error', getPaymentError(error, 'Unable to record payment.'));
+      showError('Error', getPaymentError(error, 'Unable to record payment.'));
     } finally {
       setRecording(false);
     }
@@ -617,49 +663,16 @@ export default function Payments({ navigation, route }) {
     // Calculate prorated refund preview
     const booking = selectedInvoice?.booking || null;
     const preview = getTransactionRefundPreview(selectedInvoice, tx, booking);
-    const maxRefund = preview ? preview.maxRefundableCents : (tx.amount_cents || 0);
 
-    if (maxRefund <= 0) {
-      showAlert('No Refund Available', 'This transaction has no refundable amount remaining based on the stay progress.');
+    if (!preview || preview.maxRefundableCents <= 0) {
+      showWarning('No Refund Available', 'This transaction has no refundable amount remaining based on the stay progress.');
       return;
     }
 
-    const stayInfo = preview?.stayProgress
-      ? `\n\nStay Progress: ${preview.stayProgress.usedUnits}/${preview.stayProgress.totalUnits} ${preview.stayProgress.unitLabel} used`
-      + (preview.fixedPenaltyCents > 0 ? `\nPenalty: ₱${(preview.fixedPenaltyCents / 100).toLocaleString()}` : '')
-      : '';
-
-    showAlert(
-      'Confirm Prorated Refund',
-      `Max refundable: ₱${(maxRefund / 100).toLocaleString()}${stayInfo}\n\nAre you sure? This action cannot be undone.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Yes, Refund',
-          style: 'destructive',
-          onPress: async () => {
-            setRefundingTxId(tx.id);
-            try {
-              const res = await PaymentService.refundTransaction(tx.id, maxRefund);
-              if (res.success) {
-                if (selectedInvoice.booking_id) {
-                  await PaymentService.updateBookingPayment(selectedInvoice.booking_id, { payment_status: 'refunded' });
-                }
-                showAlert('Success', `Refunded ₱${(maxRefund / 100).toLocaleString()} successfully`);
-                await refetchLandlordQueries(invoiceRefetchers);
-                setShowModal(false);
-              } else {
-                showAlert('Error', getPaymentError(res.error, 'Unable to process refund.'));
-              }
-            } catch (error) {
-              showAlert('Error', getPaymentError(error, 'Unable to process refund.'));
-            } finally {
-              setRefundingTxId(null);
-            }
-          }
-        }
-      ]
-    );
+    setRefundTargetType('single');
+    setTargetTx(tx);
+    setRefundPreviewData(preview);
+    setShowRefundPreview(true);
   };
 
   const filteredInvoices = useMemo(() => {
@@ -1150,6 +1163,18 @@ export default function Payments({ navigation, route }) {
                   if (status === 'pending_verification') {
                     const pendingTx = selectedInvoice?.transactions?.find(tx => tx.status === 'pending_offline');
                     const proofUrl = pendingTx?.gateway_response?.proof_image_url;
+                    
+                    if (!canRecordPayments) {
+                      return (
+                        <View style={[styles.cancelledNote, { backgroundColor: theme.colors.backgroundSecondary, marginBottom: 20 }]}>
+                          <Ionicons name="lock-closed-outline" size={16} color={theme.colors.textSecondary} style={{ marginRight: 8 }} />
+                          <Text style={[styles.cancelledNoteText, { color: theme.colors.textSecondary }]}>
+                            Verification requires cash recording permissions.
+                          </Text>
+                        </View>
+                      );
+                    }
+
                     return (
                       <View style={[styles.verificationSection, { backgroundColor: theme.isDark ? 'rgba(194,65,12,0.1)' : '#FFF7ED', borderColor: theme.isDark ? '#C2410C' : '#FFEDD5' }]}>
                         <View style={styles.verificationHeader}>
@@ -1238,37 +1263,46 @@ export default function Payments({ navigation, route }) {
                           </View>
                         )}
 
-                        <View style={styles.verificationActionRow}>
-                          <TouchableOpacity
-                            style={[styles.verifyButton, styles.verifyApproveButton]}
-                            onPress={() => handleVerifyCash({ action: 'approve' })}
-                            disabled={Boolean(verifyingAction)}
-                          >
-                            {verifyingAction === 'approve' ? (
-                              <ActivityIndicator size="small" color="#FFFFFF" />
-                            ) : (
-                              <>
-                                <Ionicons name="checkmark-circle-outline" size={18} color="#FFFFFF" />
-                                <Text style={styles.verifyButtonText}>Approve Payment</Text>
-                              </>
-                            )}
-                          </TouchableOpacity>
+                        {canRecordPayments ? (
+                          <View style={styles.verificationActionRow}>
+                            <TouchableOpacity
+                              style={[styles.verifyButton, styles.verifyApproveButton]}
+                              onPress={() => handleVerifyCash({ action: 'approve' })}
+                              disabled={Boolean(verifyingAction)}
+                            >
+                              {verifyingAction === 'approve' ? (
+                                <ActivityIndicator size="small" color="#FFFFFF" />
+                              ) : (
+                                <>
+                                  <Ionicons name="checkmark-circle-outline" size={18} color="#FFFFFF" />
+                                  <Text style={styles.verifyButtonText}>Approve Payment</Text>
+                                </>
+                              )}
+                            </TouchableOpacity>
 
-                          <TouchableOpacity
-                            style={[styles.verifyButton, styles.verifyRejectButton]}
-                            onPress={openRejectVerificationModal}
-                            disabled={Boolean(verifyingAction)}
-                          >
-                            {verifyingAction === 'reject' ? (
-                              <ActivityIndicator size="small" color="#FFFFFF" />
-                            ) : (
-                              <>
-                                <Ionicons name="close-circle-outline" size={18} color="#FFFFFF" />
-                                <Text style={styles.verifyButtonText}>Reject Payment</Text>
-                              </>
-                            )}
-                          </TouchableOpacity>
-                        </View>
+                            <TouchableOpacity
+                              style={[styles.verifyButton, styles.verifyRejectButton]}
+                              onPress={openRejectVerificationModal}
+                              disabled={Boolean(verifyingAction)}
+                            >
+                              {verifyingAction === 'reject' ? (
+                                <ActivityIndicator size="small" color="#FFFFFF" />
+                              ) : (
+                                <>
+                                  <Ionicons name="close-circle-outline" size={18} color="#FFFFFF" />
+                                  <Text style={styles.verifyButtonText}>Reject Payment</Text>
+                                </>
+                              )}
+                            </TouchableOpacity>
+                          </View>
+                        ) : (
+                          <View style={[styles.cancelledNote, { backgroundColor: theme.colors.backgroundSecondary, marginTop: 12 }]}>
+                            <Ionicons name="lock-closed-outline" size={16} color={theme.colors.textSecondary} style={{ marginRight: 8 }} />
+                            <Text style={[styles.cancelledNoteText, { color: theme.colors.textSecondary }]}>
+                              Verification requires recording permissions.
+                            </Text>
+                          </View>
+                        )}
                       </View>
                     );
                   }
@@ -1372,49 +1406,53 @@ export default function Payments({ navigation, route }) {
                         onChangeText={(v) => setRecordData((d) => ({ ...d, notes: v }))}
                       />
 
-                      <TouchableOpacity
-                        style={[styles.recordButton, { backgroundColor: theme.colors.primary }, recording && { opacity: 0.6 }]}
-                        onPress={handleRecordPayment}
-                        disabled={recording}
-                      >
-                        {recording ? (
-                          <ActivityIndicator size="small" color="#fff" />
-                        ) : (
-                          <>
-                            <Ionicons name="checkmark-circle-outline" size={18} color="#FFFFFF" />
-                            <Text style={styles.recordButtonText}>Record Payment</Text>
-                          </>
-                        )}
-                      </TouchableOpacity>
+                      {canRecordPayments && (
+                        <TouchableOpacity
+                          style={[styles.recordButton, { backgroundColor: theme.colors.primary }, recording && { opacity: 0.6 }]}
+                          onPress={handleRecordPayment}
+                          disabled={recording}
+                        >
+                          {recording ? (
+                            <ActivityIndicator size="small" color="#fff" />
+                          ) : (
+                            <>
+                              <Ionicons name="checkmark-circle-outline" size={18} color="#FFFFFF" />
+                              <Text style={styles.recordButtonText}>Record Payment</Text>
+                            </>
+                          )}
+                        </TouchableOpacity>
+                      )}
 
                       {/* ── Quick Status Update ── */}
                       <View style={[styles.sectionDivider, { marginTop: 24, borderTopColor: theme.colors.border }]}>
                         <Text style={[styles.sectionTitle, { color: theme.colors.textSecondary }]}>Quick Status Update</Text>
                       </View>
 
-                      <View style={styles.statusGrid}>
-                        {[
-                          { id: 'unpaid', label: 'Mark as Unpaid', icon: 'close-circle', color: theme.isDark ? 'rgba(153,27,27,0.2)' : '#FEE2E2', text: theme.isDark ? '#f87171' : '#991B1B', border: theme.isDark ? '#991B1B' : '#FCA5A5' },
-                          { id: 'partial', label: 'Mark as Partial', icon: 'time', color: theme.isDark ? 'rgba(146,64,14,0.2)' : '#FEF3C7', text: theme.isDark ? '#fbbf24' : '#92400E', border: theme.isDark ? '#92400E' : '#FCD34D' },
-                          { id: 'paid', label: 'Mark as Paid', icon: 'checkmark-circle', color: theme.isDark ? 'rgba(22,101,52,0.2)' : '#DCFCE7', text: theme.isDark ? '#4ade80' : '#166534', border: theme.isDark ? '#166534' : '#86EFAC' },
-                        ].map((s) => (
-                          <TouchableOpacity
-                            key={s.id}
-                            style={[styles.statusOption, { backgroundColor: s.color, borderColor: s.border }]}
-                            onPress={() => handleUpdatePayment(s.id)}
-                            disabled={updating}
-                          >
-                            {updating ? (
-                              <ActivityIndicator size="small" color={s.text} />
-                            ) : (
-                              <>
-                                <Ionicons name={s.icon} size={18} color={s.text} />
-                                <Text style={[styles.statusOptionText, { color: s.text }]}>{s.label}</Text>
-                              </>
-                            )}
-                          </TouchableOpacity>
-                        ))}
-                      </View>
+                      {canRecordPayments && (
+                        <View style={styles.statusGrid}>
+                          {[
+                            { id: 'unpaid', label: 'Mark as Unpaid', icon: 'close-circle', color: theme.isDark ? 'rgba(153,27,27,0.2)' : '#FEE2E2', text: theme.isDark ? '#f87171' : '#991B1B', border: theme.isDark ? '#991B1B' : '#FCA5A5' },
+                            { id: 'partial', label: 'Mark as Partial', icon: 'time', color: theme.isDark ? 'rgba(146,64,14,0.2)' : '#FEF3C7', text: theme.isDark ? '#fbbf24' : '#92400E', border: theme.isDark ? '#92400E' : '#FCD34D' },
+                            { id: 'paid', label: 'Mark as Paid', icon: 'checkmark-circle', color: theme.isDark ? 'rgba(22,101,52,0.2)' : '#DCFCE7', text: theme.isDark ? '#4ade80' : '#166534', border: theme.isDark ? '#166534' : '#86EFAC' },
+                          ].map((s) => (
+                            <TouchableOpacity
+                              key={s.id}
+                              style={[styles.statusOption, { backgroundColor: s.color, borderColor: s.border }]}
+                              onPress={() => handleUpdatePayment(s.id)}
+                              disabled={updating}
+                            >
+                              {updating ? (
+                                <ActivityIndicator size="small" color={s.text} />
+                              ) : (
+                                <>
+                                  <Ionicons name={s.icon} size={18} color={s.text} />
+                                  <Text style={[styles.statusOptionText, { color: s.text }]}>{s.label}</Text>
+                                </>
+                              )}
+                            </TouchableOpacity>
+                          ))}
+                        </View>
+                      )}
                     </>
                   );
                 })()}
@@ -1460,30 +1498,31 @@ export default function Payments({ navigation, route }) {
                               <Text style={[styles.refundedText, { color: theme.colors.textSecondary }]}>REFUNDED</Text>
                             </View>
                           ) : (
-                            <TouchableOpacity
-                              style={[styles.refundButton, {
-                                borderColor: theme.isDark ? '#a855f7' : '#7E22CE',
-                                backgroundColor: theme.isDark ? 'rgba(168,85,247,0.15)' : '#F3E8FF'
-                              }, isRefunding && { opacity: 0.7 }]}
-                              onPress={() => handleRefund(tx)}
-                              disabled={isRefunding}
-                            >
-                              {isRefunding ? (
-                                <ActivityIndicator size="small" color={theme.isDark ? '#a855f7' : '#7E22CE'} />
-                              ) : (
-                                <>
-                                  <Ionicons name="refresh-circle-outline" size={16} color={theme.isDark ? '#a855f7' : '#7E22CE'} />
-                                  <Text style={[styles.refundButtonText, { color: theme.isDark ? '#a855f7' : '#7E22CE' }]}>Refund</Text>
-                                </>
-                              )}
-                            </TouchableOpacity>
+                            canVoidPayments && (
+                              <TouchableOpacity
+                                style={[styles.refundButton, {
+                                  borderColor: theme.isDark ? '#a855f7' : '#7E22CE',
+                                  backgroundColor: theme.isDark ? 'rgba(168,85,247,0.15)' : '#F3E8FF'
+                                }, isRefunding && { opacity: 0.7 }]}
+                                onPress={() => handleRefund(tx)}
+                                disabled={isRefunding}
+                              >
+                                {isRefunding ? (
+                                  <ActivityIndicator size="small" color={theme.isDark ? '#a855f7' : '#7E22CE'} />
+                                ) : (
+                                  <>
+                                    <Ionicons name="refresh-circle-outline" size={16} color={theme.isDark ? '#a855f7' : '#7E22CE'} />
+                                    <Text style={[styles.refundButtonText, { color: theme.isDark ? '#a855f7' : '#7E22CE' }]}>Refund</Text>
+                                  </>
+                                )}
+                              </TouchableOpacity>
+                            )
                           )}
                         </View>
                       );
                     })}
 
-                    {/* Merged Refund Button for multiple partial payments */}
-                    {selectedInvoice.transactions.filter(t => (t.amount_cents || t.amount) > 0 && (t.status !== 'refunded')).length > 1 && (
+                    {canVoidPayments && selectedInvoice.transactions.filter(t => (t.amount_cents || t.amount) > 0 && (t.status !== 'refunded')).length > 1 && (
                       <View style={{ marginTop: 16, paddingTop: 16, borderTopWidth: 1, borderTopColor: theme.colors.border, borderStyle: 'dashed' }}>
                         <TouchableOpacity
                           style={[styles.recordButton, { backgroundColor: '#DC2626' }, isRefundingInvoice && { opacity: 0.6 }]}
@@ -1628,6 +1667,127 @@ export default function Payments({ navigation, route }) {
               >
                 <Text style={[styles.cancelButtonText, { color: theme.colors.textSecondary }]}>Cancel</Text>
               </TouchableOpacity>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Merged Refund Preview Modal */}
+      <Modal
+        visible={showRefundPreview}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowRefundPreview(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { width: '90%', backgroundColor: theme.colors.surface }]}>
+            <View style={[styles.modalHeader, { borderBottomColor: theme.colors.border }]}>
+              <Text style={[styles.modalTitle, { color: theme.colors.text }]}>Refund Breakdown</Text>
+              <TouchableOpacity onPress={() => setShowRefundPreview(false)} style={styles.closeButton}>
+                <Ionicons name="close" size={24} color={theme.colors.textSecondary} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView contentContainerStyle={styles.modalBody}>
+              {refundPreviewData?.stayProgress && (
+                <View style={[styles.refundStatsCard, { backgroundColor: theme.isDark ? 'rgba(126,34,206,0.1)' : '#F3E8FF' }]}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
+                    <Ionicons name="time-outline" size={20} color="#7E22CE" />
+                    <Text style={{ marginLeft: 8, fontSize: 14, fontWeight: '700', color: '#7E22CE' }}>Stay Progress</Text>
+                  </View>
+
+                  <View style={{ gap: 10 }}>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                      <Text style={{ color: theme.colors.textSecondary, fontSize: 13 }}>Duration</Text>
+                      <Text style={{ color: theme.colors.text, fontWeight: '600', fontSize: 13 }}>
+                        {refundPreviewData.stayProgress.totalUnits} {refundPreviewData.stayProgress.unitLabel}
+                      </Text>
+                    </View>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                      <Text style={{ color: theme.colors.textSecondary, fontSize: 13 }}>Elapsed</Text>
+                      <Text style={{ color: theme.colors.text, fontWeight: '600', fontSize: 13 }}>
+                        {refundPreviewData.stayProgress.usedUnits} {refundPreviewData.stayProgress.unitLabel}
+                      </Text>
+                    </View>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                      <Text style={{ color: theme.colors.textSecondary, fontSize: 13 }}>Refundable</Text>
+                      <Text style={{ color: '#16a34a', fontWeight: '700', fontSize: 13 }}>
+                        {refundPreviewData.stayProgress.refundableUnits} {refundPreviewData.stayProgress.unitLabel}
+                      </Text>
+                    </View>
+                  </View>
+
+                  <View style={{ height: 6, backgroundColor: theme.isDark ? 'rgba(0,0,0,0.2)' : 'rgba(255,255,255,0.5)', borderRadius: 3, marginTop: 14, overflow: 'hidden' }}>
+                    <View style={{
+                      height: '100%',
+                      width: `${(refundPreviewData.stayProgress.usedUnits / refundPreviewData.stayProgress.totalUnits) * 100}%`,
+                      backgroundColor: '#7E22CE',
+                    }} />
+                  </View>
+                </View>
+              )}
+
+              <View style={{ marginTop: 16 }}>
+                <Text style={[styles.sectionTitle, { color: theme.colors.textTertiary, marginBottom: 10 }]}>Calculation Summary</Text>
+
+                <View style={{ gap: 12 }}>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                    <Text style={{ color: theme.colors.textSecondary }}>Total Paid Base</Text>
+                    <Text style={{ color: theme.colors.text, fontWeight: '600' }}>
+                      ₱{(getSettledAmount(selectedInvoice)).toLocaleString()}
+                    </Text>
+                  </View>
+
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                    <Text style={{ color: theme.colors.textSecondary }}>Prorated Amount</Text>
+                    <Text style={{ color: theme.colors.text, fontWeight: '600' }}>
+                      ₱{(Math.floor((getSettledAmount(selectedInvoice) * 100 * refundPreviewData?.stayProgress?.refundableUnits) / refundPreviewData?.stayProgress?.totalUnits) / 100).toLocaleString()}
+                    </Text>
+                  </View>
+
+                  {refundPreviewData?.fixedPenaltyCents > 0 && (
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                      <Text style={{ color: '#DC2626' }}>Fixed Penalty</Text>
+                      <Text style={{ color: '#DC2626', fontWeight: '600' }}>
+                        - ₱{(refundPreviewData.fixedPenaltyCents / 100).toLocaleString()}
+                      </Text>
+                    </View>
+                  )}
+
+                  <View style={{ height: 1, backgroundColor: theme.colors.borderLight, marginVertical: 4 }} />
+
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                    <Text style={{ color: theme.colors.text, fontWeight: '700', fontSize: 16 }}>Refund Amount</Text>
+                    <Text style={{ color: '#7E22CE', fontWeight: '800', fontSize: 18 }}>
+                      ₱{(refundPreviewData?.maxRefundableCents / 100).toLocaleString()}
+                    </Text>
+                  </View>
+                </View>
+              </View>
+
+              <View style={{ marginTop: 24, gap: 10 }}>
+                <TouchableOpacity
+                  style={[styles.recordButton, { backgroundColor: '#7E22CE' }]}
+                  onPress={confirmMergedRefund}
+                  disabled={isRefundingInvoice}
+                >
+                  {isRefundingInvoice ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <>
+                      <Ionicons name="checkmark-circle-outline" size={20} color="#FFFFFF" />
+                      <Text style={styles.recordButtonText}>Process Refund</Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.cancelButton, { backgroundColor: theme.colors.backgroundSecondary }]}
+                  onPress={() => setShowRefundPreview(false)}
+                >
+                  <Text style={[styles.cancelButtonText, { color: theme.colors.textSecondary }]}>Not Now</Text>
+                </TouchableOpacity>
+              </View>
             </ScrollView>
           </View>
         </View>

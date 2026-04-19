@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, FlatList, ActivityIndicator, RefreshControl, StyleSheet } from 'react-native';
+import { View, Text, FlatList, ActivityIndicator, RefreshControl, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useQuery } from '@tanstack/react-query';
@@ -12,7 +12,7 @@ import {
   useTenantRefreshHandler,
 } from '../../hooks/useTenantQueryHelpers.js';
 
-export default function MyRequests({ hideHeader = false, historyOnly = false }) {
+export default function MyRequests({ hideHeader = false, historyOnly = false, navigation }) {
   const { theme } = useTheme();
   const styles = React.useMemo(() => getStyles(theme), [theme]);
   const [refreshing, setRefreshing] = useState(false);
@@ -63,12 +63,28 @@ export default function MyRequests({ hideHeader = false, historyOnly = false }) 
           keyExtractor={(item) => (item.id || item.request_id || String(item.created_at || Math.random())).toString()}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
           renderItem={({ item }) => (
-          <View style={[styles.requestCard, { backgroundColor: theme.colors.surface }]}>
-              <Text style={[styles.requestTitle, { color: theme.colors.text }]}>{item.title || item.subject || 'Maintenance Request'}</Text>
-              <Text style={[styles.requestText, { color: theme.colors.textSecondary }]}>{item.description || item.note || ''}</Text>
-              <Text style={[styles.requestText, { color: theme.colors.textSecondary }]}>Status: {item.status || item.request_status || 'Pending'}</Text>
-              <Text style={[styles.requestText, { color: theme.colors.textSecondary }]}>Created: {item.created_at ? new Date(item.created_at).toLocaleString() : ''}</Text>
-          </View>
+          <TouchableOpacity 
+            style={[styles.requestCard, { backgroundColor: theme.colors.surface }]}
+            onPress={() => navigation.navigate('MaintenanceDetail', { requestId: item.id })}
+          >
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Text style={[styles.requestTitle, { color: theme.colors.text }]}>
+                  {item.title || item.subject || 'Maintenance Request'}
+                </Text>
+                <Ionicons name="chevron-forward" size={16} color={theme.colors.textTertiary} />
+              </View>
+              <Text style={[styles.requestText, { color: theme.colors.textSecondary }]} numberOfLines={2}>
+                {item.description || item.note || ''}
+              </Text>
+              <View style={{ flexDirection: 'row', gap: 12, marginTop: 8 }}>
+                 <Text style={[styles.requestText, { color: theme.colors.primary, fontWeight: 'bold', fontSize: 12 }]}>
+                   {item.status?.replace('_', ' ').toUpperCase()}
+                 </Text>
+                 <Text style={[styles.requestText, { color: theme.colors.textTertiary, fontSize: 11 }]}>
+                   {item.created_at ? new Date(item.created_at).toLocaleDateString() : ''}
+                 </Text>
+              </View>
+          </TouchableOpacity>
           )}
           ListEmptyComponent={() => (
             <View style={styles.emptyState}>

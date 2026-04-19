@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Bell, Check, Calendar, Home, Users, CreditCard, AlertCircle } from 'lucide-react';
+import { Bell, Check, Calendar, Home, Users, CreditCard, AlertCircle, ArrowLeftRight } from 'lucide-react';
 import api from '../../utils/api';
 import { useNavigate } from 'react-router-dom';
 
@@ -8,6 +8,7 @@ const ACTIVITY_ICON_MAP = {
   room: <Home className="w-4 h-4" />,
   tenant: <Users className="w-4 h-4" />,
   payment: <CreditCard className="w-4 h-4" />,
+  transfer: <ArrowLeftRight className="w-4 h-4" />,
 };
 
 const ACTIVITY_COLOR_MAP = {
@@ -163,6 +164,7 @@ const NotificationDropdown = () => {
         navigate(`/payments?${params.toString()}`);
       }
       else if (notification.type === 'room') navigate('/rooms');
+      else if (notification.type === 'transfer') navigate('/transfers');
       return;
     }
 
@@ -182,6 +184,9 @@ const NotificationDropdown = () => {
     }
     else if (notifType === 'move_out_notice') {
       navigate(bookingId ? `/bookings?bookingId=${bookingId}` : '/bookings');
+    }
+    else if (notifType === 'transfer') {
+      navigate('/transfers');
     }
   };
 

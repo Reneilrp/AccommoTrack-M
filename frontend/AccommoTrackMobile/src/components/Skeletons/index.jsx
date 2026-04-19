@@ -21,7 +21,7 @@ export const Skeleton = ({ width, height, borderRadius = 8, style }) => {
         }),
       ])
     ).start();
-  }, []);
+  }, [animatedValue]);
 
   const opacity = animatedValue.interpolate({
     inputRange: [0, 1],

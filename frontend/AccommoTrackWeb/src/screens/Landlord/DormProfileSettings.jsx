@@ -17,7 +17,7 @@ import {
   Video,
   Play,
 } from "lucide-react";
-import toast, { Toaster } from "react-hot-toast";
+import { showSuccess, showError, showLoading } from "../../utils/toast";
 import api from "../../utils/api";
 import { usePreferences } from "../../contexts/PreferencesContext";
 
@@ -128,6 +128,7 @@ export default function DormProfileSettings({
     if (propertyId) {
       fetchPropertyDetails();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [propertyId]);
 
   const fetchPropertyDetails = async () => {
@@ -307,31 +308,25 @@ export default function DormProfileSettings({
     if (!deleteConfirm.property) return;
     try {
       setLoading(true);
-      // Show a persistent loading toast and navigate immediately
-      const toastId = toast.loading("Deleting property...");
+      const toastId = showLoading("Deleting property...");
       if (onBack) onBack();
 
-      // Send password in request body for DELETE request
-      const response = await api.delete(
-        `/landlord/properties/${deleteConfirm.property.id}`,
-        {
-          data: { password: password },
-        },
-      );
+      const response = await api.delete(`/landlord/properties/${deleteConfirm.property.id}`, {
+        data: { password: password },
+      });
 
-      if (response.status === 200) {
-        toast.success(
-          response.data.message || "Property deleted successfully",
-          { id: toastId },
-        );
+      if (response.data.success) {
+        showSuccess(response.data.message || "Property deleted successfully", { id: toastId });
+        setDormData(null);
+        onBack();
       } else {
-        toast.error("Failed to delete property", { id: toastId });
+        showError(response.data.message || "Failed to delete property", { id: toastId });
       }
     } catch (err) {
+      console.error("Error deleting property:", err);
       const errorMessage =
         err.response?.data?.message || "Failed to delete property";
-      // update the loading toast if it exists
-      toast.error(errorMessage);
+      showError(errorMessage);
       // If password is wrong, re-open the password modal so user can retry
       if (err.response?.data?.error === "password_incorrect") {
         setDeleteConfirm({ show: false, property: null });
@@ -434,17 +429,14 @@ export default function DormProfileSettings({
     const files = Array.from(e.target.files);
     if (files.length === 0) return;
 
-    const MAX_SIZE = 10 * 1024 * 1024; // 10MB
-    const allowedTypes = ["image/jpeg", "image/png", "image/jpg"];
-
     const validFiles = [];
     for (const file of files) {
-      if (!allowedTypes.includes(file.type)) {
-        toast.error(`${file.name}: unsupported file type`);
+      if (!["image/png", "image/jpeg", "image/jpg"].includes(file.type)) {
+        showError(`${file.name}: unsupported file type`);
         continue;
       }
-      if (file.size > MAX_SIZE) {
-        toast.error(`${file.name}: file too large (max 10 MB)`);
+      if (file.size > 10 * 1024 * 1024) {
+        showError(`${file.name}: file too large (max 10 MB)`);
         continue;
       }
       validFiles.push(file);
@@ -464,7 +456,7 @@ export default function DormProfileSettings({
     if (!file) return;
 
     if (file.size > 200 * 1024 * 1024) {
-      toast.error("Video is too large. Maximum size is 200MB.");
+      showError("Video is too large. Maximum size is 200MB.");
       return;
     }
 
@@ -473,7 +465,7 @@ export default function DormProfileSettings({
     videoEl.onloadedmetadata = () => {
       window.URL.revokeObjectURL(videoEl.src);
       if (videoEl.duration > 45) {
-        toast.error("Video must be 45 seconds or less.");
+        showError("Video must be 45 seconds or less.");
         return;
       }
       if (videoPreview) URL.revokeObjectURL(videoPreview);
@@ -554,16 +546,10 @@ export default function DormProfileSettings({
       const images = Array.isArray(prev.images) ? [...prev.images] : [];
 
       // Enforce minimum 1 image rule
-      const __existingImages = images.filter(
-        (img) => img && (img.id || typeof img !== "object" || !img.file),
-      );
-      const __newFiles = images.filter(
-        (img) => img instanceof File || (img && img.file),
-      );
       const totalAfterRemove = images.length - 1;
 
       if (totalAfterRemove < 1) {
-        toast.error("Property must have at least 1 image");
+        showError("Property must have at least 1 image");
         return prev;
       }
 
@@ -637,34 +623,29 @@ export default function DormProfileSettings({
   };
 
   const handleSave = async () => {
-    // Perform strict GCash validations before saving
-    const hasGcashName = Boolean((dormData.gcash_name || "").trim());
-    const hasGcashNumber = Boolean((dormData.gcash_number || "").trim());
+    if (isEditing && dormData.images.length === 0) {
+      showError("Property must have at least 1 image");
+      return;
+    }
 
-    if (hasGcashName || hasGcashNumber) {
-      if (!hasGcashName || !hasGcashNumber) {
-        setError("Both GCash Name and GCash Number are required if you want to provide manual GCash payment.");
-        toast.error("Complete your GCash details.");
-        window.scrollTo({ top: 0, behavior: 'smooth' });
+    if (dormData.require_reservation_fee) {
+      if (!dormData.gcash_name || !dormData.gcash_number || (!gcashQrPreview && !gcashQrFile)) {
+        showError("Complete your GCash details.");
         return;
       }
-
-      // Check strictly 11 digits starting with 09
-      const gcashRegex = /^09\d{9}$/;
+      const gcashRegex = /^(09|\+639)\d{9}$/;
       if (!gcashRegex.test(dormData.gcash_number)) {
-        setError("GCash Number must be exactly 11 digits starting with 09.");
-        toast.error("Invalid GCash Number format.");
-        window.scrollTo({ top: 0, behavior: 'smooth' });
+        showError("Invalid GCash Number format.");
         return;
       }
+    }
 
-      // Request final verification from landlord to ensure security
-      const confirmGcash = window.confirm(
-        "Please double check your GCash Name and Number.\nIncorrect details will result in lost payments. Proceed with save?"
-      );
-      if (!confirmGcash) {
-        return;
-      }
+    // Request final verification from landlord to ensure security
+    const confirmGcash = window.confirm(
+      "Please double check your GCash Name and Number.\nIncorrect details will result in lost payments. Proceed with save?"
+    );
+    if (!confirmGcash) {
+      return;
     }
 
     try {
@@ -857,7 +838,7 @@ export default function DormProfileSettings({
         __response = await api.put(`/landlord/properties/${propertyId}`, payload);
       }
 
-      toast.success("Property updated successfully!");
+      showSuccess("Property updated successfully!");
       setIsEditing(false);
       setFieldErrors({});
       // Clear staged deletions after successful save
@@ -906,10 +887,10 @@ export default function DormProfileSettings({
           }
         }
         setError(msg);
-        toast.error("Failed to update property");
+        showError("Failed to update property");
       } else {
         setError(err.message || "Failed to update property");
-        toast.error(
+        showError(
           "Failed to update property: " + (err.message || "Unknown error"),
         );
       }
@@ -929,7 +910,7 @@ export default function DormProfileSettings({
       });
 
       if (response.status === 200) {
-        toast.success("Property submitted for admin approval");
+        showSuccess("Property submitted for admin approval");
         fetchPropertyDetails();
       } else {
         const message = response.data?.message || "Failed to submit draft";
@@ -940,7 +921,7 @@ export default function DormProfileSettings({
       const backendMessage = err?.response?.data?.message;
       const message = backendMessage || err.message || "Failed to submit draft";
       setError(message);
-      toast.error(message);
+      showError(message);
     } finally {
       setLoading(false);
     }
@@ -1006,7 +987,6 @@ export default function DormProfileSettings({
 
             {/* Right: Actions */}
             <div className="flex items-center justify-end gap-4">
-              <Toaster />
               {isEditing && (
                 <>
                   <button
@@ -1476,7 +1456,7 @@ export default function DormProfileSettings({
                                           const file = e.target.files[0];
                                           if (file) {
                                             if (file.size > 5 * 1024 * 1024) {
-                                              toast.error("File size must be less than 5MB");
+                                              showError("File size must be less than 5MB");
                                               return;
                                             }
                                             setGcashQrFile(file);

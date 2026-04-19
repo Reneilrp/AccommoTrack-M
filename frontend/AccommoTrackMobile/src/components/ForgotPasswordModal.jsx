@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   Modal,
   ActivityIndicator,
-  Alert,
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
@@ -16,10 +15,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { API_BASE_URL as API_URL } from '../config/index.js';
 import { useTheme } from '../contexts/ThemeContext.jsx';
+import { showSuccess, showError, showWarning } from '../utils/toast.js';
 
 const ForgotPasswordModal = ({ visible, onClose }) => {
-  const { theme, isDarkMode } = useTheme();
-  const showAlert = Alert.alert;
+  const { theme } = useTheme();
   const styles = React.useMemo(() => getStyles(theme), [theme]);
   
   const [step, setStep] = useState(1);
@@ -36,7 +35,7 @@ const ForgotPasswordModal = ({ visible, onClose }) => {
   const handleSendCode = async () => {
     const normalizedEmail = email.trim();
     if (!normalizedEmail) {
-      showAlert('Error', 'Please enter your email address.');
+      showError('Error', 'Please enter your email address.');
       return;
     }
 
@@ -52,13 +51,13 @@ const ForgotPasswordModal = ({ visible, onClose }) => {
 
       if (response.ok) {
         setEmail(normalizedEmail);
-        showAlert('Success', data.message || 'If your email is registered, a reset code has been sent.');
+        showSuccess('Success', data.message || 'If your email is registered, a reset code has been sent.');
         setStep(2);
       } else {
-        showAlert('Error', data.message || 'Failed to send reset code.');
+        showError('Error', data.message || 'Failed to send reset code.');
       }
-    } catch (err) {
-      showAlert('Error', 'Network error. Please check your connection.');
+    } catch (_err) {
+      showError('Error', 'Network error. Please check your connection.');
     } finally {
       setLoading(false);
     }
@@ -67,7 +66,7 @@ const ForgotPasswordModal = ({ visible, onClose }) => {
   const handleVerifyCode = async () => {
     const fullCode = code.join('');
     if (fullCode.length !== 6) {
-      showAlert('Error', 'Please enter the 6-digit code.');
+      showWarning('Error', 'Please enter the 6-digit code.');
       return;
     }
 
@@ -84,10 +83,10 @@ const ForgotPasswordModal = ({ visible, onClose }) => {
       if (response.ok) {
         setStep(3);
       } else {
-        showAlert('Error', data.message || 'Invalid code.');
+        showError('Error', data.message || 'Invalid code.');
       }
-    } catch (err) {
-      showAlert('Error', 'Network error. Please check your connection.');
+    } catch (_err) {
+      showError('Error', 'Network error. Please check your connection.');
     } finally {
       setLoading(false);
     }
@@ -95,11 +94,11 @@ const ForgotPasswordModal = ({ visible, onClose }) => {
 
   const handleResetPassword = async () => {
     if (password.length < 8) {
-      showAlert('Error', 'Password must be at least 8 characters.');
+      showWarning('Error', 'Password must be at least 8 characters.');
       return;
     }
     if (password !== confirmPassword) {
-      showAlert('Error', 'Passwords do not match.');
+      showWarning('Error', 'Passwords do not match.');
       return;
     }
 
@@ -119,14 +118,13 @@ const ForgotPasswordModal = ({ visible, onClose }) => {
       const data = await response.json();
 
       if (response.ok) {
-        showAlert('Success', 'Password reset successfully! You can now login.', [
-          { text: 'OK', onPress: () => handleClose() }
-        ]);
+        showSuccess('Success', 'Password reset successfully! You can now login.');
+        handleClose();
       } else {
-        showAlert('Error', data.message || 'Failed to reset password.');
+        showError('Error', data.message || 'Failed to reset password.');
       }
-    } catch (err) {
-      showAlert('Error', 'Network error. Please check your connection.');
+    } catch (_err) {
+      showError('Error', 'Network error. Please check your connection.');
     } finally {
       setLoading(false);
     }

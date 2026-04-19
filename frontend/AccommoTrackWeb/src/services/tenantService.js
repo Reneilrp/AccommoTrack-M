@@ -12,10 +12,10 @@ export const tenantService = {
     async getCurrentStay() {
         try {
             const response = await api.get('/tenant/current-stay');
-            return response.data;
-        } catch (error) {
-            console.error('Error fetching current stay:', error);
-            throw error;
+            return { success: true, data: response.data };
+        } catch (_err) {
+            console.error('Error fetching current stay:', _err);
+            return { success: false, error: _err?.response?.data?.message || _err.message };
         }
     },
 
@@ -25,10 +25,10 @@ export const tenantService = {
     async getHistory(page = 1) {
         try {
             const response = await api.get(`/tenant/history?page=${page}`);
-            return response.data;
-        } catch (error) {
-            console.error('Error fetching booking history:', error);
-            throw error;
+            return { success: true, data: response.data };
+        } catch (_err) {
+            console.error('Error fetching booking history:', _err);
+            return { success: false, error: _err?.response?.data?.message || _err.message };
         }
     },
 
@@ -38,10 +38,10 @@ export const tenantService = {
     async requestAddon(payload) {
         try {
             const response = await api.post('/tenant/addons/request', payload);
-            return response.data;
-        } catch (error) {
-            console.error('Error requesting addon:', error);
-            throw error;
+            return { success: true, data: response.data };
+        } catch (_err) {
+            console.error('Error requesting addon:', _err);
+            return { success: false, error: _err?.response?.data?.message || _err.message };
         }
     },
 
@@ -51,10 +51,10 @@ export const tenantService = {
     async cancelAddonRequest(addonId) {
         try {
             const response = await api.delete(`/tenant/addons/${addonId}/cancel`);
-            return response.data;
-        } catch (error) {
-            console.error('Error cancelling addon request:', error);
-            throw error;
+            return { success: true, data: response.data };
+        } catch (_err) {
+            console.error('Error cancelling addon request:', _err);
+            return { success: false, error: _err?.response?.data?.message || _err.message };
         }
     },
 
@@ -64,10 +64,10 @@ export const tenantService = {
     async getDashboardStats() {
         try {
             const response = await api.get('/tenant/dashboard/stats');
-            return response.data;
-        } catch (error) {
-            console.error('Error fetching dashboard stats:', error);
-            throw error;
+            return { success: true, data: response.data };
+        } catch (_err) {
+            console.error('Error fetching dashboard stats:', _err);
+            return { success: false, error: _err?.response?.data?.message || _err.message };
         }
     },
 
@@ -77,10 +77,10 @@ export const tenantService = {
     async getBookings() {
         try {
             const response = await api.get('/tenant/bookings');
-            return response.data;
-        } catch (error) {
-            console.error('Error fetching bookings:', error);
-            throw error;
+            return { success: true, data: response.data };
+        } catch (_err) {
+            console.error('Error fetching bookings:', _err);
+            return { success: false, error: _err?.response?.data?.message || _err.message };
         }
     },
 
@@ -90,10 +90,10 @@ export const tenantService = {
     async getPayments() {
         try {
             const response = await api.get('/tenant/payments');
-            return response.data;
-        } catch (error) {
-            console.error('Error fetching payments:', error);
-            throw error;
+            return { success: true, data: response.data };
+        } catch (_err) {
+            console.error('Error fetching payments:', _err);
+            return { success: false, error: _err?.response?.data?.message || _err.message };
         }
     },
 
@@ -104,17 +104,17 @@ export const tenantService = {
         try {
             // Try cache first
             const cachedProfile = cacheManager.get(CACHE_KEYS.PROFILE);
-            if (cachedProfile) return cachedProfile;
+            if (cachedProfile) return { success: true, data: cachedProfile };
 
             const response = await api.get('/tenant/profile');
             
             // Save to cache (5 mins)
             cacheManager.set(CACHE_KEYS.PROFILE, response.data);
             
-            return response.data;
-        } catch (error) {
-            console.error('Error fetching profile:', error);
-            throw error;
+            return { success: true, data: response.data };
+        } catch (_err) {
+            console.error('Error fetching profile:', _err);
+            return { success: false, error: _err?.response?.data?.message || _err.message };
         }
     },
 
@@ -126,10 +126,10 @@ export const tenantService = {
             const response = await api.patch(`/tenant/bookings/${bookingId}/cancel`, {
                 cancellation_reason: reason
             });
-            return response.data;
-        } catch (error) {
-            console.error('Error cancelling booking:', error);
-            throw error;
+            return { success: true, data: response.data };
+        } catch (_err) {
+            console.error('Error cancelling booking:', _err);
+            return { success: false, error: _err?.response?.data?.message || _err.message };
         }
     },
 
@@ -142,10 +142,10 @@ export const tenantService = {
                 move_out_date: moveOutDate,
                 reason,
             });
-            return response.data;
-        } catch (error) {
-            console.error('Error requesting move-out:', error);
-            throw error;
+            return { success: true, data: response.data };
+        } catch (_err) {
+            console.error('Error requesting move-out:', _err);
+            return { success: false, error: _err?.response?.data?.message || _err.message };
         }
     },
 
@@ -161,10 +161,10 @@ export const tenantService = {
             // Invalidate cache so next fetch gets fresh data
             cacheManager.invalidate(CACHE_KEYS.PROFILE);
 
-            return response.data;
-        } catch (error) {
-            console.error('Error updating profile:', error);
-            throw error;
+            return { success: true, data: response.data };
+        } catch (_err) {
+            console.error('Error updating profile:', _err);
+            return { success: false, error: _err?.response?.data?.message || _err.message };
         }
     },
     
@@ -178,10 +178,10 @@ export const tenantService = {
                 new_password: newPassword,
                 new_password_confirmation: newPasswordConfirmation
             });
-            return response.data;
-        } catch (error) {
-            console.error('Error changing password:', error);
-            throw error;
+            return { success: true, data: response.data };
+        } catch (_err) {
+            console.error('Error changing password:', _err);
+            return { success: false, error: _err?.response?.data?.message || _err.message };
         }
     },
 
@@ -191,11 +191,11 @@ export const tenantService = {
     async getAvailableAddons() {
         try {
             const response = await api.get('/tenant/addons/available');
-            return response.data;
-        } catch (error) {
-            if (error.response?.status === 404) return { success: false, status: 404 };
-            console.error('Error fetching available addons:', error);
-            return { success: false, error: error.message };
+            return { success: true, data: response.data };
+        } catch (_err) {
+            if (_err.response?.status === 404) return { success: false, status: 404 };
+            console.error('Error fetching available addons:', _err);
+            return { success: false, error: _err?.response?.data?.message || _err.message };
         }
     },
 
@@ -205,10 +205,10 @@ export const tenantService = {
     async getAddonRequests() {
         try {
             const response = await api.get('/tenant/addons/requests');
-            return response.data;
-        } catch (error) {
-            console.error('Error fetching addon requests:', error);
-            return { success: false, error: error.message };
+            return { success: true, data: response.data };
+        } catch (_err) {
+            console.error('Error fetching addon requests:', _err);
+            return { success: false, error: _err?.response?.data?.message || _err.message };
         }
     },
 
@@ -218,10 +218,10 @@ export const tenantService = {
     async getActivities() {
         try {
             const response = await api.get('/tenant/dashboard/activities');
-            return response.data;
-        } catch (error) {
-            console.error('Error fetching tenant activities:', error);
-            return { success: false, activities: [] };
+            return { success: true, data: response.data?.data || response.data };
+        } catch (_err) {
+            console.error('Error fetching tenant activities:', _err);
+            return { success: false, error: _err?.response?.data?.message || _err.message, data: [] };
         }
     },
 
@@ -232,10 +232,10 @@ export const tenantService = {
     async getPaymentBreakdown(months = 6) {
         try {
             const response = await api.get(`/tenant/payments/breakdown?months=${months}`);
-            return response.data;
-        } catch (error) {
-            console.error('Error fetching payment breakdown:', error);
-            return { success: false, data: { upcoming_months: [] } };
+            return { success: true, data: response.data };
+        } catch (_err) {
+            console.error('Error fetching payment breakdown:', _err);
+            return { success: false, error: _err?.response?.data?.message || _err.message, data: { upcoming_months: [] } };
         }
     }
 };

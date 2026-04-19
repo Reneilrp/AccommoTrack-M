@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { View, Text, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, ActivityIndicator } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from '@react-navigation/native';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -14,6 +14,7 @@ import {
     useLandlordFocusRefetch,
     useLandlordRefreshHandler,
 } from '../../hooks/useLandlordQueryHelpers.js';
+import { showError } from '../../../../utils/toast.js';
 
 const ROLE_LABELS = {
     tenant: 'Tenant',
@@ -83,7 +84,6 @@ const buildTenantParticipantMeta = (tenant) => {
 export default function MessagesPage({ navigation, route }) {
     const { theme } = useTheme();
     const styles = React.useMemo(() => getStyles(theme), [theme]);
-    const showAlert = Alert.alert;
     const queryClient = useQueryClient();
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedPropertyId, setSelectedPropertyId] = useState(null);
@@ -261,11 +261,11 @@ export default function MessagesPage({ navigation, route }) {
                     });
                 }
             } else {
-                showAlert('Error', result.error || 'Failed to start conversation');
+                showError('Error', result.error || 'Failed to start conversation');
             }
         },
         onError: (err) => {
-            showAlert('Error', err.message || 'Failed to start conversation');
+            showError('Error', err.message || 'Failed to start conversation');
         }
     });
 

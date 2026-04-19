@@ -202,6 +202,8 @@ class TenantBookingController extends Controller
         try {
             $booking = Booking::with([
                 'property.images',
+                'property.amenities',
+                'property.caretakerAssignments.caretaker',
                 'landlord',
                 'room.images',
                 'room.amenities',

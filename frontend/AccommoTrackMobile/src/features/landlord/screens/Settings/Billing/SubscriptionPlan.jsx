@@ -1,7 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Linking,
   RefreshControl,
   ScrollView,
@@ -16,6 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useQuery } from '@tanstack/react-query';
 import { useTheme } from '../../../../../contexts/ThemeContext.jsx';
 import LandlordSubscriptionService from '../../../../../services/LandlordSubscriptionService.js';
+import { showSuccess, showError, showWarning, showInfo } from '../../../../../utils/toast.js';
 import {
   landlordQueryKeys,
   refetchLandlordQueries,
@@ -383,7 +383,7 @@ export default function SubscriptionPlanScreen({ navigation }) {
 
   const handleCheckout = async (plan) => {
     if (!plan?.id || plan?.is_active === false) {
-      Alert.alert('Unavailable Plan', 'This plan is not currently available for checkout.');
+      showWarning('Unavailable Plan', 'This plan is not currently available for checkout.');
       return;
     }
 
@@ -403,17 +403,17 @@ export default function SubscriptionPlanScreen({ navigation }) {
 
       if (paymentRequired) {
         const subscriptionId = result.data?.subscription?.id;
-        Alert.alert('Subscription Started', 'Redirecting to PayMongo checkout to complete activation.');
+        showInfo('Subscription Started', 'Redirecting to PayMongo checkout to complete activation.');
         const launched = await beginPaymongoCheckoutForSubscription(subscriptionId);
         if (!launched) {
           await refetchLandlordQueries(subscriptionRefetchers);
         }
       } else {
-        Alert.alert('Subscription Activated', 'Your subscription is now active.');
+        showSuccess('Subscription Activated', 'Your subscription is now active.');
         await refetchLandlordQueries(subscriptionRefetchers);
       }
     } catch (error) {
-      Alert.alert('Error', error.message || 'Unable to start checkout.');
+      showError('Error', error.message || 'Unable to start checkout.');
     } finally {
       setCheckoutPlanId(null);
     }
@@ -421,7 +421,7 @@ export default function SubscriptionPlanScreen({ navigation }) {
 
   const beginPaymongoCheckoutForSubscription = async (subscriptionId) => {
     if (!subscriptionId) {
-      Alert.alert('Payment Unavailable', 'Subscription checkout context is missing. Pull to refresh and try again.');
+      showError('Payment Unavailable', 'Subscription checkout context is missing. Pull to refresh and try again.');
       return false;
     }
 
@@ -454,7 +454,7 @@ export default function SubscriptionPlanScreen({ navigation }) {
       await Linking.openURL(checkoutUrl);
       return true;
     } catch (error) {
-      Alert.alert('Checkout Error', error.message || 'Unable to open PayMongo checkout.');
+      showError('Checkout Error', error.message || 'Unable to open PayMongo checkout.');
       return false;
     } finally {
       setPaymongoInvoiceId(null);
@@ -471,16 +471,15 @@ export default function SubscriptionPlanScreen({ navigation }) {
         throw new Error(result.error || 'Failed to sync payment status.');
       }
 
-      Alert.alert(
-        'Sync Complete',
-        result.data?.activated
-          ? 'Subscription activated after payment confirmation.'
-          : 'Payment is still pending confirmation.',
-      );
+      if (result.data?.activated) {
+        showSuccess('Sync Complete', 'Subscription activated after payment confirmation.');
+      } else {
+        showInfo('Sync Complete', 'Payment is still pending confirmation.');
+      }
 
       await refetchLandlordQueries(subscriptionRefetchers);
     } catch (error) {
-      Alert.alert('Error', error.message || 'Unable to sync checkout status.');
+      showError('Error', error.message || 'Unable to sync checkout status.');
     } finally {
       setSyncing(false);
     }

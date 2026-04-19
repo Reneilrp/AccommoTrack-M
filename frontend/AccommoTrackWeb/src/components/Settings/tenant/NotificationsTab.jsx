@@ -1,8 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { SkeletonNotificationsTab } from '../../Shared/Skeleton';
 import { tenantService } from '../../../services/tenantService';
 import { useUIState } from '../../../contexts/UIStateContext';
-import toast from 'react-hot-toast';
+import { showSuccess, showError } from '../../../utils/toast';
 
 const NotificationsTab = ({ loading: initialLoading = false }) => {
 	const { uiState, updateData } = useUIState();
@@ -22,15 +22,7 @@ const NotificationsTab = ({ loading: initialLoading = false }) => {
 
 	const [settings, setSettings] = useState(savedSettings);
 
-	// Load prefs from backend on mount
-	useEffect(() => {
-		if (cachedProfile) {
-			mapDataToSettings(cachedProfile);
-		}
-		loadPrefs();
-	}, []); // Run once on mount
-
-	const mapDataToSettings = (profile) => {
+	const mapDataToSettings = useCallback((profile) => {
 		if (profile.notification_preferences) {
 			const backendPrefs = profile.notification_preferences;
 			// Normalize string '1'/'0' values (from old FormData saves) to proper booleans
@@ -44,9 +36,9 @@ const NotificationsTab = ({ loading: initialLoading = false }) => {
 			setSavedSettings(merged);
 			setSettings(merged);
 		}
-	};
+	}, [savedSettings]);
 
-	const loadPrefs = async () => {
+	const loadPrefs = useCallback(async () => {
 		try {
 			if (!cachedProfile) setLoading(true);
 			const profile = await tenantService.getProfile();
@@ -59,7 +51,15 @@ const NotificationsTab = ({ loading: initialLoading = false }) => {
 		} finally {
 			setLoading(false);
 		}
-	};
+	}, [cachedProfile, mapDataToSettings, updateData]);
+
+	// Load prefs from backend on mount
+	useEffect(() => {
+		if (cachedProfile) {
+			mapDataToSettings(cachedProfile);
+		}
+		loadPrefs();
+	}, [cachedProfile, mapDataToSettings, loadPrefs]);
 
 	const handleToggle = (key) => {
 		if (!isEditing) return;
@@ -89,10 +89,10 @@ const NotificationsTab = ({ loading: initialLoading = false }) => {
 
 			setSavedSettings({ ...settings });
 			setIsEditing(false);
-			toast.success('Preferences saved successfully');
+			showSuccess('Preferences saved successfully');
 		} catch (error) {
 			console.error('Failed to save notification prefs', error);
-			toast.error('Failed to save preferences')
+			showError('Failed to save preferences');
 		} finally {
 			setSaving(false);
 		}

@@ -1,7 +1,6 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   StatusBar,
   StyleSheet,
   Text,
@@ -15,6 +14,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from '@react-navigation/native';
 import { useTheme } from '../../../../../contexts/ThemeContext.jsx';
 import ProfileService from '../../../../../services/ProfileService.js';
+import { showSuccess, showError, showWarning } from '../../../../../utils/toast.js';
 
 const parseEmailRecoveryState = (user) => {
   const security = user?.preferences?.security;
@@ -87,12 +87,12 @@ export default function EmailRecoverySecurity({ navigation }) {
     try {
       const res = await ProfileService.sendLandlordEmailRecoveryOtp();
       if (!res.success) {
-        Alert.alert('Error', res.error || 'Failed to send verification code.');
+        showError('Error', res.error || 'Failed to send verification code.');
         return;
       }
 
       await applyUserUpdate(res.data);
-      Alert.alert('Success', res.message || 'Verification code sent to your email address.');
+      showSuccess('Success', res.message || 'Verification code sent to your email address.');
     } finally {
       setActionLoading(false);
     }
@@ -101,7 +101,7 @@ export default function EmailRecoverySecurity({ navigation }) {
   const handleVerifyOtp = async () => {
     const normalizedCode = (otpCode || '').trim();
     if (!/^\d{6}$/.test(normalizedCode)) {
-      Alert.alert('Validation', 'Please enter the 6-digit verification code.');
+      showWarning('Validation', 'Please enter the 6-digit verification code.');
       return;
     }
 
@@ -109,13 +109,13 @@ export default function EmailRecoverySecurity({ navigation }) {
     try {
       const res = await ProfileService.verifyLandlordEmailRecoveryOtp(normalizedCode);
       if (!res.success) {
-        Alert.alert('Error', res.error || 'Failed to verify code.');
+        showError('Error', res.error || 'Failed to verify code.');
         return;
       }
 
       await applyUserUpdate(res.data);
       setOtpCode('');
-      Alert.alert('Success', res.message || 'Email recovery verified successfully.');
+      showSuccess('Success', res.message || 'Email recovery verified successfully.');
     } finally {
       setActionLoading(false);
     }
@@ -126,13 +126,13 @@ export default function EmailRecoverySecurity({ navigation }) {
     try {
       const res = await ProfileService.disableLandlordEmailRecovery();
       if (!res.success) {
-        Alert.alert('Error', res.error || 'Failed to disable email recovery.');
+        showError('Error', res.error || 'Failed to disable email recovery.');
         return;
       }
 
       await applyUserUpdate(res.data);
       setOtpCode('');
-      Alert.alert('Success', res.message || 'Email recovery has been disabled.');
+      showSuccess('Success', res.message || 'Email recovery has been disabled.');
     } finally {
       setActionLoading(false);
     }

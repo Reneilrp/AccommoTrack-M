@@ -38,7 +38,9 @@ class RoomResource extends JsonResource
             'occupied' => (int) $this->occupied,
             'occupied_count' => (int) $this->occupied,
             'available_slots' => (int) $this->available_slots,
+            'available_bed_numbers' => $this->getAvailableBedNumbers(),
             'is_available' => $this->isAvailable(),
+            'is_physically_available' => $this->isAvailable(),
             'is_booking_locked' => (bool) $this->is_booking_locked,
             'booking_lock' => $lock ? [
                 'id' => $lock->id,
@@ -183,8 +185,13 @@ class RoomResource extends JsonResource
                 'last_name' => $this->property->landlord->last_name,
                 'payment_methods_settings' => $this->property->landlord->payment_methods_settings,
             ] : null),
-            'reserved_by_me' => $this->whenLoaded('bookings', fn () => $this->bookings->isNotEmpty(), false),
-            'reservation' => $this->whenLoaded('bookings', fn () => $this->bookings->first()
+            'is_tenant' => $this->when(Auth::check(), function () {
+                return $this->relationLoaded('tenants') && $this->tenants->contains('id', Auth::id());
+            }),
+            'reserved_by_me' => $this->when(Auth::check(), function () {
+                return $this->relationLoaded('bookings') && $this->bookings->isNotEmpty();
+            }, false),
+            'reservation' => $this->when(Auth::check() && $this->relationLoaded('bookings'), fn () => $this->bookings->first()
                 ? $this->bookings->first()->only(['id', 'status', 'start_date', 'end_date'])
                 : null, null),
         ];

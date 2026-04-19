@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { CheckCircle2, Clock3, CreditCard, FileText, History, Loader2, Receipt, RefreshCw, Search } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import toast from 'react-hot-toast';
+import { showSuccess, showError } from '../../../utils/toast';
 import invoiceService from '../../../services/invoiceService';
 
 const TABS = [
@@ -122,10 +122,13 @@ export default function BillingCenter({ onOpenSubscriptionPlan }) {
       setInvoices(Array.isArray(nextInvoices) ? nextInvoices : []);
       setSummary(summaryResponse.success ? summaryResponse.data : null);
     } catch (error) {
-      toast.error(error.message || 'Unable to load billing data.');
+      showError(error.message || 'Unable to load billing data.');
     } finally {
       setLoading(false);
       setRefreshing(false);
+      if (silent) {
+        showSuccess('Billing data refreshed');
+      }
     }
   };
 

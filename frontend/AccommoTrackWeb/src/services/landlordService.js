@@ -292,6 +292,19 @@ export const landlordService = {
       return { success: false, error: err.response?.data?.message || err.message };
     }
   },
+
+  /**
+   * Get a pre-filled "Notice to Vacate" template for a tenant
+   * GET /landlord/tenants/:id/evictions/notice
+   */
+  async getEvictionNotice(tenantId) {
+    try {
+      const res = await api.get(`/landlord/tenants/${tenantId}/evictions/notice`);
+      return { success: true, data: res.data?.data || res.data };
+    } catch (err) {
+      return { success: false, error: err.response?.data?.message || err.message };
+    }
+  },
 };
 
 export default landlordService;

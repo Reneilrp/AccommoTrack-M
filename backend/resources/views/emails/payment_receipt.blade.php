@@ -20,6 +20,10 @@ Thank you for your payment! This email serves as your official receipt.
 
 If you have any questions or concerns regarding this transaction, please do not hesitate to contact your landlord and provide the **Receipt Reference**.
 
+<x-mail::button :url="URL::signedRoute('invoices.receipt', ['id' => $invoice->id])">
+Download Official Receipt
+</x-mail::button>
+
 Thanks,<br>
 {{ config('app.name') }}
 </x-mail::message>

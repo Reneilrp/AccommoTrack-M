@@ -145,6 +145,38 @@ class BookingService {
       return { success: false, error: error.response?.data?.message || 'Failed to convert occupant to tenant' };
     }
   }
+
+  /**
+   * LANDLORD: Approve a tenant's reservation
+   */
+  async approveReservation(bookingId) {
+    try {
+      const response = await api.post(`/bookings/${bookingId}/approve-reservation`);
+      return { success: true, data: response.data?.data || response.data };
+    } catch (error) {
+      console.error('Error approving reservation:', error);
+      return {
+        success: false,
+        error: error.response?.data?.message || 'Failed to approve reservation',
+      };
+    }
+  }
+
+  /**
+   * LANDLORD: Check in a tenant and generate first invoice
+   */
+  async checkIn(bookingId) {
+    try {
+      const response = await api.post(`/bookings/${bookingId}/check-in`);
+      return { success: true, data: response.data?.data || response.data };
+    } catch (error) {
+      console.error('Error checking in tenant:', error);
+      return {
+        success: false,
+        error: error.response?.data?.message || 'Failed to check in tenant',
+      };
+    }
+  }
 }
 
 export default new BookingService();

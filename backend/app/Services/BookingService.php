@@ -52,12 +52,13 @@ class BookingService
                 $itemData['receipt_image'] = $data['receipt_image'] ?? null;
                 $itemData['booking_group_reference'] = $bookingGroupReference;
                 $itemData['skip_reservation_invoice'] = true;
+                $itemData['skip_limit_check'] = $data['skip_limit_check'] ?? false;
 
                 $booking = $this->createBooking($itemData, $tenantId);
                 $bookings[] = $booking;
 
                 $room = \App\Models\Room::with('property')->find($itemData['room_id']);
-                $reservationFeeTemporarilyDisabled = \App\Models\SystemToggle::getBool(
+                $reservationFeeTemporarilyDisabled = SystemToggle::getBool(
                     'reservation_fee_disabled',
                     (bool) config('app.reservation_fee_disabled', false)
                 );
@@ -155,29 +156,32 @@ class BookingService
                     throw new \DomainException('You already have an active or pending booking for this room.');
                 }
 
-                // Check booking limits per mode (normal and proxy are independent)
-                if ($bookingMode === 'normal') {
-                    $normalBookingCount = Booking::where('property_id', $room->property_id)
-                        ->where('tenant_id', $tenantId)
-                        ->where('booking_mode', 'normal')
-                        ->whereIn('status', self::BOOKING_LIMIT_STATUSES)
-                        ->count();
+                // Only check limits if not skipped (e.g., when pre-validated in a batch)
+                if (empty($data['skip_limit_check'])) {
+                    // Check booking limits per mode (normal and proxy are independent)
+                    if ($bookingMode === 'normal') {
+                        $normalBookingCount = Booking::where('property_id', $room->property_id)
+                            ->where('tenant_id', $tenantId)
+                            ->where('booking_mode', 'normal')
+                            ->whereIn('status', self::BOOKING_LIMIT_STATUSES)
+                            ->count();
 
-                    $normalLimit = min(4, (int) ($room->property->normal_booking_limit ?? 1));
-                    if ($normalBookingCount >= $normalLimit) {
-                        throw new \DomainException("Normal booking allows only {$normalLimit} active or pending booking(s) in this property.");
-                    }
-                } else {
-                    // Proxy mode
-                    $proxyBookingCount = Booking::where('property_id', $room->property_id)
-                        ->where('tenant_id', $tenantId)
-                        ->where('booking_mode', 'proxy')
-                        ->whereIn('status', self::BOOKING_LIMIT_STATUSES)
-                        ->count();
+                        $normalLimit = min(4, (int) ($room->property->normal_booking_limit ?? 1));
+                        if ($normalBookingCount >= $normalLimit) {
+                            throw new \DomainException("Normal booking allows only {$normalLimit} active or pending booking(s) in this property.");
+                        }
+                    } else {
+                        // Proxy mode
+                        $proxyBookingCount = Booking::where('property_id', $room->property_id)
+                            ->where('tenant_id', $tenantId)
+                            ->where('booking_mode', 'proxy')
+                            ->whereIn('status', self::BOOKING_LIMIT_STATUSES)
+                            ->count();
 
-                    $proxyLimit = min(4, (int) ($room->property->proxy_booking_limit ?? 3));
-                    if ($proxyBookingCount >= $proxyLimit) {
-                        throw new \DomainException("Proxy booking limit reached. Only up to {$proxyLimit} active or pending bookings are allowed in this property.");
+                        $proxyLimit = min(4, (int) ($room->property->proxy_booking_limit ?? 3));
+                        if ($proxyBookingCount >= $proxyLimit) {
+                            throw new \DomainException("Proxy booking limit reached. Only up to {$proxyLimit} active or pending bookings are allowed in this property.");
+                        }
                     }
                 }
             }
@@ -410,6 +414,7 @@ class BookingService
                 'guest_name' => $data['guest_name'] ?? null,
                 'room_id' => $room->id,
                 'bed_count' => $requestedBeds,
+                'bed_numbers' => $data['bed_numbers'] ?? ($data['bed_number'] ?? null),
                 'booking_reference' => $bookingReference,
                 'booking_group_reference' => $data['booking_group_reference'] ?? null,
                 'start_date' => $startDate->format('Y-m-d'),
@@ -909,7 +914,7 @@ class BookingService
 
         // Assign tenant to room only if we have a tenant_id
         if ($booking->tenant_id) {
-            $booking->room->assignTenant($booking->tenant_id, $booking->start_date, $booking->bed_count);
+            $booking->room->assignTenant($booking->tenant_id, $booking->start_date, $booking->bed_count, $booking->bed_numbers);
 
             // Create or update tenant profile - check if tenant exists first to avoid 500
             if ($booking->tenant) {

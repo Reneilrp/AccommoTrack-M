@@ -4,6 +4,7 @@ use App\Http\Controllers\Admin\AdminAuditLogController;
 use App\Http\Controllers\Admin\AdminBroadcastController;
 use App\Http\Controllers\Admin\AdminController;
 use App\Http\Controllers\Admin\AdminDisputeController;
+use App\Http\Controllers\Admin\AdminReceiptDisputeController;
 use App\Http\Controllers\Admin\AdminPaymentOversightController;
 use App\Http\Controllers\Admin\AdminSubscriptionGrantController;
 use App\Http\Controllers\Common\AuthController;
@@ -164,6 +165,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/payments/stats', [TenantPaymentController::class, 'getStats']);
         Route::get('/payments/breakdown', [TenantPaymentController::class, 'getBreakdown']);
         Route::get('/payments/{id}', [TenantPaymentController::class, 'show']);
+        Route::get('/wallet-credit/logs', [TenantPaymentController::class, 'getWalletLogs']);
         Route::post('/invoices/{id}/record-offline', [InvoiceController::class, 'recordOfflineForTenant']);
         Route::post('/invoices/{id}/apply-wallet-credit', [InvoiceController::class, 'applyWalletCreditForTenant']);
         // Tenant PayMongo endpoints (allow tenants to create sources/payments for their invoices)
@@ -193,6 +195,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
         // Tenant: Maintenance Requests
         Route::get('/maintenance-requests', [MaintenanceRequestController::class, 'index']);
+        Route::get('/maintenance-requests/{id}', [MaintenanceRequestController::class, 'show']);
         Route::post('/maintenance-requests', [MaintenanceRequestController::class, 'store']);
 
         // Tenant: Create Payment Link
@@ -231,8 +234,11 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/reviews/{id}/respond', [ReviewController::class, 'respond']);
 
         // Landlord: Maintenance Requests
+        Route::get('/maintenance-requests/summary', [MaintenanceRequestController::class, 'summary']);
         Route::get('/maintenance-requests', [MaintenanceRequestController::class, 'indexForLandlord']);
         Route::patch('/maintenance-requests/{id}/status', [MaintenanceRequestController::class, 'updateStatus']);
+        Route::patch('/maintenance-requests/{id}/assign', [MaintenanceRequestController::class, 'assign']);
+        Route::post('/maintenance-requests/{id}/complete', [MaintenanceRequestController::class, 'complete']);
 
         // Landlord: PayMongo Onboarding
         Route::get('/paymongo/onboarding', [LandlordController::class, 'getOnboardingUrl']);
@@ -244,6 +250,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/subscriptions/checkout', [LandlordSubscriptionController::class, 'checkout']);
         Route::post('/subscriptions/checkout/{subscriptionId}/payment-link', [LandlordSubscriptionController::class, 'checkoutPayment']);
         Route::post('/subscriptions/checkout/{subscriptionId}/sync', [LandlordSubscriptionController::class, 'syncCheckout']);
+    Route::get('/subscriptions/invoices', [LandlordSubscriptionController::class, 'invoices']);
 
         Route::get('/properties', [PropertyController::class, 'index']);
         Route::post('/properties', [PropertyController::class, 'store']);
@@ -251,6 +258,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/properties/{id}', [PropertyController::class, 'show']);
         Route::put('/properties/{id}', [PropertyController::class, 'update']);
         Route::delete('/properties/{id}', [PropertyController::class, 'destroy']);
+        Route::get('/properties/{id}/workers', [PropertyController::class, 'getWorkers']);
         Route::post('/properties/{id}/amenities', [PropertyController::class, 'addAmenity']);
         Route::get('/properties/{propertyId}/rooms', [RoomController::class, 'index']);
         Route::get('/properties/{propertyId}/rooms/stats', [RoomController::class, 'getStats']);
@@ -317,6 +325,7 @@ Route::middleware('auth:sanctum')->group(function () {
         // Landlord: Transfer requests handling
         Route::post('/broadcast', [TenantController::class, 'broadcast']);
         Route::post('/tenants/{id}/evictions/schedule', [TenantController::class, 'scheduleEviction']);
+        Route::get('/tenants/{id}/evictions/notice', [TenantController::class, 'generateNoticePreview']);
         Route::post('/tenants/{id}/evictions/finalize', [TenantController::class, 'finalizeScheduledEviction']);
         Route::post('/tenants/{id}/evictions/cancel', [TenantController::class, 'cancelScheduledEviction']);
         Route::post('/tenants/{id}/evictions/undo', [TenantController::class, 'undoEviction']);
@@ -359,6 +368,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // ===== PAYMENTS / INVOICES =====
     Route::get('/invoices', [InvoiceController::class, 'index']);
     Route::get('/invoices/summary', [InvoiceController::class, 'summary']);
+    Route::get('/invoices/{id}/receipt', [InvoiceController::class, 'receipt'])->name('invoices.receipt');
     Route::post('/invoices', [InvoiceController::class, 'store']);
     Route::get('/invoices/{id}', [InvoiceController::class, 'show']);
     Route::post('/invoices/{id}/charge', [InvoiceController::class, 'charge']);
@@ -459,6 +469,10 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/disputes/{id}/resolve', [AdminDisputeController::class, 'resolve']);
         Route::patch('/disputes/{id}/notes', [AdminDisputeController::class, 'updateNotes']);
 
+        // Admin: Receipt Disputes
+        Route::get('/receipt-disputes', [AdminReceiptDisputeController::class, 'index']);
+        Route::post('/receipt-disputes/{id}/resolve', [AdminReceiptDisputeController::class, 'resolve']);
+
         // Admin: Global Broadcasts
         Route::get('/broadcasts', [AdminBroadcastController::class, 'index']);
         Route::post('/broadcasts', [AdminBroadcastController::class, 'store']);
@@ -475,6 +489,8 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/start-landlord-chat', [MessageController::class, 'startDirectLandlordConversation']);
         Route::patch('/{id}/caretaker', [MessageController::class, 'assignCaretaker']);
         Route::post('/send', [MessageController::class, 'sendMessage']);
-        Route::post('/{id}/unsend', [MessageController::class, 'unsend']);
+        Route::post('/{id}/read', [MessageController::class, 'markAsRead']);
+        Route::patch('/{id}/unsend', [MessageController::class, 'unsend']);
+        Route::patch('/{id}/edit', [MessageController::class, 'edit']);
     });
 });

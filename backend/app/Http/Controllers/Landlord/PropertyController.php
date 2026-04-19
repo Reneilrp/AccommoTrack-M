@@ -110,12 +110,11 @@ class PropertyController extends Controller
         try {
             $tenantId = Auth::id();
             $blockedStatuses = ['pending', 'confirmed', 'active', 'completed', 'partial-completed'];
-            $roomEagerLoads = ['amenities', 'images', 'activeEvictionLock'];
+            $roomEagerLoads = ['amenities', 'images', 'activeEvictionLock', 'tenants'];
             if ($tenantId) {
                 $roomEagerLoads['bookings'] = function ($bq) use ($tenantId) {
                     $bq->where('tenant_id', $tenantId)
-                        ->whereIn('status', ['pending', 'confirmed'])
-                        ->select(['id', 'room_id', 'tenant_id', 'status', 'start_date', 'end_date']);
+                        ->whereIn('status', ['pending', 'confirmed']);
                 };
             }
 
@@ -177,11 +176,11 @@ class PropertyController extends Controller
                 ->orderBy('created_at', 'desc')
                 ->get();
 
-            // Eager-load activeEvictionLock separately on the collected room models
+            // Eager-load activeEvictionLock, tenants, and bookings separately on the collected room models
             // to avoid subquery conflicts with withSum aggregates.
             $allRooms = new \Illuminate\Database\Eloquent\Collection($data->flatMap(fn ($p) => $p->rooms));
             if ($allRooms->isNotEmpty()) {
-                $allRooms->loadMissing('activeEvictionLock');
+                $allRooms->loadMissing(['activeEvictionLock', 'tenants', 'bookings.occupants']);
             }
 
             // Use the resource for consistent output, but manually map since it's a specific query
@@ -234,7 +233,7 @@ class PropertyController extends Controller
 
             $property = $this->propertyService->createProperty($request->validated(), $context['user']);
 
-            return response()->json((new PropertyResource($property->load(['images', 'amenities', 'credentials', 'rooms'])))->resolve());
+            return response()->json((new PropertyResource($property->load(['images', 'amenities', 'credentials', 'rooms', 'rooms.tenants', 'rooms.bookings.occupants'])))->resolve());
         } catch (\Illuminate\Validation\ValidationException $e) {
             return response()->json(['message' => 'Validation failed', 'errors' => $e->errors()], 422);
         } catch (\Exception $e) {
@@ -254,8 +253,8 @@ class PropertyController extends Controller
             }, 'images', 'amenities', 'credentials'])
                 ->findOrFail($id);
 
-            // Load activeEvictionLock separately to avoid SQL conflicts with withSum aggregates.
-            $property->rooms->loadMissing('activeEvictionLock');
+            // Load activeEvictionLock, tenants, and bookings separately to avoid SQL conflicts with withSum aggregates.
+            $property->rooms->loadMissing(['activeEvictionLock', 'tenants', 'bookings.occupants']);
 
             return response()->json((new PropertyResource($property))->resolve());
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
@@ -301,7 +300,7 @@ class PropertyController extends Controller
 
             $property = $this->propertyService->updateProperty($property, $request->validated(), $request);
 
-            return response()->json((new PropertyResource($property->load(['images', 'amenities', 'credentials', 'rooms'])))->resolve());
+            return response()->json((new PropertyResource($property->load(['images', 'amenities', 'credentials', 'rooms', 'rooms.tenants', 'rooms.bookings.occupants'])))->resolve());
         } catch (\Illuminate\Validation\ValidationException $e) {
             return response()->json(['message' => 'Validation failed', 'errors' => $e->errors()], 422);
         } catch (\Exception $e) {
@@ -387,5 +386,46 @@ class PropertyController extends Controller
         }
 
         return response()->json(['message' => 'Rule added successfully', 'rule' => $newRule, 'rules' => $rules], 200);
+    }
+
+    /**
+     * Get eligible workers (caretakers) for a property.
+     */
+    public function getWorkers(Request $request, $id)
+    {
+        $context = $this->resolveLandlordContext($request);
+        $this->ensureCaretakerCan($context, 'can_view_properties'); // Can delegate if they can see property
+        $this->checkPropertyAccess($context, (int) $id);
+
+        $caretakers = \App\Models\CaretakerAssignment::where('landlord_id', $context['landlord_id'])
+            ->whereHas('properties', function ($q) use ($id) {
+                $q->where('properties.id', $id);
+            })
+            ->with(['caretaker:id,first_name,last_name,email', 'properties'])
+            ->get()
+            ->map(function ($assignment) {
+                return [
+                    'id' => $assignment->caretaker->id,
+                    'name' => $assignment->caretaker->first_name . ' ' . $assignment->caretaker->last_name,
+                    'email' => $assignment->caretaker->email,
+                    'has_global_maintenance' => (bool) $assignment->can_manage_maintenance,
+                ];
+            });
+
+        // Also add the landlord themselves as an option
+        $landlord = \App\Models\User::find($context['landlord_id']);
+        $landlordData = [
+            'id' => $landlord->id,
+            'name' => $landlord->first_name . ' ' . $landlord->last_name . ' (Landlord)',
+            'email' => $landlord->email,
+        ];
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'workers' => $caretakers,
+                'landlord' => $landlordData
+            ]
+        ]);
     }
 }

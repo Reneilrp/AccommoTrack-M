@@ -1,10 +1,11 @@
 import React, { useEffect, useState, useCallback, useMemo } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Loader2, Search, Calendar, Receipt, X, RotateCcw, RefreshCw, PhilippinePeso, Clock, CheckCircle, FileDown, Filter, ShieldCheck, ShieldX, FileText } from "lucide-react";
-import toast from "react-hot-toast";
+import { showSuccess, showError } from "../../utils/toast";
 import PriceRow from "../../components/Shared/PriceRow";
 import { SkeletonStatCard } from "../../components/Shared/Skeleton";
 import { useUIState } from "../../contexts/UIStateContext";
+import { useSidebar } from "../../contexts/SidebarContext";
 import {
   LANDLORD_MUTATION_FRESHNESS,
   refreshAfterMutation,
@@ -182,6 +183,7 @@ const getInvoiceRefundPreview = (invoice, booking) => {
 export default function Payments() {
   const location = useLocation();
   const navigate = useNavigate();
+  const { collapse } = useSidebar();
   const { uiState, updateData, invalidateData } = useUIState();
   const cachedData = uiState.data?.landlord_payments;
 
@@ -223,16 +225,16 @@ export default function Payments() {
   );
 
   useEffect(() => {
+    // Auto-collapse sidebar when entering payments for wider table area.
+    if (collapse) collapse().catch(() => { });
+
     loadInvoices();
-    // Initial fetch only; loadInvoices is intentionally not a dependency.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [collapse, loadInvoices]);
 
   useEffect(() => {
     loadInvoices();
     // Re-fetch when archive filter changes
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [archiveFilter]);
+  }, [archiveFilter, loadInvoices]);
 
   useEffect(() => {
     const params = new URLSearchParams(location.search || "");
@@ -286,12 +288,13 @@ export default function Payments() {
           ) || 0;
       const remaining = Math.max(0, total - paid);
 
-      setRecordData({
+      setRecordData(prev => ({
+        ...prev,
         amount: remaining > 0 ? remaining.toString() : "",
         method: "cash",
         reference: "",
         notes: "",
-      });
+      }));
     }
   }, [selectedInvoice]);
 
@@ -434,7 +437,7 @@ export default function Payments() {
     });
   }, [invalidateData]);
 
-  const loadSummary = async (range = statsRange, silent = false) => {
+  const loadSummary = useCallback(async (range = statsRange, silent = false) => {
     try {
       const summaryRange = range === "month" ? "month" : "all";
       const response = await invoiceService.getSummary({
@@ -461,15 +464,14 @@ export default function Payments() {
         console.error("Failed to load invoice summary", err);
       }
     }
-  };
+  }, [statsRange, updateData, uiState.data?.landlord_payments]);
 
   useEffect(() => {
     loadSummary(statsRange, true);
     // statsRange is the only intended trigger.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [statsRange]);
+  }, [statsRange, loadSummary]);
 
-  const loadInvoices = async () => {
+  const loadInvoices = useCallback(async () => {
     try {
       if (!cachedData) setLoading(true);
       setError(null);
@@ -520,11 +522,11 @@ export default function Payments() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [archiveFilter, bookingsMap, cachedData, getPaymentError, loadBookingDetails, loadSummary, statsRange, uiState.data?.landlord_payments, updateData]);
 
   const handleRecordOffline = async () => {
     if (!selectedInvoice || !recordData.amount || !recordData.method) {
-      toast.error("Please fill in amount and method");
+      showError("Please fill in amount and method");
       return;
     }
 
@@ -543,13 +545,13 @@ export default function Payments() {
 
       // Cash payments recorded by landlord go to pending_verification; others are confirmed
       const isCash = recordData.method === 'cash';
-      toast.success(isCash ? "Cash payment recorded. Marked as pending verification." : "Payment recorded successfully");
+      showSuccess(isCash ? "Cash payment recorded. Marked as pending verification." : "Payment recorded successfully");
       setShowInvoiceModal(false);
       refreshLandlordMutationViews();
       await loadInvoices();
     } catch (e) {
       console.error("Failed to record payment", e);
-      toast.error(getPaymentError(e, "Unable to record payment."));
+      showError(getPaymentError(e, "Unable to record payment."));
     } finally {
       setIsRecording(false);
     }
@@ -558,13 +560,13 @@ export default function Payments() {
   const handleVerifyCash = async (payloadInput) => {
     const invoiceId = selectedInvoice?.id || selectedInvoice?.invoice_id;
     if (!invoiceId) {
-      toast.error('Unable to verify payment: invoice is missing an ID.');
+      showError('Unable to verify payment: invoice is missing an ID.');
       return;
     }
 
     const action = payloadInput?.action;
     if (!action || !["approve", "reject"].includes(action)) {
-      toast.error("Please choose a valid verification action.");
+      showError("Please choose a valid verification action.");
       return;
     }
 
@@ -572,11 +574,11 @@ export default function Payments() {
     const reason = String(payloadInput?.reason || "").trim();
     if (action === "reject") {
       if (!CASH_REJECTION_REASON_IDS.includes(reasonCode)) {
-        toast.error("Please select a valid rejection reason.");
+        showError("Please select a valid rejection reason.");
         return;
       }
       if (!reason) {
-        toast.error("Please provide rejection details for the tenant.");
+        showError("Please provide rejection details for the tenant.");
         return;
       }
     }
@@ -597,13 +599,13 @@ export default function Payments() {
       setRejectReasonCode("unclear_image");
       setRejectReason("");
 
-      toast.success(action === 'approve' ? 'Cash payment approved — invoice marked as Paid.' : 'Cash payment rejected — tenant will be notified.');
+      showSuccess(action === 'approve' ? 'Cash payment approved — invoice marked as Paid.' : 'Cash payment rejected — tenant will be notified.');
       setShowInvoiceModal(false);
       refreshLandlordMutationViews();
       await loadInvoices();
     } catch (e) {
       console.error('Failed to verify cash payment', e);
-      toast.error(getPaymentError(e, "Unable to verify payment."));
+      showError(getPaymentError(e, "Unable to verify payment."));
     } finally {
       setVerifyingAction(null);
     }
@@ -634,9 +636,9 @@ export default function Payments() {
         throw new Error(response.error || 'Failed to process refund');
       }
       if (selectedInvoice.booking_id) {
-        await updateBookingPayment(selectedInvoice.booking_id, "refunded");
+        await updateBookingPayment(selectedInvoice.booking_id, "refunded", true);
       }
-      toast.success(
+      showSuccess(
         `Refund of ₱${(amountCents / 100).toLocaleString()} processed successfully`,
       );
       setShowInvoiceModal(false);
@@ -644,7 +646,7 @@ export default function Payments() {
       await loadInvoices();
     } catch (e) {
       console.error("Failed to process refund", e);
-      toast.error(getPaymentError(e, "Unable to process refund."));
+      showError(getPaymentError(e, "Unable to process refund."));
     } finally {
       setIsRefunding(null);
       setRefundAmount("");
@@ -663,10 +665,9 @@ export default function Payments() {
         throw new Error(response.error || 'Failed to process refund');
       }
 
-      await updateBookingPayment(selectedInvoice.booking_id, "refunded");
-      toast.success(
+      await updateBookingPayment(selectedInvoice.booking_id, "refunded", true);
+      showSuccess(
         `Merged refund of ₱${(amountCents / 100).toLocaleString()} processed successfully`,
-        { icon: "💰" }
       );
       
       setShowMergedRefundModal(false);
@@ -678,7 +679,7 @@ export default function Payments() {
       loadInvoices(false);
     } catch (e) {
       console.error("Failed to process merged refund", e);
-      toast.error(getPaymentError(e, "Unable to process refund."));
+      showError(getPaymentError(e, "Unable to process refund."));
     } finally {
       setIsRefundingInvoice(false);
     }
@@ -699,7 +700,7 @@ export default function Payments() {
     setRefundAmount((suggested / 100).toFixed(2));
   };
 
-  const loadBookingDetails = async (bookingIds = []) => {
+  const loadBookingDetails = useCallback(async (bookingIds = []) => {
     try {
       const map = {};
       // fetch each booking; if your API supports batch fetching, replace with a single call
@@ -758,9 +759,9 @@ export default function Payments() {
       console.error("Failed to load booking details", err);
       return {};
     }
-  };
+  }, []);
 
-  const updateBookingPayment = async (bookingId, paymentStatus) => {
+  const updateBookingPayment = async (bookingId, paymentStatus, silent = false) => {
     try {
       const response = await bookingService.recordPayment(bookingId, {
         payment_status: paymentStatus,
@@ -771,10 +772,10 @@ export default function Payments() {
       // Refresh invoices and list
       refreshLandlordMutationViews();
       await loadInvoices();
-      toast.success("Payment status updated");
+      if (!silent) showSuccess("Payment status updated");
     } catch (e) {
       console.error("Failed to update booking payment", e);
-      toast.error(getPaymentError(e, "Unable to update payment status."));
+      showError(getPaymentError(e, "Unable to update payment status."));
     }
   };
 
@@ -786,7 +787,7 @@ export default function Payments() {
       }
     } catch (e) {
       console.error("Failed to update booking status", e);
-      toast.error(getPaymentError(e, "Unable to update booking status."));
+      showError(getPaymentError(e, "Unable to update booking status."));
     }
   };
 
@@ -796,6 +797,12 @@ export default function Payments() {
     } catch (__e) {
       return "—";
     }
+  };
+
+  const handlePrintReceipt = () => {
+    if (!selectedInvoice) return;
+    const url = invoiceService.getReceiptUrl(selectedInvoice.id);
+    window.open(url, "_blank");
   };
 
   const getPaymentColor = (status) => {
@@ -957,44 +964,44 @@ export default function Payments() {
         key={inv.id}
         className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
       >
-        <td className="pl-6 py-4 text-sm font-medium text-gray-900 dark:text-white">
+        <td className="pl-6 py-4 text-sm font-medium text-gray-900 dark:text-white hidden xl:table-cell">
           {invoiceId}
         </td>
-        <td className="px-6 py-4 text-xs font-mono font-bold text-indigo-600 dark:text-indigo-400 uppercase">
+        <td className="px-3 sm:px-6 py-4 text-xs font-mono font-bold text-indigo-600 dark:text-indigo-400 uppercase">
           {inv.receipt_reference || "—"}
         </td>
-        <td className="px-6 py-4 text-sm text-gray-700 dark:text-gray-300">
+        <td className="px-3 sm:px-6 py-4 text-sm text-gray-700 dark:text-gray-300">
           {bookingFromMap?.__derived?.tenant_name || tenantDisplay}
         </td>
-        <td className="px-6 py-4 text-sm text-gray-700 dark:text-gray-300">
+        <td className="px-3 sm:px-6 py-4 text-sm text-gray-700 dark:text-gray-300 hidden lg:table-cell">
           {bookingFromMap?.__derived?.property_title || propertyDisplay}
         </td>
-        <td className="px-6 py-4 text-sm text-gray-700 dark:text-gray-300">
+        <td className="px-3 sm:px-6 py-4 text-sm text-gray-700 dark:text-gray-300">
           {bookingFromMap?.__derived?.room_label || roomDisplay}
         </td>
-        <td className="px-6 py-4 text-sm text-gray-700 dark:text-gray-300 whitespace-nowrap hidden xl:table-cell">
+        <td className="px-3 sm:px-6 py-4 text-sm text-gray-700 dark:text-gray-300 whitespace-nowrap hidden xl:table-cell">
           <div className="flex items-center gap-2">
             <Calendar className="w-4 h-4 text-gray-500" />
             <span>{issued ? formatDate(issued) : "—"}</span>
           </div>
         </td>
-        <td className="px-6 py-4 text-sm font-semibold text-gray-900 dark:text-white">
+        <td className="px-3 sm:px-6 py-4 text-sm font-semibold text-gray-900 dark:text-white">
           <PriceRow amount={price} />
         </td>
-        <td className="px-6 py-4 text-sm font-semibold text-green-600 dark:text-green-400 hidden 2xl:table-cell">
+        <td className="px-3 sm:px-6 py-4 text-sm font-semibold text-green-600 dark:text-green-400 hidden 2xl:table-cell">
           <PriceRow amount={paidAmount} />
         </td>
-        <td className="px-6 py-4 text-sm font-semibold text-red-600 dark:text-red-400 hidden 2xl:table-cell">
+        <td className="px-3 sm:px-6 py-4 text-sm font-semibold text-red-600 dark:text-red-400 hidden 2xl:table-cell">
           <PriceRow amount={balance} />
         </td>
-        <td className="px-6 py-4">
+        <td className="px-3 sm:px-6 py-4">
           <span
             className={`px-4 py-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getPaymentColor(status)}`}
           >
             {status === 'pending_verification' ? 'Verify' : (status ? status.charAt(0).toUpperCase() + status.slice(1) : "—")}
           </span>
         </td>
-        <td className="px-6 py-4 text-sm sticky right-0 z-10 bg-white dark:bg-gray-800 shadow-[-8px_0_8px_-8px_rgba(0,0,0,0.2)]">
+        <td className="px-3 sm:px-6 py-4 text-right sticky right-0 z-10 bg-white dark:bg-gray-800 shadow-[-8px_0_8px_-8px_rgba(0,0,0,0.1)] group">
           {inv.booking_id || inv.id ? (
             <button
               onClick={() => {
@@ -1348,37 +1355,37 @@ export default function Payments() {
             <table className="w-full">
               <thead className="bg-gray-50 dark:bg-gray-700/50">
                 <tr>
-                  <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  <th className="px-3 sm:px-6 py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider hidden xl:table-cell">
                     Invoice ID
                   </th>
-                  <th className="px-6 py-4 text-left text-xs font-bold text-indigo-500 dark:text-indigo-400 uppercase tracking-wider">
+                  <th className="px-3 sm:px-6 py-4 text-left text-xs font-bold text-indigo-500 dark:text-indigo-400 uppercase tracking-wider">
                     Receipt No.
                   </th>
-                  <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  <th className="px-3 sm:px-6 py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     Tenant Name
                   </th>
-                  <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  <th className="px-3 sm:px-6 py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider hidden lg:table-cell">
                     Property
                   </th>
-                  <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  <th className="px-3 sm:px-6 py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     Room
                   </th>
-                  <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider hidden xl:table-cell">
+                  <th className="px-3 sm:px-6 py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider hidden xl:table-cell">
                     Issued
                   </th>
-                  <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  <th className="px-3 sm:px-6 py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     Price
                   </th>
-                  <th className="px-6 py-4 text-left text-xs font-bold text-green-600 dark:text-green-400 uppercase tracking-wider hidden 2xl:table-cell">
+                  <th className="px-3 sm:px-6 py-4 text-left text-xs font-bold text-green-600 dark:text-green-400 uppercase tracking-wider hidden 2xl:table-cell">
                     Paid
                   </th>
-                  <th className="px-6 py-4 text-left text-xs font-bold text-red-500 dark:text-red-400 uppercase tracking-wider hidden 2xl:table-cell">
+                  <th className="px-3 sm:px-6 py-4 text-left text-xs font-bold text-red-500 dark:text-red-400 uppercase tracking-wider hidden 2xl:table-cell">
                     Balance
                   </th>
-                  <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  <th className="px-3 sm:px-6 py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     Status
                   </th>
-                  <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider sticky right-0 z-20 bg-gray-50 dark:bg-gray-700/50 shadow-[-8px_0_8px_-8px_rgba(0,0,0,0.25)]">
+                  <th className="px-3 sm:px-6 py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider sticky right-0 z-20 bg-gray-50 dark:bg-gray-700/50 shadow-[-8px_0_8px_-8px_rgba(0,0,0,0.25)]">
                     Actions
                   </th>
                 </tr>
@@ -1422,22 +1429,33 @@ export default function Payments() {
                     {selectedInvoice.reference || `INV-${selectedInvoice.id}`}
                   </p>
                 </div>
-                <button
-                  onClick={() => {
-                    setShowInvoiceModal(false);
-                    setRefundConfirmTx(null);
-                    setRefundAmount("");
-                    // Clear invoiceId from URL when closing modal
-                    const params = new URLSearchParams(location.search);
-                    if (params.has('invoiceId')) {
-                      params.delete('invoiceId');
-                      navigate({ search: params.toString() }, { replace: true });
-                    }
-                  }}
-                  className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors"
-                >
-                  <X className="w-5 h-5 text-gray-500" />
-                </button>
+                <div className="flex items-center gap-3">
+                  {["paid", "partially_refunded"].includes(getInvoiceStatus(selectedInvoice)) && (
+                    <button
+                      onClick={handlePrintReceipt}
+                      className="flex items-center gap-2 px-4 py-2 bg-brand-50 hover:bg-brand-100 text-brand-700 dark:bg-brand-900/20 dark:hover:bg-brand-900/30 dark:text-brand-300 rounded-lg font-bold text-xs transition-colors border border-brand-200 dark:border-brand-800"
+                    >
+                      <FileText className="w-4 h-4" />
+                      Print Receipt
+                    </button>
+                  )}
+                  <button
+                    onClick={() => {
+                      setShowInvoiceModal(false);
+                      setRefundConfirmTx(null);
+                      setRefundAmount("");
+                      // Clear invoiceId from URL when closing modal
+                      const params = new URLSearchParams(location.search);
+                      if (params.has('invoiceId')) {
+                        params.delete('invoiceId');
+                        navigate({ search: params.toString() }, { replace: true });
+                      }
+                    }}
+                    className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors"
+                  >
+                    <X className="w-5 h-5 text-gray-500" />
+                  </button>
+                </div>
               </div>
 
               <div className="p-6 space-y-6">
@@ -2073,7 +2091,7 @@ export default function Payments() {
                 <button
                   onClick={() => {
                     const cents = Math.round(parseFloat(refundAmount) * 100);
-                    if (!cents || isNaN(cents)) return toast.error("Please enter a valid amount");
+                    if (!cents || isNaN(cents)) return showError("Please enter a valid amount");
                     handleRefundInvoice(selectedInvoice.id, cents);
                   }}
                   disabled={isRefundingInvoice || !refundAmount}
@@ -2285,7 +2303,7 @@ function ExportModal({ invoices, bookingsMap, onClose }) {
       });
 
       if (result.length === 0) {
-        toast.error('No records match your selected filters.');
+        showError('No records match your selected filters.');
         setExporting(false);
         return;
       }
@@ -2315,7 +2333,7 @@ function ExportModal({ invoices, bookingsMap, onClose }) {
       link.download = `payments_${propLabel.replace(/\s+/g, '-')}_${dateLabel}.csv`;
       link.click();
       URL.revokeObjectURL(link.href);
-      toast.success(`${result.length} record${result.length !== 1 ? 's' : ''} exported!`);
+      showSuccess(`${result.length} record${result.length !== 1 ? 's' : ''} exported!`);
       onClose();
     } finally {
       setExporting(false);

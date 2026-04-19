@@ -2,7 +2,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { Mail, Phone, Clock, CheckCircle, Archive, Trash2, X, Send, RefreshCw, ArrowRight, Key, Copy, Search } from 'lucide-react';
 import api from '../../utils/api';
 import adminService from '../../services/adminService';
-import toast from 'react-hot-toast';
+import { showSuccess, showError } from '../../utils/toast';
 
 const defaultInquiryPermissions = {
   can_update_inquiry_basic: true,
@@ -56,7 +56,7 @@ const InquiryManagement = () => {
       }
     } catch (err) {
       console.error('Failed to fetch inquiries', err);
-      toast.error('Failed to load inquiries');
+      showError('Failed to load inquiries');
     } finally {
       setLoading(false);
     }
@@ -82,30 +82,30 @@ const InquiryManagement = () => {
 
   const handleUpdateStatus = async (id, status) => {
     if (!canApplyStatus(status)) {
-      toast.error(getPermissionMessage(status) || 'This action is restricted for your admin tier.');
+      showError(getPermissionMessage(status) || 'This action is restricted for your admin tier.');
       return;
     }
 
     try {
       await api.patch(`/admin/inquiries/${id}`, { status });
-      toast.success(`Inquiry marked as ${status}`);
+      showSuccess(`Inquiry marked as ${status}`);
       setInquiries(prev => prev.map(i => i.id === id ? { ...i, status, responded_at: status === 'responded' ? new Date().toISOString() : i.responded_at } : i));
       if (selectedInquiry?.id === id) {
         setSelectedInquiry(prev => ({ ...prev, status }));
       }
     } catch (__err) {
-      toast.error('Failed to update status');
+      showError('Failed to update status');
     }
   };
 
   const handleSendReply = async () => {
     if (!replyMessage.trim()) {
-      toast.error('Please enter a message to send');
+      showError('Please enter a message to send');
       return;
     }
 
     if (!permissions.can_reply_inquiry) {
-      toast.error('Replying to inquiries is restricted for your admin tier.');
+      showError('Replying to inquiries is restricted for your admin tier.');
       return;
     }
 
@@ -115,7 +115,7 @@ const InquiryManagement = () => {
         message: replyMessage
       });
       
-      toast.success('Reply sent successfully via email!');
+      showSuccess('Reply sent successfully via email!');
       
       // Update local state
       const updatedInquiry = res.data.inquiry;
@@ -126,7 +126,7 @@ const InquiryManagement = () => {
       setReplyMessage('');
     } catch (err) {
       console.error('Failed to send reply', err);
-      toast.error(err.response?.data?.message || 'Failed to send reply. Check your email configuration.');
+      showError(err.response?.data?.message || 'Failed to send reply. Check your email configuration.');
     } finally {
       setSendingReply(false);
     }
@@ -134,21 +134,21 @@ const InquiryManagement = () => {
 
   const handleDelete = async (id) => {
     if (!permissions.can_delete_inquiry) {
-      toast.error('Deleting inquiries is restricted to super admins.');
+      showError('Deleting inquiries is restricted to super admins.');
       return;
     }
 
     if (!window.confirm('Are you sure you want to delete this inquiry?')) return;
     try {
       await api.delete(`/admin/inquiries/${id}`);
-      toast.success('Inquiry deleted');
+      showSuccess('Inquiry deleted');
       setInquiries(prev => prev.filter(i => i.id !== id));
       if (selectedInquiry?.id === id) {
         setShowModal(false);
         setSelectedInquiry(null);
       }
     } catch (__err) {
-      toast.error('Failed to delete inquiry');
+      showError('Failed to delete inquiry');
     }
   };
 
@@ -190,7 +190,7 @@ const InquiryManagement = () => {
 
   const searchUserForReset = async () => {
     if (!passwordResetFlow.userEmail.trim()) {
-      toast.error('Please enter an email address');
+      showError('Please enter an email address');
       return;
     }
 
@@ -200,20 +200,20 @@ const InquiryManagement = () => {
       const result = await adminService.searchUserByEmail(passwordResetFlow.userEmail);
       if (result.success && result.data) {
         setPasswordResetFlow(prev => ({ ...prev, foundUser: result.data, searchingUser: false }));
-        toast.success(`User found: ${result.data.first_name} ${result.data.last_name}`);
+        showSuccess(`User found: ${result.data.first_name} ${result.data.last_name}`);
       } else {
         setPasswordResetFlow(prev => ({ ...prev, foundUser: null, searchingUser: false }));
-        toast.error('User not found with this email address');
+        showError('User not found with this email address');
       }
     } catch (_error) {
       setPasswordResetFlow(prev => ({ ...prev, searchingUser: false }));
-      toast.error('Failed to search for user');
+      showError('Failed to search for user');
     }
   };
 
   const generateResetLink = async () => {
     if (!passwordResetFlow.foundUser || !passwordResetFlow.reason.trim()) {
-      toast.error('Please search for user and provide a reason');
+      showError('Please search for user and provide a reason');
       return;
     }
 
@@ -231,21 +231,21 @@ const InquiryManagement = () => {
           resetLink: result.data.reset_url,
           generatingLink: false 
         }));
-        toast.success('Password reset link generated successfully!');
+        showSuccess('Password reset link generated successfully!');
       } else {
         setPasswordResetFlow(prev => ({ ...prev, generatingLink: false }));
-        toast.error(result.error || 'Failed to generate reset link');
+        showError(result.error || 'Failed to generate reset link');
       }
     } catch (_error) {
       setPasswordResetFlow(prev => ({ ...prev, generatingLink: false }));
-      toast.error('Failed to generate reset link');
+      showError('Failed to generate reset link');
     }
   };
 
   const copyResetLink = () => {
     if (passwordResetFlow.resetLink) {
       navigator.clipboard.writeText(passwordResetFlow.resetLink);
-      toast.success('Reset link copied to clipboard!');
+      showSuccess('Reset link copied to clipboard!');
     }
   };
 
@@ -254,7 +254,7 @@ const InquiryManagement = () => {
       const resetText = `\n\nPassword Reset Link:\n${passwordResetFlow.resetLink}\n\nThis link expires in 10 minutes. Please use it to reset your password.\n`;
       setReplyMessage(prev => prev + resetText);
       closePasswordResetFlow();
-      toast.success('Reset link added to reply message');
+      showSuccess('Reset link added to reply message');
     }
   };
 

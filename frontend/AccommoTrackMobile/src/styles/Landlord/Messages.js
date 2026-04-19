@@ -224,6 +224,15 @@ export const getStyles = (theme) => StyleSheet.create({
     fontSize: 12,
     color: 'rgba(255,255,255,0.8)'
   },
+  timestampOnMedia: {
+    position: 'absolute',
+    bottom: 8,
+    right: 8,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 8,
+  },
   messagesContainer: {
     flex: 1,
     backgroundColor: theme.colors.background
@@ -378,6 +387,75 @@ export const getStyles = (theme) => StyleSheet.create({
   },
   sendButtonDisabled: {
     backgroundColor: theme.colors.textTertiary
+  },
+  attachmentPreviewContainer: {
+    padding: 12,
+    backgroundColor: theme.colors.surface,
+    borderTopWidth: 1,
+    borderTopColor: theme.colors.border,
+    flexDirection: 'row',
+  },
+  attachmentPreviewImage: {
+    width: 60,
+    height: 60,
+    borderRadius: 8,
+  },
+  attachmentPreviewFile: {
+    width: 60,
+    height: 60,
+    backgroundColor: theme.colors.backgroundSecondary,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 4,
+  },
+  attachmentPreviewFileName: {
+    fontSize: 8,
+    color: theme.colors.text,
+    marginTop: 2,
+    textAlign: 'center',
+  },
+  attachmentPreviewClose: {
+    position: 'absolute',
+    top: 4,
+    left: 56,
+    backgroundColor: theme.colors.surface,
+    borderRadius: 12,
+    zIndex: 1,
+  },
+  fileCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: theme.colors.surface,
+    padding: 10,
+    borderRadius: 12,
+    minWidth: 200,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  fileIconContainer: {
+    width: 36,
+    height: 36,
+    borderRadius: 8,
+    backgroundColor: theme.colors.primaryLight,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 10,
+  },
+  fileInfo: {
+    flex: 1,
+    marginRight: 8,
+  },
+  fileName: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: theme.colors.text,
+  },
+  fileExt: {
+    fontSize: 10,
+    color: theme.colors.textSecondary,
+    marginTop: 1,
+    textTransform: 'uppercase',
   },
   detailsBackdrop: {
     ...StyleSheet.absoluteFillObject,

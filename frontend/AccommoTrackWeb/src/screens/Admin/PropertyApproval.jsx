@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Check, X, Ban, Pencil, Loader2 } from 'lucide-react';
 import api, { getImageUrl } from '../../utils/api';
-import { toast } from 'react-hot-toast';
+import { showSuccess, showError } from '../../utils/toast';
 import ConfirmationModal from '../../components/Shared/ConfirmationModal';
 
 const normalizePropertyStatus = (value) => (typeof value === 'string' ? value.toLowerCase() : '');
@@ -35,7 +35,7 @@ const PropertyApproval = ({ isEmbedded = false }) => {
       setProperties(res.data.data || res.data || []);
     } catch (err) {
       console.error(`Failed to fetch ${status} properties`, err);
-      toast.error(err.response?.data?.message || err.message || 'Failed to fetch');
+      showError(err.response?.data?.message || err.message || 'Failed to fetch');
     } finally {
       setLoading(false);
     }
@@ -85,7 +85,7 @@ const PropertyApproval = ({ isEmbedded = false }) => {
     const pendingSelectedIds = selectedIds.filter((id) => selectableIds.includes(id));
 
     if (pendingSelectedIds.length === 0) {
-      toast.error('Only pending properties can be selected.');
+      showError('Only pending properties can be selected.');
       setSelectedIds([]);
       return;
     }
@@ -99,12 +99,12 @@ const PropertyApproval = ({ isEmbedded = false }) => {
 
     try {
       const res = await api.post(`/admin/properties/bulk-${action}`, { ids: pendingSelectedIds });
-      toast.success(res.data?.message || `Bulk ${action} successful`);
+      showSuccess(res.data?.message || `Bulk ${action} successful`);
       setProperties(prev => prev.filter(p => !pendingSelectedIds.includes(p.id)));
       setSelectedIds([]);
     } catch (err) {
       console.error(`Failed to bulk ${action}`, err);
-      toast.error(err.response?.data?.message || err.message || `Failed to bulk ${action}`);
+      showError(err.response?.data?.message || err.message || `Failed to bulk ${action}`);
     } finally {
       setActionLoading(null);
     }
@@ -117,18 +117,18 @@ const PropertyApproval = ({ isEmbedded = false }) => {
     try {
       if (action === 'approve') {
         await api.post(`/admin/properties/${propertyId}/approve`);
-        toast.success('Property approved successfully');
+        showSuccess('Property approved successfully');
       } else if (action === 'reject') {
         await api.post(`/admin/properties/${propertyId}/reject`);
-        toast.success('Property rejected successfully');
+        showSuccess('Property rejected successfully');
       } else if (action === 'maintenance') {
         await api.post(`/admin/properties/${propertyId}/maintenance`);
-        toast.success('Property put under maintenance');
+        showSuccess('Property put under maintenance');
       } else if (action === 'delete') {
         await api.delete(`/admin/properties/${propertyId}`, {
           data: { password: passwordValueRef.current },
         });
-        toast.success('Property sent to archive');
+        showSuccess('Property sent to archive');
       }
 
       setProperties(prev => prev.filter(p => p.id !== propertyId));
@@ -138,7 +138,7 @@ const PropertyApproval = ({ isEmbedded = false }) => {
       setPasswordValue('');
     } catch (err) {
       console.error(`Failed to ${action} property`, err);
-      toast.error(err.response?.data?.message || err.message || `Failed to ${action}`);
+      showError(err.response?.data?.message || err.message || `Failed to ${action}`);
       if (action === 'delete') setPasswordValue('');
     } finally {
       setActionLoading(null);

@@ -1,7 +1,7 @@
-import React, { useMemo, useRef, useState } from 'react';
-import { MoreVertical, Image as ImageIcon, Send, MessageCircle, Loader2, AlertTriangle, X, RotateCcw } from 'lucide-react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { MoreVertical, Image as ImageIcon, Send, MessageCircle, Loader2, AlertTriangle, X, RotateCcw, Reply, Pencil, Trash2, CheckCheck, Paperclip, FileText, Download } from 'lucide-react';
 import api from '../../../utils/api';
-import toast from 'react-hot-toast';
+import { showSuccess, showError } from '../../../utils/toast';
 
 const ChatArea = ({
   selectedChat,
@@ -20,10 +20,28 @@ const ChatArea = ({
   messagesEndRef,
   imagePreview,
   handleImageSelect,
-  removeSelectedImage
+  removeSelectedImage,
+  replyingTo,
+  setReplyingTo,
+  editingMessage,
+  setEditingMessage,
+  handleEditMessage,
+  isOtherTyping,
+  selectedFile,
+  handleFileSelect,
+  removeSelectedFile
 }) => {
-  const fileInputRef = useRef(null);
+  const imageInputRef = useRef(null);
+  const docInputRef = useRef(null);
+  const textareaRef = useRef(null);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
+  
+  // Auto-focus textarea when replying or editing
+  React.useEffect(() => {
+    if (replyingTo || editingMessage) {
+      textareaRef.current?.focus();
+    }
+  }, [replyingTo, editingMessage]);
 
   const otherUser = selectedChat?.other_user || null;
   const isLandlordView = normalizedRole === 'landlord' || normalizedRole === 'caretaker';
@@ -126,9 +144,11 @@ const ChatArea = ({
             <p className="text-sm font-semibold text-gray-900 dark:text-white">
               {selectedChat.other_user?.first_name} {selectedChat.other_user?.last_name}
             </p>
-            {selectedChat.property && (
+            {isOtherTyping ? (
+              <p className="text-[10px] text-blue-500 animate-pulse font-medium italic">typing...</p>
+            ) : selectedChat.property ? (
               <p className="text-xs text-gray-500 dark:text-gray-400">{selectedChat.property.title}</p>
-            )}
+            ) : null}
           </div>
         </div>
         <div className="flex gap-2">
@@ -161,6 +181,9 @@ const ChatArea = ({
             
             const ts = msg.created_at || new Date().toISOString();
             const isUnsent = Boolean(msg.is_unsent);
+            const isEdited = Boolean(msg.is_edited);
+            const replyTo = msg.reply_to;
+            const isImageOnly = msg.image_url && !msg.message && !replyTo && !msg.file_url;
 
             return (
               <div
@@ -180,50 +203,119 @@ const ChatArea = ({
                       )}
                     </p>
                   )}
-                  <div className="flex items-center gap-2 max-w-full">
-                    {isMine && !isUnsent && !caretakerMessagingRestricted && (
-                      <button
-                        onClick={() => {
-                          if (window.confirm('Unsend this message for everyone?')) {
-                            handleUnsend(msg.id);
-                          }
-                        }}
-                        className="opacity-0 group-hover/msg:opacity-100 p-1.5 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-all text-gray-400 hover:text-red-500"
-                        title="Unsend for everyone"
-                      >
-                        <RotateCcw className="w-4 h-4" />
-                      </button>
-                    )}
-                    <div
-                      className={`w-auto px-4 py-2 rounded-2xl shadow-sm ${
-                        isUnsent
-                          ? 'bg-gray-100 dark:bg-gray-800/50 text-gray-500 dark:text-gray-500 border border-dashed border-gray-300 dark:border-gray-700 italic'
-                          : isMine
-                            ? 'bg-green-600 dark:bg-green-700 text-white rounded-tr-none'
-                            : 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-700 rounded-tl-none'
-                      }`}
-                    >
-                      {isUnsent ? (
-                        <p className="text-xs">This message was unsent</p>
-                      ) : (
-                        <>
-                          {msg.image_url && (
-                            <div className="mb-2 max-w-full">
-                              <img 
-                                src={msg.image_url} 
-                                alt="Attachment" 
-                                className="rounded-lg max-h-60 object-cover cursor-pointer hover:opacity-90 transition-opacity"
-                                onClick={() => window.open(msg.image_url, '_blank')}
-                              />
-                            </div>
-                          )}
-                          {msg.message && <p className="text-sm whitespace-pre-wrap break-words">{msg.message}</p>}
-                        </>
+                    <div className="flex items-center gap-1 max-w-full">
+                      {isMine && !isUnsent && !caretakerMessagingRestricted && (
+                        <div className="opacity-0 group-hover/msg:opacity-100 flex items-center bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-full shadow-sm border border-gray-200 dark:border-gray-700 transition-all">
+                          <button
+                            onClick={() => {
+                              setEditingMessage(msg);
+                              setReplyingTo(null);
+                              setMessageText(msg.message);
+                            }}
+                            className="p-1.5 hover:text-green-500 transition-colors"
+                            title="Edit"
+                          >
+                            <Pencil className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={() => {
+                              if (window.confirm('Unsend this message for everyone?')) {
+                                handleUnsend(msg.id);
+                              }
+                            }}
+                            className="p-1.5 hover:text-red-500 transition-colors"
+                            title="Unsend"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
                       )}
+                      {!isMine && !isUnsent && !caretakerMessagingRestricted && (
+                        <button
+                          onClick={() => setReplyingTo(msg)}
+                          className="opacity-0 group-hover/msg:opacity-100 p-1.5 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-all text-gray-400 hover:text-blue-500"
+                          title="Reply"
+                        >
+                          <Reply className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                      
+                      <div
+                        className={`w-auto rounded-2xl ${
+                          isUnsent
+                            ? 'px-4 py-2 bg-gray-100 dark:bg-gray-800/50 text-gray-500 dark:text-gray-500 border border-dashed border-gray-300 dark:border-gray-700 italic'
+                            : isMine
+                              ? isImageOnly 
+                                ? 'p-0 bg-transparent shadow-none' 
+                                : 'px-4 py-2 bg-green-600 dark:bg-green-700 text-white rounded-tr-none shadow-sm'
+                              : isImageOnly 
+                                ? 'p-0 bg-transparent shadow-none' 
+                                : 'px-4 py-2 bg-white dark:bg-gray-800 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-700 rounded-tl-none shadow-sm'
+                        }`}
+                      >
+                        {replyTo && !isUnsent && (
+                          <div className={`mb-2 p-2 rounded-lg text-xs border-l-4 ${isMine ? 'bg-green-700/50 border-green-300 text-green-50' : 'bg-gray-100 dark:bg-gray-700 border-green-500 text-gray-600 dark:text-gray-300'}`}>
+                            <p className="font-bold mb-0.5">{replyTo.sender_name}</p>
+                            <p className="line-clamp-1 opacity-80">{replyTo.message}</p>
+                          </div>
+                        )}
+                        {isUnsent ? (
+                          <p className="text-xs">This message was unsent</p>
+                        ) : (
+                          <>
+                            {msg.image_url && (
+                              <div className="mb-2 max-w-full">
+                                <img 
+                                  src={msg.image_url} 
+                                  alt="Attachment" 
+                                  className="rounded-lg max-h-60 object-cover cursor-pointer hover:opacity-90 transition-opacity"
+                                  onClick={() => window.open(msg.image_url, '_blank')}
+                                />
+                              </div>
+                            )}
+                            {msg.file_url && (
+                              <div 
+                                className={`mb-2 p-3 rounded-xl border flex items-center gap-3 cursor-pointer hover:opacity-90 transition-opacity min-w-[200px] ${
+                                  isMine 
+                                    ? 'bg-green-700/30 border-green-500 text-white' 
+                                    : 'bg-gray-50 dark:bg-gray-800/50 border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white'
+                                }`}
+                                onClick={() => window.open(msg.file_url, '_blank')}
+                              >
+                                <div className={`p-2 rounded-lg ${isMine ? 'bg-green-500' : 'bg-blue-500'} text-white`}>
+                                  <FileText className="w-5 h-5" />
+                                </div>
+                                <div className="flex-1 overflow-hidden">
+                                  <p className="text-sm font-medium truncate" title={msg.file_name || 'Document'}>
+                                    {msg.file_name || 'Document'}
+                                  </p>
+                                  <p className="text-[10px] opacity-70">
+                                    {msg.file_name?.toLowerCase().endsWith('.pdf') ? 'PDF Document' : 'DOCX Document'}
+                                  </p>
+                                </div>
+                                <Download className="w-4 h-4 opacity-70" />
+                              </div>
+                            )}
+                            {msg.message && (
+                              <div className="flex items-end gap-2 flex-wrap">
+                                <p className="text-sm whitespace-pre-wrap break-words flex-1">{msg.message}</p>
+                                {isEdited && (
+                                  <span className={`text-[9px] uppercase font-bold tracking-tighter opacity-70 ${isMine ? 'text-green-100' : 'text-gray-400'}`}>
+                                    (edited)
+                                  </span>
+                                )}
+                              </div>
+                            )}
+                          </>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                  <p className="text-[10px] mt-2 text-gray-500 dark:text-gray-500 px-2">
+
+                  <p className="text-[10px] mt-2 text-gray-500 dark:text-gray-500 px-2 flex items-center justify-end gap-1">
                     {formatTime(ts)}
+                    {isMine && !isUnsent && (
+                      <CheckCheck className={`w-3.5 h-3.5 ${msg.is_read ? 'text-blue-500' : 'text-gray-400'}`} />
+                    )}
                   </p>
                 </div>
               </div>
@@ -257,24 +349,94 @@ const ChatArea = ({
           </div>
         )}
 
+        {/* File Preview */}
+        {selectedFile && (
+          <div className="mb-4 relative inline-block">
+            <div className={`p-4 rounded-xl border-2 border-green-500 bg-white dark:bg-gray-800 shadow-lg animate-in zoom-in duration-200 flex items-center gap-3`}>
+              <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-lg">
+                <FileText className="w-6 h-6 text-green-600" />
+              </div>
+              <div className="max-w-[150px]">
+                <p className="text-sm font-bold text-gray-900 dark:text-white truncate">{selectedFile.name}</p>
+                <p className="text-[10px] text-gray-500 capitalize">{selectedFile.name.split('.').pop()} Document</p>
+              </div>
+              <button 
+                onClick={removeSelectedFile}
+                className="ml-2 hover:bg-gray-100 dark:hover:bg-gray-700 p-1.5 rounded-full transition-colors"
+                title="Remove file"
+              >
+                <X className="w-4 h-4 text-gray-500" />
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Reply Preview */}
+        {replyingTo && (
+          <div className="mb-4 p-3 bg-gray-50 dark:bg-gray-900/50 border-l-4 border-green-500 rounded-r-xl flex items-center justify-between animate-in slide-in-from-bottom-2 duration-200">
+            <div className="flex-1 min-w-0">
+              <p className="text-[10px] font-bold text-green-600 dark:text-green-400 uppercase tracking-wider">Replying to {replyingTo.sender?.first_name}</p>
+              <p className="text-xs text-gray-600 dark:text-gray-400 truncate">{replyingTo.message}</p>
+            </div>
+            <button onClick={() => setReplyingTo(null)} className="p-1 hover:bg-gray-200 dark:hover:bg-gray-800 rounded-full transition-colors ml-2">
+              <X className="w-4 h-4 text-gray-500" />
+            </button>
+          </div>
+        )}
+
+        {/* Edit Mode Indicator */}
+        {editingMessage && (
+          <div className="mb-4 p-3 bg-green-50 dark:bg-green-900/20 border-l-4 border-green-600 rounded-r-xl flex items-center justify-between animate-in slide-in-from-bottom-2 duration-200">
+            <div className="flex-1 min-w-0">
+              <p className="text-[10px] font-bold text-green-700 dark:text-green-400 uppercase tracking-wider">Editing Message</p>
+              <p className="text-xs text-gray-600 dark:text-gray-400 truncate italic">{editingMessage.message}</p>
+            </div>
+            <button 
+              onClick={() => {
+                setEditingMessage(null);
+                setMessageText('');
+              }} 
+              className="p-1 hover:bg-green-100 dark:hover:bg-green-900/40 rounded-full transition-colors ml-2"
+            >
+              <X className="w-4 h-4 text-green-600" />
+            </button>
+          </div>
+        )}
+
         <div className="flex gap-2 items-center">
           <input 
             type="file" 
-            ref={fileInputRef}
+            ref={imageInputRef}
             onChange={(e) => handleImageSelect(e.target.files[0])}
             accept="image/*"
             className="hidden"
           />
+          <input 
+            type="file" 
+            ref={docInputRef}
+            onChange={(e) => handleFileSelect(e.target.files[0])}
+            accept=".pdf,.docx"
+            className="hidden"
+          />
           <button 
-            onClick={() => fileInputRef.current?.click()}
+            onClick={() => imageInputRef.current?.click()}
             className="p-2.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors text-gray-500 dark:text-gray-400 flex-shrink-0" 
             disabled={!canSendMessages}
             title="Attach photo"
           >
             <ImageIcon className="w-6 h-6" />
           </button>
+          <button 
+            onClick={() => docInputRef.current?.click()}
+            className="p-2.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors text-gray-500 dark:text-gray-400 flex-shrink-0" 
+            disabled={!canSendMessages}
+            title="Attach document"
+          >
+            <Paperclip className="w-6 h-6" />
+          </button>
           <div className="flex-1 flex items-center">
             <textarea
+              ref={textareaRef}
               rows="1"
               value={messageText}
               onChange={(e) => setMessageText(e.target.value)}
@@ -290,12 +452,14 @@ const ChatArea = ({
             />
           </div>
           <button
-            onClick={handleSendMessage}
-            disabled={!canSendMessages || sendingMessage || (!messageText.trim() && !imagePreview)}
-            className="p-2.5 bg-green-600 hover:bg-green-700 text-white rounded-full transition-all shadow-md active:scale-95 disabled:opacity-50 disabled:active:scale-100 flex-shrink-0"
+            onClick={editingMessage ? handleEditMessage : handleSendMessage}
+            disabled={!canSendMessages || sendingMessage || (!messageText.trim() && !imagePreview && !selectedFile)}
+            className={`p-2.5 rounded-full transition-all shadow-md active:scale-95 disabled:opacity-50 disabled:active:scale-100 flex-shrink-0 ${editingMessage ? 'bg-green-700 hover:bg-green-800' : 'bg-green-600 hover:bg-green-700'} text-white`}
           >
             {sendingMessage ? (
               <Loader2 className="w-5 h-5 animate-spin" />
+            ) : editingMessage ? (
+              <Pencil className="w-5 h-5" />
             ) : (
               <Send className="w-5 h-5" />
             )}
@@ -433,15 +597,15 @@ const ChatArea = ({
 };
 
 const CaretakerAssignmentSection = ({ conversationId, initialCaretakerId }) => {
-  const [caretakers, setCaretakers] = React.useState([]);
-  const [assignedId, setAssignedId] = React.useState(initialCaretakerId || '');
-  const [isLoading, setIsLoading] = React.useState(false);
+  const [caretakers, setCaretakers] = useState([]);
+  const [assignedId, setAssignedId] = useState(initialCaretakerId || '');
+  const [isLoading, setIsLoading] = useState(false);
 
-  React.useEffect(() => {
+  useEffect(() => {
     setAssignedId(initialCaretakerId || '');
   }, [initialCaretakerId, conversationId]);
 
-  React.useEffect(() => {
+  useEffect(() => {
     const fetchCaretakers = async () => {
       try {
         const res = await api.get('/landlord/caretakers');
@@ -461,9 +625,9 @@ const CaretakerAssignmentSection = ({ conversationId, initialCaretakerId }) => {
     try {
       await api.patch(`/messages/${conversationId}/caretaker`, { caretaker_id: cId || null });
       setAssignedId(cId);
-      toast.success(cId ? 'Caretaker assigned to conversation.' : 'Caretaker unassigned.');
+      showSuccess(cId ? 'Caretaker assigned to conversation.' : 'Caretaker unassigned.');
     } catch (_err) {
-      toast.error('Failed to update caretaker assignment.');
+      showError('Failed to update caretaker assignment.');
       setAssignedId(initialCaretakerId || '');
     } finally {
       setIsLoading(false);

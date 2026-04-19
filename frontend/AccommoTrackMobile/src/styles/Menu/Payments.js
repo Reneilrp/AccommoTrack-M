@@ -290,7 +290,42 @@ export const getStyles = (theme) => StyleSheet.create({
   payBtnText: {
     color: theme.colors.textInverse, 
     fontWeight: '700',
-  }
+  },
+  
+  // Refund Stats (Sync with Landlord)
+  refundStatsCard: {
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(126,34,206,0.15)',
+    backgroundColor: 'rgba(126,34,206,0.03)',
+  },
+  refundStatRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  refundStatLabel: {
+    fontSize: 12,
+    color: theme.colors.textSecondary,
+    fontWeight: '600',
+  },
+  refundStatValue: {
+    fontSize: 13,
+    color: theme.colors.text,
+    fontWeight: '800',
+  },
+  refundStatEmphasis: {
+    color: theme.colors.purple,
+    fontWeight: '900',
+  },
+  invoiceAddonRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingVertical: 4,
+  },
 });
 
 export default getStyles;

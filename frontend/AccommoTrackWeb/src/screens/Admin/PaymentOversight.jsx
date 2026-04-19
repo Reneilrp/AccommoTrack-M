@@ -1,6 +1,6 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import { AlertCircle, CheckCircle2, Eye, Loader2, Shield, XCircle, Download } from 'lucide-react';
-import toast from 'react-hot-toast';
+import { showSuccess, showError } from '../../utils/toast';
 import adminService from '../../services/adminService';
 import { getImageUrl } from '../../utils/api';
 import { exportToCSV } from '../../utils/csvExport';
@@ -165,13 +165,13 @@ export default function PaymentOversight() {
 
   const handleOverrideApprove = async () => {
     if (!selectedRecord?.invoiceId) {
-      toast.error('Invoice reference is missing for this row.');
+      showError('Invoice reference is missing for this row.');
       return;
     }
 
     const trimmedNote = overrideNote.trim();
     if (!trimmedNote) {
-      toast.error('Override note is required.');
+      showError('Override note is required.');
       return;
     }
 
@@ -185,11 +185,11 @@ export default function PaymentOversight() {
     setOverrideLoading(false);
 
     if (!response.success) {
-      toast.error(response.error || 'Failed to apply override approval.');
+      showError(response.error || 'Failed to apply override approval.');
       return;
     }
 
-    toast.success(response.message || 'Override approval applied successfully.');
+    showSuccess(response.message || 'Override approval applied successfully.');
     closeOverrideModal();
     fetchQueue(pagination.currentPage || 1, true);
   };
@@ -197,7 +197,7 @@ export default function PaymentOversight() {
   const openProofModal = (record) => {
     const resolvedUrl = record?.proofImageUrl || (record?.proofImagePath ? getImageUrl(record.proofImagePath) : null);
     if (!resolvedUrl) {
-      toast.error('No proof image available for this entry.');
+      showError('No proof image available for this entry.');
       return;
     }
 

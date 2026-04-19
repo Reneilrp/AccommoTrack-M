@@ -1,6 +1,6 @@
 import React from 'react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import toast from 'react-hot-toast';
+import { showSuccess, showError } from '../../../utils/toast';
 
 import SwitchRoleTab from '../SwitchRoleTab';
 import api from '../../../utils/api';
@@ -8,9 +8,9 @@ import { authService } from '../../../services/authService';
 
 const realConsoleError = console.error;
 
-jest.mock('react-hot-toast', () => ({
-  success: jest.fn(),
-  error: jest.fn(),
+jest.mock('../../../utils/toast', () => ({
+  showSuccess: jest.fn(),
+  showError: jest.fn(),
 }));
 
 jest.mock('../../../utils/api', () => ({
@@ -76,7 +76,7 @@ describe('SwitchRoleTab role switching', () => {
       expect(authService.switchRole).toHaveBeenCalledWith('landlord');
     });
 
-    expect(toast.success).toHaveBeenCalledWith('Role switched to landlord');
+    expect(showSuccess).toHaveBeenCalledWith('Role switched to landlord');
     expect(localStorage.getItem('userData')).toBe(
       JSON.stringify({ id: 15, role: 'landlord' }),
     );
@@ -96,7 +96,7 @@ describe('SwitchRoleTab role switching', () => {
     });
     expect(waitingButton).toBeDisabled();
 
-    expect(toast.error).not.toHaveBeenCalled();
+    expect(showError).not.toHaveBeenCalled();
     expect(authService.switchRole).not.toHaveBeenCalled();
   });
 
@@ -115,6 +115,6 @@ describe('SwitchRoleTab role switching', () => {
       expect(authService.switchRole).toHaveBeenCalledWith('tenant');
     });
 
-    expect(toast.success).toHaveBeenCalledWith('Role switched to tenant');
+    expect(showSuccess).toHaveBeenCalledWith('Role switched to tenant');
   });
 });

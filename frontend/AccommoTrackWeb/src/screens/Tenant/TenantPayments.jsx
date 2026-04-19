@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { paymentService } from '../../services/paymentService';
+import { invoiceService } from '../../services/invoiceService';
 import api from '../../utils/api';
-import { SkeletonWallet } from '../../components/Shared/Skeleton';
+import { SkeletonWallet, SkeletonTableRow } from '../../components/Shared/Skeleton';
 import { useUIState } from "../../contexts/UIStateContext";
-import toast from 'react-hot-toast';
+import { showSuccess, showError, showLoading } from '../../utils/toast';
 import { CircleDollarSign, ClipboardCheck, Calendar, Search, RefreshCw, Loader2, Receipt, X, FileText } from 'lucide-react';
 import createEcho from '../../utils/echo';
 import systemToggleService from '../../services/systemToggleService';
@@ -27,6 +28,9 @@ export default function TenantPayments({ user }) {
   const [payments, setPayments] = useState(cachedData?.payments || []);
   const [stats, setStats] = useState(cachedData?.stats || null);
   const [loading, setLoading] = useState(!cachedData);
+  const [walletLogs, setWalletLogs] = useState(cachedData?.walletLogs || []);
+  const [walletLogsLoading, setWalletLogsLoading] = useState(false);
+  const [walletLogsPagination, setWalletLogsPagination] = useState(cachedData?.walletLogsPagination || null);
   const [error, setError] = useState(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [tenantPaymentsTempDisabled, setTenantPaymentsTempDisabled] = useState(DEFAULT_TOGGLES.tenantPaymentsDisabled);
@@ -47,20 +51,21 @@ export default function TenantPayments({ user }) {
       const searchParams = new URLSearchParams(window.location.search);
       if (searchParams.get('payment_refresh') === 'true' && !tenantPaymentsTempDisabled) {
         // Find any pending/unpaid invoices and trigger a background refresh
-        toast.loading('Updating payment status...', { id: 'refreshing' });
+        showLoading('Updating payment status...');
         const listRes = await paymentService.getPayments('all', archiveFilter || 'active');
         if (listRes.success && Array.isArray(listRes.data)) {
           const pending = listRes.data.filter(p => ['pending', 'unpaid', 'partial'].includes(p.status?.toLowerCase()));
           await Promise.all(pending.map(p => api.post(`/tenant/invoices/${p.id}/paymongo-refresh`)));
-          toast.success('Payment statuses updated', { id: 'refreshing' });
+          showSuccess('Payment statuses updated');
         }
         // Remove the parameter to stop the loop
         navigate('/payments', { replace: true });
       }
 
-      const [paymentsRes, statsRes] = await Promise.all([
+      const [paymentsRes, statsRes, logsRes] = await Promise.all([
         paymentService.getPayments('all', archiveFilter || 'active'),
-        paymentService.getStats()
+        paymentService.getStats(),
+        paymentService.getWalletLogs(1)
       ]);
 
       if (paymentsRes.success) {
@@ -71,11 +76,26 @@ export default function TenantPayments({ user }) {
 
       if (statsRes.success) {
         setStats(statsRes.data);
+        // Sync global balance if available
+        if (statsRes.data?.walletBalance !== undefined) {
+          updateScreenState('wallet', { balance: Number(statsRes.data.walletBalance) });
+        }
+      }
+
+      if (logsRes.success) {
+        setWalletLogs(logsRes.data || []);
+        setWalletLogsPagination(logsRes.meta || null);
       }
 
       // Update global cache
       if (paymentsRes.success && statsRes.success) {
-        updateData('wallet', prev => ({ ...prev, payments: paymentsRes.data, stats: statsRes.data }));
+        updateData('wallet', prev => ({ 
+          ...prev, 
+          payments: paymentsRes.data, 
+          stats: statsRes.data,
+          walletLogs: logsRes.data,
+          walletLogsPagination: logsRes.meta 
+        }));
       }
     } catch (err) {
       setError('An unexpected error occurred');
@@ -83,7 +103,28 @@ export default function TenantPayments({ user }) {
     } finally {
       setLoading(false);
     }
-  }, [updateData, navigate, tenantPaymentsTempDisabled]);
+  }, [updateData, navigate, tenantPaymentsTempDisabled, archiveFilter, updateScreenState]);
+
+  const fetchLogs = useCallback(async (page = 1) => {
+    setWalletLogsLoading(true);
+    try {
+      const res = await paymentService.getWalletLogs(page);
+      if (res.success) {
+        setWalletLogs(res.data || []);
+        setWalletLogsPagination(res.meta || null);
+        updateData('wallet', prev => ({ 
+          ...prev, 
+          walletLogs: res.data, 
+          walletLogsPagination: res.meta 
+        }));
+      }
+    } catch (_err) {
+      console.error('Failed to fetch logs:', _err);
+      showError('Failed to load transaction history.');
+    } finally {
+      setWalletLogsLoading(false);
+    }
+  }, [updateData]);
 
   useEffect(() => {
     if (didInitialFetchRef.current) return;
@@ -114,7 +155,7 @@ export default function TenantPayments({ user }) {
       .listen('.invoice.updated', (e) => {
         console.log('Real-time invoice update received:', e);
         loadData();
-        toast.success('Payment status updated!', { icon: '💰' });
+        showSuccess('Payment status updated!');
       });
 
     return () => {
@@ -144,11 +185,13 @@ export default function TenantPayments({ user }) {
   }, []);
 
   const openCheckout = useCallback(async (payment, options = {}) => {
+    if (processingPaymentKey) return;
+
     const startFrom = options?.startFrom === 'next' ? 'next' : 'current';
     const monthsCount = Math.max(1, Math.min(Number(options?.monthsCount) || 1, 2));
 
     if (tenantPaymentsTempDisabled) {
-      toast.error('Tenant payments are temporarily unavailable.');
+      showError('Tenant payments are temporarily unavailable.');
       return;
     }
 
@@ -161,19 +204,19 @@ export default function TenantPayments({ user }) {
 
       if (startFrom === 'next') {
         if (!bookingId) {
-          toast.error('This payment has no booking link for advance generation.');
+          showError('This payment has no booking link for advance generation.');
           return;
         }
 
         const response = await paymentService.createAdvanceBookingInvoices(bookingId, monthsCount);
         if (!response.success || !response.data) {
-          toast.error(response.error || 'Failed to prepare advance invoice checkout.');
+          showError(response.error || 'Failed to prepare advance invoice checkout.');
           return;
         }
 
         invoiceId = resolveNearestInvoiceId(response.data);
         if (!invoiceId) {
-          toast.error('No payable advance invoice was generated for this booking.');
+          showError('No payable advance invoice was generated for this booking.');
           return;
         }
 
@@ -184,7 +227,7 @@ export default function TenantPayments({ user }) {
           ].filter((invoice) => invoice && invoice.id).length;
 
           if (generatedCount > 1) {
-            toast.success('Advance invoices are ready. Opening nearest due invoice first.');
+            showSuccess('Advance invoices are ready. Opening nearest due invoice first.');
           }
         }
 
@@ -194,13 +237,13 @@ export default function TenantPayments({ user }) {
 
       if (!invoiceId) {
         if (!bookingId) {
-          toast.error('No booking or invoice linked to this payment.');
+          showError('No booking or invoice linked to this payment.');
           return;
         }
 
         const response = await paymentService.createBookingInvoice(bookingId);
         if (!response.success || !response.data) {
-          toast.error(response.error || 'Failed to prepare invoice checkout.');
+          showError(response.error || 'Failed to prepare invoice checkout.');
           return;
         }
 
@@ -208,18 +251,29 @@ export default function TenantPayments({ user }) {
       }
 
       if (!invoiceId) {
-        toast.error('Unable to resolve invoice checkout for this payment.');
+        showError('Unable to resolve invoice checkout for this payment.');
         return;
       }
 
       navigate(`/checkout/${invoiceId}`);
     } catch (err) {
       console.error('Checkout resolution error:', err);
-      toast.error(startFrom === 'next' ? 'Failed to prepare advance invoice checkout.' : 'Failed to prepare invoice checkout.');
+      showError(startFrom === 'next' ? 'Failed to prepare advance invoice checkout.' : 'Failed to prepare invoice checkout.');
     } finally {
       setProcessingPaymentKey(null);
     }
-  }, [navigate, resolveNearestInvoiceId, resolvePaymentEntryKey, tenantPaymentsTempDisabled]);
+  }, [navigate, resolveNearestInvoiceId, resolvePaymentEntryKey, tenantPaymentsTempDisabled, processingPaymentKey]);
+
+  const handlePrintReceipt = (payment) => {
+    if (!payment) return;
+    const invoiceId = payment.id || payment.invoice_id;
+    if (!invoiceId) {
+      showError('Unable to find invoice reference for this payment.');
+      return;
+    }
+    const url = invoiceService.getReceiptUrl(invoiceId);
+    window.open(url, "_blank");
+  };
 
   const filterOptions = [
     { value: 'all', label: 'All Payments' },
@@ -275,7 +329,7 @@ export default function TenantPayments({ user }) {
     });
 
     return filtered.sort((a, b) => new Date(b.date) - new Date(a.date));
-  }, [payments, statusFilter, archiveFilter, timeRange, searchQuery]);
+  }, [payments, statusFilter, timeRange, searchQuery]);
 
   return (
     <div className="min-h-screen bg-transparent dark:bg-gray-900 font-sans">
@@ -283,7 +337,7 @@ export default function TenantPayments({ user }) {
         {loading && payments.length === 0 ? (
           <SkeletonWallet />
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
             <div className="relative overflow-hidden bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-300 dark:border-gray-700">
               <div className="flex items-center justify-between">
                 <div>
@@ -301,11 +355,13 @@ export default function TenantPayments({ user }) {
             <div className="relative overflow-hidden bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-300 dark:border-gray-700">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs font-bold text-gray-500 dark:text-gray-500 uppercase tracking-wider mb-2">Payments This Month</p>
-                  <p className="text-2xl font-bold text-blue-600 mt-2">{stats?.paidCount || 0}</p>
+                  <p className="text-xs font-bold text-gray-500 dark:text-gray-500 uppercase tracking-wider mb-2">Wallet Balance</p>
+                  <p className="text-2xl font-bold text-emerald-600 mt-2">
+                    {paymentService.formatAmount(uiState.wallet?.balance || 0)}
+                  </p>
                 </div>
-                <div className="w-10 h-10 bg-blue-50 dark:bg-blue-900/20 rounded-lg flex items-center justify-center">
-                  <ClipboardCheck className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                <div className="w-10 h-10 bg-emerald-50 dark:bg-emerald-900/20 rounded-lg flex items-center justify-center">
+                  <RefreshCw className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
                 </div>
               </div>
             </div>
@@ -320,6 +376,18 @@ export default function TenantPayments({ user }) {
                 </div>
                 <div className="w-10 h-10 bg-orange-50 dark:bg-orange-900/20 rounded-lg flex items-center justify-center">
                   <Calendar className="w-5 h-5 text-orange-600 dark:text-orange-400" />
+                </div>
+              </div>
+            </div>
+
+            <div className="relative overflow-hidden bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-300 dark:border-gray-700">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-bold text-gray-500 dark:text-gray-500 uppercase tracking-wider mb-2">Billing Items</p>
+                  <p className="text-2xl font-bold text-blue-600 mt-2">{stats?.paidCount || 0}</p>
+                </div>
+                <div className="w-10 h-10 bg-blue-50 dark:bg-blue-900/20 rounded-lg flex items-center justify-center">
+                  <ClipboardCheck className="w-5 h-5 text-blue-600 dark:text-blue-400" />
                 </div>
               </div>
             </div>
@@ -371,6 +439,19 @@ export default function TenantPayments({ user }) {
             Payment Archive
             {archiveFilter === "archived" && (
               <span className="absolute bottom-0 left-0 w-full h-[3px] bg-gray-900 dark:bg-gray-400 rounded-t-full"></span>
+            )}
+          </button>
+          <button
+            onClick={() => updateScreenState('wallet', { archiveFilter: 'wallet' })}
+            className={`pb-3 px-2 text-sm font-bold transition-all relative flex items-center gap-2 ${
+              archiveFilter === "wallet"
+                ? "text-emerald-600 dark:text-emerald-400"
+                : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+            }`}
+          >
+            Wallet History
+            {archiveFilter === "wallet" && (
+              <span className="absolute bottom-0 left-0 w-full h-[3px] bg-emerald-600 dark:bg-emerald-400 rounded-t-full"></span>
             )}
           </button>
         </div>
@@ -456,123 +537,197 @@ export default function TenantPayments({ user }) {
         </div>
 
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-300 dark:border-gray-700 overflow-hidden">
-          <div className="hidden md:block overflow-x-auto no-scrollbar">
-            <table className="w-full">
-              <thead className="bg-gray-50 dark:bg-gray-700/50">
-                <tr>
-                  <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Property</th>
-                  <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Room</th>
-                  <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Amount</th>
-                  <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Date</th>
-                  <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Due Date</th>
-                  <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Status</th>
-                  <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Reference</th>
-                  <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                {Array.isArray(filteredPayments) && filteredPayments.length > 0 ? (
-                  filteredPayments.map((payment) => (
-                    <tr key={payment.id} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
-                      <td className="px-6 py-4 text-sm text-gray-700 dark:text-gray-300">{payment.propertyName}</td>
-                      <td className="px-6 py-4 text-sm text-gray-700 dark:text-gray-300">
-                        {payment.roomNumber || (payment.room && payment.room.roomNumber) || 'N/A'}
-                      </td>
-                      <td className="px-6 py-4 text-sm font-semibold text-gray-900 dark:text-white">{paymentService.formatAmount(payment.amount)}</td>
-                      <td className="px-6 py-4 text-sm text-gray-700 dark:text-gray-300">{payment.date}</td>
-                      <td className="px-6 py-4 text-sm text-gray-700 dark:text-gray-300">{payment.dueDate || '-'}</td>
-                      <td className="px-6 py-4">
-                        <span className={`px-4 py-2 inline-flex text-xs leading-5 font-semibold rounded-full whitespace-nowrap ${paymentService.getStatusColor(payment.status)}`}>
-                          {payment.status}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-700 dark:text-gray-300">{payment.referenceNo || '—'}</td>
-                      <td className="px-6 py-4 text-sm">
-                        <button
-                          onClick={() => {
-                            setSelectedPayment(payment);
-                            setShowPaymentModal(true);
-                          }}
-                          className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-xs font-bold rounded-lg transition-colors whitespace-nowrap"
-                        >
-                          View
-                        </button>
-                      </td>
-                    </tr>
-                  ))
-                ) : (
+          {archiveFilter === 'wallet' ? (
+            <div className="overflow-x-auto no-scrollbar">
+              <table className="w-full">
+                <thead className="bg-gray-50 dark:bg-gray-700/50">
                   <tr>
-                    <td colSpan="8" className="px-6 py-12 text-center">
-                      <div className="flex flex-col items-center justify-center">
-                        <Receipt className="w-12 h-12 text-gray-300 dark:text-gray-600 mb-2" />
-                        <h2 className="text-lg font-semibold text-gray-700 dark:text-gray-200 mb-2">No payments found</h2>
-                        <p className="text-gray-500 dark:text-gray-400 text-sm max-w-md mx-auto">
-                          Your payment history will appear here once invoices are generated and processed.
-                        </p>
-                      </div>
-                    </td>
+                    <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Date</th>
+                    <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Property</th>
+                    <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Description</th>
+                    <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Type</th>
+                    <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Amount</th>
+                    <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Status</th>
                   </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-
-          <div className="md:hidden divide-y divide-gray-200 dark:divide-gray-700">
-            {(() => {
-              if (!Array.isArray(filteredPayments) || filteredPayments.length === 0) {
-                return (
-                  <div className="px-4 py-12 text-center text-gray-500 dark:text-gray-400">
-                    No payments found
-                  </div>
-                );
-              }
-              return filteredPayments.map((payment) => (
-                <div key={payment.id} className="p-4 space-y-4">
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-gray-900 dark:text-white text-sm leading-tight truncate">
-                        {payment.propertyName}
-                      </p>
-                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                        Room {payment.roomNumber || (payment.room && payment.room.roomNumber) || 'N/A'}
-                      </p>
-                    </div>
-                    <span className={`flex-shrink-0 px-2.5 py-0.5 rounded-full text-xs font-medium whitespace-nowrap ${paymentService.getStatusColor(payment.status)}`}>
-                      {payment.status}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-[11px] text-gray-500 dark:text-gray-500 uppercase font-bold">Amount</p>
-                      <p className="text-base font-bold text-gray-900 dark:text-white">{paymentService.formatAmount(payment.amount)}</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-[11px] text-gray-500 dark:text-gray-500 uppercase font-bold">Date</p>
-                      <p className="text-sm text-gray-700 dark:text-gray-300">{payment.date}</p>
-                    </div>
-                    {payment.dueDate && (
-                      <div className="text-right">
-                        <p className="text-[11px] text-gray-500 dark:text-gray-500 uppercase font-bold">Due</p>
-                        <p className="text-sm text-gray-700 dark:text-gray-300">{payment.dueDate}</p>
-                      </div>
-                    )}
-                  </div>
-                  {payment.referenceNo && (
-                    <p className="text-xs text-gray-500 dark:text-gray-500">Ref: {payment.referenceNo}</p>
+                </thead>
+                <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                  {walletLogsLoading ? (
+                    [...Array(5)].map((_, i) => <SkeletonTableRow key={i} columns={6} />)
+                  ) : walletLogs.length > 0 ? (
+                    walletLogs.map((log) => (
+                      <tr key={log.id} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                        <td className="px-6 py-4 text-sm text-gray-700 dark:text-gray-300">
+                          {new Date(log.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                        </td>
+                        <td className="px-6 py-4 text-sm text-gray-700 dark:text-gray-300">{log.property?.title || 'System'}</td>
+                        <td className="px-6 py-4 text-sm text-gray-700 dark:text-gray-300">{log.description || 'No description'}</td>
+                        <td className="px-6 py-4">
+                          <span className={`px-2.5 py-1 text-[10px] font-bold uppercase rounded-md ${
+                            log.type === 'credit' ? 'bg-emerald-100 text-emerald-700' : 
+                            log.type === 'debit' ? 'bg-amber-100 text-amber-700' : 
+                            'bg-blue-100 text-blue-700'
+                          }`}>
+                            {log.type}
+                          </span>
+                        </td>
+                        <td className={`px-6 py-4 text-sm font-bold ${log.type === 'debit' ? 'text-amber-600' : 'text-emerald-600'}`}>
+                          {log.type === 'debit' ? '-' : '+'}{paymentService.formatAmount(log.amount_cents / 100)}
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className="px-2 py-1 text-xs font-medium text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 rounded-full capitalize">
+                            {log.status || 'Completed'}
+                          </span>
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan="6" className="px-6 py-12 text-center text-gray-500">No wallet transactions found.</td>
+                    </tr>
                   )}
-                  <button
-                    onClick={() => {
-                      setSelectedPayment(payment);
-                      setShowPaymentModal(true);
-                    }}
-                    className="w-full py-2.5 bg-green-600 text-white text-sm font-bold rounded-xl hover:bg-green-700 transition-colors mt-2"
+                </tbody>
+              </table>
+              {walletLogsPagination && walletLogsPagination.last_page > 1 && (
+                <div className="flex justify-center p-4 gap-2">
+                  <button 
+                    disabled={walletLogsPagination.current_page === 1}
+                    onClick={() => fetchLogs(walletLogsPagination.current_page - 1)}
+                    className="px-3 py-1 bg-gray-100 dark:bg-gray-700 rounded disabled:opacity-50"
                   >
-                    View Details
+                    Prev
+                  </button>
+                  <span className="px-3 py-1 text-sm text-gray-500">Page {walletLogsPagination.current_page} of {walletLogsPagination.last_page}</span>
+                  <button 
+                    disabled={walletLogsPagination.current_page === walletLogsPagination.last_page}
+                    onClick={() => fetchLogs(walletLogsPagination.current_page + 1)}
+                    className="px-3 py-1 bg-gray-100 dark:bg-gray-700 rounded disabled:opacity-50"
+                  >
+                    Next
                   </button>
                 </div>
-              ));
-            })()}
-          </div>
+              )}
+            </div>
+          ) : (
+            <>
+              <div className="hidden md:block overflow-x-auto no-scrollbar">
+                <table className="w-full">
+                  <thead className="bg-gray-50 dark:bg-gray-700/50">
+                    <tr>
+                      <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Property</th>
+                      <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Room</th>
+                      <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Amount</th>
+                      <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Date</th>
+                      <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Due Date</th>
+                      <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Status</th>
+                      <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Reference</th>
+                      <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                    {Array.isArray(filteredPayments) && filteredPayments.length > 0 ? (
+                      filteredPayments.map((payment) => (
+                        <tr key={payment.id} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                          <td className="px-6 py-4 text-sm text-gray-700 dark:text-gray-300">{payment.propertyName}</td>
+                          <td className="px-6 py-4 text-sm text-gray-700 dark:text-gray-300">
+                            {payment.roomNumber || (payment.room && payment.room.roomNumber) || 'N/A'}
+                          </td>
+                          <td className="px-6 py-4 text-sm font-semibold text-gray-900 dark:text-white">{paymentService.formatAmount(payment.amount)}</td>
+                          <td className="px-6 py-4 text-sm text-gray-700 dark:text-gray-300">{payment.date}</td>
+                          <td className="px-6 py-4 text-sm text-gray-700 dark:text-gray-300">{payment.dueDate || '-'}</td>
+                          <td className="px-6 py-4">
+                            <span className={`px-4 py-2 inline-flex text-xs leading-5 font-semibold rounded-full whitespace-nowrap ${paymentService.getStatusColor(payment.status)}`}>
+                              {payment.status}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 text-sm text-gray-700 dark:text-gray-300">{payment.referenceNo || '—'}</td>
+                          <td className="px-6 py-4 text-sm">
+                            <button
+                              onClick={() => {
+                                setSelectedPayment(payment);
+                                setShowPaymentModal(true);
+                              }}
+                              className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-xs font-bold rounded-lg transition-colors whitespace-nowrap"
+                            >
+                              View
+                            </button>
+                          </td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan="8" className="px-6 py-12 text-center">
+                          <div className="flex flex-col items-center justify-center">
+                            <Receipt className="w-12 h-12 text-gray-300 dark:text-gray-600 mb-2" />
+                            <h2 className="text-lg font-semibold text-gray-700 dark:text-gray-200 mb-2">No payments found</h2>
+                            <p className="text-gray-500 dark:text-gray-400 text-sm max-w-md mx-auto">
+                              Your payment history will appear here once invoices are generated and processed.
+                            </p>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="md:hidden divide-y divide-gray-200 dark:divide-gray-700">
+                {(() => {
+                  if (!Array.isArray(filteredPayments) || filteredPayments.length === 0) {
+                    return (
+                      <div className="px-4 py-12 text-center text-gray-500 dark:text-gray-400">
+                        No payments found
+                      </div>
+                    );
+                  }
+                  return filteredPayments.map((payment) => (
+                    <div key={payment.id} className="p-4 space-y-4">
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex-1 min-w-0">
+                          <p className="font-semibold text-gray-900 dark:text-white text-sm leading-tight truncate">
+                            {payment.propertyName}
+                          </p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                            Room {payment.roomNumber || (payment.room && payment.room.roomNumber) || 'N/A'}
+                          </p>
+                        </div>
+                        <span className={`flex-shrink-0 px-2.5 py-0.5 rounded-full text-xs font-medium whitespace-nowrap ${paymentService.getStatusColor(payment.status)}`}>
+                          {payment.status}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-[11px] text-gray-500 dark:text-gray-500 uppercase font-bold">Amount</p>
+                          <p className="text-base font-bold text-gray-900 dark:text-white">{paymentService.formatAmount(payment.amount)}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-[11px] text-gray-500 dark:text-gray-500 uppercase font-bold">Date</p>
+                          <p className="text-sm text-gray-700 dark:text-gray-300">{payment.date}</p>
+                        </div>
+                        {payment.dueDate && (
+                          <div className="text-right">
+                            <p className="text-[11px] text-gray-500 dark:text-gray-500 uppercase font-bold">Due</p>
+                            <p className="text-sm text-gray-700 dark:text-gray-300">{payment.dueDate}</p>
+                          </div>
+                        )}
+                      </div>
+                      {payment.referenceNo && (
+                        <p className="text-xs text-gray-500 dark:text-gray-500">Ref: {payment.referenceNo}</p>
+                      )}
+                      <button
+                        onClick={() => {
+                          setSelectedPayment(payment);
+                          setShowPaymentModal(true);
+                        }}
+                        className="w-full py-2.5 bg-green-600 text-white text-sm font-bold rounded-xl hover:bg-green-700 transition-colors mt-2"
+                      >
+                        View Details
+                      </button>
+                    </div>
+                  ));
+                })()}
+              </div>
+            </>
+          )}
         </div>
 
         {/* Payment Details Modal */}
@@ -585,18 +740,29 @@ export default function TenantPayments({ user }) {
                     Payment Details
                   </h3>
                   <p className="text-xs font-bold text-gray-500 dark:text-gray-400 mt-2">
-                    {selectedPayment.propertyName}
+                      {selectedPayment.propertyName}
                   </p>
                 </div>
-                <button
-                  onClick={() => {
+                <div className="flex items-center gap-2">
+                  {['paid', 'partially_refunded'].includes(selectedPayment.status?.toLowerCase()) && (
+                    <button
+                      onClick={() => handlePrintReceipt(selectedPayment)}
+                      className="p-2.5 bg-brand-50 hover:bg-brand-100 text-brand-600 dark:bg-brand-900/20 dark:hover:bg-brand-900/40 dark:text-brand-400 rounded-lg transition-colors border border-brand-100 dark:border-brand-800"
+                      title="Print Official Receipt"
+                    >
+                      <FileText className="w-5 h-5" />
+                    </button>
+                  )}
+                  <button
+                    onClick={() => {
                     setShowPaymentModal(false);
                     setSelectedPayment(null);
                   }}
                   className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors"
                 >
                   <X className="w-5 h-5 text-gray-500" />
-                </button>
+                  </button>
+                </div>
               </div>
 
               <div className="p-6 space-y-6">

@@ -16,11 +16,12 @@ const DEFAULT_TOGGLES = systemToggleService.getDefaults();
 // ═════════════════════════════════════════════════════════════════════════════
 // MAIN COMPONENT
 // ═════════════════════════════════════════════════════════════════════════════
-const TenantDashboard = () => {
+const TenantDashboard = ({ user }) => {
   const navigate = useNavigate();
-  const { uiState, updateData } = useUIState();
+  const { uiState, updateData, updateScreenState } = useUIState();
 
   const cachedData = uiState.data.dashboard;
+  const walletBalance = uiState.wallet.balance || 0;
   const [loading, setLoading] = useState(!cachedData);
   const [stayData, setStayData] = useState(cachedData?.stayData || null);
   const [stats, setStats] = useState(cachedData?.stats || null);
@@ -62,12 +63,16 @@ const TenantDashboard = () => {
         activities: activityRes.activities,
         upcomingSchedule: breakdownData
       });
+
+      // Sync global wallet balance
+      const newWalletBalance = Number(dashboardStats?.payments?.walletBalance || 0);
+      updateScreenState('wallet', { balance: newWalletBalance });
     } catch (error) {
       console.error('Failed to load dashboard data', error);
     } finally {
       setLoading(false);
     }
-  }, [updateData]);
+  }, [updateData, updateScreenState]);
 
   useEffect(() => { fetchDashboardData(); }, [fetchDashboardData]);
 
@@ -99,6 +104,27 @@ const TenantDashboard = () => {
       clearInterval(interval);
     };
   }, [fetchDashboardData]);
+
+  // ── Real-time Listeners (Pusher/Echo) ──
+  useEffect(() => {
+    if (!user?.id || !window.Echo) return;
+
+    const channel = window.Echo.private(`tenant.${user.id}`);
+    
+    channel.listen('InvoiceUpdated', (e) => {
+      console.log('[Dashboard] Invoice updated event received:', e);
+      fetchDashboardData();
+    });
+
+    channel.listen('PaymentVerified', (e) => {
+      console.log('[Dashboard] Payment verified event received:', e);
+      fetchDashboardData();
+    });
+
+    return () => {
+      window.Echo.leave(`tenant.${user.id}`);
+    };
+  }, [user?.id, fetchDashboardData]);
 
   // ── Helpers ──
   const formatCurrency = (amount) =>
@@ -227,8 +253,8 @@ const TenantDashboard = () => {
   if (loading) {
     return (
       <div className="space-y-6 font-sans">
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          {[...Array(4)].map((_, i) => <SkeletonStatCard key={i} />)}
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+          {[...Array(5)].map((_, i) => <SkeletonStatCard key={i} />)}
         </div>
         <SkeletonCurrentStay />
       </div>
@@ -292,7 +318,10 @@ const TenantDashboard = () => {
       key: 'days', icon: Calendar, value: totalDaysStayed.toString(), label: 'Days Stayed', color: 'blue',
     },
     {
-      key: 'rent', icon: Wallet, value: formatCurrency(totalMonthlySummary), label: 'Monthly Rent', color: 'purple',
+      key: 'rent', icon: Zap, value: formatCurrency(totalMonthlySummary), label: 'Monthly Base', color: 'purple',
+    },
+    {
+      key: 'wallet', icon: Wallet, value: formatCurrency(walletBalance), label: 'Wallet Credits', color: 'emerald',
     },
     {
       key: 'status',
@@ -318,6 +347,11 @@ const TenantDashboard = () => {
       iconBg: 'bg-purple-100 dark:bg-purple-500/12',
       iconText: 'text-purple-600 dark:text-purple-400',
       border: 'bg-purple-400',
+    },
+    emerald: {
+      iconBg: 'bg-emerald-100 dark:bg-emerald-500/15',
+      iconText: 'text-emerald-600 dark:text-emerald-400',
+      border: 'bg-emerald-500',
     },
     red: {
       iconBg: 'bg-red-100 dark:bg-red-500/15 border border-red-200 dark:border-red-500/50',
@@ -502,7 +536,7 @@ const TenantDashboard = () => {
       )}
 
       {/* ── Stat Cards Grid (Read Only) ── */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mt-[-10px]">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 mt-[-10px]">
         {statCards.map((card) => {
           const cm = colorMap[card.color];
           const isClickable = true;

@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Key, Loader2, RefreshCcw, Search, ShieldAlert } from 'lucide-react';
-import toast from 'react-hot-toast';
+import { showSuccess, showError } from '../../utils/toast';
 import adminService from '../../services/adminService';
 
 const extractUsers = (response) => {
@@ -94,7 +94,7 @@ export default function PaymongoBypassManagement() {
         setSelectedLandlordId(String(landlordsOnly[0].id));
       }
     } catch (error) {
-      toast.error(error?.response?.data?.message || error?.message || 'Failed to load landlords.');
+      showError(error?.response?.data?.message || error?.message || 'Failed to load landlords.');
     } finally {
       setLoading(false);
     }
@@ -106,7 +106,7 @@ export default function PaymongoBypassManagement() {
 
   const handleEnableBypass = async () => {
     if (!selectedLandlordId) {
-      toast.error('Please select a landlord first.');
+      showError('Please select a landlord first.');
       return;
     }
 
@@ -128,10 +128,10 @@ export default function PaymongoBypassManagement() {
         throw new Error(response.error || response.message || 'Failed to enable bypass');
       }
 
-      toast.success(response.message || 'PayMongo verification bypass enabled successfully.');
+      showSuccess(response.message || 'PayMongo verification bypass enabled successfully.');
       await fetchLandlords();
     } catch (error) {
-      toast.error(error?.message || 'Failed to enable bypass.');
+      showError(error?.message || 'Failed to enable bypass.');
     } finally {
       setActionLoading(false);
     }
@@ -139,7 +139,7 @@ export default function PaymongoBypassManagement() {
 
   const handleDisableBypass = async () => {
     if (!selectedLandlordId) {
-      toast.error('Please select a landlord first.');
+      showError('Please select a landlord first.');
       return;
     }
 
@@ -160,10 +160,10 @@ export default function PaymongoBypassManagement() {
         throw new Error(response.error || response.message || 'Failed to disable bypass');
       }
 
-      toast.success(response.message || 'PayMongo verification bypass disabled successfully.');
+      showSuccess(response.message || 'PayMongo verification bypass disabled successfully.');
       await fetchLandlords();
     } catch (error) {
-      toast.error(error?.message || 'Failed to disable bypass.');
+      showError(error?.message || 'Failed to disable bypass.');
     } finally {
       setActionLoading(false);
     }
@@ -190,10 +190,10 @@ export default function PaymongoBypassManagement() {
         throw new Error(response.error || response.message || `Failed to ${action} bypass`);
       }
 
-      toast.success(`PayMongo bypass ${action}d successfully.`);
+      showSuccess(`PayMongo bypass ${action}d successfully.`);
       await fetchLandlords();
     } catch (error) {
-      toast.error(error?.message || `Failed to ${action} bypass.`);
+      showError(error?.message || `Failed to ${action} bypass.`);
     } finally {
       setActionLoading(false);
     }

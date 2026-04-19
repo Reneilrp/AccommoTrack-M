@@ -5,9 +5,7 @@ import {
   TextInput, 
   TouchableOpacity, 
   StatusBar, 
-  Alert, 
   ActivityIndicator, 
-  StyleSheet,
   ScrollView 
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -16,13 +14,13 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getStyles } from '../../../../styles/Tenant/ProfilePage.js';
 import { API_BASE_URL as API_URL } from '../../../../config/index.js';
 import { useTheme } from '../../../../contexts/ThemeContext.jsx';
+import { showError, showSuccess, showWarning } from '../../../../utils/toast.js';
 import Header from '../../components/Header.jsx';
 
 export default function UpdatePasswordPage() {
   const navigation = useNavigation();
   const { theme } = useTheme();
   const styles = React.useMemo(() => getStyles(theme), [theme]);
-  const showAlert = Alert.alert;
 
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -60,7 +58,7 @@ export default function UpdatePasswordPage() {
           'Accept': 'application/json'
         };
       }
-    } catch (e) {}
+    } catch (_e) {}
     const fallback = await AsyncStorage.getItem('token');
     return {
       'Authorization': `Bearer ${fallback}`,
@@ -70,15 +68,15 @@ export default function UpdatePasswordPage() {
 
   const validate = () => {
     if (!currentPassword) {
-      showAlert('Validation', 'Current password is required');
+      showWarning('Validation', 'Current password is required');
       return false;
     }
     if (!passwordChecks.minLen || !passwordChecks.hasUpper || !passwordChecks.numCount || !passwordChecks.hasSpecial) {
-      showAlert('Validation', 'New password does not meet requirements');
+      showWarning('Validation', 'New password does not meet requirements');
       return false;
     }
     if (newPassword !== confirmPassword) {
-      showAlert('Validation', 'New password and confirmation do not match');
+      showWarning('Validation', 'New password and confirmation do not match');
       return false;
     }
     return true;
@@ -110,15 +108,14 @@ export default function UpdatePasswordPage() {
       const data = await response.json().catch(() => ({}));
 
       if (response.ok) {
-        showAlert('Success', 'Password updated successfully', [
-          { text: 'OK', onPress: () => navigation.goBack() }
-        ]);
+        showSuccess('Success', 'Password updated successfully');
+        navigation.goBack();
       } else {
-        showAlert('Error', data.message || 'Failed to change password');
+        showError('Error', data.message || 'Failed to change password');
       }
-    } catch (error) {
-      console.error('Change password error:', error);
-      showAlert('Error', 'Network error while changing password');
+    } catch (_error) {
+      console.error('Change password error:', _error);
+      showError('Error', 'Network error while changing password');
     } finally {
       setSaving(false);
     }
@@ -240,27 +237,4 @@ export default function UpdatePasswordPage() {
   );
 }
 
-const localStyles = StyleSheet.create({
-    formContainer: {
-        padding: 16,
-    },
-    eyeBtn: {
-        padding: 8,
-    },
-    saveButton: {
-        marginTop: 24,
-        paddingVertical: 14,
-        borderRadius: 12,
-        alignItems: 'center',
-        justifyContent: 'center',
-        elevation: 2,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-    },
-    saveButtonText: {
-        fontSize: 16,
-        fontWeight: '700',
-    }
-});
+

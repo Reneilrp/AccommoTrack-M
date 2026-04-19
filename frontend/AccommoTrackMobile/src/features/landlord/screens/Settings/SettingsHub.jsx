@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  Alert,
   ActivityIndicator,
   Modal,
   Pressable,
@@ -181,6 +180,7 @@ export default function SettingsScreen({ navigation, onLogout }) {
     downloadUrl,
     refetch: refetchVersion,
     otaUpdateId,
+    // eslint-disable-next-line no-unused-vars
     otaCreatedAt
   } = useAppVersion();
 
@@ -759,6 +759,9 @@ export default function SettingsScreen({ navigation, onLogout }) {
     downloadUrl,
     otaUpdateId,
     currentVersion,
+    downloadProgress,
+    downloadingUpdate,
+    navigation,
   ]);
 
   const initials = () => {

@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { ArrowLeft, CheckCircle2, Loader2, RefreshCw, Calendar } from 'lucide-react';
-import toast from 'react-hot-toast';
+import { showSuccess, showError } from '../../utils/toast';
 import api from '../../utils/api';
 
 function formatDate(value) {
@@ -139,7 +139,7 @@ export default function TransferRequests() {
       });
     } catch (_err) {
       updateTransferForm(transferId, { loadingProration: false, prorationDetails: null });
-      toast.error('Failed to calculate rent proration details');
+      showError('Failed to calculate rent proration details');
     }
   };
 
@@ -177,7 +177,7 @@ export default function TransferRequests() {
       initialRequestIdRef.current = null;
     } catch (err) {
       console.error('Failed to load transfer requests', err);
-      toast.error(err?.response?.data?.message || 'Failed to load transfer requests');
+      showError(err?.response?.data?.message || 'Failed to load transfer requests');
     } finally {
       setLoading(false);
     }
@@ -210,12 +210,12 @@ export default function TransferRequests() {
       const transferRequest = requests.find(item => Number(item.id) === Number(transferId)) || null;
 
       if (action === 'approve' && damageCharge > 0 && !String(form.damage_description || '').trim()) {
-        toast.error('Damage description is required when damage charge is set.');
+        showError('Damage description is required when damage charge is set.');
         return;
       }
 
       if (action === 'reject' && !landlordNotes) {
-        toast.error('Please provide a reason before rejecting this request.');
+        showError('Please provide a reason before rejecting this request.');
         return;
       }
 
@@ -238,7 +238,7 @@ export default function TransferRequests() {
             const requestedDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
 
             if (requestedDays < minimumStayDays) {
-              toast.error(`This requested room needs at least ${minimumStayDays} days.`);
+              showError(`This requested room needs at least ${minimumStayDays} days.`);
               return;
             }
           }
@@ -258,7 +258,7 @@ export default function TransferRequests() {
 
       await api.patch(`/landlord/transfers/${transferId}/handle`, payload);
 
-      toast.success(`Transfer request ${action}d successfully`);
+      showSuccess(`Transfer request ${action}d successfully`);
 
       setRequests(prev => prev.map(item => (
         item.id === transferId
@@ -275,7 +275,7 @@ export default function TransferRequests() {
     } catch (err) {
       console.error(`Failed to ${action} transfer request`, err);
       const errorMessage = err?.response?.data?.error || err?.response?.data?.message || `Failed to ${action} transfer request`;
-      toast.error(errorMessage);
+      showError(errorMessage);
     } finally {
       setHandlingAction('');
     }
@@ -587,7 +587,7 @@ export default function TransferRequests() {
                                     const val = e.target.value;
                                     const max = getTransferForm(selectedRequest.id).prorationDetails?.quoted_transfer_fee || 0;
                                     if (Number(val) > max) {
-                                      toast.error(`You cannot charge more than the quoted fee of ₱${max}`);
+                                      showError(`You cannot charge more than the quoted fee of ₱${max}`);
                                       return;
                                     }
                                     updateTransferForm(selectedRequest.id, { transfer_fee: val });

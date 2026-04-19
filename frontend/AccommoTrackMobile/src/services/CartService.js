@@ -5,9 +5,11 @@ class CartService {
    * Get or create active cart for authenticated user
    * GET /api/cart
    */
-  async getCart() {
+  async getCart(propertyId = null) {
     try {
-      const response = await api.get('/cart');
+      const response = await api.get('/cart', {
+        params: propertyId ? { property_id: propertyId } : {},
+      });
       return {
         success: true,
         data: response.data?.data || response.data,

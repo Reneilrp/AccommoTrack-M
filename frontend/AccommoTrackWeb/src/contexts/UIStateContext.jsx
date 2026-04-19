@@ -22,7 +22,8 @@ const INITIAL_STATE = {
   wallet: {
     searchQuery: "",
     statusFilter: "all",
-    timeRange: "1m"
+    timeRange: "1m",
+    balance: 0
   },
   messages: {
     searchQuery: "",

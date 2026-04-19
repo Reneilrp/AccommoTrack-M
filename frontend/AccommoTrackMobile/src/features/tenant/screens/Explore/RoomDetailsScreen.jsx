@@ -34,7 +34,7 @@ import PropertyService from '../../../../services/PropertyService.js';
 import PaymentService from '../../../../services/PaymentService.js';
 import { BASE_URL as API_BASE_URL } from '../../../../config/index.js';
 import SystemToggleService from '../../../../services/SystemToggleService.js';
-import { showError } from '../../../../utils/toast.js';
+import { showError, showSuccess, showWarning } from '../../../../utils/toast.js';
 import { useTheme } from '../../../../contexts/ThemeContext.jsx';
 import {
   tenantQueryKeys,
@@ -63,7 +63,6 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
   const navigation = useNavigation();
   const { width: viewportWidth } = useWindowDimensions();
   const { theme } = useTheme();
-  const showAlert = Alert.alert;
   const styles = React.useMemo(() => getStyles(theme, viewportWidth), [theme, viewportWidth]);
   const { room, property } = route.params;
 
@@ -443,6 +442,21 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
     return 1;
   }, [roomPricingModel, bookingMode, proxyOccupants.length]);
 
+  const isLimitReached = React.useMemo(() => {
+    if (!propertyData || !propertyData.tenant_usage) return false;
+    const usage = propertyData.tenant_usage;
+    if (bookingMode === "normal") {
+      return (
+        propertyData.normal_booking_limit > 0 &&
+        usage.normal >= propertyData.normal_booking_limit
+      );
+    }
+    return (
+      propertyData.proxy_booking_limit > 0 &&
+      usage.proxy >= propertyData.proxy_booking_limit
+    );
+  }, [propertyData, bookingMode]);
+
   const roomPricingQuery = useQuery({
     queryKey: tenantQueryKeys.exploreRoomPricing({
       roomId: activeRoomId,
@@ -629,7 +643,7 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
     if (selectedDate) {
       // Ensure selected start date is within allowed range
       if (!isStartWithinAllowedRange(selectedDate)) {
-        showAlert(
+        showWarning(
           `Invalid ${isDailyContract ? 'Check-in' : 'Move-in'}`,
           `${isDailyContract ? 'Check-in' : 'Move-in'} must be within the next 3 months.`
         );
@@ -659,7 +673,7 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
     if (selectedDate) {
       // Ensure end date is after start date
       if (bookingData.start_date && selectedDate <= bookingData.start_date) {
-        showAlert('Invalid Date', `${isDailyContract ? 'Check-out' : 'Move-out'} date must be after ${isDailyContract ? 'check-in' : 'move-in'} date.`);
+        showWarning('Invalid Date', `${isDailyContract ? 'Check-out' : 'Move-out'} date must be after ${isDailyContract ? 'check-in' : 'move-in'} date.`);
         return;
       }
       setBookingData(prev => ({ ...prev, end_date: selectedDate }));
@@ -670,13 +684,13 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
   const handleBook = (forCart = false) => {
     setIsCartMode(forCart);
     if (activeRoom.status !== 'available') {
-      showAlert('Unavailable', 'This room is not available for booking.');
+      showError('Unavailable', 'This room is not available for booking.');
       return;
     }
 
     // If guest user, trigger auth requirement
     if (isGuest) {
-      showAlert(
+      Alert.alert(
         'Sign In Required',
         'You need to sign in to book a room. Create an account or log in to continue.',
         [
@@ -916,7 +930,7 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
             }
           } catch (err) {
             console.error('DocumentPicker Error:', err);
-            Alert.alert('Error', 'Could not open file manager.');
+            showError('Error', 'Could not open file manager.');
           }
         }
       },
@@ -1011,7 +1025,6 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
       if (isCartMode) {
         let occupantsPayload = undefined;
         if (bookingMode === 'proxy') {
-          const inferredBedCount = Math.max(1, normalizedOccupants.length);
           occupantsPayload = normalizedOccupants.map((o, index) => ({
             first_name: o.first_name,
             middle_name: o.middle_name || null,
@@ -1041,13 +1054,13 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
         const result = await CartService.addToCart(payload);
         if (result.success) {
           DeviceEventEmitter.emit('accommo:cart-updated');
-          showAlert(
-            'Added to Cart',
-            'Room added to your cart successfully!',
+          showSuccess(
+            'Added to Book',
+            'Room added to your book successfully!',
             [
               { text: 'Continue Exploring', onPress: () => setBookingModalVisible(false) },
               {
-                text: 'Go to Cart',
+                text: 'Go to Book',
                 onPress: () => {
                   setBookingModalVisible(false);
                   navigateToCart();
@@ -1120,7 +1133,7 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
             if (payRes.success && payRes.data.checkout_url) {
               await Linking.openURL(payRes.data.checkout_url);
             } else {
-              showAlert('Booking Created', 'Your booking was created, but we could not generate a payment link. Please pay from your payments dashboard.');
+              showWarning('Booking Created', 'Your booking was created, but we could not generate a payment link. Please pay from your payments dashboard.');
             }
           }
         } else if (bookingData.payment_method === 'cash') {
@@ -1130,19 +1143,12 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
           }
         }
 
-        showAlert(
+        showSuccess(
           'Success',
-          `Booking submitted successfully! Reference: ${bookingObj?.booking_reference || 'N/A'}`,
-          [
-            {
-              text: 'OK',
-              onPress: () => {
-                setBookingModalVisible(false);
-                navigation.goBack();
-              }
-            }
-          ]
+          `Booking submitted successfully! Reference: ${bookingObj?.booking_reference || 'N/A'}`
         );
+        setBookingModalVisible(false);
+        navigation.goBack();
       } else {
         // Handle errors with enhanced messages for booking limits
         if (result.error && (
@@ -1196,7 +1202,7 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
   // AUTH GATE: Contact landlord also requires auth
   const handleContactLandlord = async () => {
     if (isGuest) {
-      showAlert(
+      Alert.alert(
         'Sign In Required',
         'You need to sign in to contact the landlord.',
         [
@@ -1250,27 +1256,9 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
         console.error('LANDLORD ID NOT FOUND!');
         console.error('Available property data:', Object.keys(property));
 
-        showAlert(
-          'Debug Info',
-          `Property ID: ${property.id}\n\nAvailable fields: ${Object.keys(property).join(', ')}\n\nPlease screenshot this and check the backend response.`,
-          [
-            {
-              text: 'OK',
-              onPress: () => {
-                // Show more detailed error
-                showAlert(
-                  'Error',
-                  'Landlord information not available. This might be an older property listing. Please try viewing the property again from the home page.',
-                  [
-                    {
-                      text: 'Go Back',
-                      onPress: () => navigation.goBack()
-                    }
-                  ]
-                );
-              }
-            }
-          ]
+        showError(
+          'Error',
+          'Landlord information not available. This might be an older property listing. Please try viewing the property again from the home page.'
         );
         return;
       }
@@ -1303,7 +1291,7 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
     } catch (error) {
       console.error('Error navigating to messages:', error);
       console.error('Error stack:', error.stack);
-      showAlert('Error', `Failed to open messages: ${error.message}\n\nPlease try again.`);
+      showError('Error', `Failed to open messages: ${error.message}\n\nPlease try again.`);
     }
   };
 
@@ -1399,6 +1387,39 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
             <Text style={styles.priceLabel}>/month</Text>
           </View>
 
+          {/* Tenancy Reminder */}
+          {(activeRoom.is_tenant || activeRoom.reserved_by_me) && (
+            <View style={{
+              backgroundColor: activeRoom.is_tenant ? '#eff6ff' : '#fffbeb',
+              padding: 12,
+              borderRadius: 12,
+              marginBottom: 16,
+              borderWidth: 1,
+              borderColor: activeRoom.is_tenant ? '#bfdbfe' : '#fef3c7',
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 12
+            }}>
+              <Ionicons 
+                name={activeRoom.is_tenant ? "information-circle" : "time"} 
+                size={22} 
+                color={activeRoom.is_tenant ? "#1d4ed8" : "#92400e"} 
+              />
+              <Text style={{
+                flex: 1,
+                fontSize: 13,
+                lineHeight: 18,
+                fontWeight: '600',
+                color: activeRoom.is_tenant ? "#1d4ed8" : "#92400e"
+              }}>
+                {activeRoom.is_tenant 
+                  ? "You are already a resident of this room. You can book more beds for others using Proxy mode." 
+                  : "You have a pending reservation here. Proxy mode is available for additional beds."
+                }
+              </Text>
+            </View>
+          )}
+
           {/* Room Details Grid */}
           <View style={styles.section}>
             <View style={styles.amenitiesGrid}>
@@ -1408,7 +1429,9 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
               </View>
               <View style={styles.amenityItem}>
                 <Ionicons name="people-outline" size={18} color="#6b7280" />
-                <Text style={styles.amenityText}>Capacity: {activeRoom.capacity} {activeRoom.capacity === 1 ? 'person' : 'people'}</Text>
+                <Text style={styles.amenityText}>
+                  {activeRoom.occupied || 0} / {activeRoom.capacity} Occupied
+                </Text>
               </View>
             </View>
             {activeRoom.capacity && parseInt(activeRoom.capacity, 10) > 1 && (
@@ -1474,7 +1497,7 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
                 onPress={() => handleBook(false)}
               >
                 <Text style={styles.bookButtonText}>
-                  {isGuest ? 'Sign In to Book' : 'Book This Room'}
+                  {isGuest ? 'Sign In to Book' : 'Book Now'}
                 </Text>
               </TouchableOpacity>
 
@@ -1522,7 +1545,7 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
               showsVerticalScrollIndicator={false}
               contentContainerStyle={styles.modalScrollContent}
             >
-              <Text style={styles.modalTitle}>{isCartMode ? 'Add Room' : 'Book Room'} {activeRoom.room_number}</Text>
+              <Text style={styles.modalTitle}>{isCartMode ? 'Add to Book' : 'Book Now'} {activeRoom.room_number}</Text>
               
               {!isDailyContract && (
                 <View style={{ backgroundColor: theme.colors.primary + '15', padding: 8, borderRadius: 8, marginBottom: 12 }}>
@@ -1542,6 +1565,37 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
                       </Text>
                     </View>
                   )}
+                </View>
+              )}
+
+              {isLimitReached && (
+                <View
+                  style={{
+                    backgroundColor: "#FEF2F2",
+                    padding: 12,
+                    borderRadius: 8,
+                    marginBottom: 12,
+                    borderWidth: 1,
+                    borderColor: "#FEE2E2",
+                    flexDirection: "row",
+                    alignItems: "center",
+                    gap: 10,
+                  }}
+                >
+                  <Ionicons name="alert-circle" size={20} color="#EF4444" />
+                  <View style={{ flex: 1 }}>
+                    <Text
+                      style={{ fontSize: 13, fontWeight: "bold", color: "#B91C1C" }}
+                    >
+                      {bookingMode === "normal" ? "Standard" : "Proxy"} Limit
+                      Reached
+                    </Text>
+                    <Text style={{ fontSize: 12, color: "#DC2626", marginTop: 2 }}>
+                      You have reached the maximum allowed{" "}
+                      {bookingMode === "normal" ? "standard" : "proxy"} bookings
+                      for this property.
+                    </Text>
+                  </View>
                 </View>
               )}
 
@@ -2113,7 +2167,7 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
                 {isSubmitting ? (
                   <ActivityIndicator color="#fff" />
                 ) : (
-                  <Text style={styles.submitButtonText}>{isCartMode ? 'Add to Book' : 'Submit Booking'}</Text>
+                  <Text style={styles.submitButtonText}>{isCartMode ? 'Add to Book' : 'Book Now'}</Text>
                 )}
               </TouchableOpacity>
 

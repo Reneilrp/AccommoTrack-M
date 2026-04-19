@@ -21,3 +21,7 @@ Route::get('/payments/tokenize/{invoiceId}', [\App\Http\Controllers\Common\Paymo
 
 // PayMongo redirect/return URL after user completes authorization (open in browser/webview)
 Route::get('/payments/return', [\App\Http\Controllers\Common\PaymongoController::class, 'handleReturn']);
+
+// Public Receipt Verification & Disputes
+Route::get('/verify-receipt/{reference}', [\App\Http\Controllers\Public\PublicReceiptController::class, 'verify'])->name('public.receipt.verify');
+Route::post('/report-dispute', [\App\Http\Controllers\Public\PublicReceiptController::class, 'report'])->name('public.receipt.report');

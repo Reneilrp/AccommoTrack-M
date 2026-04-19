@@ -200,18 +200,16 @@ export default function BillingCenterScreen({ navigation }) {
     refetchers: billingRefetchers,
   });
 
-  const invoices = billingCenterQuery.data?.invoices || [];
   const summary = billingCenterQuery.data?.summary || null;
 
-  const invoiceRows = useMemo(
-    () =>
-      invoices.map((invoice) => ({
-        ...invoice,
-        status: normalizeStatus(invoice.status),
-        totals: computeInvoiceTotals(invoice),
-      })),
-    [invoices],
-  );
+  const invoiceRows = useMemo(() => {
+    const activeInvoices = billingCenterQuery.data?.invoices || [];
+    return activeInvoices.map((invoice) => ({
+      ...invoice,
+      status: normalizeStatus(invoice.status),
+      totals: computeInvoiceTotals(invoice),
+    }));
+  }, [billingCenterQuery.data?.invoices]);
 
   const filteredInvoices = useMemo(() => {
     const term = searchTerm.trim().toLowerCase();

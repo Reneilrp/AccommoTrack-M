@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import api from '../../../utils/api';
 import { Star, Edit3, Trash2, Loader2, MessageSquare, Plus } from 'lucide-react';
-import toast from 'react-hot-toast';
+import { showSuccess, showError } from '../../../utils/toast';
 
 export default function ReviewsTab() {
   const [reviews, setReviews] = useState([]);
@@ -41,7 +41,7 @@ export default function ReviewsTab() {
 
   const handleSubmitReview = async (e) => {
     e.preventDefault();
-    if (!form.property_id) { toast.error('Please select a booking'); return; }
+    if (!form.property_id) { showError('Please select a booking'); return; }
     setSubmitting(true);
     try {
       const payload = { property_id: form.property_id, booking_id: form.booking_id, rating: form.rating, comment: form.comment };
@@ -52,16 +52,16 @@ export default function ReviewsTab() {
         res = await api.post('/tenant/reviews', payload);
       }
       if (res.data?.success !== false) {
-        toast.success(editingReview ? 'Review updated!' : 'Review submitted!');
+        showSuccess(editingReview ? 'Review updated!' : 'Review submitted!');
         setShowForm(false);
         setEditingReview(null);
         setForm({ property_id: '', booking_id: '', rating: 5, comment: '' });
         await fetchReviews();
       } else {
-        toast.error(res.data?.message || 'Failed to submit review');
+        showError(res.data?.message || 'Failed to submit review');
       }
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to submit review');
+      showError(err.response?.data?.message || 'Failed to submit review');
     } finally {
       setSubmitting(false);
     }
@@ -83,10 +83,10 @@ export default function ReviewsTab() {
     setDeletingId(id);
     try {
       await api.delete(`/tenant/reviews/${id}`);
-      toast.success('Review deleted');
+      showSuccess('Review deleted');
       await fetchReviews();
     } catch {
-      toast.error('Failed to delete review');
+      showError('Failed to delete review');
     } finally {
       setDeletingId(null);
     }

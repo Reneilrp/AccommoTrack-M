@@ -72,7 +72,6 @@ const resolvePropertyLabel = (request) => {
 export default function TransferRequests({ hideHeader = false, historyOnly = false }) {
   const navigation = useNavigation();
   const { theme } = useTheme();
-  const showAlert = Alert.alert;
   const [refreshing, setRefreshing] = useState(false);
   const [cancellingId, setCancellingId] = useState(null);
 
@@ -116,7 +115,7 @@ export default function TransferRequests({ hideHeader = false, historyOnly = fal
       return;
     }
 
-    showAlert('Cancel Transfer Request', 'Are you sure you want to cancel this pending transfer request?', [
+    Alert.alert('Cancel Transfer Request', 'Are you sure you want to cancel this pending transfer request?', [
       { text: 'No', style: 'cancel' },
       {
         text: 'Yes, Cancel',
@@ -131,7 +130,7 @@ export default function TransferRequests({ hideHeader = false, historyOnly = fal
             } else {
               showError('Error', result?.error || 'Failed to cancel transfer request.');
             }
-          } catch (error) {
+          } catch (_error) {
             showError('Error', 'Failed to cancel transfer request.');
           } finally {
             setCancellingId(null);

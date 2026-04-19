@@ -20,6 +20,7 @@ import DateTimePicker from "@react-native-community/datetimepicker";
 import * as ImagePicker from 'expo-image-picker';
 import { getStyles } from '../../../../../styles/Landlord/MyProfile.js';
 import ProfileService from '../../../../../services/ProfileService.js';
+import { showError, showSuccess, showWarning } from '../../../../../utils/toast.js';
 import { BASE_URL } from '../../../../../config/index.js';
 import { useTheme } from '../../../../../contexts/ThemeContext.jsx';
 import {
@@ -33,7 +34,6 @@ import { hasAnyValidationError, normalizeNameInput, validateProfileNameField } f
 export default function MyProfileScreen({ navigation }) {
   const { theme } = useTheme();
   const styles = useMemo(() => getStyles(theme), [theme]);
-  const showAlert = Alert.alert;
   const [user, setUser] = useState(null);
   const [saving, setSaving] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -80,7 +80,7 @@ export default function MyProfileScreen({ navigation }) {
   useEffect(() => {
     if (!fetchError) return;
     console.error('Error fetching profile:', fetchError);
-    showAlert('Error', fetchError);
+    showError('Error', fetchError);
   }, [fetchError]);
 
   const calculateAge = (dob) => {
@@ -105,7 +105,7 @@ export default function MyProfileScreen({ navigation }) {
     if (event.type === "set" || Platform.OS === "ios") {
       const age = calculateAge(currentDate);
       if (age < 21) {
-        showAlert("Age Restriction", "You must be at least 21 years old.");
+        showWarning("Age Restriction", "You must be at least 21 years old.");
         return;
       }
 
@@ -122,7 +122,7 @@ export default function MyProfileScreen({ navigation }) {
     const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
 
     if (!permissionResult.granted) {
-      showAlert('Permission Required', 'Please allow access to your photo library to upload a profile picture.');
+      showWarning('Permission Required', 'Please allow access to your photo library to upload a profile picture.');
       return;
     }
 
@@ -160,7 +160,7 @@ export default function MyProfileScreen({ navigation }) {
     setNameErrors(nextNameErrors);
 
     if (hasAnyValidationError(nextNameErrors)) {
-      showAlert('Validation Error', 'Please fix the name fields before saving.');
+      showWarning('Validation Error', 'Please fix the name fields before saving.');
       return;
     }
 
@@ -197,15 +197,16 @@ export default function MyProfileScreen({ navigation }) {
           console.error('Error persisting user update:', e);
         }
 
+        queryClient.setQueryData(landlordQueryKeys.myProfile(), updatedUser);
         setSelectedImage(null);
         setIsEditing(false);
         await refetchLandlordQueries([refetchProfile]);
-        showAlert('Success', 'Your profile has been updated!');
+        showSuccess('Success', 'Your profile has been updated!');
       } else {
-        showAlert('Error', response.error || 'Failed to update profile');
+        showError('Error', response.error || 'Failed to update profile');
       }
     } catch (_error) {
-      showAlert('Error', 'Failed to update profile');
+      showError('Error', 'Failed to update profile');
     } finally {
       setSaving(false);
     }
@@ -222,7 +223,7 @@ export default function MyProfileScreen({ navigation }) {
   // Custom back button handler
   const handleBack = () => {
     if (isEditing) {
-      showAlert(
+      Alert.alert(
         'Discard Changes?',
         'You have unsaved changes. Do you want to discard them?',
         [
@@ -415,7 +416,7 @@ export default function MyProfileScreen({ navigation }) {
             <TouchableOpacity
               onPress={() => {
                 if (!isEditing) return;
-                showAlert("Sex", "Choose your sex", [
+                Alert.alert("Sex", "Choose your sex", [
                   { text: "Male", onPress: () => setTempUser({ ...tempUser, sex: "male" }) },
                   { text: "Female", onPress: () => setTempUser({ ...tempUser, sex: "female" }) },
                   { text: "Cancel", style: "cancel" },

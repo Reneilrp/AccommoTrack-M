@@ -763,6 +763,8 @@ class TenantController extends Controller
             'transfer_fee' => 'nullable|numeric|min:0',
             'new_end_date' => 'nullable|date',
             'prorated_adjustment' => 'nullable|numeric',
+            'bed_number' => 'nullable|integer',
+            'bed_numbers' => 'nullable|string',
         ]);
 
         $tenant = $this->resolveTenantForLandlord((int) $id, (int) $context['landlord_id'], $context)
@@ -926,6 +928,8 @@ class TenantController extends Controller
                 'end_date' => $endDate,
                 'allow_past_start' => true,
                 'skip_reservation_invoice' => true,
+                'bed_number' => $validated['bed_number'] ?? null,
+                'bed_numbers' => $validated['bed_numbers'] ?? null,
                 'notes' => 'Transferred from '.($oldRoom ? $oldRoom->room_number : 'previous room').'. Reason: '.$validated['reason'],
             ], $tenant->id);
 
@@ -1134,6 +1138,8 @@ class TenantController extends Controller
                 'reason' => 'required|string|max:1000',
                 'effective_at' => 'nullable|date|after:now',
                 'grace_hours' => 'nullable|integer|min:0|max:168',
+                'send_broadcast' => 'nullable|boolean',
+                'notice_body' => 'nullable|string|max:5000',
             ]);
 
             $evictionReason = trim((string) $validated['reason']);
@@ -1144,6 +1150,9 @@ class TenantController extends Controller
             $effectiveAt = isset($validated['effective_at'])
                 ? Carbon::parse($validated['effective_at'])
                 : now()->addHours((int) ($validated['grace_hours'] ?? 24));
+
+            $sendBroadcast = (bool) ($validated['send_broadcast'] ?? false);
+            $noticeBody = trim((string) ($validated['notice_body'] ?? ''));
 
             $tenant = $this->resolveTenantForLandlord((int) $id, $landlordId, $context);
 
@@ -1172,6 +1181,7 @@ class TenantController extends Controller
                 ], 422);
             }
 
+            $room = null;
             if ($roomId) {
                 $room = Room::with('property')->find($roomId);
                 if ($room && (int) optional($room->property)->landlord_id !== $landlordId) {
@@ -1202,15 +1212,195 @@ class TenantController extends Controller
                 return $record;
             });
 
+            // Optionally broadcast the notice to the tenant via internal messaging
+            if ($sendBroadcast) {
+                try {
+                    $landlordUser = \App\Models\User::find($landlordId);
+                    if (! $landlordUser) {
+                        throw new \RuntimeException('Landlord user not found.');
+                    }
+
+                    // Build the message body: use customized notice_body if provided, else a default
+                    $broadcastText = $noticeBody !== ''
+                        ? $noticeBody
+                        : $this->buildDefaultNoticeText($tenant, $room, $effectiveAt, $evictionReason);
+
+                    // Find or create conversation between landlord and tenant
+                    $conversation = \App\Models\Conversation::where(function ($q) use ($landlordId, $tenant) {
+                        $q->where('user_one_id', $landlordId)->where('user_two_id', $tenant->id);
+                    })->orWhere(function ($q) use ($landlordId, $tenant) {
+                        $q->where('user_one_id', $tenant->id)->where('user_two_id', $landlordId);
+                    })->first();
+
+                    if (! $conversation) {
+                        $conversation = \App\Models\Conversation::create([
+                            'user_one_id' => $landlordId,
+                            'user_two_id' => $tenant->id,
+                        ]);
+                    }
+
+                    $message = \App\Models\Message::create([
+                        'conversation_id' => $conversation->id,
+                        'sender_id' => $landlordId,
+                        'actual_sender_id' => Auth::id(),
+                        'sender_role' => Auth::user()->role,
+                        'receiver_id' => $tenant->id,
+                        'message' => $broadcastText,
+                        'is_read' => false,
+                    ]);
+
+                    $conversation->update(['last_message_at' => now()]);
+
+                    try {
+                        broadcast(new \App\Events\MessageSent($message))->toOthers();
+                    } catch (\Exception) {
+                        // Ignore broadcast socket errors; message is persisted
+                    }
+                } catch (\Exception $broadcastErr) {
+                    Log::warning('Failed to broadcast eviction notice: '.$broadcastErr->getMessage());
+                }
+            }
+
             return response()->json([
                 'message' => 'Eviction scheduled successfully.',
                 'eviction' => $this->serializeEviction($eviction),
+                'broadcast_sent' => $sendBroadcast,
             ], 201);
         } catch (AccessDeniedHttpException $e) {
             return response()->json(['message' => $e->getMessage()], 403);
         } catch (\Exception $e) {
             return response()->json(['message' => 'Failed to schedule eviction', 'error' => $e->getMessage()], 500);
         }
+    }
+
+    /**
+     * Generate a customizable "Notice to Vacate" preview for a tenant.
+     * GET /landlord/tenants/{id}/evictions/notice
+     */
+    public function generateNoticePreview(Request $request, string $id): JsonResponse
+    {
+        try {
+            $context = $this->resolveLandlordContext($request);
+            $this->ensureCaretakerCanManageTenants($context);
+            $landlordId = (int) $context['landlord_id'];
+
+            $tenant = $this->resolveTenantForLandlord((int) $id, $landlordId, $context)
+                ->loadMissing(['room.property', 'tenantProfile']);
+
+            $eviction = TenantEviction::forLandlord($landlordId)
+                ->where('tenant_id', $tenant->id)
+                ->scheduled()
+                ->orderBy('scheduled_for')
+                ->first();
+
+            $activeBooking = Booking::where('tenant_id', $tenant->id)
+                ->where('landlord_id', $landlordId)
+                ->whereIn('status', ['confirmed', 'active'])
+                ->latest('id')
+                ->first();
+
+            $room = $tenant->room
+                ?? ($activeBooking?->room_id ? Room::with('property')->find($activeBooking->room_id) : null);
+
+            $landlordUser = \App\Models\User::find($landlordId);
+            $landlordName = $landlordUser
+                ? trim($landlordUser->first_name.' '.$landlordUser->last_name)
+                : 'Property Management';
+
+            $tenantName = trim($tenant->first_name.' '.$tenant->last_name);
+            $roomNumber = $room?->room_number ?? 'N/A';
+            $propertyName = $room?->property?->title ?? 'the property';
+            $propertyAddress = $room?->property
+                ? trim(implode(', ', array_filter([
+                    $room->property->street_address ?? null,
+                    $room->property->barangay ?? null,
+                    $room->property->city ?? null,
+                    $room->property->province ?? null,
+                ])))
+                : 'N/A';
+
+            $moveOutDate = $eviction
+                ? Carbon::parse($eviction->scheduled_for)->format('F j, Y')
+                : Carbon::now()->addDays(30)->format('F j, Y');
+
+            $reason = $eviction?->reason ?? 'Violation of lease terms.';
+            $today = Carbon::now()->format('F j, Y');
+
+            $noticeBody = $this->buildDefaultNoticeText($tenant, $room, $eviction?->scheduled_for ?? Carbon::now()->addDays(30), $reason);
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'tenant_name' => $tenantName,
+                    'room_number' => $roomNumber,
+                    'property_name' => $propertyName,
+                    'property_address' => $propertyAddress,
+                    'landlord_name' => $landlordName,
+                    'move_out_date' => $moveOutDate,
+                    'reason' => $reason,
+                    'issued_date' => $today,
+                    'notice_body' => $noticeBody,
+                    'has_active_schedule' => (bool) $eviction,
+                ],
+            ]);
+        } catch (AccessDeniedHttpException $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 403);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Build the default Notice to Vacate text body.
+     */
+    private function buildDefaultNoticeText(User $tenant, ?Room $room, $scheduledFor, string $reason): string
+    {
+        $tenantName = trim($tenant->first_name.' '.$tenant->last_name);
+        $roomNumber = $room?->room_number ?? 'N/A';
+        $propertyName = $room?->property?->title ?? 'the property';
+        $propertyAddress = $room?->property
+            ? trim(implode(', ', array_filter([
+                $room->property->street_address ?? null,
+                $room->property->barangay ?? null,
+                $room->property->city ?? null,
+                $room->property->province ?? null,
+            ])))
+            : 'N/A';
+        $moveOutDate = Carbon::parse($scheduledFor)->format('F j, Y');
+        $today = Carbon::now()->format('F j, Y');
+
+        return <<<EOT
+NOTICE TO VACATE
+Date: {$today}
+
+To: {$tenantName}
+Room: {$roomNumber}
+Property: {$propertyName}
+Address: {$propertyAddress}
+
+Dear {$tenantName},
+
+This letter serves as formal written notice that you are required to vacate your current accommodation (Room {$roomNumber}) at {$propertyName} no later than:
+
+    MOVE-OUT DATE: {$moveOutDate}
+
+Reason for Notice:
+{$reason}
+
+Please ensure that:
+  1. The room is left in a clean and tidy condition.
+  2. All keys, access cards, and property items are returned.
+  3. Any outstanding balances or dues are fully settled.
+  4. A move-out inspection is scheduled prior to your departure.
+
+Failure to vacate by the stated date may result in further legal action in accordance with applicable tenancy laws.
+
+If you have any questions or concerns regarding this notice, please contact the property management immediately.
+
+Sincerely,
+Property Management
+{$propertyName}
+EOT;
     }
 
     /**

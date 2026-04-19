@@ -5,7 +5,6 @@ import React, {
 } from "react";
 import {
   ActivityIndicator,
-  Alert,
   FlatList,
   Image,
   KeyboardAvoidingView,
@@ -37,6 +36,9 @@ import {
   useLandlordFocusRefetch,
   useLandlordRefreshHandler,
 } from "../../hooks/useLandlordQueryHelpers.js";
+import { showError, showSuccess, showWarning } from "../../../../utils/toast.js";
+import { hasPermission as checkPermission } from "../../../../utils/permissionHelpers.js";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const FILTERS = [
   { label: "All Rooms", value: "all" },
@@ -182,10 +184,28 @@ const statusTokens = {
 
 export default function RoomManagementScreen({ navigation, route }) {
   const { theme } = useTheme();
-  const showAlert = Alert.alert;
   const styles = React.useMemo(() => getStyles(theme), [theme]);
-  const pickerMode = Platform.OS === "android" ? "dialog" : undefined;
-  const pickerTextColor = theme.colors.text;
+
+  const [user, setUser] = useState(null);
+  useEffect(() => {
+    const loadUser = async () => {
+      try {
+        const userString = await AsyncStorage.getItem('user');
+        if (userString) {
+          setUser(JSON.parse(userString));
+        }
+      } catch (_error) {}
+    };
+    loadUser();
+  }, []);
+
+  const isCaretaker = user?.role === 'caretaker';
+  const hasPermission = React.useCallback((key, aliases = []) => {
+    return checkPermission(user?.caretaker_permissions, isCaretaker, key, aliases);
+  }, [isCaretaker, user?.caretaker_permissions]);
+
+  const canManageRooms = !isCaretaker || hasPermission('rooms');
+  const canManageTenants = !isCaretaker || hasPermission('tenants');
   const preselectedPropertyId = normalizeId(route?.params?.propertyId);
   const initialFilter = route?.params?.filter || "all";
 
@@ -247,7 +267,6 @@ export default function RoomManagementScreen({ navigation, route }) {
   const [assignTargetRoom, setAssignTargetRoom] = useState(null);
   const [assigningTenant, setAssigningTenant] = useState(false);
   const [activeMenuRoomId, setActiveMenuRoomId] = useState(null);
-  const [expandedProxyKeys, setExpandedProxyKeys] = useState({});
   const [convertModalVisible, setConvertModalVisible] = useState(false);
   const [occupantToConvert, setOccupantToConvert] = useState(null);
   const [bookingForConversion, setBookingForConversion] = useState(null);
@@ -497,13 +516,13 @@ export default function RoomManagementScreen({ navigation, route }) {
       );
       if (res.success) {
         setActionError("");
-        showAlert("Success", "Tenant assigned successfully");
+        showSuccess("Success", "Tenant assigned successfully");
         setTenantModalVisible(false);
         setAssignTargetRoom(null);
         await refetchLandlordQueries(roomAndTenantRefetchers);
       } else {
         setActionError(res.error || "Failed to assign tenant");
-        showAlert("Error", res.error || "Failed to assign tenant");
+        showError("Error", res.error || "Failed to assign tenant");
       }
     } finally {
       setAssigningTenant(false);
@@ -522,7 +541,7 @@ export default function RoomManagementScreen({ navigation, route }) {
     );
   }, [allTenants, tenantSearch]);
 
-  const handleInputChange = (field, value) => {
+  const handleInputChange = React.useCallback((field, value) => {
     setFormData((prev) => {
       let updated = { ...prev, [field]: value };
 
@@ -549,7 +568,7 @@ export default function RoomManagementScreen({ navigation, route }) {
         return next;
       });
     }
-  };
+  }, [fieldErrors]);
 
   useEffect(() => {
     if (roomTypes.length === 0) return;
@@ -566,7 +585,7 @@ export default function RoomManagementScreen({ navigation, route }) {
     if (normalized !== formData.roomType) {
       handleInputChange("roomType", normalized);
     }
-  }, [formData.roomType, roomTypes]);
+  }, [formData.roomType, roomTypes, handleInputChange]);
 
   useEffect(() => {
     const normalizedFloor = normalizeFloorValue(
@@ -577,7 +596,7 @@ export default function RoomManagementScreen({ navigation, route }) {
     if (normalizedFloor !== formData.floor) {
       handleInputChange("floor", normalizedFloor);
     }
-  }, [formData.floor, propertyFloorCount]);
+  }, [formData.floor, propertyFloorCount, handleInputChange]);
 
   useEffect(() => {
     const fallbackGender =
@@ -601,6 +620,7 @@ export default function RoomManagementScreen({ navigation, route }) {
     genderOptions,
     isApartment,
     propertySex,
+    handleInputChange,
   ]);
 
   const updateDurationPricing = (term, patch) => {
@@ -680,7 +700,7 @@ export default function RoomManagementScreen({ navigation, route }) {
 
   const openAddModal = () => {
     if (!selectedPropertyId) {
-      showAlert("Error", "Select a property first");
+      showError("Error", "Select a property first");
       return;
     }
     setModalMode("add");
@@ -799,8 +819,10 @@ export default function RoomManagementScreen({ navigation, route }) {
       }));
       setNewAmenity("");
       await refetchLandlordQueries([refetchProperties]);
+      showSuccess('Success', 'Property amenity added successfully.');
     } else {
       setActionError(res.error || "Failed to add amenity");
+      showError('Error', res.error || "Failed to add amenity");
     }
   };
 
@@ -818,15 +840,17 @@ export default function RoomManagementScreen({ navigation, route }) {
       }));
       setNewRule("");
       await refetchLandlordQueries([refetchProperties]);
+      showSuccess('Success', 'Property rule added successfully.');
     } else {
       setActionError(res.error || "Failed to add property rule");
+      showError('Error', res.error || "Failed to add property rule");
     }
   };
 
   const handleConvertOccupant = async () => {
     if (!occupantToConvert || !bookingForConversion) return;
     if (!convertEmail.trim()) {
-      showAlert("Error", "Email address is required.");
+      showError("Error", "Email address is required.");
       return;
     }
 
@@ -839,7 +863,7 @@ export default function RoomManagementScreen({ navigation, route }) {
       );
 
       if (res.success) {
-        showAlert("Success", "Occupant registered as tenant successfully!");
+        showSuccess("Success", "Occupant registered as tenant successfully!");
         setConvertModalVisible(false);
         setOccupantToConvert(null);
         setBookingForConversion(null);
@@ -856,10 +880,10 @@ export default function RoomManagementScreen({ navigation, route }) {
           }
         }
       } else {
-        showAlert("Error", res.error || "Failed to convert occupant.");
+        showError("Error", res.error || "Failed to convert occupant.");
       }
-    } catch (err) {
-      showAlert("Error", "An unexpected error occurred during conversion.");
+    } catch (_err) {
+      showError("Error", "An unexpected error occurred during conversion.");
     } finally {
       setIsConverting(false);
     }
@@ -884,7 +908,7 @@ export default function RoomManagementScreen({ navigation, route }) {
     const { valid, errors } = validateForm(formData);
     if (!valid) {
       setFieldErrors(errors);
-      showAlert("Validation Error", "Please fix the highlighted errors.");
+      showWarning("Validation Error", "Please fix the highlighted errors.");
       return;
     }
 
@@ -935,12 +959,12 @@ export default function RoomManagementScreen({ navigation, route }) {
 
       if (res.success) {
         setActionError("");
-        showAlert("Success", modalMode === "add" ? "Room added successfully" : "Room updated successfully");
+        showSuccess("Success", modalMode === "add" ? "Room added successfully" : "Room updated successfully");
         setModalVisible(false);
         await refetchLandlordQueries(roomRefetchers);
       } else {
         setActionError(res.error || "Failed to save room");
-        showAlert("Error", res.error || "Failed to save room");
+        showError("Error", res.error || "Failed to save room");
       }
     } finally {
       setModalLoading(false);
@@ -962,16 +986,6 @@ export default function RoomManagementScreen({ navigation, route }) {
   const renderRoomCard = ({ item }) => {
     const badge = statusTokens[item.status] || statusTokens.available;
     const roomTenants = Array.isArray(item.tenants) ? item.tenants : [];
-    const proxyAccounts = roomTenants.filter(
-      (tenant) =>
-        Boolean(tenant?.is_proxy_account)
-        || String(tenant?.booking_mode || "").toLowerCase() === "proxy",
-    );
-    const directTenants = roomTenants.filter(
-      (tenant) =>
-        !Boolean(tenant?.is_proxy_account)
-        && String(tenant?.booking_mode || "").toLowerCase() !== "proxy",
-    );
     const calculatedOccupiedCount = roomTenants.reduce((acc, t) => {
       const isProxy =
         Boolean(t?.is_proxy_account) ||
@@ -1059,18 +1073,20 @@ export default function RoomManagementScreen({ navigation, route }) {
 
             {activeMenuRoomId === item.id && (
               <View style={styles.roomMenuSheet}>
-                <TouchableOpacity
-                  style={styles.roomMenuItem}
-                  onPress={() => {
-                    setActiveMenuRoomId(null);
-                    openEditModal(item);
-                  }}
-                >
-                  <Ionicons name="create-outline" size={16} color="#0369A1" />
-                  <Text style={styles.roomMenuItemText}>Edit</Text>
-                </TouchableOpacity>
+                {canManageRooms && (
+                  <TouchableOpacity
+                    style={styles.roomMenuItem}
+                    onPress={() => {
+                      setActiveMenuRoomId(null);
+                      openEditModal(item);
+                    }}
+                  >
+                    <Ionicons name="create-outline" size={16} color="#0369A1" />
+                    <Text style={styles.roomMenuItemText}>Edit</Text>
+                  </TouchableOpacity>
+                )}
 
-                {item.status === "available" && (
+                {canManageTenants && item.status === "available" && (
                   <TouchableOpacity
                     style={styles.roomMenuItem}
                     onPress={() => {
@@ -1084,22 +1100,24 @@ export default function RoomManagementScreen({ navigation, route }) {
                   </TouchableOpacity>
                 )}
 
-                <TouchableOpacity
-                  style={[
-                    styles.roomMenuItem,
-                    !hasExistingTenant && styles.roomMenuItemLast,
-                  ]}
-                  onPress={() => {
-                    setActiveMenuRoomId(null);
-                    setStatusTarget(item);
-                    setStatusModalVisible(true);
-                  }}
-                >
-                  <Ionicons name="swap-horizontal" size={16} color="#B45309" />
-                  <Text style={styles.roomMenuItemText}>Status</Text>
-                </TouchableOpacity>
+                {canManageRooms && (
+                  <TouchableOpacity
+                    style={[
+                      styles.roomMenuItem,
+                      !hasExistingTenant && styles.roomMenuItemLast,
+                    ]}
+                    onPress={() => {
+                      setActiveMenuRoomId(null);
+                      setStatusTarget(item);
+                      setStatusModalVisible(true);
+                    }}
+                  >
+                    <Ionicons name="swap-horizontal" size={16} color="#B45309" />
+                    <Text style={styles.roomMenuItemText}>Status</Text>
+                  </TouchableOpacity>
+                )}
 
-                {hasExistingTenant && (
+                {canManageTenants && hasExistingTenant && (
                   <TouchableOpacity
                     style={[styles.roomMenuItem, styles.roomMenuItemLast]}
                     onPress={() => {
@@ -1214,9 +1232,11 @@ export default function RoomManagementScreen({ navigation, route }) {
           <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Room Management</Text>
-        <TouchableOpacity style={styles.iconButton} onPress={openAddModal}>
-          <Ionicons name="add" size={32} color="#FFFFFF" />
-        </TouchableOpacity>
+        {canManageRooms && (
+          <TouchableOpacity style={styles.iconButton} onPress={openAddModal}>
+            <Ionicons name="add" size={32} color="#FFFFFF" />
+          </TouchableOpacity>
+        )}
       </View>
 
       <FlatList
@@ -1485,7 +1505,7 @@ export default function RoomManagementScreen({ navigation, route }) {
                                                 <Text style={styles.proxyOccupantMeta}>{occupantMeta}</Text>
                                               ) : null}
                                             </View>
-                                            {!occupant.user_id && (
+                                            {canManageTenants && !occupant.user_id && (
                                               <TouchableOpacity
                                                 style={styles.registerButton}
                                                 onPress={() => {
@@ -2516,10 +2536,13 @@ export default function RoomManagementScreen({ navigation, route }) {
                   );
                   if (res.success) {
                     setActionError("");
+                    showSuccess("Success", "Room status updated successfully");
                     setStatusModalVisible(false);
                     await refetchLandlordQueries(roomRefetchers);
                   } else {
-                    setActionError(res.error || "Failed to update room status");
+                    const errorMsg = res.error || "Failed to update room status";
+                    setActionError(errorMsg);
+                    showError("Error", errorMsg);
                   }
                 }}
               >
@@ -2599,7 +2622,7 @@ export default function RoomManagementScreen({ navigation, route }) {
                 style={[styles.primaryButton, { flex: 2 }]}
                 onPress={async () => {
                   if (!extendValue || isNaN(extendValue) || parseInt(extendValue) <= 0) {
-                    showAlert('Invalid Value', `Please enter a valid number of ${extendType}.`);
+                    showWarning('Invalid Value', `Please enter a valid number of ${extendType}.`);
                     return;
                   }
                   setExtending(true);
@@ -2613,14 +2636,15 @@ export default function RoomManagementScreen({ navigation, route }) {
                       setActionError("");
                       setExtendModalVisible(false);
                       await refetchLandlordQueries(roomRefetchers);
-                      showAlert('Success', 'Stay extended successfully.');
+                      showSuccess('Success', 'Stay extended successfully.');
                     } else {
-                      setActionError(res.error || 'Failed to extend stay.');
-                      showAlert('Error', res.error || 'Failed to extend stay.');
+                      const errorMsg = res.error || 'Failed to extend stay.';
+                      setActionError(errorMsg);
+                      showError('Error', errorMsg);
                     }
                   } catch (_err) {
                     setActionError('An unexpected error occurred.');
-                    showAlert('Error', 'An unexpected error occurred.');
+                    showError('Error', 'An unexpected error occurred.');
                   } finally {
                     setExtending(false);
                   }

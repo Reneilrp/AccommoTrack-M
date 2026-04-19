@@ -81,8 +81,7 @@ export default function Settings({ onLogout, isGuest, onLoginPress }) {
     updateAvailable,
     downloadUrl,
     refetch: refetchVersion,
-    otaUpdateId,
-    otaCreatedAt
+    otaUpdateId
   } = useAppVersion();
   const [userRole, setUserRole] = useState('tenant');
   const [landlordVerificationStatus, setLandlordVerificationStatus] = useState(null);

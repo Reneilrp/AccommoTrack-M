@@ -1,6 +1,6 @@
 import React from 'react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import toast from 'react-hot-toast';
+import { showSuccess } from '../../../utils/toast';
 import api from '../../../utils/api';
 import Settings from '../Settings';
 
@@ -15,9 +15,9 @@ jest.mock('react-router-dom', () => ({
   useSearchParams: () => [mockSearchParams, mockSetSearchParams],
 }));
 
-jest.mock('react-hot-toast', () => ({
-  success: jest.fn(),
-  error: jest.fn(),
+jest.mock('../../../utils/toast', () => ({
+  showSuccess: jest.fn(),
+  showError: jest.fn(),
 }));
 
 jest.mock('../../../utils/api', () => ({
@@ -153,7 +153,7 @@ describe('Landlord caretaker creation smoke', () => {
       );
     });
 
-    expect(toast.success).toHaveBeenCalledWith('Caretaker added!');
+    expect(showSuccess).toHaveBeenCalledWith('Caretaker added!');
   });
 
   it('creates caretaker with all permissions checked when toggled and confirmed', async () => {
@@ -202,6 +202,6 @@ describe('Landlord caretaker creation smoke', () => {
       );
     });
 
-    expect(toast.success).toHaveBeenCalledWith('Caretaker added!');
+    expect(showSuccess).toHaveBeenCalledWith('Caretaker added!');
   });
 });

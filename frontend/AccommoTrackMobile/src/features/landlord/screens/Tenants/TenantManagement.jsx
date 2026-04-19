@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   FlatList,
   KeyboardAvoidingView,
   Modal,
@@ -23,7 +22,6 @@ import { useQuery } from '@tanstack/react-query';
 import PropertyService from '../../../../services/PropertyService.js';
 import { getStyles } from '../../../../styles/Landlord/Tenants.js';
 import { useTheme } from '../../../../contexts/ThemeContext.jsx';
-import { useUIState } from '../../../../contexts/UIStateContext.jsx';
 import {
   landlordQueryKeys,
   refetchLandlordQueries,
@@ -31,6 +29,11 @@ import {
   useLandlordRefreshHandler,
 } from '../../hooks/useLandlordQueryHelpers.js';
 import { normalizeActionError } from '../../../../utils/error.js';
+import TenantLifecycleModal from './TenantLifecycleModal.jsx';
+import BookingService from '../../../../services/BookingService.js';
+import { hasPermission as checkPermission } from '../../../../utils/permissionHelpers.js';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { showError, showSuccess, showWarning } from '../../../../utils/toast.js';
 
 const FILTERS = [
   { label: 'All Tenants', value: 'all' },
@@ -70,12 +73,6 @@ const isRoomBookable = (room) => {
   return room.status === 'available'
     && Number(room.available_slots ?? 0) > 0
     && !room.is_booking_locked;
-};
-
-const isEvictionDue = (tenant) => {
-  const scheduledFor = tenant?.pending_eviction?.scheduled_for;
-  if (!scheduledFor) return false;
-  return new Date(scheduledFor).getTime() <= Date.now();
 };
 
 const parseAmount = (value) => {
@@ -182,6 +179,29 @@ export default function TenantsScreen({ navigation, route }) {
   const tenantCardMaxWidth = isLargeTablet ? 920 : isTablet ? 760 : null;
   const tenantCardWidth = tenantCardMaxWidth ? Math.min(tenantCardMaxWidth, screenWidth - 32) : null;
   const preselectedPropertyId = normalizeId(route?.params?.propertyId);
+
+  const [user, setUser] = useState(null);
+  useEffect(() => {
+    const loadUser = async () => {
+      try {
+        const userString = await AsyncStorage.getItem('user');
+        if (userString) {
+          setUser(JSON.parse(userString));
+        }
+      } catch (_error) {}
+    };
+    loadUser();
+  }, []);
+
+  const isCaretaker = user?.role === 'caretaker';
+  const hasPermission = React.useCallback((key, aliases = []) => {
+    return checkPermission(user?.caretaker_permissions, isCaretaker, key, aliases);
+  }, [isCaretaker, user?.caretaker_permissions]);
+
+  const canAddTenants = !isCaretaker || hasPermission('add_tenant_manually');
+  const canManageTenants = !isCaretaker || hasPermission('tenants');
+  const canApproveBookings = !isCaretaker || hasPermission('approve_bookings');
+
   const statCardWidth = useMemo(() => {
     const visibleArea = Math.max(240, screenWidth - 48);
     return Math.min(240, Math.max(132, Math.round(visibleArea / 2.25)));
@@ -192,18 +212,12 @@ export default function TenantsScreen({ navigation, route }) {
   const [filter, setFilter] = useState('all');
   const [refreshing, setRefreshing] = useState(false);
   const [actionError, setActionError] = useState('');
-  const { showAlert } = useUIState();
+
   const [claimCodeModalVisible, setClaimCodeModalVisible] = useState(false);
   const [claimCodePayload, setClaimCodePayload] = useState({
     tenantName: '',
     code: '',
     expiresAt: '',
-  });
-  const [feedbackModal, setFeedbackModal] = useState({
-    visible: false,
-    title: '',
-    message: '',
-    tone: 'error',
   });
 
   const [detailTenant, setDetailTenant] = useState(null);
@@ -261,11 +275,8 @@ export default function TenantsScreen({ navigation, route }) {
   const [unassigningTenant, setUnassigningTenant] = useState(null);
   const [isUnassigning, setIsUnassigning] = useState(false);
 
-  const [evictionVisible, setEvictionVisible] = useState(false);
-  const [evictingTenant, setEvictingTenant] = useState(null);
-  const [evictionReason, setEvictionReason] = useState('');
-  const [evictionGraceHours, setEvictionGraceHours] = useState('24');
-  const [isEvicting, setIsEvicting] = useState(false);
+  const [lifecycleVisible, setLifecycleVisible] = useState(false);
+  const [lifecycleTenant, setLifecycleTenant] = useState(null);
 
   const propertiesQuery = useQuery({
     queryKey: landlordQueryKeys.properties(),
@@ -274,7 +285,6 @@ export default function TenantsScreen({ navigation, route }) {
       if (!response.success) {
         throw new Error(response.error || 'Failed to load properties');
       }
-
       return Array.isArray(response.data) ? response.data : [];
     },
     placeholderData: (previousData) => previousData,
@@ -288,7 +298,6 @@ export default function TenantsScreen({ navigation, route }) {
       if (!response.success) {
         throw new Error(response.error || 'Failed to load tenants');
       }
-
       const data = response.data;
       if (Array.isArray(data)) return data;
       if (Array.isArray(data?.data)) return data.data;
@@ -339,7 +348,6 @@ export default function TenantsScreen({ navigation, route }) {
         || (tenant.room?.room_number || '').toString().includes(query);
 
       if (!matchesSearch) return false;
-
       if (filter === 'all') return true;
       if (filter === 'active') return tenant.tenantProfile?.status === 'active';
       if (filter === 'paid') return tenant.latestBooking?.payment_status === 'paid';
@@ -359,22 +367,6 @@ export default function TenantsScreen({ navigation, route }) {
     }
   }, [selectedPropertyId, properties]);
 
-  const showFeedbackModal = (title, message, tone = 'error') => {
-    setFeedbackModal({
-      visible: true,
-      title,
-      message: message || 'Something went wrong. Please try again.',
-      tone,
-    });
-  };
-
-  const closeFeedbackModal = () => {
-    setFeedbackModal((current) => ({
-      ...current,
-      visible: false,
-    }));
-  };
-
   const getTenantActionError = (errorOrMessage, fallbackMessage) =>
     normalizeActionError(errorOrMessage, fallbackMessage);
 
@@ -383,57 +375,48 @@ export default function TenantsScreen({ navigation, route }) {
     if (!normalized) {
       return { value: undefined, date: null };
     }
-
     const parsed = parseIsoDateInput(normalized);
     if (!parsed) {
       return { error: `${fieldLabel} must be a valid date.` };
     }
-
     return { value: normalized, date: parsed };
   };
 
   const validateAssignmentDates = (moveInRaw, endRaw) => {
     const moveIn = validateOptionalDate(moveInRaw, 'Move-in date');
     if (moveIn.error) {
-      showAlert('Invalid move-in date', moveIn.error);
+      showWarning('Invalid move-in date', moveIn.error);
       return null;
     }
-
     const endDate = validateOptionalDate(endRaw, 'Contract end date');
     if (endDate.error) {
-      showAlert('Invalid end date', endDate.error);
+      showWarning('Invalid end date', endDate.error);
       return null;
     }
-
     const today = getTodayDateOnly();
     if (moveIn.date && moveIn.date < today) {
-      showAlert('Invalid move-in date', 'Move-in date cannot be in the past.');
+      showWarning('Invalid move-in date', 'Move-in date cannot be in the past.');
       return null;
     }
-
     const effectiveMoveIn = moveIn.date || today;
     if (endDate.date && endDate.date <= effectiveMoveIn) {
-      showAlert('Invalid date range', 'Contract end date must be after move-in date.');
+      showWarning('Invalid date range', 'Contract end date must be after move-in date.');
       return null;
     }
-
     return { moveIn, endDate };
   };
 
   const handleCreateMoveInDateChange = (_event, selectedDate) => {
     setShowCreateMoveInPicker(Platform.OS === 'ios');
     if (!selectedDate) return;
-
     const selectedDateOnly = new Date(selectedDate);
     selectedDateOnly.setHours(0, 0, 0, 0);
     const moveInValue = formatDateForApi(selectedDateOnly);
-
     setCreateTenantData((current) => {
       const currentEndDate = parseIsoDateInput(current.end_date);
       const nextEndDate = currentEndDate && currentEndDate <= selectedDateOnly
         ? ''
         : current.end_date;
-
       return {
         ...current,
         move_in_date: moveInValue,
@@ -445,7 +428,6 @@ export default function TenantsScreen({ navigation, route }) {
   const handleCreateEndDateChange = (_event, selectedDate) => {
     setShowCreateEndDatePicker(Platform.OS === 'ios');
     if (!selectedDate) return;
-
     const selectedDateOnly = new Date(selectedDate);
     selectedDateOnly.setHours(0, 0, 0, 0);
     setCreateTenantData((current) => ({
@@ -457,17 +439,14 @@ export default function TenantsScreen({ navigation, route }) {
   const handleAssignMoveInDateChange = (_event, selectedDate) => {
     setShowAssignMoveInPicker(Platform.OS === 'ios');
     if (!selectedDate) return;
-
     const selectedDateOnly = new Date(selectedDate);
     selectedDateOnly.setHours(0, 0, 0, 0);
     const moveInValue = formatDateForApi(selectedDateOnly);
-
     setAssignData((current) => {
       const currentEndDate = parseIsoDateInput(current.end_date);
       const nextEndDate = currentEndDate && currentEndDate <= selectedDateOnly
         ? ''
         : current.end_date;
-
       return {
         ...current,
         move_in_date: moveInValue,
@@ -479,7 +458,6 @@ export default function TenantsScreen({ navigation, route }) {
   const handleAssignEndDateChange = (_event, selectedDate) => {
     setShowAssignEndDatePicker(Platform.OS === 'ios');
     if (!selectedDate) return;
-
     const selectedDateOnly = new Date(selectedDate);
     selectedDateOnly.setHours(0, 0, 0, 0);
     setAssignData((current) => ({
@@ -491,29 +469,26 @@ export default function TenantsScreen({ navigation, route }) {
   const handleTransferInitiate = async (tenant) => {
     const propertyId = tenant.room?.property_id || selectedPropertyId;
     if (!propertyId) {
-      showAlert('Transfer unavailable', 'Tenant has no assigned property.');
+      showError('Transfer unavailable', 'Tenant has no assigned property.');
       return;
     }
-
     setTransferringTenant(tenant);
     setTransferData({ new_room_id: '', reason: '', damage_charge: '', damage_description: '' });
     setAvailableRooms([]);
     setTransferVisible(true);
     setLoadingRoomsForTransfer(true);
-
     try {
       const response = await PropertyService.getRoomsByProperty(propertyId);
       if (!response.success) {
         throw new Error(response.error || 'Failed to load rooms');
       }
-
       const currentRoomId = normalizeId(tenant.room?.id);
       const rooms = (response.data || []).filter((room) => (
         isRoomBookable(room) && normalizeId(room.id) !== currentRoomId
       ));
       setAvailableRooms(rooms);
     } catch (transferError) {
-      showAlert('Error', getTenantActionError(transferError, 'Unable to load available rooms.'));
+      showError('Error', getTenantActionError(transferError, 'Unable to load available rooms.'));
     } finally {
       setLoadingRoomsForTransfer(false);
     }
@@ -522,14 +497,13 @@ export default function TenantsScreen({ navigation, route }) {
   const handleTransferSubmit = async () => {
     if (!transferringTenant) return;
     if (!transferData.new_room_id || !transferData.reason.trim()) {
-      showAlert('Required fields', 'Please select a room and provide a reason.');
+      showWarning('Required fields', 'Please select a room and provide a reason.');
       return;
     }
     if (Number(transferData.damage_charge || 0) > 0 && !transferData.damage_description.trim()) {
-      showAlert('Required fields', 'Please add a damage charge description.');
+      showWarning('Required fields', 'Please add a damage charge description.');
       return;
     }
-
     setIsTransferring(true);
     try {
       const payload = {
@@ -546,11 +520,11 @@ export default function TenantsScreen({ navigation, route }) {
       setTransferringTenant(null);
       setActionError('');
       await refetchLandlordQueries(tenantListRefetchers);
-      showAlert('Success', 'Room transfer completed successfully.');
+      showSuccess('Success', 'Room transfer completed successfully.');
     } catch (transferError) {
       const message = getTenantActionError(transferError, 'Unable to transfer tenant right now.');
       setActionError(message);
-      showAlert('Error', message);
+      showError('Error', message);
     } finally {
       setIsTransferring(false);
     }
@@ -558,14 +532,13 @@ export default function TenantsScreen({ navigation, route }) {
 
   const handleAssignInitiate = async (tenant) => {
     if (tenant.room) {
-      showAlert('Already assigned', 'This tenant already has a room. Use Transfer instead.');
+      showWarning('Already assigned', 'This tenant already has a room. Use Transfer instead.');
       return;
     }
     if (!selectedPropertyId) {
-      showAlert('Property required', 'Please select a property first.');
+      showError('Property required', 'Please select a property first.');
       return;
     }
-
     setAssigningTenant(tenant);
     setAssignData({ room_id: '', move_in_date: '', end_date: '', notes: '' });
     setShowAssignMoveInPicker(false);
@@ -573,17 +546,15 @@ export default function TenantsScreen({ navigation, route }) {
     setAvailableRoomsForAssign([]);
     setAssignVisible(true);
     setLoadingRoomsForAssign(true);
-
     try {
       const response = await PropertyService.getRoomsByProperty(selectedPropertyId);
       if (!response.success) {
         throw new Error(response.error || 'Failed to load rooms');
       }
-
       const rooms = (response.data || []).filter((room) => isRoomBookable(room));
       setAvailableRoomsForAssign(rooms);
     } catch (assignError) {
-      showAlert('Error', getTenantActionError(assignError, 'Unable to load available rooms.'));
+      showError('Error', getTenantActionError(assignError, 'Unable to load available rooms.'));
     } finally {
       setLoadingRoomsForAssign(false);
     }
@@ -592,13 +563,11 @@ export default function TenantsScreen({ navigation, route }) {
   const handleAssignSubmit = async () => {
     if (!assigningTenant) return;
     if (!assignData.room_id) {
-      showAlert('Required fields', 'Please select a room.');
+      showWarning('Required fields', 'Please select a room.');
       return;
     }
-
     const validatedDates = validateAssignmentDates(assignData.move_in_date, assignData.end_date);
     if (!validatedDates) return;
-
     setIsAssigning(true);
     try {
       const payload = {
@@ -607,23 +576,21 @@ export default function TenantsScreen({ navigation, route }) {
         end_date: validatedDates.endDate.value,
         notes: assignData.notes.trim() || undefined
       };
-
       const response = await PropertyService.assignTenantToRoom(assigningTenant.id, payload);
       if (!response.success) {
         throw new Error(response.error || 'Failed to assign room.');
       }
-
       setAssignVisible(false);
       setShowAssignMoveInPicker(false);
       setShowAssignEndDatePicker(false);
       setAssigningTenant(null);
       setActionError('');
       await refetchLandlordQueries(tenantListRefetchers);
-      showAlert('Success', 'Room assignment completed successfully.');
+      showSuccess('Success', 'Room assignment completed successfully.');
     } catch (assignError) {
       const message = getTenantActionError(assignError, 'Unable to assign this tenant right now.');
       setActionError(message);
-      showAlert('Error', message);
+      showError('Error', message);
     } finally {
       setIsAssigning(false);
     }
@@ -631,12 +598,10 @@ export default function TenantsScreen({ navigation, route }) {
 
   const handleCreateTenantInitiate = async () => {
     setOpenActionsTenantId(null);
-
     if (!selectedPropertyId) {
-      showAlert('Property required', 'Please select a property before adding a tenant.');
+      showError('Property required', 'Please select a property before adding a tenant.');
       return;
     }
-
     setCreateTenantData({
       first_name: '',
       middle_name: '',
@@ -650,22 +615,18 @@ export default function TenantsScreen({ navigation, route }) {
       end_date: '',
       notes: '',
     });
-    setShowCreateMoveInPicker(false);
-    setShowCreateEndDatePicker(false);
     setAvailableRoomsForCreate([]);
     setCreateTenantVisible(true);
     setLoadingRoomsForCreate(true);
-
     try {
       const response = await PropertyService.getRoomsByProperty(selectedPropertyId);
       if (!response.success) {
         throw new Error(response.error || 'Failed to load available rooms.');
       }
-
       const rooms = (response.data || []).filter((room) => isRoomBookable(room));
       setAvailableRoomsForCreate(rooms);
     } catch (createInitError) {
-      showAlert('Error', getTenantActionError(createInitError, 'Unable to load available rooms.'));
+      showError('Error', getTenantActionError(createInitError, 'Unable to load available rooms.'));
     } finally {
       setLoadingRoomsForCreate(false);
     }
@@ -678,37 +639,29 @@ export default function TenantsScreen({ navigation, route }) {
     const phone = createTenantData.phone.trim();
     const password = createTenantData.password;
     const confirmPassword = createTenantData.confirm_password;
-
     if (!firstName || !lastName || !email) {
-      showAlert('Required fields', 'First name, last name, and email are required.');
+      showWarning('Required fields', 'First name, last name, and email are required.');
       return;
     }
-
     if (!/^\S+@\S+\.\S+$/.test(email)) {
-      showAlert('Invalid email', 'Please enter a valid email address.');
+      showWarning('Invalid email', 'Please enter a valid email address.');
       return;
     }
-
     if (!password || password.length < 8) {
-      showAlert('Invalid password', 'Password must be at least 8 characters.');
+      showWarning('Invalid password', 'Password must be at least 8 characters.');
       return;
     }
-
     if (password !== confirmPassword) {
-      showAlert('Password mismatch', 'Password and confirm password do not match.');
+      showWarning('Password mismatch', 'Password and confirm password do not match.');
       return;
     }
-
     if (!createTenantData.room_id) {
-      showAlert('Required fields', 'Please select a room for immediate assignment.');
+      showWarning('Required fields', 'Please select a room for immediate assignment.');
       return;
     }
-
     const validatedDates = validateAssignmentDates(createTenantData.move_in_date, createTenantData.end_date);
     if (!validatedDates) return;
-
     setIsCreatingTenant(true);
-
     try {
       const createPayload = {
         first_name: firstName,
@@ -722,22 +675,18 @@ export default function TenantsScreen({ navigation, route }) {
         end_date: validatedDates.endDate.value,
         notes: createTenantData.notes.trim() || undefined,
       };
-
       const createResponse = await PropertyService.createTenant(createPayload);
       if (!createResponse.success) {
         throw new Error(createResponse.error || 'Failed to add tenant.');
       }
-
       setCreateTenantVisible(false);
-      setShowCreateMoveInPicker(false);
-      setShowCreateEndDatePicker(false);
       setActionError('');
       await refetchLandlordQueries(tenantListRefetchers);
-      showAlert('Success', 'Tenant added and assigned successfully.');
+      showSuccess('Success', 'Tenant added and assigned successfully.');
     } catch (createError) {
       const message = getTenantActionError(createError, 'Unable to add tenant right now.');
       setActionError(message);
-      showAlert('Error', message);
+      showError('Error', message);
     } finally {
       setIsCreatingTenant(false);
     }
@@ -745,7 +694,7 @@ export default function TenantsScreen({ navigation, route }) {
 
   const handleUnassignInitiate = (tenant) => {
     if (!tenant.room) {
-      showAlert('Not assigned', 'This tenant does not have an assigned room.');
+      showWarning('Not assigned', 'This tenant does not have an assigned room.');
       return;
     }
     setUnassigningTenant(tenant);
@@ -754,116 +703,60 @@ export default function TenantsScreen({ navigation, route }) {
 
   const handleUnassignConfirm = async () => {
     if (!unassigningTenant) return;
-
     setIsUnassigning(true);
     try {
       const response = await PropertyService.unassignTenantFromRoom(unassigningTenant.id);
       if (!response.success) {
         throw new Error(response.error || 'Failed to unassign tenant.');
       }
-
       setUnassignVisible(false);
       setUnassigningTenant(null);
       setActionError('');
       await refetchLandlordQueries(tenantListRefetchers);
-      showAlert('Success', 'Tenant unassigned successfully.');
+      showSuccess('Success', 'Tenant unassigned successfully.');
     } catch (unassignError) {
       const message = getTenantActionError(unassignError, 'Unable to unassign this tenant right now.');
       setActionError(message);
-      showAlert('Error', message);
+      showError('Error', message);
     } finally {
       setIsUnassigning(false);
     }
   };
 
-  const handleEvictionInitiate = (tenant) => {
-    setEvictingTenant(tenant);
-    setEvictionReason('');
-    setEvictionGraceHours('24');
-    setEvictionVisible(true);
+  const handleLifecycleAction = (tenant) => {
+    setLifecycleTenant(tenant);
+    setLifecycleVisible(true);
   };
 
-  const handleEvictConfirm = async () => {
-    if (!evictingTenant) return;
-    if (!evictionReason.trim()) {
-      showAlert('Missing reason', 'Reason for eviction is required.');
-      return;
-    }
-
-    const graceHours = Number(evictionGraceHours || 0);
-    if (Number.isNaN(graceHours) || graceHours < 0 || graceHours > 168) {
-      showAlert('Invalid value', 'Grace hours must be between 0 and 168.');
-      return;
-    }
-
-    setIsEvicting(true);
+  const handleApproveReservation = async (tenant) => {
+    const bookingId = tenant.latestBooking?.id;
+    if (!bookingId) return;
     try {
-      const response = await PropertyService.scheduleTenantEviction(evictingTenant.id, {
-        reason: evictionReason.trim(),
-        grace_hours: graceHours,
-      });
-      if (!response.success) {
-        throw new Error(response.error || 'Failed to schedule eviction.');
+      const response = await BookingService.approveReservation(bookingId);
+      if (response.success) {
+        showSuccess('Success', 'Reservation approved successfully.');
+        await refetchLandlordQueries(tenantListRefetchers);
+      } else {
+        showError('Error', response.error || 'Failed to approve reservation.');
       }
-      setEvictionVisible(false);
-      setEvictingTenant(null);
-      setActionError('');
-      await refetchLandlordQueries(tenantListRefetchers);
-      showAlert('Success', 'Eviction scheduled successfully.');
-    } catch (evictionError) {
-      const message = getTenantActionError(evictionError, 'Unable to schedule eviction right now.');
-      setActionError(message);
-      showAlert('Unable to schedule eviction', message);
-    } finally {
-      setIsEvicting(false);
+    } catch (_error) {
+      showError('Error', 'An unexpected error occurred.');
     }
   };
 
-  const handleFinalizeEviction = async (tenant) => {
+  const handleCheckIn = async (tenant) => {
+    const bookingId = tenant.latestBooking?.id;
+    if (!bookingId) return;
     try {
-      const response = await PropertyService.finalizeTenantEviction(tenant.id);
-      if (!response.success) {
-        throw new Error(response.error || 'Failed to finalize eviction.');
+      const response = await BookingService.checkIn(bookingId);
+      if (response.success) {
+        showSuccess('Success', 'Tenant checked in successfully. First invoice generated.');
+        await refetchLandlordQueries(tenantListRefetchers);
+      } else {
+        showError('Error', response.error || 'Failed to check in tenant.');
       }
-      setActionError('');
-      await refetchLandlordQueries(tenantListRefetchers);
-      showAlert('Success', 'Eviction finalized successfully.');
-    } catch (error) {
-      const message = getTenantActionError(error, 'Unable to finalize eviction right now.');
-      setActionError(message);
-      showAlert('Unable to finalize eviction', message);
-    }
-  };
-
-  const handleCancelEviction = async (tenant) => {
-    try {
-      const response = await PropertyService.cancelTenantEviction(tenant.id);
-      if (!response.success) {
-        throw new Error(response.error || 'Failed to cancel eviction schedule.');
-      }
-      setActionError('');
-      await refetchLandlordQueries(tenantListRefetchers);
-      showAlert('Success', 'Eviction schedule cancelled.');
-    } catch (error) {
-      const message = getTenantActionError(error, 'Unable to cancel eviction right now.');
-      setActionError(message);
-      showAlert('Unable to cancel eviction', message);
-    }
-  };
-
-  const handleUndoEviction = async (tenant) => {
-    try {
-      const response = await PropertyService.undoTenantEviction(tenant.id);
-      if (!response.success) {
-        throw new Error(response.error || 'Failed to undo eviction.');
-      }
-      setActionError('');
-      await refetchLandlordQueries(tenantListRefetchers);
-      showAlert('Success', 'Eviction undone and tenancy restored.');
-    } catch (error) {
-      const message = getTenantActionError(error, 'Unable to undo eviction right now.');
-      setActionError(message);
-      showAlert('Unable to undo eviction', message);
+    } catch (_error) {
+      showError('Error', 'An unexpected error occurred.');
     }
   };
 
@@ -880,13 +773,11 @@ export default function TenantsScreen({ navigation, route }) {
       if (!response.success) {
         throw new Error(response.error || 'Failed to generate claim code.');
       }
-
       const payload = response.data || {};
       const code = payload.claim_code || 'N/A';
       const expiresAt = payload.expires_at
         ? new Date(payload.expires_at).toLocaleString()
         : 'Not available';
-
       setClaimCodePayload({
         tenantName: `${tenant.first_name} ${tenant.last_name}`,
         code,
@@ -894,22 +785,17 @@ export default function TenantsScreen({ navigation, route }) {
       });
       setClaimCodeModalVisible(true);
     } catch (error) {
-      const message = getTenantActionError(error, 'Unable to generate claim code right now.');
-      setActionError(message);
-      showAlert('Unable to generate claim code', message);
+      showError('Error', getTenantActionError(error, 'Failed to generate claim code.'));
     }
   };
 
   const handleShareClaimCode = async () => {
-    if (!claimCodePayload.code) return;
-
+    if (!claimCodePayload) return;
     try {
-      await Share.share({
-        title: 'Tenant claim code',
-        message: `Tenant: ${claimCodePayload.tenantName}\nClaim code: ${claimCodePayload.code}\nExpires: ${claimCodePayload.expiresAt}\n\nUse Claim Existing Account on the auth screen.`,
-      });
-    } catch {
-      showAlert('Unable to share code', 'Unable to open share options right now.');
+      const message = `Your claim code for ${claimCodePayload.tenantName} is: ${claimCodePayload.code}. It expires on ${claimCodePayload.expiresAt}.`;
+      await Share.share({ message });
+    } catch (_error) {
+      showError('Error', 'Failed to share claim code.');
     }
   };
 
@@ -917,12 +803,9 @@ export default function TenantsScreen({ navigation, route }) {
     const paymentStatus = item.latestBooking?.payment_status || 'unpaid';
     const payment = PAYMENT_BADGES[paymentStatus] || PAYMENT_BADGES.unpaid;
     const initials = (item.first_name?.[0] || '') + (item.last_name?.[0] || '');
-
     const currentRoom = item.room || (item.roomAssignments && item.roomAssignments.length > 0 ? item.roomAssignments[0] : null);
     const monthlyRent = resolveTenantMonthlyRent(item, currentRoom);
     const hasPendingEviction = Boolean(item.pending_eviction);
-    const canUndoEviction = Boolean(item.can_undo_eviction);
-    const evictionDue = isEvictionDue(item);
     const isActionMenuOpen = openActionsTenantId === item.id;
 
     return (
@@ -961,112 +844,57 @@ export default function TenantsScreen({ navigation, route }) {
                 <Text style={styles.moreActionLabel}>View Profile</Text>
               </TouchableOpacity>
 
-              <TouchableOpacity
-                style={styles.moreActionItem}
-                onPress={() => {
-                  setOpenActionsTenantId(null);
-                  handleGenerateClaimCode(item);
-                }}
-              >
-                <Ionicons name="key-outline" size={16} color="#4338CA" />
-                <Text style={styles.moreActionLabel}>Generate Claim Code</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.moreActionItem, (currentRoom || hasPendingEviction) ? styles.moreActionItemDisabled : null]}
-                onPress={() => {
-                  setOpenActionsTenantId(null);
-                  handleAssignInitiate(item);
-                }}
-                disabled={!!currentRoom || hasPendingEviction}
-              >
-                <Ionicons name="person-add-outline" size={16} color="#16a34a" />
-                <Text style={styles.moreActionLabel}>Assign Room</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.moreActionItem, (!currentRoom || hasPendingEviction) ? styles.moreActionItemDisabled : null]}
-                onPress={() => {
-                  setOpenActionsTenantId(null);
-                  handleUnassignInitiate(item);
-                }}
-                disabled={!currentRoom || hasPendingEviction}
-              >
-                <Ionicons name="person-outline" size={16} color="#B45309" />
-                <Text style={styles.moreActionLabel}>Unassign Room</Text>
-              </TouchableOpacity>
-
-              {!hasPendingEviction && (
+              {canManageTenants && (
                 <TouchableOpacity
                   style={styles.moreActionItem}
                   onPress={() => {
                     setOpenActionsTenantId(null);
-                    handleEvictionInitiate(item);
+                    handleGenerateClaimCode(item);
                   }}
                 >
-                  <Ionicons name="person-remove-outline" size={16} color="#DC2626" />
-                  <Text style={styles.moreActionLabel}>Schedule Eviction</Text>
+                  <Ionicons name="key-outline" size={16} color="#4338CA" />
+                  <Text style={styles.moreActionLabel}>Generate Claim Code</Text>
                 </TouchableOpacity>
               )}
 
-              {hasPendingEviction && (
-                <>
-                  <TouchableOpacity
-                    style={[styles.moreActionItem, !evictionDue ? styles.moreActionItemDisabled : null]}
-                    onPress={() => {
-                      setOpenActionsTenantId(null);
-                      showAlert(
-                        'Finalize eviction',
-                        `Finalize eviction for ${item.first_name} ${item.last_name}?`,
-                        [
-                          { text: 'Cancel', style: 'cancel' },
-                          { text: 'Finalize', style: 'destructive', onPress: () => handleFinalizeEviction(item) },
-                        ]
-                      );
-                    }}
-                    disabled={!evictionDue}
-                  >
-                    <Ionicons name="checkmark-done-outline" size={16} color="#DC2626" />
-                    <Text style={styles.moreActionLabel}>Finalize Eviction</Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={styles.moreActionItem}
-                    onPress={() => {
-                      setOpenActionsTenantId(null);
-                      showAlert(
-                        'Cancel eviction schedule',
-                        `Cancel pending eviction for ${item.first_name} ${item.last_name}?`,
-                        [
-                          { text: 'Keep schedule', style: 'cancel' },
-                          { text: 'Cancel schedule', style: 'destructive', onPress: () => handleCancelEviction(item) },
-                        ]
-                      );
-                    }}
-                  >
-                    <Ionicons name="close-circle-outline" size={16} color="#D97706" />
-                    <Text style={styles.moreActionLabel}>Cancel Eviction</Text>
-                  </TouchableOpacity>
-                </>
+              {canManageTenants && (
+                <TouchableOpacity
+                  style={[styles.moreActionItem, (currentRoom || hasPendingEviction) ? styles.moreActionItemDisabled : null]}
+                  onPress={() => {
+                    setOpenActionsTenantId(null);
+                    handleAssignInitiate(item);
+                  }}
+                  disabled={!!currentRoom || hasPendingEviction}
+                >
+                  <Ionicons name="person-add-outline" size={16} color="#16a34a" />
+                  <Text style={styles.moreActionLabel}>Assign Room</Text>
+                </TouchableOpacity>
               )}
 
-              {canUndoEviction && !hasPendingEviction && (
+              {canManageTenants && (
+                <TouchableOpacity
+                  style={[styles.moreActionItem, (!currentRoom || hasPendingEviction) ? styles.moreActionItemDisabled : null]}
+                  onPress={() => {
+                    setOpenActionsTenantId(null);
+                    handleUnassignInitiate(item);
+                  }}
+                  disabled={!currentRoom || hasPendingEviction}
+                >
+                  <Ionicons name="person-outline" size={16} color="#B45309" />
+                  <Text style={styles.moreActionLabel}>Unassign Room</Text>
+                </TouchableOpacity>
+              )}
+
+              {canManageTenants && (
                 <TouchableOpacity
                   style={styles.moreActionItem}
                   onPress={() => {
                     setOpenActionsTenantId(null);
-                    showAlert(
-                      'Undo eviction',
-                      `Restore tenancy for ${item.first_name} ${item.last_name}?`,
-                      [
-                        { text: 'No', style: 'cancel' },
-                        { text: 'Undo', onPress: () => handleUndoEviction(item) },
-                      ]
-                    );
+                    handleLifecycleAction(item);
                   }}
                 >
-                  <Ionicons name="refresh-outline" size={16} color="#2563EB" />
-                  <Text style={styles.moreActionLabel}>Undo Eviction</Text>
+                  <Ionicons name="refresh-circle-outline" size={16} color="#4338CA" />
+                  <Text style={styles.moreActionLabel}>Manage Lifecycle</Text>
                 </TouchableOpacity>
               )}
             </View>
@@ -1128,13 +956,7 @@ export default function TenantsScreen({ navigation, route }) {
               style={[
                 styles.secondaryBtn,
                 styles.primaryActionBtn,
-                isTablet
-                  ? {
-                    flex: 0,
-                    minWidth: 152,
-                    paddingHorizontal: 14,
-                  }
-                  : null,
+                isTablet ? { flex: 0, minWidth: 152, paddingHorizontal: 14 } : null,
               ]}
               onPress={() => {
                 setOpenActionsTenantId(null);
@@ -1142,19 +964,13 @@ export default function TenantsScreen({ navigation, route }) {
               }}
             >
               <Ionicons name="receipt-outline" size={16} color="#475569" />
-              <Text style={styles.secondaryBtnText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.85}>View Logs</Text>
+              <Text style={styles.secondaryBtnText} numberOfLines={1}>Logs</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[
                 styles.primaryBtn,
                 styles.primaryActionBtn,
-                isTablet
-                  ? {
-                    flex: 0,
-                    minWidth: 152,
-                    paddingHorizontal: 14,
-                  }
-                  : null,
+                isTablet ? { flex: 0, minWidth: 152, paddingHorizontal: 14 } : null,
               ]}
               onPress={() => {
                 setOpenActionsTenantId(null);
@@ -1162,30 +978,57 @@ export default function TenantsScreen({ navigation, route }) {
               }}
             >
               <Ionicons name="chatbubble-ellipses-outline" size={16} color="#FFFFFF" />
-              <Text style={styles.primaryBtnText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.85}>Message</Text>
+              <Text style={styles.primaryBtnText} numberOfLines={1}>Chat</Text>
             </TouchableOpacity>
-            <TouchableOpacity
-              style={[
-                styles.warningBtn,
-                styles.primaryActionBtn,
-                isTablet
-                  ? {
-                    flex: 0,
-                    minWidth: 152,
-                    paddingHorizontal: 14,
-                  }
-                  : null,
-                (!currentRoom || hasPendingEviction) ? styles.actionDisabledBtn : null,
-              ]}
-              onPress={() => {
-                setOpenActionsTenantId(null);
-                handleTransferInitiate(item);
-              }}
-              disabled={!currentRoom || hasPendingEviction}
-            >
-              <Ionicons name="swap-horizontal-outline" size={16} color="#FFFFFF" />
-              <Text style={styles.warningBtnText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.85}>Transfer</Text>
-            </TouchableOpacity>
+
+            {canApproveBookings && item.latestBooking?.status === 'pending_reservation' && (
+              <TouchableOpacity
+                style={[
+                  styles.primaryBtn,
+                  styles.primaryActionBtn,
+                  { backgroundColor: '#4338CA' },
+                  isTablet ? { flex: 0, minWidth: 152, paddingHorizontal: 14 } : null,
+                ]}
+                onPress={() => handleApproveReservation(item)}
+              >
+                <Ionicons name="checkmark-circle-outline" size={16} color="#FFFFFF" />
+                <Text style={styles.primaryBtnText}>Approve</Text>
+              </TouchableOpacity>
+            )}
+
+            {canApproveBookings && item.latestBooking?.status === 'reserved' && item.latestBooking?.payment_status === 'paid' && (
+              <TouchableOpacity
+                style={[
+                  styles.primaryBtn,
+                  styles.primaryActionBtn,
+                  { backgroundColor: '#059669' },
+                  isTablet ? { flex: 0, minWidth: 152, paddingHorizontal: 14 } : null,
+                ]}
+                onPress={() => handleCheckIn(item)}
+              >
+                <Ionicons name="log-in-outline" size={16} color="#FFFFFF" />
+                <Text style={styles.primaryBtnText}>Check-in</Text>
+              </TouchableOpacity>
+            )}
+
+            {canManageTenants && (
+              <TouchableOpacity
+                style={[
+                  styles.warningBtn,
+                  styles.primaryActionBtn,
+                  isTablet ? { flex: 0, minWidth: 152, paddingHorizontal: 14 } : null,
+                  (!currentRoom || hasPendingEviction) ? styles.actionDisabledBtn : null,
+                ]}
+                onPress={() => {
+                  setOpenActionsTenantId(null);
+                  handleTransferInitiate(item);
+                }}
+                disabled={!currentRoom || hasPendingEviction}
+              >
+                <Ionicons name="swap-horizontal-outline" size={16} color="#FFFFFF" />
+                <Text style={styles.warningBtnText} numberOfLines={1}>Transfer</Text>
+              </TouchableOpacity>
+            )}
           </View>
         </View>
       </View>
@@ -1217,9 +1060,11 @@ export default function TenantsScreen({ navigation, route }) {
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Tenant Management</Text>
         <View style={styles.headerActions}>
-          <TouchableOpacity style={styles.iconButton} onPress={handleCreateTenantInitiate}>
-            <Ionicons name="person-add" size={22} color="#FFFFFF" />
-          </TouchableOpacity>
+          {canAddTenants && (
+            <TouchableOpacity style={styles.iconButton} onPress={handleCreateTenantInitiate}>
+              <Ionicons name="person-add" size={22} color="#FFFFFF" />
+            </TouchableOpacity>
+          )}
         </View>
       </View>
 
@@ -1319,7 +1164,6 @@ export default function TenantsScreen({ navigation, route }) {
                 </TouchableOpacity>
               ))}
             </ScrollView>
-
           </View>
         )}
         contentContainerStyle={[
@@ -1384,111 +1228,6 @@ export default function TenantsScreen({ navigation, route }) {
             </View>
           </View>
         </View>
-      </Modal>
-
-      <Modal
-        visible={feedbackModal.visible}
-        transparent
-        animationType="fade"
-        onRequestClose={closeFeedbackModal}
-      >
-        <View style={styles.overlayContainer}>
-          <View style={styles.actionModalCard}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
-              <Ionicons
-                name={feedbackModal.tone === 'success' ? 'checkmark-circle-outline' : 'alert-circle-outline'}
-                size={22}
-                color={feedbackModal.tone === 'success' ? '#16a34a' : '#DC2626'}
-              />
-              <Text style={[styles.actionModalTitle, { marginLeft: 8 }]}>{feedbackModal.title || 'Notice'}</Text>
-            </View>
-
-            <Text style={styles.actionModalSubtitle}>{feedbackModal.message}</Text>
-
-            <View style={styles.modalActionsRow}>
-              <TouchableOpacity
-                style={[
-                  styles.modalDangerBtn,
-                  {
-                    backgroundColor: feedbackModal.tone === 'success' ? '#16a34a' : '#DC2626',
-                    flex: 1,
-                  },
-                ]}
-                onPress={closeFeedbackModal}
-              >
-                <Text style={styles.modalConfirmText}>Okay</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
-
-      <Modal visible={detailVisible} animationType="slide" onRequestClose={() => setDetailVisible(false)}>
-        <SafeAreaView style={styles.modalContainer}>
-          <View style={styles.modalHeader}>
-            <TouchableOpacity onPress={() => setDetailVisible(false)} style={styles.backButton}>
-              <Ionicons name="close" size={24} color="#0F172A" />
-            </TouchableOpacity>
-            <Text style={styles.modalTitle}>Tenant Profile</Text>
-            <View style={styles.modalHeaderView} />
-          </View>
-          {detailTenant && (
-            <ScrollView contentContainerStyle={styles.modalContent}>
-              <View style={styles.detailHero}>
-                <View style={styles.avatarLarge}><Text style={styles.avatarLargeText}>{detailTenant.first_name?.[0]}{detailTenant.last_name?.[0]}</Text></View>
-                <Text style={styles.detailName}>{detailTenant.first_name} {detailTenant.last_name}</Text>
-                <Text style={styles.detailEmail}>{detailTenant.email}</Text>
-              </View>
-
-              <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Personal Information</Text>
-                <View style={styles.detailList}>
-                  <Text style={styles.detailLabel}>Phone</Text>
-                  <Text style={styles.detailValue}>{detailTenant.phone || '—'}</Text>
-                  <Text style={styles.detailLabel}>Date of Birth</Text>
-                  <Text style={styles.detailValue}>
-                    {detailTenant.date_of_birth
-                      ? new Date(detailTenant.date_of_birth).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
-                      : '—'}
-                  </Text>
-                  <Text style={styles.detailLabel}>Sex</Text>
-                  <Text style={[styles.detailValue, { textTransform: 'capitalize' }]}>{detailTenant.sex || '—'}</Text>
-                </View>
-              </View>
-
-              <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Room Assignment</Text>
-                {detailTenant.room ? (
-                  <View style={styles.assignmentCard}>
-                    <Text style={styles.assignmentTitle}>Room {detailTenant.room.room_number}</Text>
-                    <Text style={styles.assignmentMeta}>{detailTenant.room.type_label}</Text>
-                    <Text style={[styles.assignmentMeta, { color: '#16a34a', fontWeight: '700' }]}>
-                      {detailMonthlyRent.amount !== null ? formatCurrency(detailMonthlyRent.amount) : '—'} / month
-                    </Text>
-                  </View>
-                ) : <Text style={styles.helperText}>No room assigned</Text>}
-              </View>
-
-              <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Emergency Contact</Text>
-                {detailTenant.tenantProfile?.emergency_contact_name ? (
-                  <View style={styles.detailList}>
-                    <Text style={styles.detailLabel}>Name</Text><Text style={styles.detailValue}>{detailTenant.tenantProfile.emergency_contact_name}</Text>
-                    <Text style={styles.detailLabel}>Phone</Text><Text style={styles.detailValue}>{detailTenant.tenantProfile.emergency_contact_phone}</Text>
-                  </View>
-                ) : <Text style={styles.helperText}>Not provided</Text>}
-              </View>
-
-              <TouchableOpacity
-                style={styles.profileScroll}
-                onPress={() => { setDetailVisible(false); navigation.navigate('TenantLogs', { tenantId: detailTenant.id, tenantName: `${detailTenant.first_name} ${detailTenant.last_name}` }); }}
-              >
-                <Ionicons name="receipt-outline" size={20} color="#FFFFFF" />
-                <Text style={styles.profileBtn}>View Payment Logs</Text>
-              </TouchableOpacity>
-            </ScrollView>
-          )}
-        </SafeAreaView>
       </Modal>
 
       <Modal
@@ -1616,7 +1355,7 @@ export default function TenantsScreen({ navigation, route }) {
                   onPress={() => setCreateTenantData((current) => ({ ...current, move_in_date: '' }))}
                   style={styles.clearDateButton}
                 >
-                  <Text style={styles.clearDateButtonText}>Clear move-in date</Text>
+                  <Text style={styles.clearDateButtonText}>Clear</Text>
                 </TouchableOpacity>
               ) : null}
               {showCreateMoveInPicker && (
@@ -1642,7 +1381,7 @@ export default function TenantsScreen({ navigation, route }) {
                 >
                   {createTenantData.end_date
                     ? formatDateForDisplay(createTenantData.end_date)
-                    : 'Auto-generates 6 months if empty'}
+                    : 'Default: 6 months'}
                 </Text>
                 <Ionicons name="calendar-outline" size={18} color={theme.colors.textSecondary} />
               </TouchableOpacity>
@@ -1651,7 +1390,7 @@ export default function TenantsScreen({ navigation, route }) {
                   onPress={() => setCreateTenantData((current) => ({ ...current, end_date: '' }))}
                   style={styles.clearDateButton}
                 >
-                  <Text style={styles.clearDateButtonText}>Clear end date</Text>
+                  <Text style={styles.clearDateButtonText}>Clear</Text>
                 </TouchableOpacity>
               ) : null}
               {showCreateEndDatePicker && (
@@ -1679,11 +1418,7 @@ export default function TenantsScreen({ navigation, route }) {
               <View style={styles.modalActionsRow}>
                 <TouchableOpacity
                   style={styles.modalCancelBtn}
-                  onPress={() => {
-                    setCreateTenantVisible(false);
-                    setShowCreateMoveInPicker(false);
-                    setShowCreateEndDatePicker(false);
-                  }}
+                  onPress={() => setCreateTenantVisible(false)}
                 >
                   <Text style={styles.modalCancelText}>Cancel</Text>
                 </TouchableOpacity>
@@ -1692,7 +1427,7 @@ export default function TenantsScreen({ navigation, route }) {
                   onPress={handleCreateTenantSubmit}
                   disabled={isCreatingTenant || availableRoomsForCreate.length === 0}
                 >
-                  <Text style={styles.modalConfirmText}>{isCreatingTenant ? 'Adding...' : 'Create & Assign'}</Text>
+                  <Text style={styles.modalConfirmText}>{isCreatingTenant ? 'Adding...' : 'Create'}</Text>
                 </TouchableOpacity>
               </View>
             </ScrollView>
@@ -1803,7 +1538,7 @@ export default function TenantsScreen({ navigation, route }) {
               <Text style={styles.actionModalTitle}>Assign Room</Text>
               <Text style={styles.actionModalSubtitle}>
                 {assigningTenant
-                  ? `Assign ${assigningTenant.first_name} ${assigningTenant.last_name} to an available room.`
+                  ? `Assign ${assigningTenant.first_name} ${assigningTenant.last_name} to a room.`
                   : 'Select a tenant to assign.'}
               </Text>
 
@@ -1843,7 +1578,7 @@ export default function TenantsScreen({ navigation, route }) {
                 >
                   {assignData.move_in_date
                     ? formatDateForDisplay(assignData.move_in_date)
-                    : 'Use today by default'}
+                    : 'Use today'}
                 </Text>
                 <Ionicons name="calendar-outline" size={18} color={theme.colors.textSecondary} />
               </TouchableOpacity>
@@ -1852,7 +1587,7 @@ export default function TenantsScreen({ navigation, route }) {
                   onPress={() => setAssignData((current) => ({ ...current, move_in_date: '' }))}
                   style={styles.clearDateButton}
                 >
-                  <Text style={styles.clearDateButtonText}>Clear move-in date</Text>
+                  <Text style={styles.clearDateButtonText}>Clear</Text>
                 </TouchableOpacity>
               ) : null}
               {showAssignMoveInPicker && (
@@ -1865,7 +1600,7 @@ export default function TenantsScreen({ navigation, route }) {
                 />
               )}
 
-              <Text style={styles.actionFieldLabel}>Contract End Date (Optional)</Text>
+              <Text style={styles.actionFieldLabel}>End Date (Optional)</Text>
               <TouchableOpacity
                 style={styles.dateInputButton}
                 onPress={() => setShowAssignEndDatePicker(true)}
@@ -1878,7 +1613,7 @@ export default function TenantsScreen({ navigation, route }) {
                 >
                   {assignData.end_date
                     ? formatDateForDisplay(assignData.end_date)
-                    : 'Auto-generates 6 months if empty'}
+                    : 'Default: 6 months'}
                 </Text>
                 <Ionicons name="calendar-outline" size={18} color={theme.colors.textSecondary} />
               </TouchableOpacity>
@@ -1887,7 +1622,7 @@ export default function TenantsScreen({ navigation, route }) {
                   onPress={() => setAssignData((current) => ({ ...current, end_date: '' }))}
                   style={styles.clearDateButton}
                 >
-                  <Text style={styles.clearDateButtonText}>Clear end date</Text>
+                  <Text style={styles.clearDateButtonText}>Clear</Text>
                 </TouchableOpacity>
               ) : null}
               {showAssignEndDatePicker && (
@@ -1915,11 +1650,7 @@ export default function TenantsScreen({ navigation, route }) {
               <View style={styles.modalActionsRow}>
                 <TouchableOpacity
                   style={styles.modalCancelBtn}
-                  onPress={() => {
-                    setAssignVisible(false);
-                    setShowAssignMoveInPicker(false);
-                    setShowAssignEndDatePicker(false);
-                  }}
+                  onPress={() => setAssignVisible(false)}
                 >
                   <Text style={styles.modalCancelText}>Cancel</Text>
                 </TouchableOpacity>
@@ -1942,7 +1673,7 @@ export default function TenantsScreen({ navigation, route }) {
             <Text style={[styles.actionModalTitle, { color: '#B45309' }]}>Confirm Unassign</Text>
             <Text style={styles.actionModalSubtitle}>
               {unassigningTenant
-                ? `Unassign ${unassigningTenant.first_name} ${unassigningTenant.last_name} from their current room?`
+                ? `Unassign ${unassigningTenant.first_name} ${unassigningTenant.last_name} from their room?`
                 : 'Select a tenant to unassign.'}
             </Text>
 
@@ -1962,56 +1693,69 @@ export default function TenantsScreen({ navigation, route }) {
         </View>
       </Modal>
 
-      <Modal visible={evictionVisible} transparent animationType="fade" onRequestClose={() => setEvictionVisible(false)}>
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          style={styles.overlayContainer}
-        >
-          <View style={[styles.actionModalCard, { maxHeight: '90%' }]}>
-            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 20 }}>
-              <Text style={[styles.actionModalTitle, { color: '#DC2626' }]}>Schedule Eviction</Text>
-              <Text style={styles.actionModalSubtitle}>
-                {evictingTenant
-                  ? `Set grace period before finalizing eviction for ${evictingTenant.first_name} ${evictingTenant.last_name}.`
-                  : 'Select a tenant to schedule eviction.'}
-              </Text>
-
-              <Text style={styles.actionFieldLabel}>Grace Period (Hours) *</Text>
-              <TextInput
-                value={evictionGraceHours}
-                onChangeText={setEvictionGraceHours}
-                placeholder="24"
-                style={styles.actionInput}
-                keyboardType="numeric"
-              />
-              <Text style={styles.helperText}>Use 0 for immediate finalization eligibility.</Text>
-
-              <Text style={styles.actionFieldLabel}>Reason *</Text>
-              <TextInput
-                value={evictionReason}
-                onChangeText={setEvictionReason}
-                placeholder="Reason for eviction"
-                style={styles.actionTextArea}
-                multiline
-              />
-
-              <View style={styles.modalActionsRow}>
-                <TouchableOpacity style={styles.modalCancelBtn} onPress={() => setEvictionVisible(false)}>
-                  <Text style={styles.modalCancelText}>Cancel</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.modalDangerBtn, (isEvicting || !evictionReason.trim()) && styles.modalDisabledBtn]}
-                  onPress={handleEvictConfirm}
-                  disabled={isEvicting || !evictionReason.trim()}
-                >
-                  <Text style={styles.modalConfirmText}>{isEvicting ? 'Scheduling...' : 'Schedule'}</Text>
-                </TouchableOpacity>
-              </View>
-            </ScrollView>
+      <Modal visible={detailVisible} animationType="slide" onRequestClose={() => setDetailVisible(false)}>
+        <SafeAreaView style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <TouchableOpacity onPress={() => setDetailVisible(false)} style={styles.backButton}>
+              <Ionicons name="close" size={24} color="#0F172A" />
+            </TouchableOpacity>
+            <Text style={styles.modalTitle}>Tenant Profile</Text>
+            <View style={styles.modalHeaderView} />
           </View>
-        </KeyboardAvoidingView>
+          {detailTenant && (
+            <ScrollView contentContainerStyle={styles.modalContent}>
+              <View style={styles.detailHero}>
+                <View style={styles.avatarLarge}><Text style={styles.avatarLargeText}>{detailTenant.first_name?.[0]}{detailTenant.last_name?.[0]}</Text></View>
+                <Text style={styles.detailName}>{detailTenant.first_name} {detailTenant.last_name}</Text>
+                <Text style={styles.detailEmail}>{detailTenant.email}</Text>
+              </View>
+
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>Room Assignment</Text>
+                {detailTenant.room ? (
+                  <View style={styles.assignmentCard}>
+                    <Text style={styles.assignmentTitle}>Room {detailTenant.room.room_number}</Text>
+                    <Text style={styles.assignmentMeta}>{detailTenant.room.type_label}</Text>
+                    <Text style={[styles.assignmentMeta, { color: '#16a34a', fontWeight: '700' }]}>
+                      {detailMonthlyRent.amount !== null ? formatCurrency(detailMonthlyRent.amount) : '—'} / month
+                    </Text>
+                  </View>
+                ) : <Text style={styles.helperText}>No room assigned</Text>}
+              </View>
+
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>Emergency Contact</Text>
+                {detailTenant.tenantProfile?.emergency_contact_name ? (
+                  <View style={styles.detailList}>
+                    <Text style={styles.detailLabel}>Name</Text><Text style={styles.detailValue}>{detailTenant.tenantProfile.emergency_contact_name}</Text>
+                    <Text style={styles.detailLabel}>Phone</Text><Text style={styles.detailValue}>{detailTenant.tenantProfile.emergency_contact_phone}</Text>
+                  </View>
+                ) : <Text style={styles.helperText}>Not provided</Text>}
+              </View>
+
+              <TouchableOpacity
+                style={styles.profileScroll}
+                onPress={() => { setDetailVisible(false); navigation.navigate('TenantLogs', { tenantId: detailTenant.id, tenantName: `${detailTenant.first_name} ${detailTenant.last_name}` }); }}
+              >
+                <Ionicons name="receipt-outline" size={20} color="#FFFFFF" />
+                <Text style={styles.profileBtn}>View Payment Logs</Text>
+              </TouchableOpacity>
+            </ScrollView>
+          )}
+        </SafeAreaView>
       </Modal>
 
+      <TenantLifecycleModal
+        visible={lifecycleVisible}
+        onClose={() => {
+          setLifecycleVisible(false);
+          setLifecycleTenant(null);
+        }}
+        tenant={lifecycleTenant}
+        onSuccess={() => {
+          refetchLandlordQueries(tenantListRefetchers);
+        }}
+      />
     </SafeAreaView>
   );
 }

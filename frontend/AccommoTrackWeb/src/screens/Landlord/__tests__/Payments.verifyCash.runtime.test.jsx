@@ -1,6 +1,6 @@
 import React from 'react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import toast from 'react-hot-toast';
+import { showSuccess } from '../../../utils/toast';
 import Payments from '../Payments';
 import invoiceService from '../../../services/invoiceService';
 
@@ -14,9 +14,8 @@ jest.mock('react-router-dom', () => ({
   useNavigate: () => mockNavigate,
 }));
 
-jest.mock('react-hot-toast', () => ({
-  success: jest.fn(),
-  error: jest.fn(),
+jest.mock('../../../utils/toast', () => ({
+  showSuccess: jest.fn(),
 }));
 
 jest.mock('../../../contexts/UIStateContext', () => ({
@@ -124,7 +123,7 @@ describe('Landlord Payments runtime cash verification', () => {
     });
 
     await waitFor(() => {
-      expect(toast.success).toHaveBeenCalledWith('Cash payment approved — invoice marked as Paid.');
+      expect(showSuccess).toHaveBeenCalledWith('Cash payment approved — invoice marked as Paid.');
     });
 
     await waitFor(() => {
@@ -159,7 +158,7 @@ describe('Landlord Payments runtime cash verification', () => {
     });
 
     await waitFor(() => {
-      expect(toast.success).toHaveBeenCalledWith('Cash payment rejected — tenant will be notified.');
+      expect(showSuccess).toHaveBeenCalledWith('Cash payment rejected — tenant will be notified.');
     });
   });
 });

@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   StatusBar,
   ActivityIndicator,
-  Alert,
   Image,
   RefreshControl,
   useWindowDimensions,
@@ -25,6 +24,7 @@ import {
   useTenantFocusRefetch,
   useTenantRefreshHandler,
 } from '../../hooks/useTenantQueryHelpers.js';
+import { showError } from '../../../../utils/toast.js';
 
 // Helper function to get proper image URL
 const getRoomImageUrl = (imageUrl) => {
@@ -48,7 +48,6 @@ export default function RoomListScreen({ route }) {
   const navigation = useNavigation();
   const { theme } = useTheme();
   const styles = React.useMemo(() => getStyles(theme), [theme]);
-  const showAlert = Alert.alert;
   const contentWrapStyle = React.useMemo(
     () => (viewportWidth >= 768 ? { width: '100%', maxWidth: 960, alignSelf: 'center' } : null),
     [viewportWidth],
@@ -111,7 +110,7 @@ export default function RoomListScreen({ route }) {
   useEffect(() => {
     if (!roomListQuery.error) return;
     console.error('Error loading rooms:', roomListQuery.error);
-    showAlert('Error', roomListQuery.error.message || 'Failed to load rooms. Please try again.');
+    showError('Error', roomListQuery.error.message || 'Failed to load rooms. Please try again.');
   }, [roomListQuery.error]);
 
   const filteredRooms = React.useMemo(() => {

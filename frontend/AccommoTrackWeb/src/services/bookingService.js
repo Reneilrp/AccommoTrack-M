@@ -9,50 +9,50 @@ const bookingService = {
   async createBooking(payload) {
     try {
       const res = await api.post('/bookings', payload);
-      return res.data;
-    } catch (err) {
-      console.error('createBooking error:', err?.response?.data || err);
-      throw err;
+      return { success: true, data: res.data };
+    } catch (_err) {
+      console.error('createBooking error:',_err?.response?.data ||_err);
+      return { success: false, error:_err?.response?.data?.message ||_err.message };
     }
   },
 
   async getMyBookings() {
     try {
       const res = await api.get('/tenant/bookings');
-      return res.data;
-    } catch (err) {
-      console.error('getMyBookings error:', err?.response?.data || err);
-      throw err;
+      return { success: true, data: res.data };
+    } catch (_err) {
+      console.error('getMyBookings error:',_err?.response?.data ||_err);
+      return { success: false, error:_err?.response?.data?.message ||_err.message };
     }
   },
 
   async getBookingDetails(bookingId) {
     try {
       const res = await api.get(`/tenant/bookings/${bookingId}`);
-      return res.data;
-    } catch (err) {
-      console.error('getBookingDetails error:', err?.response?.data || err);
-      throw err;
+      return { success: true, data: res.data };
+    } catch (_err) {
+      console.error('getBookingDetails error:',_err?.response?.data ||_err);
+      return { success: false, error:_err?.response?.data?.message ||_err.message };
     }
   },
 
   async cancelBooking(bookingId, data = {}) {
     try {
       const res = await api.patch(`/tenant/bookings/${bookingId}/cancel`, data);
-      return res.data;
-    } catch (err) {
-      console.error('cancelBooking error:', err?.response?.data || err);
-      throw err;
+      return { success: true, data: res.data };
+    } catch (_err) {
+      console.error('cancelBooking error:',_err?.response?.data ||_err);
+      return { success: false, error:_err?.response?.data?.message ||_err.message };
     }
   },
 
   async requestMoveOut(bookingId, data = {}) {
     try {
       const res = await api.patch(`/tenant/bookings/${bookingId}/request-move-out`, data);
-      return res.data;
-    } catch (err) {
-      console.error('requestMoveOut error:', err?.response?.data || err);
-      throw err;
+      return { success: true, data: res.data };
+    } catch (_err) {
+      console.error('requestMoveOut error:',_err?.response?.data ||_err);
+      return { success: false, error:_err?.response?.data?.message ||_err.message };
     }
   },
 
@@ -68,12 +68,12 @@ const bookingService = {
     try {
       const res = await api.get('/bookings', { params });
       return { success: true, data: res.data?.data || res.data };
-    } catch (err) {
-      const status = err?.response?.status;
+    } catch (_err) {
+      const status = _err?.response?.status;
       if (status === 404 || status === 204) {
         return { success: true, data: [] };
       }
-      return { success: false, status, error: err.response?.data?.message || err.message };
+      return { success: false, status, error: _err.response?.data?.message || _err.message };
     }
   },
 
@@ -85,8 +85,8 @@ const bookingService = {
     try {
       const res = await api.get(`/bookings/${bookingId}`);
       return { success: true, data: res.data?.data || res.data };
-    } catch (err) {
-      return { success: false, error: err.response?.data?.message || err.message };
+    } catch (_err) {
+      return { success: false, error: _err.response?.data?.message || _err.message };
     }
   },
 
@@ -98,8 +98,8 @@ const bookingService = {
     try {
       const res = await api.get('/bookings/stats');
       return { success: true, data: res.data?.data || res.data };
-    } catch (err) {
-      return { success: false, error: err.response?.data?.message || err.message };
+    } catch (_err) {
+      return { success: false, error: _err.response?.data?.message || _err.message };
     }
   },
 
@@ -111,8 +111,8 @@ const bookingService = {
     try {
       const res = await api.get('/landlord/extensions');
       return { success: true, data: res.data?.data || res.data };
-    } catch (err) {
-      return { success: false, error: err.response?.data?.message || err.message };
+    } catch (_err) {
+      return { success: false, error: _err.response?.data?.message || _err.message };
     }
   },
 
@@ -124,8 +124,8 @@ const bookingService = {
     try {
       const res = await api.get('/landlord/transfers', { params });
       return { success: true, data: res.data?.data || res.data };
-    } catch (err) {
-      return { success: false, error: err.response?.data?.message || err.message };
+    } catch (_err) {
+      return { success: false, error: _err.response?.data?.message || _err.message };
     }
   },
 
@@ -137,8 +137,8 @@ const bookingService = {
     try {
       const res = await api.patch(`/landlord/extensions/${id}/handle`, { action, ...data });
       return { success: true, data: res.data?.data || res.data };
-    } catch (err) {
-      return { success: false, error: err.response?.data?.message || err.message };
+    } catch (_err) {
+      return { success: false, error: _err.response?.data?.message || _err.message };
     }
   },
 
@@ -150,8 +150,8 @@ const bookingService = {
     try {
       const res = await api.patch(`/landlord/transfers/${id}/handle`, { action, ...data });
       return { success: true, data: res.data?.data || res.data };
-    } catch (err) {
-      return { success: false, error: err.response?.data?.message || err.message };
+    } catch (_err) {
+      return { success: false, error: _err.response?.data?.message || _err.message };
     }
   },
 
@@ -163,8 +163,8 @@ const bookingService = {
     try {
       const res = await api.get(`/landlord/transfers/${id}/proration`);
       return { success: true, data: res.data?.data || res.data };
-    } catch (err) {
-      return { success: false, error: err.response?.data?.message || err.message };
+    } catch (_err) {
+      return { success: false, error: _err.response?.data?.message || _err.message };
     }
   },
 
@@ -176,8 +176,8 @@ const bookingService = {
     try {
       const res = await api.patch(`/bookings/${bookingId}/status`, { status, ...data });
       return { success: true, data: res.data?.data || res.data };
-    } catch (err) {
-      return { success: false, error: err.response?.data?.message || err.message };
+    } catch (_err) {
+      return { success: false, error: _err.response?.data?.message || _err.message };
     }
   },
 
@@ -189,8 +189,8 @@ const bookingService = {
     try {
       const res = await api.post(`/bookings/${bookingId}/approve-reservation`);
       return { success: true, data: res.data?.data || res.data };
-    } catch (err) {
-      return { success: false, error: err.response?.data?.message || err.message };
+    } catch (_err) {
+      return { success: false, error: _err.response?.data?.message || _err.message };
     }
   },
 
@@ -202,8 +202,8 @@ const bookingService = {
     try {
       const res = await api.post(`/bookings/${bookingId}/check-in`);
       return { success: true, data: res.data?.data || res.data };
-    } catch (err) {
-      return { success: false, error: err.response?.data?.message || err.message };
+    } catch (_err) {
+      return { success: false, error: _err.response?.data?.message || _err.message };
     }
   },
 
@@ -215,8 +215,8 @@ const bookingService = {
     try {
       const res = await api.patch(`/bookings/${bookingId}/payment`, data);
       return { success: true, data: res.data?.data || res.data };
-    } catch (err) {
-      return { success: false, error: err.response?.data?.message || err.message };
+    } catch (_err) {
+      return { success: false, error: _err.response?.data?.message || _err.message };
     }
   },
 
@@ -228,8 +228,8 @@ const bookingService = {
     try {
       const res = await api.post(`/bookings/${bookingId}/finalize-checkout`, data);
       return { success: true, data: res.data?.data || res.data, message: res.data?.message };
-    } catch (err) {
-      return { success: false, error: err.response?.data?.message || err.message };
+    } catch (_err) {
+      return { success: false, error: _err.response?.data?.message || _err.message };
     }
   },
 
@@ -241,8 +241,8 @@ const bookingService = {
     try {
       const res = await api.get(`/bookings/${bookingId}/deposit-settlements`);
       return { success: true, data: res.data?.data || res.data };
-    } catch (err) {
-      return { success: false, error: err.response?.data?.message || err.message };
+    } catch (_err) {
+      return { success: false, error: _err.response?.data?.message || _err.message };
     }
   },
 
@@ -254,8 +254,8 @@ const bookingService = {
     try {
       const res = await api.post(`/bookings/${bookingId}/deposit-settlement`, data);
       return { success: true, data: res.data?.data || res.data };
-    } catch (err) {
-      return { success: false, error: err.response?.data?.message || err.message };
+    } catch (_err) {
+      return { success: false, error: _err.response?.data?.message || _err.message };
     }
   },
 
@@ -267,8 +267,8 @@ const bookingService = {
     try {
       const res = await api.post(`/landlord/bookings/${bookingId}/occupants/${occupantId}/convert-to-tenant`, data);
       return { success: true, data: res.data?.data || res.data, message: res.data?.message };
-    } catch (err) {
-      return { success: false, error: err.response?.data?.message || err.message };
+    } catch (_err) {
+      return { success: false, error: _err.response?.data?.message || _err.message };
     }
   }
 };

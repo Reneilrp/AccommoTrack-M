@@ -51,8 +51,12 @@ class Message extends Model
         'receiver_id',
         'room_id',
         'message',
+        'reply_to_id',
         'is_unsent',
+        'is_edited',
         'image_url',
+        'file_url',
+        'file_name',
         'is_read',
         'read_at',
     ];
@@ -60,6 +64,7 @@ class Message extends Model
     protected $casts = [
         'is_read' => 'boolean',
         'is_unsent' => 'boolean',
+        'is_edited' => 'boolean',
         'read_at' => 'datetime',
     ];
 
@@ -89,5 +94,15 @@ class Message extends Model
     public function room()
     {
         return $this->belongsTo(Room::class);
+    }
+
+    public function replyTo()
+    {
+        return $this->belongsTo(Message::class, 'reply_to_id');
+    }
+
+    public function replies()
+    {
+        return $this->hasMany(Message::class, 'reply_to_id');
     }
 }

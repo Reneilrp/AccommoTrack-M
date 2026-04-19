@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { maintenanceService } from '../../services/maintenanceService';
 import { X, Camera, Loader2, Home } from 'lucide-react';
-import toast from 'react-hot-toast';
+import { showSuccess, showError } from '../../utils/toast';
 
 export default function MaintenanceRequestModal({ isOpen, onClose, onSuccess, stays = [], preselectedBookingId = '' }) {
   const [submitting, setSubmitting] = useState(false);
@@ -48,7 +48,7 @@ export default function MaintenanceRequestModal({ isOpen, onClose, onSuccess, st
     e.preventDefault();
 
     if (!formData.booking_id) {
-      toast.error('Please select a property/room');
+      showError('Please select a property/room');
       return;
     }
 
@@ -65,11 +65,11 @@ export default function MaintenanceRequestModal({ isOpen, onClose, onSuccess, st
       });
 
       await maintenanceService.createRequest(data);
-      toast.success('Maintenance request submitted');
+      showSuccess('Maintenance request submitted');
       onSuccess && onSuccess();
       onClose();
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to submit request');
+      showError(err.response?.data?.message || 'Failed to submit request');
     } finally {
       setSubmitting(false);
     }

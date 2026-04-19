@@ -30,7 +30,7 @@ export default function TenantNavigator({ user, onLogout, onUserUpdate }) {
     <SidebarProvider>
       <TenantLayout user={user} onLogout={onLogout}>
         <Routes>
-          <Route path="/dashboard" element={withSuspense(<TenantDashboard />, 'Loading dashboard')} />
+          <Route path="/dashboard" element={withSuspense(<TenantDashboard user={user} />, 'Loading dashboard')} />
           <Route path="/explore" element={withSuspense(<ExploreProperties />, 'Loading properties')} />
           <Route path="/property/:id" element={withSuspense(<TenantPropertyDetails />, 'Loading property details')} />
           <Route path="/bookings" element={withSuspense(<MyBookings />, 'Loading bookings')} />

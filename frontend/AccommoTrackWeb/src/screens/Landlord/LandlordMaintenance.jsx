@@ -11,12 +11,14 @@ import {
   Building2,
   User,
   ArrowLeft,
-  RefreshCw
+  RefreshCw,
+  UserCheck
 } from 'lucide-react';
-import toast from 'react-hot-toast';
+import { showSuccess, showError } from '../../utils/toast';
 import { getImageUrl } from '../../utils/api';
 import { useUIState } from '../../contexts/UIStateContext';
 import { cacheManager } from '../../utils/cache';
+import AssignWorkerModal from '../../components/Maintenance/AssignWorkerModal';
 
 export default function LandlordMaintenance() {
   const navigate = useNavigate();
@@ -32,10 +34,31 @@ export default function LandlordMaintenance() {
   const [filterStatus, setFilterStatus] = useState(savedState.filterStatus || 'all');
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [drilldownApplied, setDrilldownApplied] = useState(false);
+  const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
+  const [requestToAssign, setRequestToAssign] = useState(null);
+  const [summary, setSummary] = useState(null);
+  const [loadingSummary, setLoadingSummary] = useState(false);
+
+  const fetchSummary = useCallback(async () => {
+    try {
+      setLoadingSummary(true);
+      const params = {};
+      if (propertyId) params.property_id = propertyId;
+      const response = await maintenanceService.getSummary(params);
+      if (response.success) {
+        setSummary(response.data);
+      }
+    } catch (err) {
+      console.error('Failed to fetch summary', err);
+    } finally {
+      setLoadingSummary(false);
+    }
+  }, [propertyId]);
 
   const fetchRequests = useCallback(async (statusToLoad) => {
     try {
       setLoading(true);
+      fetchSummary(); // Load stats alongside requests
       const payload = { status: statusToLoad };
       if (propertyId) payload.property_id = propertyId;
       const response = await maintenanceService.getLandlordRequests(payload);
@@ -63,16 +86,16 @@ export default function LandlordMaintenance() {
       return true;
     } catch (err) {
       console.error('Failed to fetch maintenance requests', err);
-      toast.error('Failed to load maintenance records');
+      showError('Failed to load maintenance records');
       return false;
     } finally {
       setLoading(false);
     }
-  }, [updateData, propertyId]);
+  }, [updateData, propertyId, fetchSummary, location.search, drilldownApplied]);
 
   useEffect(() => {
     fetchRequests(filterStatus);
-  }, [fetchRequests]);
+  }, [fetchRequests, filterStatus]);
 
   const handleFilterChange = async (status) => {
     if (status === filterStatus || loading) return;
@@ -86,7 +109,7 @@ export default function LandlordMaintenance() {
   const handleUpdateStatus = async (id, newStatus) => {
     try {
       await maintenanceService.updateStatus(id, newStatus);
-      toast.success(`Request marked as ${newStatus.replace('_', ' ')}`);
+      showSuccess(`Request marked as ${newStatus.replace('_', ' ')}`);
 
       setRequests(prev => prev.map(r => r.id === id ? { ...r, status: newStatus } : r));
       if (selectedRequest?.id === id) {
@@ -97,7 +120,44 @@ export default function LandlordMaintenance() {
         await fetchRequests(filterStatus);
       }
     } catch {
-      toast.error('Failed to update status');
+      showError('Failed to update status');
+    }
+  };
+
+  const handleAssignWorker = async (id, workerId) => {
+    try {
+      const response = await maintenanceService.assignWorker(id, workerId);
+      if (response.success) {
+        showSuccess(response.message || 'Worker assigned successfully');
+        
+        const updatedRequest = response.data;
+        setRequests(prev => prev.map(r => r.id === id ? updatedRequest : r));
+        if (selectedRequest?.id === id) {
+          setSelectedRequest(updatedRequest);
+        }
+      } else {
+        showError(response.message || 'Failed to assign worker');
+      }
+    } catch (err) {
+      console.error('Assignment error', err);
+      showError('An error occurred during assignment');
+    }
+  };
+
+  const handleCompleteRequest = async (id) => {
+    try {
+      const response = await maintenanceService.completeRequest(id);
+      if (response.success) {
+        showSuccess(response.message || 'Request resolved');
+        
+        const updatedRequest = response.data;
+        setRequests(prev => prev.map(r => r.id === id ? updatedRequest : r));
+        if (selectedRequest?.id === id) {
+          setSelectedRequest(updatedRequest);
+        }
+      }
+    } catch {
+      showError('Failed to mark as completed');
     }
   };
 
@@ -154,6 +214,41 @@ export default function LandlordMaintenance() {
   
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-8 space-y-6">
+          {/* Summary Stats */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <StatCard 
+              label="Assigned to Me" 
+              value={summary?.assigned_to_me ?? 0} 
+              icon={UserCheck} 
+              color="text-brand-600" 
+              bgColor="bg-brand-50"
+              loading={loadingSummary}
+            />
+            <StatCard 
+              label="Pending" 
+              value={summary?.pending ?? 0} 
+              icon={Clock} 
+              color="text-yellow-600" 
+              bgColor="bg-yellow-50"
+              loading={loadingSummary}
+            />
+            <StatCard 
+              label="In Progress" 
+              value={summary?.in_progress ?? 0} 
+              icon={RefreshCw} 
+              color="text-blue-600" 
+              bgColor="bg-blue-50"
+              loading={loadingSummary}
+            />
+            <StatCard 
+              label="Completed Today" 
+              value={summary?.completed_today ?? 0} 
+              icon={CheckCircle2} 
+              color="text-green-600" 
+              bgColor="bg-green-50"
+              loading={loadingSummary}
+            />
+          </div>
 
           {/* Filters */}
 
@@ -305,6 +400,15 @@ export default function LandlordMaintenance() {
 
   
 
+                    {req.assigned_to && (
+                      <div className="flex items-center gap-2 text-brand-700 dark:text-brand-400 bg-brand-50/50 dark:bg-brand-900/10 p-2 rounded-lg border border-brand-100 dark:border-brand-900/30">
+                        <UserCheck className="w-3.5 h-3.5" />
+                        <span className="text-xs font-semibold truncate">Assigned to: {req.assigned_to_user?.first_name || req.assigned_to_user?.name || req.assigned_to?.first_name || 'Assigned'}</span>
+                      </div>
+                    )}
+
+  
+
                     {req.images && req.images.length > 0 && (
 
                       <div className="flex gap-2 overflow-hidden h-12">
@@ -357,7 +461,7 @@ export default function LandlordMaintenance() {
 
                       <button
 
-                        onClick={() => handleUpdateStatus(req.id, 'completed')}
+                        onClick={() => handleCompleteRequest(req.id)}
 
                         className="flex-1 py-2 bg-green-600 hover:bg-green-700 text-white text-xs font-bold rounded-lg transition-colors"
 
@@ -367,6 +471,18 @@ export default function LandlordMaintenance() {
 
                       </button>
 
+                    )}
+
+                    {!req.assigned_to && (req.status === 'pending' || req.status === 'in_progress') && (
+                      <button
+                        onClick={() => {
+                          setRequestToAssign(req);
+                          setIsAssignModalOpen(true);
+                        }}
+                        className="flex-1 py-2 bg-brand-600 hover:bg-brand-700 text-white text-xs font-bold rounded-lg transition-colors"
+                      >
+                        Assign
+                      </button>
                     )}
 
                     <button
@@ -478,16 +594,53 @@ export default function LandlordMaintenance() {
                   )}
                   {selectedRequest.status === 'in_progress' && (
                     <button
-                      onClick={() => handleUpdateStatus(selectedRequest.id, 'completed')}
+                      onClick={() => handleCompleteRequest(selectedRequest.id)}
                       className="px-6 py-2 bg-green-600 hover:bg-green-700 text-white font-bold text-sm rounded-lg shadow-lg shadow-green-200"
                     >
                       Mark Resolved
+                    </button>
+                  )}
+                  {!selectedRequest.assigned_to && (selectedRequest.status === 'pending' || selectedRequest.status === 'in_progress') && (
+                    <button
+                      onClick={() => {
+                        setRequestToAssign(selectedRequest);
+                        setIsAssignModalOpen(true);
+                      }}
+                      className="px-6 py-2 bg-brand-600 hover:bg-brand-700 text-white font-bold text-sm rounded-lg shadow-lg shadow-brand-200"
+                    >
+                      Assign Worker
                     </button>
                   )}
                 </div>
               </div>
             </div>
           </div>
+        )}
+
+        {/* Global Modals */}
+        <AssignWorkerModal
+          isOpen={isAssignModalOpen}
+          onClose={() => setIsAssignModalOpen(false)}
+          request={requestToAssign}
+          onAssign={handleAssignWorker}
+        />
+      </div>
+    </div>
+  );
+}
+
+function StatCard({ label, value, icon: Icon, color, bgColor, loading }) {
+  return (
+    <div className="bg-white dark:bg-gray-800 p-4 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm flex items-center gap-4">
+      <div className={`p-3 ${bgColor} dark:bg-gray-700 rounded-xl`}>
+        <Icon className={`w-5 h-5 ${color}`} />
+      </div>
+      <div>
+        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{label}</p>
+        {loading ? (
+          <div className="h-6 w-8 bg-gray-100 dark:bg-gray-700 animate-pulse rounded mt-1" />
+        ) : (
+          <p className="text-xl font-black text-gray-900 dark:text-white mt-0.5">{value}</p>
         )}
       </div>
     </div>

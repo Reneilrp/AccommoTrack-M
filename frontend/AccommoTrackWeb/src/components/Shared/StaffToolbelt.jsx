@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { PenTool, MessageSquare, Wrench, X, Loader2 } from 'lucide-react';
-import toast from 'react-hot-toast';
+import { showSuccess, showError } from '../../utils/toast';
 import api from '../../utils/api';
 import { propertyService } from '../../services/propertyService';
 import { useUIState } from '../../contexts/UIStateContext';
@@ -106,7 +106,7 @@ function QuickReportModal({ isOpen, onClose }) {
   const handleSubmit = async (e) => {
     if (e) e.preventDefault();
     if (!description.trim() || !propertyId) {
-      toast.error('Please select a property and enter a report description.');
+      showError('Please select a property and enter a report description.');
       return;
     }
 
@@ -116,11 +116,11 @@ function QuickReportModal({ isOpen, onClose }) {
         property_id: propertyId,
         description: description.trim()
       });
-      toast.success('Report submitted successfully.');
+      showSuccess('Report submitted successfully.');
       onClose();
       invalidateData(['dashboard_stats', 'recent_activities']); // trigger refresh on dashboard
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to submit report');
+      showError(err.response?.data?.message || 'Failed to submit report');
     } finally {
       setIsSubmitting(false);
     }
@@ -234,7 +234,7 @@ function DirectLandlordChatModal({ isOpen, onClose }) {
         setMessages(msgs.data);
       }
     } catch (_err) {
-      toast.error('Failed to load chat with landlord.');
+      showError('Failed to load chat with landlord.');
     } finally {
       setIsLoading(false);
     }
@@ -253,7 +253,7 @@ function DirectLandlordChatModal({ isOpen, onClose }) {
       setMessages(prev => [...prev, response.data]);
       setMessageText('');
     } catch (_err) {
-      toast.error('Failed to send message.');
+      showError('Failed to send message.');
     } finally {
       setIsSending(false);
     }

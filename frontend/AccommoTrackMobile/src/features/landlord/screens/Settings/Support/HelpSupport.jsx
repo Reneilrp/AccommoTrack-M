@@ -14,7 +14,7 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import { getStyles } from '../../../../../styles/Menu/HelpSupport.js';
 import { useTheme } from '../../../../../contexts/ThemeContext.jsx';
 import Header from '../../../components/Header.jsx';
-import Toast from 'react-native-toast-message';
+import { showSuccess, showError, showInfo } from '../../../../../utils/toast.js';
 import { UNIFIED_TERMS_AND_CONDITIONS } from '../../../../../shared/LegalContent.js';
 
 const LANDLORD_FAQS = [
@@ -64,6 +64,7 @@ export default function HelpSupportScreen() {
 
     handleResourcePress(openResource);
     navigation.setParams({ openResource: undefined });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [navigation, route.params?.openResource]);
 
   const contactOptions = [
@@ -108,11 +109,7 @@ export default function HelpSupportScreen() {
       await Linking.openURL(url);
       return true;
     } catch (_error) {
-      Toast.show({
-        type: 'error',
-        text1: 'Action unavailable',
-        text2: errorText,
-      });
+      showError('Action unavailable', errorText);
       return false;
     }
   };
@@ -142,11 +139,7 @@ export default function HelpSupportScreen() {
   const handleSubmit = async () => {
     const trimmedMessage = message.trim();
     if (!trimmedMessage) {
-      Toast.show({
-        type: 'error',
-        text1: 'Error',
-        text2: 'Please enter a message.',
-      });
+      showError('Error', 'Please enter a message.');
       return;
     }
 
@@ -156,11 +149,7 @@ export default function HelpSupportScreen() {
     );
 
     if (opened) {
-      Toast.show({
-        type: 'success',
-        text1: 'Draft Ready',
-        text2: 'Your support message was prepared in your email app.',
-      });
+      showSuccess('Draft Ready', 'Your support message was prepared in your email app.');
       setMessage('');
     }
   };
@@ -173,19 +162,11 @@ export default function HelpSupportScreen() {
   const handleResourcePress = (resource) => {
     switch (resource) {
       case 'guide':
-        Toast.show({
-          type: 'info',
-          text1: 'Guide coming soon',
-          text2: 'Landlord guide content is being prepared.',
-        });
+        showInfo('Guide coming soon', 'Landlord guide content is being prepared.');
         break;
       case 'report':
         setMessage((previous) => previous || 'Issue type:\nModule:\nSteps to reproduce:\nExpected result:\nActual result:\nAttachments (if any):');
-        Toast.show({
-          type: 'info',
-          text1: 'Report template ready',
-          text2: 'Complete the details, then tap Send Message.',
-        });
+        showInfo('Report template ready', 'Complete the details, then tap Send Message.');
         setTimeout(() => {
           scrollRef.current?.scrollToEnd({ animated: true });
         }, 100);

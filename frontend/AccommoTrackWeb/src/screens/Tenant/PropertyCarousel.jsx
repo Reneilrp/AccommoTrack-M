@@ -108,9 +108,9 @@ const PropertyCarousel = ({ property, onOpenDetails }) => {
           : (availableSlots !== null ? roomCapacity - availableSlots : 0),
       ),
     );
-    const occupancyLabel = hasOccupancyData && roomCapacity > 1
-      ? `${occupiedCount}/${roomCapacity} Pax`
-      : `${roomCapacity} Pax`;
+    const occupancyLabel = hasOccupancyData
+      ? `${occupiedCount}/${roomCapacity}`
+      : `0/${roomCapacity}`;
     const amenityLabels = (Array.isArray(room?.amenities) ? room.amenities : [])
       .map((amenity) => {
         if (typeof amenity === 'string') return amenity.trim();

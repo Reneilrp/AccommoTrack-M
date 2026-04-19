@@ -294,6 +294,9 @@ const PropertyService = {
       propertyRules: propertyRules,
       curfew_time: property.curfew_time,
       curfew_policy: property.curfew_policy,
+      normal_booking_limit: property.normal_booking_limit || (property.property_type === 'bedSpacer' || property.has_bedspacer_room ? 1 : 1),
+      proxy_booking_limit: property.proxy_booking_limit || 3,
+      min_partial_payment_pct: property.min_partial_payment_pct || 20,
       rooms: (property.rooms || []).map(room => ({
         ...room,
         rules: room.rules || [], // Map rules from backend
@@ -310,6 +313,7 @@ const PropertyService = {
       landlord_name: property.landlord_name,
       owner_name: property.owner_name || property.landlord_name,
       landlord: property.landlord || null,
+      tenant_usage: property.tenant_usage || { normal: 0, proxy: 0 },
     };
   },
 

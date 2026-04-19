@@ -5,7 +5,7 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import { getStyles } from '../../../../styles/Menu/HelpSupport.js';
 import { useTheme } from '../../../../contexts/ThemeContext.jsx';
 import Header from '../../components/Header.jsx';
-import Toast from 'react-native-toast-message';
+import { showSuccess, showError, showInfo } from '../../../../utils/toast.js';
 import { helpService } from '../../../../services/helpService.js';
 import { UNIFIED_TERMS_AND_CONDITIONS } from '../../../../shared/LegalContent.js';
 
@@ -34,7 +34,7 @@ export default function HelpSupport() {
         if (mounted) {
           setFaqs(Array.isArray(data) ? data : []);
         }
-      } catch (error) {
+      } catch (_error) {
         if (mounted) {
           setFaqs([]);
         }
@@ -106,12 +106,8 @@ export default function HelpSupport() {
       if (!canOpen) throw new Error('Unsupported link');
       await Linking.openURL(url);
       return true;
-    } catch (error) {
-      Toast.show({
-        type: 'error',
-        text1: 'Action unavailable',
-        text2: errorText,
-      });
+    } catch (_error) {
+      showError('Action unavailable', errorText);
       return false;
     }
   };
@@ -145,11 +141,7 @@ export default function HelpSupport() {
   const handleSubmit = async () => {
     const trimmedMessage = message.trim();
     if (!trimmedMessage) {
-      Toast.show({
-        type: 'error',
-        text1: 'Error',
-        text2: 'Please enter a message.'
-      });
+      showError('Error', 'Please enter a message.');
       return;
     }
 
@@ -159,11 +151,7 @@ export default function HelpSupport() {
     );
 
     if (opened) {
-      Toast.show({
-        type: 'success',
-        text1: 'Draft Ready',
-        text2: 'Your support message was prepared in your email app.'
-      });
+      showSuccess('Draft Ready', 'Your support message was prepared in your email app.');
       setMessage('');
     }
   };
@@ -176,11 +164,7 @@ export default function HelpSupport() {
   const handleResourcePress = (resource) => {
     switch (resource) {
       case 'guide':
-        Toast.show({
-          type: 'info',
-          text1: 'Guide coming soon',
-          text2: 'User guide content is being prepared.',
-        });
+        showInfo('Guide coming soon', 'User guide content is being prepared.');
         break;
       case 'privacy':
         openLegalModal('privacy');

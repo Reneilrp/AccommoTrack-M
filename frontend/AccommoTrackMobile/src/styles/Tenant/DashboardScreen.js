@@ -31,9 +31,35 @@ export const getStyles = (theme) =>
       fontWeight: '800',
     },
     greetingSubtitle: {
-      marginTop: 6,
+      marginTop: 4,
       color: theme.colors.textSecondary,
-      fontSize: 13,
+      fontSize: 14,
+    },
+    progressCircleContainer: {
+      alignItems: 'center',
+      marginLeft: 12,
+    },
+    progressPercentText: {
+      fontSize: 20,
+      fontWeight: '900',
+      color: theme.colors.text,
+      textAlign: 'center',
+    },
+    progressLabelText: {
+      fontSize: 10,
+      fontWeight: '700',
+      color: theme.colors.textSecondary,
+      textTransform: 'uppercase',
+      marginTop: -2,
+      textAlign: 'center',
+    },
+    progressSublabel: {
+      marginTop: 6,
+      fontSize: 10,
+      fontWeight: '800',
+      color: theme.colors.primary,
+      textTransform: 'uppercase',
+      letterSpacing: 0.5,
     },
     section: {
       backgroundColor: theme.colors.surface,

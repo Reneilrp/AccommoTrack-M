@@ -25,6 +25,8 @@ import MenuDrawer from '../../components/MenuDrawer.jsx';
 import PropertyService from '../../../../services/PropertyService.js';
 import ProfileService from '../../../../services/ProfileService.js';
 import LandlordDashboardService from '../../../../services/LandlordDashboardService.js';
+import { hasPermission as checkPermission } from '../../../../utils/permissionHelpers.js';
+import PermissionBlockedModal from '../../components/PermissionBlockedModal.jsx';
 import {
   landlordQueryKeys,
   refetchLandlordQueries,
@@ -81,6 +83,7 @@ const activityIconMap = {
   payment: 'cash-outline',
   invoice: 'cash-outline',
   maintenance: 'construct-outline',
+  transfer: 'swap-horizontal',
   default: 'notifications-outline'
 };
 
@@ -159,45 +162,9 @@ export default function LandlordDashboard({ navigation, user: initialUser, onLog
   const isCaretaker = user?.role === 'caretaker';
   const isTablet = screenWidth >= 768;
 
-  const normalizePermissionValue = useCallback((value) => {
-    if (typeof value === 'string') {
-      const normalized = value.trim().toLowerCase();
-      return normalized === '1' || normalized === 'true' || normalized === 'yes' || normalized === 'allowed';
-    }
-    return Boolean(value);
-  }, []);
-
-  const buildPermissionCandidates = useCallback((key, aliases = []) => {
-    const base = String(key || '').trim();
-    const singular = base.endsWith('ies')
-      ? `${base.slice(0, -3)}y`
-      : base.endsWith('s')
-        ? base.slice(0, -1)
-        : base;
-    const plural = base.endsWith('s')
-      ? base
-      : singular === 'property'
-        ? 'properties'
-        : `${singular}s`;
-
-    const keys = new Set([base, singular, plural, ...aliases]);
-    const expanded = [];
-
-    keys.forEach((entry) => {
-      if (!entry) return;
-      expanded.push(entry, `can_view_${entry}`, `can_manage_${entry}`);
-    });
-
-    return expanded;
-  }, []);
-
   const hasPermission = useCallback((key, aliases = []) => {
-    if (!isCaretaker) return true;
-    const permissions = user?.caretaker_permissions;
-    return buildPermissionCandidates(key, aliases).some((candidate) =>
-      normalizePermissionValue(permissions?.[candidate]),
-    );
-  }, [buildPermissionCandidates, isCaretaker, normalizePermissionValue, user?.caretaker_permissions]);
+    return checkPermission(user?.caretaker_permissions, isCaretaker, key, aliases);
+  }, [isCaretaker, user?.caretaker_permissions]);
 
   const openPermissionModal = useCallback((actionTitle) => {
     setPermissionModal({
@@ -226,6 +193,8 @@ export default function LandlordDashboard({ navigation, user: initialUser, onLog
         return hasPermission('messages');
       case 'maintenance':
         return hasPermission('maintenance');
+      case 'manage_add_ons':
+        return hasPermission('manage_add_ons');
       default:
         return false;
     }
@@ -365,7 +334,7 @@ export default function LandlordDashboard({ navigation, user: initialUser, onLog
       color: '#F43F5E',
       screen: 'TransferRequests',
       category: 'Room Category',
-      show: !isCaretaker || hasPermission('tenants'),
+      show: hasPermission('tenants'),
       badgeCount: pendingTransferCount,
     },
     {
@@ -375,7 +344,7 @@ export default function LandlordDashboard({ navigation, user: initialUser, onLog
       color: '#14B8A6',
       screen: 'AddonManagement',
       category: 'Room Category',
-      show: !isCaretaker,
+      show: hasPermission('manage_add_ons'),
     },
     {
       id: 9,
@@ -384,7 +353,7 @@ export default function LandlordDashboard({ navigation, user: initialUser, onLog
       color: '#F59E0B',
       screen: 'MaintenanceRequests',
       category: 'Room Category',
-      show: !isCaretaker || hasPermission('maintenance'),
+      show: hasPermission('maintenance'),
     },
     {
       id: 10,
@@ -402,7 +371,7 @@ export default function LandlordDashboard({ navigation, user: initialUser, onLog
       color: theme.colors.primary,
       screen: 'Messages',
       category: 'Communication Category',
-      show: !isCaretaker || hasPermission('messages'),
+      show: hasPermission('messages'),
     },
   ];
 
@@ -514,11 +483,6 @@ export default function LandlordDashboard({ navigation, user: initialUser, onLog
 
     const type = String(activity.type || '').toLowerCase();
     const entityId = activity.id;
-    const description = activity.description || '';
-
-    // Extract tenant name from description if available
-    const tenantNameMatch = description.match(/^([^\s]+(?:\s+[^\s]+)?)/);
-    const tenantName = tenantNameMatch ? tenantNameMatch[1] : '';
 
     const ensureActivityAccess = (moduleKey, label) => {
       if (canAccessNamedModule(moduleKey)) {
@@ -580,10 +544,8 @@ export default function LandlordDashboard({ navigation, user: initialUser, onLog
         break;
       }
       case 'addon': {
-        if (isCaretaker) {
-          openPermissionModal('Add-ons');
-          return;
-        }
+        if (!ensureActivityAccess('manage_add_ons', 'Add-ons')) return;
+
 
         navigation.navigate('AddonManagement', {
           focusRequestId: entityId,
@@ -591,10 +553,17 @@ export default function LandlordDashboard({ navigation, user: initialUser, onLog
         });
         break;
       }
-      default:
+      case 'transfer': {
+        const params = {
+          focusTransferId: entityId || null,
+          drilldownToken: Date.now(),
+        };
+        navigation.navigate('TransferRequests', params);
         break;
+      }
+      default:
     }
-  }, [canAccessNamedModule, isCaretaker, navigation, openPermissionModal]);
+  }, [canAccessNamedModule, navigation, openPermissionModal]);
 
   const handleNotificationsPress = useCallback(() => {
     if (!canAccessNotifications) {
@@ -1078,36 +1047,11 @@ export default function LandlordDashboard({ navigation, user: initialUser, onLog
           </Modal>
         )}
 
-        <Modal
-          transparent
+        <PermissionBlockedModal
           visible={permissionModal.visible}
-          animationType="fade"
-          statusBarTranslucent
-          navigationBarTranslucent
-          presentationStyle="overFullScreen"
-          onRequestClose={() => setPermissionModal({ visible: false, actionTitle: '' })}
-        >
-          <Pressable
-            style={styles.permissionModalBackdrop}
-            onPress={() => setPermissionModal({ visible: false, actionTitle: '' })}
-          >
-            <Pressable style={styles.permissionModalCard} onPress={() => { }}>
-              <View style={styles.permissionModalIconWrap}>
-                <Ionicons name="lock-closed" size={22} color="#B45309" />
-              </View>
-              <Text style={styles.permissionModalTitle}>Permission Required</Text>
-              <Text style={styles.permissionModalMessage}>
-                You do not have permission to access {permissionModal.actionTitle || 'this module'}. Please contact the landlord.
-              </Text>
-              <TouchableOpacity
-                style={styles.permissionModalButton}
-                onPress={() => setPermissionModal({ visible: false, actionTitle: '' })}
-              >
-                <Text style={styles.permissionModalButtonText}>Okay</Text>
-              </TouchableOpacity>
-            </Pressable>
-          </Pressable>
-        </Modal>
+          onClose={() => setPermissionModal({ visible: false, actionTitle: '' })}
+          actionTitle={permissionModal.actionTitle}
+        />
 
         <Modal
           transparent

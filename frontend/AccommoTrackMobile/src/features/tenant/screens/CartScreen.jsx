@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -14,6 +14,7 @@ import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { useTheme } from '../../../contexts/ThemeContext.jsx';
 import CartService from '../../../services/CartService.js';
 import { BASE_URL as API_BASE_URL } from '../../../config/index.js';
+import { showError } from '../../../utils/toast.js';
 
 export default function CartScreen() {
   const navigation = useNavigation();
@@ -29,7 +30,7 @@ export default function CartScreen() {
     if (result.success) {
       setCart(result.data);
     } else {
-      Alert.alert('Error', result.error || 'Failed to load cart');
+      showError('Error', result.error || 'Failed to load book');
     }
     setLoading(false);
   }, []);
@@ -49,7 +50,7 @@ export default function CartScreen() {
   const handleRemoveItem = async (itemId) => {
     Alert.alert(
       'Remove Item',
-      'Remove this room from your cart?',
+      'Remove this room from your book?',
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -62,7 +63,7 @@ export default function CartScreen() {
               DeviceEventEmitter.emit('accommo:cart-updated');
               await fetchCart();
             } else {
-              Alert.alert('Error', result.error || 'Failed to remove item');
+              showError('Error', result.error || 'Failed to remove item');
             }
             setRemovingItemId(null);
           },
@@ -73,8 +74,8 @@ export default function CartScreen() {
 
   const handleClearCart = () => {
     Alert.alert(
-      'Clear Cart',
-      'Remove all items from your cart?',
+      'Clear Book',
+      'Remove all items from your book?',
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -86,7 +87,7 @@ export default function CartScreen() {
               DeviceEventEmitter.emit('accommo:cart-updated');
               setCart(null);
             } else {
-              Alert.alert('Error', result.error || 'Failed to clear cart');
+              showError('Error', result.error || 'Failed to clear book');
             }
           },
         },
@@ -114,7 +115,7 @@ export default function CartScreen() {
       );
       setCart(null);
     } else {
-      Alert.alert('Checkout Failed', result.error || 'Failed to complete checkout');
+      showError('Checkout Failed', result.error || 'Failed to complete checkout');
     }
     setCheckingOut(false);
   };
@@ -167,15 +168,15 @@ export default function CartScreen() {
     return (
       <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
         <View style={{ padding: 16, borderBottomWidth: 1, borderBottomColor: theme.colors.border }}>
-          <Text style={{ fontSize: 20, fontWeight: 'bold', color: theme.colors.text }}>My Cart</Text>
+          <Text style={{ fontSize: 20, fontWeight: 'bold', color: theme.colors.text }}>Add to Book</Text>
         </View>
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 32 }}>
           <Ionicons name="cart-outline" size={64} color={theme.colors.textTertiary} />
           <Text style={{ fontSize: 18, fontWeight: '600', color: theme.colors.text, marginTop: 16 }}>
-            Your cart is empty
+            Your book is empty
           </Text>
           <Text style={{ fontSize: 14, color: theme.colors.textSecondary, textAlign: 'center', marginTop: 8 }}>
-            Browse properties and add rooms to your cart to book multiple rooms at once.
+            Browse properties and add rooms to your book to book multiple rooms at once.
           </Text>
           <TouchableOpacity
             style={{
@@ -210,7 +211,7 @@ export default function CartScreen() {
         </View>
         {isExpired() && (
           <View style={{ marginTop: 8, padding: 8, backgroundColor: theme.colors.error + '20', borderRadius: 6 }}>
-            <Text style={{ color: theme.colors.error, fontSize: 12 }}>⚠️ Cart expired. Please refresh.</Text>
+            <Text style={{ color: theme.colors.error, fontSize: 12 }}>⚠️ Selection expired. Please refresh.</Text>
           </View>
         )}
       </View>

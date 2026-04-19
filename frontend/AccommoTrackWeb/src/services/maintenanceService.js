@@ -15,6 +15,19 @@ export const maintenanceService = {
     },
 
     /**
+     * Get single maintenance request details with history
+     */
+    async getRequestDetails(id) {
+        try {
+            const response = await api.get(`/tenant/maintenance-requests/${id}`);
+            return response.data;
+        } catch (error) {
+            console.error('Error fetching maintenance request details:', error);
+            throw error;
+        }
+    },
+
+    /**
      * Create a maintenance request (Tenant)
      * @param {FormData} formData 
      */
@@ -46,14 +59,53 @@ export const maintenanceService = {
     },
 
     /**
+     * Get maintenance summary for landlord dashboard
+     */
+    async getSummary(params = {}) {
+        try {
+            const response = await api.get('/landlord/maintenance-requests/summary', { params });
+            return response.data;
+        } catch (error) {
+            console.error('Error fetching landlord maintenance summary:', error);
+            throw error;
+        }
+    },
+
+    /**
      * Update maintenance request status (Landlord)
      */
-    async updateStatus(id, status) {
+    async updateStatus(id, status, notes = null) {
         try {
-            const response = await api.patch(`/landlord/maintenance-requests/${id}/status`, { status });
+            const response = await api.patch(`/landlord/maintenance-requests/${id}/status`, { status, notes });
             return response.data;
         } catch (error) {
             console.error('Error updating maintenance request status:', error);
+            throw error;
+        }
+    },
+
+    /**
+     * Assign maintenance request to a worker (Landlord)
+     */
+    async assignWorker(id, workerId) {
+        try {
+            const response = await api.patch(`/landlord/maintenance-requests/${id}/assign`, { worker_id: workerId });
+            return response.data;
+        } catch (error) {
+            console.error('Error assigning maintenance worker:', error);
+            throw error;
+        }
+    },
+
+    /**
+     * Mark maintenance request as completed (Landlord/Caretaker)
+     */
+    async completeRequest(id, notes = null) {
+        try {
+            const response = await api.post(`/landlord/maintenance-requests/${id}/complete`, { notes });
+            return response.data;
+        } catch (error) {
+            console.error('Error completing maintenance request:', error);
             throw error;
         }
     },

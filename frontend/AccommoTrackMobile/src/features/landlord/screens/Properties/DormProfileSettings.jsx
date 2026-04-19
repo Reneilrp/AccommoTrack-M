@@ -21,7 +21,7 @@ import * as DocumentPicker from 'expo-document-picker';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import Toast from 'react-native-toast-message';
+import { showSuccess, showError } from '../../../../utils/toast.js';
 import { useQuery } from '@tanstack/react-query';
 import { useTheme } from '../../../../contexts/ThemeContext.jsx';
 import PropertyService from '../../../../services/PropertyService.js';
@@ -55,8 +55,8 @@ const STATUS_OPTIONS = [
 ];
 
 const AMENITY_OPTIONS = [
-  'Free WiFi', 'Air Conditioning', 'Kitchen', 'Laundry', 'Parking', 
-  '24/7 Security', 'CCTV', 'Study Area', 'Gym', 'Swimming Pool', 
+  'Free WiFi', 'Air Conditioning', 'Kitchen', 'Laundry', 'Parking',
+  '24/7 Security', 'CCTV', 'Study Area', 'Gym', 'Swimming Pool',
   'Backup Generator', 'Water Heater', 'Caretaker'
 ];
 
@@ -129,13 +129,16 @@ const buildEmptyForm = () => ({
   gcashQr: null,
   deleteExistingGcashQr: false,
   transferFee: '',
+  normalBookingLimit: '1',
+  proxyBookingLimit: '3',
+  minPartialPaymentPct: '20',
 });
 
 const normalizeSettings = (data) => {
   let parsedRules = [];
   try {
-    parsedRules = typeof data?.property_rules === 'string' 
-      ? JSON.parse(data.property_rules) 
+    parsedRules = typeof data?.property_rules === 'string'
+      ? JSON.parse(data.property_rules)
       : (data?.property_rules || []);
   } catch (_e) { parsedRules = []; }
 
@@ -201,12 +204,14 @@ const normalizeSettings = (data) => {
       : null,
     deleteExistingGcashQr: false,
     transferFee: data?.transfer_fee !== undefined ? String(data.transfer_fee) : '',
+    normalBookingLimit: data?.normal_booking_limit !== undefined ? String(data.normal_booking_limit) : '1',
+    proxyBookingLimit: data?.proxy_booking_limit !== undefined ? String(data.proxy_booking_limit) : '3',
+    minPartialPaymentPct: data?.min_partial_payment_pct !== undefined ? String(data.min_partial_payment_pct) : '20',
   };
 };
 
 export default function DormProfileSettings({ route, navigation }) {
   const { theme } = useTheme();
-  const showAlert = Alert.alert;
   const styles = useMemo(() => getStyles(theme), [theme]);
   const propertyId = route.params?.propertyId;
   const [form, setForm] = useState(buildEmptyForm);
@@ -238,6 +243,7 @@ export default function DormProfileSettings({ route, navigation }) {
   const loading = settingsQuery.isPending && !settingsQuery.data;
   const fetchError = settingsQuery.error?.message || '';
   const refetchSettings = settingsQuery.refetch;
+  // eslint-disable-next-line no-unused-vars
   const pickerMode = Platform.OS === 'android' ? 'dropdown' : undefined;
   const settingsRefetchers = useMemo(() => [refetchSettings], [refetchSettings]);
 
@@ -254,11 +260,7 @@ export default function DormProfileSettings({ route, navigation }) {
 
   useEffect(() => {
     if (!fetchError) return;
-    Toast.show({
-      type: 'error',
-      text1: 'Error',
-      text2: fetchError,
-    });
+    showError('Error', fetchError);
   }, [fetchError]);
 
   useEffect(() => {
@@ -366,9 +368,8 @@ export default function DormProfileSettings({ route, navigation }) {
 
     if (!result.canceled) {
       const asset = result.assets[0];
-      // Web logic: check 45s duration
       if (asset.duration && asset.duration > 45000) {
-        Toast.show({ type: 'error', text1: 'Video too long', text2: 'Video must be 45 seconds or less.' });
+        showError('Video too long', 'Video must be 45 seconds or less.');
         return;
       }
       setForm(prev => ({ ...prev, video: { uri: asset.uri, isExisting: false }, deleteExistingVideo: !!prev.video?.isExisting }));
@@ -390,7 +391,7 @@ export default function DormProfileSettings({ route, navigation }) {
         onPress: async () => {
           const { status } = await ImagePicker.requestCameraPermissionsAsync();
           if (status !== 'granted') {
-            showAlert('Permission Required', 'Please allow camera access to capture documents.');
+            showError('Permission Required', 'Please allow camera access to capture documents.');
             return;
           }
           const result = await ImagePicker.launchCameraAsync({
@@ -412,7 +413,7 @@ export default function DormProfileSettings({ route, navigation }) {
         onPress: async () => {
           const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
           if (status !== 'granted') {
-            showAlert('Permission Required', 'Please allow photo library access.');
+            showError('Permission Required', 'Please allow photo library access.');
             return;
           }
           const result = await ImagePicker.launchImageLibraryAsync({
@@ -453,14 +454,14 @@ export default function DormProfileSettings({ route, navigation }) {
             }
           } catch (err) {
             console.error('DocumentPicker Error:', err);
-            showAlert('Error', 'Could not open file manager.');
+            showError('Error', 'Could not open file manager.');
           }
         }
       },
       { text: 'Cancel', style: 'cancel' }
     ];
 
-    showAlert('Upload Credentials', 'Choose a source for your documents.', options, {
+    Alert.alert('Upload Credentials', 'Choose a source for your documents.', options, {
       showCloseButton: true,
       cancelable: true,
     });
@@ -506,24 +507,21 @@ export default function DormProfileSettings({ route, navigation }) {
   };
 
   const handleSave = async () => {
-    // Perform strict GCash validations before saving
     const hasGcashName = Boolean((form.gcashName || "").trim());
     const hasGcashNumber = Boolean((form.gcashNumber || "").trim());
 
     if (hasGcashName || hasGcashNumber) {
       if (!hasGcashName || !hasGcashNumber) {
-        Alert.alert("Validation Error", "Both GCash Name and GCash Number are required if you want to provide manual GCash payment.");
+        showError("Validation Error", "Both GCash Name and GCash Number are required if you want to provide manual GCash payment.");
         return;
       }
 
-      // Check strictly 11 digits starting with 09
       const gcashRegex = /^09\d{9}$/;
       if (!gcashRegex.test(form.gcashNumber)) {
-        Alert.alert("Validation Error", "GCash Number must be exactly 11 digits starting with 09.");
+        showError("Validation Error", "GCash Number must be exactly 11 digits starting with 09.");
         return;
       }
-      
-      // Request final verification
+
       const confirmPromise = new Promise((resolve) => {
         Alert.alert(
           "Double Check Details",
@@ -574,22 +572,21 @@ export default function DormProfileSettings({ route, navigation }) {
       payload.append('transfer_fee', form.transferFee || '0');
       payload.append('gcash_name', form.requireReservationFee ? form.gcashName : '');
       payload.append('gcash_number', form.requireReservationFee ? form.gcashNumber : '');
-      
-      // Add amenities individually (PHP handles multiple values with the same name if it ends in [])
+
       form.amenities.forEach(amenity => {
         payload.append('amenities[]', amenity);
       });
-      
-      // Rules as JSON string
-      payload.append('property_rules', JSON.stringify(form.rules));
 
-      // Handle Deleted Items
+      payload.append('property_rules', JSON.stringify(form.rules));
+      payload.append('normal_booking_limit', form.normalBookingLimit || '1');
+      payload.append('proxy_booking_limit', form.proxyBookingLimit || '3');
+      payload.append('min_partial_payment_pct', form.minPartialPaymentPct || '20');
+
       form.deletedImageIds.forEach(id => payload.append('deleted_images[]', id));
       form.deletedCredentialIds.forEach(id => payload.append('deleted_credentials[]', id));
       if (form.deleteExistingVideo) payload.append('delete_existing_video', '1');
       if (form.deleteExistingGcashQr) payload.append('delete_gcash_qr', '1');
 
-      // Upload New Images
       form.images.filter(img => !img.isExisting).forEach((img, idx) => {
         payload.append('images[]', {
           uri: img.uri,
@@ -598,7 +595,6 @@ export default function DormProfileSettings({ route, navigation }) {
         });
       });
 
-      // Upload New Video
       if (form.video && !form.video.isExisting) {
         payload.append('video', {
           uri: form.video.uri,
@@ -607,7 +603,6 @@ export default function DormProfileSettings({ route, navigation }) {
         });
       }
 
-      // Upload New GCash QR
       if (form.gcashQr && !form.gcashQr.isExisting) {
         payload.append('gcash_qr_path', {
           uri: form.gcashQr.uri,
@@ -616,7 +611,6 @@ export default function DormProfileSettings({ route, navigation }) {
         });
       }
 
-      // Upload New Credentials
       form.credentials.filter(c => !c.isExisting).forEach((c, idx) => {
         payload.append('credentials[]', {
           uri: c.uri,
@@ -624,27 +618,18 @@ export default function DormProfileSettings({ route, navigation }) {
           type: c.type || (c.name?.toLowerCase().endsWith('.pdf') ? 'application/pdf' : 'image/jpeg')
         });
       });
-      
-      // PropertyService.updateProperty handles multipart/form-data and _method spoofing
+
       const response = await PropertyService.updateProperty(propertyId, payload);
-      
+
       if (response.success) {
-        Toast.show({
-          type: 'success',
-          text1: 'Settings Updated',
-          text2: 'Property settings have been saved.'
-        });
+        showSuccess('Settings Updated', 'Property settings have been saved.');
         navigation.goBack();
       } else {
         throw new Error(response.error || 'Failed to update settings');
       }
     } catch (err) {
       console.error('Save failed', err);
-      Toast.show({
-        type: 'error',
-        text1: 'Save Failed',
-        text2: err.message
-      });
+      showError('Save Failed', err.message);
     } finally {
       setSaving(false);
     }
@@ -652,24 +637,23 @@ export default function DormProfileSettings({ route, navigation }) {
 
   const handleDelete = async () => {
     if (!password.trim()) {
-      Toast.show({ type: 'error', text1: 'Required', text2: 'Password is required to delete.' });
+      showError('Required', 'Password is required to delete.');
       return;
     }
     try {
       setDeleteLoading(true);
       const response = await PropertyService.deleteProperty(propertyId, password.trim());
       if (response.success) {
-        Toast.show({ type: 'success', text1: 'Deleted', text2: 'Property deleted successfully.' });
+        showSuccess('Deleted', 'Property deleted successfully.');
         setPasswordModalVisible(false);
         setPassword('');
-        // Go back to the properties list
         navigation.navigate('MyProperties', { refresh: true });
       } else {
         throw new Error(response.error || 'Failed to delete property');
       }
     } catch (err) {
       console.error('Delete failed', err);
-      Toast.show({ type: 'error', text1: 'Delete Failed', text2: err.message });
+      showError('Delete Failed', err.message);
     } finally {
       setDeleteLoading(false);
     }
@@ -698,7 +682,7 @@ export default function DormProfileSettings({ route, navigation }) {
         </TouchableOpacity>
       </View>
 
-      <ScrollView 
+      <ScrollView
         contentContainerStyle={styles.content}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />}
       >
@@ -722,6 +706,57 @@ export default function DormProfileSettings({ route, navigation }) {
             value={form.description}
             onChangeText={(val) => updateForm('description', val)}
           />
+        </View>
+
+        <View style={styles.sectionCard}>
+          <Text style={styles.sectionTitle}>Booking Limits</Text>
+          <Text style={styles.sectionSubtitle}>Limit active bookings per tenant (Max 4)</Text>
+
+          <View style={styles.actionRow}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.label}>Self Bookings</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="1-4"
+                keyboardType="numeric"
+                value={form.normalBookingLimit}
+                onChangeText={(val) => {
+                  const num = parseInt(val) || 0;
+                  if (num <= 4) updateForm('normalBookingLimit', val);
+                }}
+              />
+              <Text style={{ fontSize: 10, color: theme.colors.textSecondary }}>Default: 1</Text>
+            </View>
+            <View style={{ flex: 1, marginLeft: 16 }}>
+              <Text style={styles.label}>Proxy Bookings</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="1-4"
+                keyboardType="numeric"
+                value={form.proxyBookingLimit}
+                onChangeText={(val) => {
+                  const num = parseInt(val) || 0;
+                  if (num <= 4) updateForm('proxyBookingLimit', val);
+                }}
+              />
+              <Text style={{ fontSize: 10, color: theme.colors.textSecondary }}>Default: 3</Text>
+            </View>
+          </View>
+
+          <View style={{ marginTop: 16 }}>
+            <Text style={styles.label}>Min Partial Payment (%)</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="1-100"
+              keyboardType="numeric"
+              value={form.minPartialPaymentPct}
+              onChangeText={(val) => {
+                const num = parseInt(val) || 0;
+                if (num <= 100) updateForm('minPartialPaymentPct', val);
+              }}
+            />
+            <Text style={{ fontSize: 10, color: theme.colors.textSecondary }}>Default: 20%</Text>
+          </View>
         </View>
 
         <View style={styles.sectionCard}>
@@ -980,7 +1015,7 @@ export default function DormProfileSettings({ route, navigation }) {
         <View style={styles.sectionCard}>
           <Text style={styles.sectionTitle}>House Rules</Text>
           <Text style={styles.sectionSubtitle}>Guidelines for your tenants</Text>
-          
+
           <View style={styles.inlineInputRow}>
             <TextInput
               style={styles.inlineInput}
@@ -1028,7 +1063,7 @@ export default function DormProfileSettings({ route, navigation }) {
           <Text style={styles.sectionTitle}>Video Tour</Text>
           <Text style={styles.sectionSubtitle}>Short 45-second tour of your property</Text>
           {form.video ? (
-            <View style={{ position: 'relative', width: '100%', aspectRatio: 16/9, borderRadius: 12, overflow: 'hidden' }}>
+            <View style={{ position: 'relative', width: '100%', aspectRatio: 16 / 9, borderRadius: 12, overflow: 'hidden' }}>
               <View style={styles.videoThumbnail}>
                 <Ionicons name="play-circle" size={48} color="#FFF" />
                 <Text style={{ color: '#FFF', marginTop: 8 }}>{form.video.isExisting ? 'Existing Video' : 'New Video Selected'}</Text>
@@ -1067,7 +1102,7 @@ export default function DormProfileSettings({ route, navigation }) {
 
         <View style={styles.sectionCard}>
           <Text style={styles.sectionTitle}>Financial Settings</Text>
-          
+
           <View style={styles.switchRowContainer}>
             <View style={{ flex: 1 }}>
               <Text style={styles.label}>Require 1-Month Advance</Text>
@@ -1107,23 +1142,19 @@ export default function DormProfileSettings({ route, navigation }) {
             />
           </View>
 
-          <View style={[styles.switchRowContainer, { borderBottomWidth: 0 }]}>
+          <View style={[styles.switchRowContainer, { borderBottomWidth: form.requireReservationFee ? 1 : 0 }]}>
             <View style={{ flex: 1 }}>
               <Text style={styles.label}>Require Reservation Fee</Text>
               <Text style={styles.switchHelpText}>Deductible from the first month's rent.</Text>
-              {!isPayMongoVerified ? (
+              {!isPayMongoVerified && (
                 <Text style={styles.warningText}>PayMongo verification is required to enable this setting.</Text>
-              ) : null}
+              )}
             </View>
             <Switch
               value={form.requireReservationFee}
               onValueChange={(val) => {
                 if (!isPayMongoVerified && val) {
-                  Toast.show({
-                    type: 'error',
-                    text1: 'PayMongo Not Verified',
-                    text2: 'Complete PayMongo verification first from Settings > Payments.',
-                  });
+                  showError('PayMongo Not Verified', 'Complete PayMongo verification first from Settings > Payments.');
                   return;
                 }
                 updateForm('requireReservationFee', val);
@@ -1222,8 +1253,8 @@ export default function DormProfileSettings({ route, navigation }) {
           />
         </View>
 
-        <TouchableOpacity 
-          style={styles.primaryBtn} 
+        <TouchableOpacity
+          style={styles.primaryBtn}
           onPress={handleSave}
           disabled={saving}
         >
@@ -1233,8 +1264,8 @@ export default function DormProfileSettings({ route, navigation }) {
         <View style={[styles.sectionCard, { borderColor: theme.colors.error, borderWidth: 1, marginTop: 24, backgroundColor: theme.isDark ? 'rgba(239, 68, 68, 0.1)' : '#FEF2F2' }]}>
           <Text style={[styles.sectionTitle, { color: theme.colors.error }]}>Danger Zone</Text>
           <Text style={styles.sectionSubtitle}>Deleting a property is permanent and will also remove its rooms and bookings.</Text>
-          <TouchableOpacity 
-            style={[styles.primaryBtn, { backgroundColor: theme.colors.error, marginTop: 0 }]} 
+          <TouchableOpacity
+            style={[styles.primaryBtn, { backgroundColor: theme.colors.error, marginTop: 0 }]}
             onPress={() => setPasswordModalVisible(true)}
           >
             <Text style={{ color: '#FFFFFF', fontWeight: '700' }}>Delete Property</Text>

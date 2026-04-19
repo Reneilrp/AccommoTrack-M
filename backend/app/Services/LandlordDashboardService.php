@@ -201,6 +201,23 @@ class LandlordDashboardService
             }
             $activities = $activities->merge($maintenanceQuery->limit(10)->get());
 
+            // Add Transfer Requests
+            $transferQuery = \App\Models\TransferRequest::where('landlord_id', $landlordId)
+                ->with(['tenant', 'currentRoom', 'requestedRoom'])
+                ->orderBy('created_at', 'desc');
+            if ($roomId) {
+                $transferQuery->where('current_room_id', $roomId);
+            } elseif ($propertyId) {
+                $transferQuery->whereHas('currentRoom', function ($q) use ($propertyId) {
+                    $q->where('property_id', $propertyId);
+                });
+            } elseif ($assignedPropertyIds) {
+                $transferQuery->whereHas('currentRoom', function ($q) use ($assignedPropertyIds) {
+                    $q->whereIn('property_id', $assignedPropertyIds);
+                });
+            }
+            $activities = $activities->merge($transferQuery->limit(10)->get());
+
             // Add Addon Requests (from booking_addons)
             $addonQuery = DB::table('booking_addons')
                 ->join('addons', 'booking_addons.addon_id', '=', 'addons.id')

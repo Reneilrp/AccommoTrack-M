@@ -33,7 +33,7 @@ import api, {
   TRUSTED_DEVICE_HEADER,
 } from "../../utils/api";
 import { getDefaultLandingRoute } from "../../utils/userRoutes";
-import toast, { Toaster } from "react-hot-toast";
+import { showSuccess, showError } from "../../utils/toast";
 import { usePreferences } from "../../contexts/PreferencesContext";
 import BlockedUserModal from "../../components/Shared/BlockedUserModal";
 import ForgotPasswordModal from "../../components/Modals/ForgotPasswordModal";
@@ -102,7 +102,7 @@ const ResubmitModal = ({ visible, onClose, __theme }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!form.validIdType || !form.validId || !form.permit) {
-      toast.error("Please fill in all required fields and upload documents.");
+      showError("Please fill in all required fields and upload documents.");
       return;
     }
 
@@ -122,14 +122,14 @@ const ResubmitModal = ({ visible, onClose, __theme }) => {
         headers: { "Content-Type": "multipart/form-data" },
       });
 
-      toast.success(
+      showSuccess(
         "Documents resubmitted successfully! Please wait for admin review.",
       );
       onClose();
       // reload to clear login state or navigate
       setTimeout(() => window.location.reload(), 2000);
     } catch (err) {
-      toast.error(
+      showError(
         err.response?.data?.message || "Failed to resubmit documents.",
       );
     } finally {
@@ -414,7 +414,7 @@ const OtpVerificationScreen = ({
       await ensureCsrfCookieOrFallback();
 
       await api.post("/resend-email-otp", { email });
-      toast.success("A new OTP has been sent to your email.");
+      showSuccess("A new OTP has been sent to your email.");
       setResendCooldown(60); // 60-second cooldown
     } catch (err) {
       setError(err.response?.data?.message || "Failed to resend OTP.");
@@ -627,7 +627,7 @@ const ClaimExistingAccountModal = ({ isOpen, onClose, onClaimed }) => {
 
       const payload = response.data?.data || response.data || {};
       setResendCooldown(Number(payload.retry_after_seconds || 60));
-      toast.success('A new OTP has been sent to your email.');
+      showSuccess('A new OTP has been sent to your email.');
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to resend OTP.');
     } finally {
@@ -1323,7 +1323,7 @@ function AuthScreen({ isRegister = false, onLogin = () => { } }) {
           setShowOtpVerification(true);
 
           if (pendingData.otp_resent) {
-            toast.success("A new OTP has been sent to your email.");
+            showSuccess("A new OTP has been sent to your email.");
           }
 
           return;
@@ -1420,7 +1420,7 @@ function AuthScreen({ isRegister = false, onLogin = () => { } }) {
 
       // Show OTP verification screen
       setShowOtpVerification(true);
-      toast.success(result.data.message);
+      showSuccess(result.data.message);
 
     } catch (err) {
       // Try to extract Laravel validation errors and map them to fieldErrors
@@ -1490,7 +1490,7 @@ function AuthScreen({ isRegister = false, onLogin = () => { } }) {
   const handleGoToMobileApp = () => {
     setShowPlatformChoice(false);
     // Show instructions to return to mobile app
-    toast.success(
+    showSuccess(
       "Please return to your AccommoTrack mobile app and login with your new landlord account.",
     );
     setIsLogin(true);
@@ -1532,7 +1532,7 @@ function AuthScreen({ isRegister = false, onLogin = () => { } }) {
       password: '',
       password_confirmation: '',
     }));
-    toast.success('Account claimed successfully. Sign in with your new credentials.');
+    showSuccess('Account claimed successfully. Sign in with your new credentials.');
   };
 
   const inputClasses =
@@ -1543,7 +1543,7 @@ function AuthScreen({ isRegister = false, onLogin = () => { } }) {
 
   return (
     <div className="min-h-screen flex items-center justify-center py-12 px-4 bg-gradient-to-br from-green-50 via-emerald-50 to-green-100 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
-      <Toaster />
+
       {showOtpVerification ? (
         <OtpVerificationScreen
           email={registeredEmail}
@@ -2229,7 +2229,7 @@ function AuthScreen({ isRegister = false, onLogin = () => { } }) {
 
                 {/* Choice Buttons */}
                 <div className="space-y-4">
-                  <Toaster />
+
                   {/* Continue on Web */}
                   <button
                     onClick={handleContinueOnWeb}

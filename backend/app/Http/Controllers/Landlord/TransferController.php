@@ -8,6 +8,7 @@ use App\Models\TransferRequest;
 use App\Services\RefundService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 
 class TransferController extends Controller
 {
@@ -80,6 +81,8 @@ class TransferController extends Controller
             'transfer_fee' => 'nullable|numeric|min:0',
             'landlord_notes' => 'nullable|string|max:500',
             'prorated_adjustment' => 'nullable|numeric',
+            'bed_number' => 'nullable|integer',
+            'bed_numbers' => 'nullable|string',
         ]);
 
         if ($validated['action'] === 'approve') {
@@ -120,13 +123,15 @@ class TransferController extends Controller
                 $activeBooking = \App\Models\Booking::find($transferReq->booking_id);
             }
 
-            $creditCalculation = null;
-            $creditAmount = 0;
             if ($activeBooking) {
                 $damageCharge = $validated['damage_charge'] ?? 0;
                 $transferFee = $validated['transfer_fee'] ?? 0;
                 $creditCalculation = $this->refundService->calculateProratedCredit($activeBooking, $damageCharge, $transferFee);
                 $creditAmount = $creditCalculation['final_credit'];
+            } else {
+                return response()->json([
+                    'message' => 'Active booking is required for room transfer. No active booking found for this request.',
+                ], 422);
             }
 
             // Create a fake request to pass to transferRoom
@@ -140,6 +145,8 @@ class TransferController extends Controller
                 'transfer_fee' => $validated['transfer_fee'] ?? 0,
                 'new_end_date' => $transferReq->new_end_date ? $transferReq->new_end_date : null,
                 'prorated_adjustment' => $validated['prorated_adjustment'] ?? 0,
+                'bed_number' => $validated['bed_number'] ?? null,
+                'bed_numbers' => $validated['bed_numbers'] ?? null,
             ]);
 
             // Set the authenticated user resolver on the fake request so ResolvesLandlordAccess works
@@ -166,6 +173,12 @@ class TransferController extends Controller
 
             return $response;
 
+        } catch (AccessDeniedHttpException $e) {
+            DB::rollBack();
+            return response()->json(['message' => $e->getMessage()], 403);
+        } catch (\DomainException $e) {
+            DB::rollBack();
+            return response()->json(['message' => $e->getMessage()], 422);
         } catch (\Exception $e) {
             DB::rollBack();
 

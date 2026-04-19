@@ -2,6 +2,9 @@ import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import LandlordBottomNavigation from '../components/LandlordBottomNavigation.jsx';
+import { 
+  canAccessModule as checkModuleAccess 
+} from '../../../utils/permissionHelpers.js';
 
 // Import screens
 import LandlordDashboard from '../screens/Dashboard/DashboardPage.jsx';
@@ -63,60 +66,22 @@ export default function LandlordNavigator({ onLogout }) {
   }, []);
 
   const isCaretaker = userRole === 'caretaker';
-  const permissions = React.useMemo(() => user?.caretaker_permissions || {}, [user?.caretaker_permissions]);
 
-  const normalizePermissionValue = React.useCallback((value) => {
-    if (typeof value === 'string') {
-      const normalized = value.trim().toLowerCase();
-      return normalized === '1' || normalized === 'true' || normalized === 'yes' || normalized === 'allowed';
-    }
-    return Boolean(value);
-  }, []);
-
-  const buildPermissionCandidates = React.useCallback((key, aliases = []) => {
-    const base = String(key || '').trim();
-    const singular = base.endsWith('ies')
-      ? `${base.slice(0, -3)}y`
-      : base.endsWith('s')
-        ? base.slice(0, -1)
-        : base;
-    const plural = base.endsWith('s')
-      ? base
-      : singular === 'property'
-        ? 'properties'
-        : `${singular}s`;
-
-    const keys = new Set([base, singular, plural, ...aliases]);
-    const expanded = [];
-
-    keys.forEach((entry) => {
-      if (!entry) return;
-      expanded.push(entry, `can_view_${entry}`, `can_manage_${entry}`);
-    });
-
-    return expanded;
-  }, []);
-
-  const hasPermission = React.useCallback(
-    (key, aliases = []) => {
-      if (!isCaretaker) return true;
-      return buildPermissionCandidates(key, aliases).some((candidate) =>
-        normalizePermissionValue(permissions?.[candidate]),
-      );
-    },
-    [buildPermissionCandidates, isCaretaker, normalizePermissionValue, permissions]
+  const canAccessModule = React.useCallback(
+    (slug) => checkModuleAccess(user?.caretaker_permissions, isCaretaker, slug),
+    [isCaretaker, user?.caretaker_permissions]
   );
 
-  const canAccessRooms = hasPermission('rooms');
-  const canAccessMaintenance = hasPermission('maintenance');
-  const canAccessBookings = hasPermission('bookings');
-  const canAccessTenants = hasPermission('tenants');
-  const canAccessMessages = hasPermission('messages');
+  const canAccessRooms = canAccessModule('rooms');
+  const canAccessMaintenance = canAccessModule('maintenance');
+  const canAccessBookings = canAccessModule('bookings');
+  const canAccessTenants = canAccessModule('tenants');
+  const canAccessMessages = canAccessModule('messages');
 
-  const canAccessPropertyManagement = !isCaretaker || hasPermission('properties', ['property', 'property_management']);
+  const canAccessPropertyManagement = !isCaretaker || canAccessModule('properties');
   const canAccessMyProperties = canAccessPropertyManagement;
-  const canAccessAnalytics = !isCaretaker || hasPermission('analytics');
-  const canAccessPayments = !isCaretaker || hasPermission('payments');
+  const canAccessAnalytics = !isCaretaker || canAccessModule('analytics');
+  const canAccessPayments = !isCaretaker || canAccessModule('payments');
   const canAccessReviews = !isCaretaker;
   const canAccessAddonManagement = !isCaretaker;
   const canAccessNotifications = !isCaretaker;

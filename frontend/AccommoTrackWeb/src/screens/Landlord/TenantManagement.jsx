@@ -6,8 +6,9 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { useUIState } from '../../contexts/UIStateContext';
 import { cacheManager } from '../../utils/cache';
 import TenantCard from './TenantCard';
+import TenantLifecycleModal from '../../components/Settings/landlord/TenantLifecycleModal';
 import { Skeleton, SkeletonTableRow } from '../../components/Shared/Skeleton';
-import toast from 'react-hot-toast';
+import { showSuccess, showError } from '../../utils/toast';
 import landlordService from '../../services/landlordService';
 import bookingService from '../../services/bookingService';
 import roomService from '../../services/roomService';
@@ -125,6 +126,7 @@ export default function TenantManagement() {
   const [viewMode, setViewMode] = useState(() => localStorage.getItem('tenantViewMode') || 'card');
   const [claimCodePayload, setClaimCodePayload] = useState(null);
   const [isGeneratingClaimCode, setIsGeneratingClaimCode] = useState(false);
+  const [lifecycleTenant, setLifecycleTenant] = useState(null);
 
   const getTenantActionError = useCallback(
     (errorOrMessage, fallbackMessage) => normalizeActionError(errorOrMessage, fallbackMessage),
@@ -201,7 +203,7 @@ export default function TenantManagement() {
       }
     };
     load();
-  }, []);
+  }, [cachedProps, selectedPropertyId, updateData]);
 
   const loadTenants = useCallback(async () => {
     if (!selectedPropertyId) return;
@@ -233,7 +235,7 @@ export default function TenantManagement() {
     } finally {
       setLoading(false);
     }
-  }, [selectedPropertyId, updateData, getTenantActionError]);
+  }, [selectedPropertyId, updateData, getTenantActionError, uiState.data]);
 
   useEffect(() => {
     if (!selectedPropertyId) return;
@@ -275,11 +277,19 @@ export default function TenantManagement() {
     setShowEvictModal(true);
   };
 
+  const handleLifecycleOpen = (tenant) => {
+    setLifecycleTenant(tenant);
+  };
+
+  const handleLifecycleClose = () => {
+    setLifecycleTenant(null);
+  };
+
   const handleEvictionFinalize = async (tenant) => {
     const due = isEvictionDue(tenant);
     if (!due) {
       const availableAt = formatEvictionFinalizeAt(tenant);
-      toast.error(
+      showError(
         availableAt
           ? `Eviction can be finalized on ${availableAt}.`
           : 'Eviction is still in grace period and cannot be finalized yet.',
@@ -295,10 +305,10 @@ export default function TenantManagement() {
       if (!response.success) {
         throw new Error(response.error || 'Failed to finalize eviction.');
       }
-      toast.success(`Eviction finalized for ${tenant.first_name}.`);
+      showSuccess(`Eviction finalized for ${tenant.first_name}.`);
       loadTenants();
     } catch (err) {
-      toast.error(getTenantActionError(err, 'Unable to finalize eviction right now.'));
+      showError(getTenantActionError(err, 'Unable to finalize eviction right now.'));
     }
   };
 
@@ -311,10 +321,10 @@ export default function TenantManagement() {
       if (!response.success) {
         throw new Error(response.error || 'Failed to cancel eviction schedule.');
       }
-      toast.success(`Eviction schedule cancelled for ${tenant.first_name}.`);
+      showSuccess(`Eviction schedule cancelled for ${tenant.first_name}.`);
       loadTenants();
     } catch (err) {
-      toast.error(getTenantActionError(err, 'Unable to cancel eviction schedule right now.'));
+      showError(getTenantActionError(err, 'Unable to cancel eviction schedule right now.'));
     }
   };
 
@@ -328,10 +338,10 @@ export default function TenantManagement() {
       if (!response.success) {
         throw new Error(response.error || 'Failed to undo eviction.');
       }
-      toast.success(`Eviction undone for ${tenant.first_name}.`);
+      showSuccess(`Eviction undone for ${tenant.first_name}.`);
       loadTenants();
     } catch (err) {
-      toast.error(getTenantActionError(err, 'Unable to undo eviction right now.'));
+      showError(getTenantActionError(err, 'Unable to undo eviction right now.'));
     }
   };
 
@@ -344,11 +354,11 @@ export default function TenantManagement() {
         if (!response.success) {
           throw new Error(response.error || 'Failed to approve reservation.');
         }
-        toast.success(`Reservation approved for ${tenant.first_name}.`);
+        showSuccess(`Reservation approved for ${tenant.first_name}.`);
         loadTenants();
       }
     } catch (err) {
-      toast.error(getTenantActionError(err, 'Unable to approve reservation right now.'));
+      showError(getTenantActionError(err, 'Unable to approve reservation right now.'));
     }
   };
 
@@ -361,18 +371,18 @@ export default function TenantManagement() {
         if (!response.success) {
           throw new Error(response.error || 'Failed to check in tenant.');
         }
-        toast.success(`${tenant.first_name} checked in successfully.`);
+        showSuccess(`${tenant.first_name} checked in successfully.`);
         loadTenants();
       }
     } catch (err) {
-      toast.error(getTenantActionError(err, 'Unable to check in tenant right now.'));
+      showError(getTenantActionError(err, 'Unable to check in tenant right now.'));
     }
   };
 
   const handleAssignInitiate = async (tenant) => {
     const propertyId = tenant.room?.property_id || selectedPropertyId;
     if (!propertyId) {
-      toast.error('Select a property before assigning a room');
+      showError('Select a property before assigning a room');
       return;
     }
 
@@ -396,7 +406,7 @@ export default function TenantManagement() {
 
   const handleCreateTenantInitiate = async () => {
     if (!selectedPropertyId) {
-      toast.error('Select a property before adding a tenant');
+      showError('Select a property before adding a tenant');
       return;
     }
 
@@ -425,7 +435,7 @@ export default function TenantManagement() {
         : [];
       setAvailableRoomsForCreate(list.filter(r => isRoomBookable(r)));
     } catch (err) {
-      toast.error(getTenantActionError(err, 'Unable to load available rooms for tenant assignment.'));
+      showError(getTenantActionError(err, 'Unable to load available rooms for tenant assignment.'));
     } finally {
       setLoadingRoomsForCreate(false);
     }
@@ -442,27 +452,27 @@ export default function TenantManagement() {
     const confirmPassword = createTenantData.confirm_password;
 
     if (!firstName || !lastName || !email) {
-      toast.error("Tenant's First Name, Last Name, and Email are required.");
+      showError("Tenant's First Name, Last Name, and Email are required.");
       return;
     }
 
     if (!/^\S+@\S+\.\S+$/.test(email)) {
-      toast.error('Please enter a valid email address.');
+      showError('Please enter a valid email address.');
       return;
     }
 
     if (!password || password.length < 8) {
-      toast.error('Password must be at least 8 characters.');
+      showError('Password must be at least 8 characters.');
       return;
     }
 
     if (password !== confirmPassword) {
-      toast.error('Passwords do not match. Please re-type.');
+      showError('Passwords do not match. Please re-type.');
       return;
     }
 
     if (!createTenantData.room_id) {
-      toast.error('Please assign a Room or save as floating tenant.');
+      showError('Please assign a Room or save as floating tenant.');
       return;
     }
 
@@ -471,7 +481,7 @@ export default function TenantManagement() {
       createTenantData.end_date,
     );
     if (!validatedDates.valid) {
-      toast.error(validatedDates.message);
+      showError(validatedDates.message);
       return;
     }
 
@@ -497,11 +507,11 @@ export default function TenantManagement() {
         throw new Error(createResponse.error || 'Failed to add tenant.');
       }
 
-      toast.success('Tenant added and assigned successfully.');
+      showSuccess('Tenant added and assigned successfully.');
       setShowCreateTenantModal(false);
       loadTenants();
     } catch (err) {
-      toast.error(getTenantActionError(err, 'Unable to register tenant. Please check your connection and try again.'));
+      showError(getTenantActionError(err, 'Unable to register tenant. Please check your connection and try again.'));
     } finally {
       setIsCreatingTenant(false);
     }
@@ -511,13 +521,13 @@ export default function TenantManagement() {
     e.preventDefault();
     if (!assigningTenant) return;
     if (!assignData.room_id) {
-      toast.error('Please select a room');
+      showError('Please select a room');
       return;
     }
 
     const validatedDates = validateAssignmentDateRange(assignData.move_in_date, assignData.end_date);
     if (!validatedDates.valid) {
-      toast.error(validatedDates.message);
+      showError(validatedDates.message);
       return;
     }
 
@@ -532,11 +542,11 @@ export default function TenantManagement() {
       if (!response.success) {
         throw new Error(response.error || 'Failed to assign room');
       }
-      toast.success('Room assignment completed successfully');
+      showSuccess('Room assignment completed successfully');
       setShowAssignModal(false);
       loadTenants();
     } catch (err) {
-      toast.error(getTenantActionError(err, 'Unable to assign room right now.'));
+      showError(getTenantActionError(err, 'Unable to assign room right now.'));
     } finally {
       setIsAssigning(false);
     }
@@ -556,11 +566,11 @@ export default function TenantManagement() {
       if (!response.success) {
         throw new Error(response.error || 'Failed to unassign tenant');
       }
-      toast.success('Tenant unassigned successfully');
+      showSuccess('Tenant unassigned successfully');
       setShowUnassignModal(false);
       loadTenants();
     } catch (err) {
-      toast.error(getTenantActionError(err, 'Unable to unassign tenant right now.'));
+      showError(getTenantActionError(err, 'Unable to unassign tenant right now.'));
     } finally {
       setIsUnassigning(false);
     }
@@ -569,7 +579,7 @@ export default function TenantManagement() {
   const handleTransferSubmit = async (e) => {
     e.preventDefault();
     if (!transferData.new_room_id || !transferData.reason) {
-      toast.error("Please select a room and provide a reason");
+      showError("Please select a room and provide a reason");
       return;
     }
 
@@ -579,11 +589,11 @@ export default function TenantManagement() {
       if (!response.success) {
         throw new Error(response.error || 'Failed to transfer room');
       }
-      toast.success("Room transfer completed successfully");
+      showSuccess("Room transfer completed successfully");
       setShowTransferModal(false);
       loadTenants();
     } catch (err) {
-      toast.error(getTenantActionError(err, 'Unable to transfer tenant right now.'));
+      showError(getTenantActionError(err, 'Unable to transfer tenant right now.'));
     } finally {
       setIsTransferring(false);
     }
@@ -591,7 +601,7 @@ export default function TenantManagement() {
 
   const handleGenerateClaimCode = async (tenant) => {
     if (!tenant?.id) {
-      toast.error('Invalid tenant selection.');
+      showError('Invalid tenant selection.');
       return;
     }
 
@@ -608,9 +618,9 @@ export default function TenantManagement() {
         claimCode: payload.claim_code || '',
         expiresAt: payload.expires_at || null,
       });
-      toast.success('Claim code generated successfully.');
+      showSuccess('Claim code generated successfully.');
     } catch (err) {
-      toast.error(getTenantActionError(err, 'Unable to generate claim code right now.'));
+      showError(getTenantActionError(err, 'Unable to generate claim code right now.'));
     } finally {
       setIsGeneratingClaimCode(false);
     }
@@ -621,9 +631,9 @@ export default function TenantManagement() {
 
     try {
       await navigator.clipboard.writeText(claimCodePayload.claimCode);
-      toast.success('Claim code copied.');
+      showSuccess('Claim code copied.');
     } catch {
-      toast.error('Unable to copy claim code automatically.');
+      showError('Unable to copy claim code automatically.');
     }
   };
 
@@ -740,15 +750,11 @@ export default function TenantManagement() {
                   onTransfer={handleTransferInitiate}
                   onAssign={handleAssignInitiate}
                   onUnassign={handleUnassignInitiate}
-                  onEvict={handleEvictInitiate}
-                  onEvictionFinalize={handleEvictionFinalize}
-                  onEvictionCancel={handleEvictionCancel}
-                  onEvictionUndo={handleEvictionUndo}
+                  onLifecycle={handleLifecycleOpen}
                   onGenerateClaimCode={handleGenerateClaimCode}
                   onApproveReservation={handleApproveReservation}
                   onCheckIn={handleCheckInTenant}
                   canTransfer={true}
-                  isEvictionDue={isEvictionDue(tenant)}
                 />
               ))
             )}
@@ -808,6 +814,16 @@ export default function TenantManagement() {
         />
       )}
       {showEvictModal && <EvictionModal tenant={evictingTenant} onClose={() => setShowEvictModal(false)} onConfirm={loadTenants} />}
+      {lifecycleTenant && (
+        <TenantLifecycleModal
+          tenant={lifecycleTenant}
+          onClose={handleLifecycleClose}
+          onScheduled={loadTenants}
+          onCancelled={loadTenants}
+          onFinalized={loadTenants}
+          onUndone={loadTenants}
+        />
+      )}
       {claimCodePayload && (
         <ClaimCodeModal
           data={claimCodePayload}
@@ -1251,12 +1267,12 @@ const EvictionModal = ({ tenant, onClose, onConfirm }) => {
   const [isEvicting, setIsEvicting] = useState(false);
 
   const handleConfirm = async () => {
-    if (!reason.trim()) return toast.error("Reason for eviction is required.");
-    if (!effectiveAt) return toast.error("Please set an effective date and time.");
+    if (!reason.trim()) return showError("Reason for eviction is required.");
+    if (!effectiveAt) return showError("Please set an effective date and time.");
 
     const parsedEffectiveAt = new Date(effectiveAt);
     if (Number.isNaN(parsedEffectiveAt.getTime())) {
-      return toast.error('Invalid effective date/time.');
+      return showError('Invalid effective date/time.');
     }
 
     setIsEvicting(true);
@@ -1268,11 +1284,11 @@ const EvictionModal = ({ tenant, onClose, onConfirm }) => {
       if (!response.success) {
         throw new Error(response.error || 'Failed to schedule eviction.');
       }
-      toast.success(`Eviction scheduled for ${tenant.first_name}.`);
+      showSuccess(`Eviction scheduled for ${tenant.first_name}.`);
       onConfirm(); // Callback to refresh the tenant list
       onClose();
     } catch (err) {
-      toast.error(err.message || err.response?.data?.message || "Failed to schedule eviction.");
+      showError(err.message || err.response?.data?.message || "Failed to schedule eviction.");
     } finally {
       setIsEvicting(false);
     }

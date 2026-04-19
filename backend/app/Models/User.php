@@ -469,6 +469,9 @@ class User extends Authenticatable
             'can_cancel_bookings' => (bool) optional($assignment)->can_cancel_bookings,
             'can_manage_add_ons' => (bool) optional($assignment)->can_manage_add_ons,
             'can_view_audit_logs' => (bool) optional($assignment)->can_view_audit_logs,
+            'has_maintenance_assignments' => (bool) \App\Models\MaintenanceRequest::where('assigned_to', $this->id)
+                ->whereNotIn('status', ['completed', 'cancelled'])
+                ->exists(),
         ];
     }
 

@@ -89,22 +89,21 @@ export const paymentService = {
     },
 
     /**
-     * Get the tenant's wallet credit balance for a given property.
-     * @param {number} propertyId – The property the invoice belongs to
+     * Get the tenant's wallet credit balance.
+     * Re-routed to use getStats since standalone balance endpoint is not in current routes.
      */
-    async getWalletBalance(propertyId) {
+    async getWalletBalance() {
         try {
-            const params = propertyId ? { property_id: propertyId } : {};
-            const response = await api.get('/tenant/wallet-credit/balance', { params });
+            const response = await api.get('/tenant/payments/stats');
             return {
                 success: true,
-                data: response.data
+                data: response.data?.totalCredits || 0
             };
         } catch (error) {
             return {
                 success: false,
                 error: error.response?.data?.message || 'Failed to fetch wallet balance',
-                balance: 0
+                data: 0
             };
         }
     },
@@ -145,6 +144,25 @@ export const paymentService = {
     },
 
     /**
+     * Get wallet credit transaction history for the tenant
+     */
+    async getWalletLogs(page = 1) {
+        try {
+            const response = await api.get(`/tenant/wallet-credit/logs?page=${page}`);
+            return {
+                success: true,
+                data: response.data
+            };
+        } catch (error) {
+            console.error('Error fetching wallet logs:', error);
+            return {
+                success: false,
+                error: error.response?.data?.message || 'Failed to fetch transaction history'
+            };
+        }
+    },
+
+    /**
      * Format amount to Philippine Peso
      * @param {number} amount 
      */
@@ -162,18 +180,18 @@ export const paymentService = {
     getStatusColor(status) {
         const s = (status || "").toLowerCase();
         const colors = {
-            'paid': 'bg-green-100 text-green-800',
-            'pending': 'bg-yellow-100 text-yellow-800',
-            'partial': 'bg-yellow-100 text-yellow-800',
-            'partially paid': 'bg-yellow-100 text-yellow-800',
-            'pending_verification': 'bg-orange-100 text-orange-800',
-            'awaiting verification': 'bg-orange-100 text-orange-800',
-            'overdue': 'bg-red-100 text-red-800',
-            'unpaid': 'bg-red-100 text-red-800',
-            'cancelled': 'bg-red-100 text-red-800',
-            'refunded': 'bg-purple-100 text-purple-800',
+            'paid': 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20',
+            'pending': 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/20',
+            'partial': 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/20',
+            'partially paid': 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/20',
+            'pending_verification': 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/20',
+            'awaiting verification': 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/20',
+            'overdue': 'bg-red-50 text-red-700 border-red-200 dark:bg-red-500/10 dark:text-red-400 dark:border-red-500/20',
+            'unpaid': 'bg-red-50 text-red-700 border-red-200 dark:bg-red-500/10 dark:text-red-400 dark:border-red-500/20',
+            'cancelled': 'bg-gray-100 text-gray-500 border-gray-200 dark:bg-gray-500/10 dark:text-gray-400 dark:border-gray-500/20',
+            'refunded': 'bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-500/10 dark:text-purple-400 dark:border-purple-500/20',
         };
-        return colors[s] || 'bg-gray-100 text-gray-800';
+        return colors[s] || 'bg-gray-100 text-gray-800 border-gray-200';
     }
 };
 

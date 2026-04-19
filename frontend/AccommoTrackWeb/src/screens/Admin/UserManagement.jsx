@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import api, { getImageUrl } from '../../utils/api';
-import { toast } from 'react-hot-toast';
+import { showSuccess, showError } from '../../utils/toast';
 import ConfirmationModal from '../../components/Shared/ConfirmationModal';
 import { Trash2, Download } from 'lucide-react';
 import { exportToCSV } from '../../utils/csvExport';
@@ -103,7 +103,7 @@ const UserManagement = () => {
       }
     } catch (err) {
       console.error('Failed to fetch users', err);
-      toast.error(err.response?.data?.message || err.message || 'Failed to fetch users');
+      showError(err.response?.data?.message || err.message || 'Failed to fetch users');
     } finally {
       setLoading(false);
     }
@@ -155,9 +155,9 @@ const UserManagement = () => {
       const isBlocked = Boolean(response?.data?.user?.is_blocked ?? block);
 
       if (block) {
-        toast.success(response?.data?.message || 'User blocked successfully');
+        showSuccess(response?.data?.message || 'User blocked successfully');
       } else {
-        toast.success(response?.data?.message || 'User unblocked successfully');
+        showSuccess(response?.data?.message || 'User unblocked successfully');
       }
 
       setUsers(prev => prev.map(u => (u.id === userId ? { ...u, is_blocked: isBlocked } : u)));
@@ -166,7 +166,7 @@ const UserManagement = () => {
       return true;
     } catch (err) {
       console.error('Failed to update user block status', err);
-      toast.error(err.response?.data?.message || err.message || 'User action failed');
+      showError(err.response?.data?.message || err.message || 'User action failed');
       return false;
     } finally {
       setActionLoading(null);
@@ -181,7 +181,7 @@ const UserManagement = () => {
     const requiresDiscussionSummary = blockFlowState.blockMode === 'after_discussion' && !blockFlowState.overrideWithoutDiscussion;
 
     if (requiresDiscussionSummary && !discussionSummary) {
-      toast.error('Please add discussion notes or enable immediate override.');
+      showError('Please add discussion notes or enable immediate override.');
       return;
     }
 
@@ -213,7 +213,7 @@ const UserManagement = () => {
   const openPasswordResetFlow = (user) => {
     if (!user) return;
     if (!adminPermissions.can_reset_user_password) {
-      toast.error('Only super admins can send password reset links.');
+      showError('Only super admins can send password reset links.');
       return;
     }
 
@@ -230,7 +230,7 @@ const UserManagement = () => {
 
     const reason = passwordResetFlow.reason.trim();
     if (!reason) {
-      toast.error('Please provide a reason before sending the reset link.');
+      showError('Please provide a reason before sending the reset link.');
       return;
     }
 
@@ -238,10 +238,10 @@ const UserManagement = () => {
 
     try {
       const response = await api.post(`/admin/users/${passwordResetFlow.targetUser.id}/password-reset`, { reason });
-      toast.success(response?.data?.message || 'Password reset link sent successfully.');
+      showSuccess(response?.data?.message || 'Password reset link sent successfully.');
       closePasswordResetFlow();
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to send password reset link.');
+      showError(err.response?.data?.message || 'Failed to send password reset link.');
       setPasswordResetFlow((prev) => ({ ...prev, submitting: false }));
     }
   };
@@ -265,14 +265,14 @@ const UserManagement = () => {
     setActionLoading(`${userId}:delete`);
     try {
       await api.delete(`/admin/users/${userId}`, { data: { password: adminPassword } });
-      toast.success('User permanently deleted');
+      showSuccess('User permanently deleted');
       setUsers(prev => prev.filter(u => u.id !== userId));
       if (selectedUser?.id === userId) {
         setShowModal(false);
       }
       setPasswordValue('');
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to delete user');
+      showError(err.response?.data?.message || 'Failed to delete user');
       setPasswordValue('');
     } finally {
       setActionLoading(null);

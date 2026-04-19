@@ -8,7 +8,6 @@ import {
   Modal,
   Image,
   ActivityIndicator,
-  Alert,
   RefreshControl
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -25,6 +24,10 @@ import {
   useLandlordFocusRefetch,
   useLandlordRefreshHandler,
 } from '../../hooks/useLandlordQueryHelpers.js';
+import { hasPermission as checkPermission } from '../../../../utils/permissionHelpers.js';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import AssignWorkerModal from '../../components/Maintenance/AssignWorkerModal.jsx';
+import { showSuccess, showError } from '../../../../utils/toast.js';
 
 const EMPTY_REQUESTS = [];
 const EMPTY_PROPERTIES = [];
@@ -33,8 +36,27 @@ export default function MaintenanceRequests({ route }) {
   const navigation = useNavigation();
   const { theme } = useTheme();
   const styles = React.useMemo(() => getStyles(theme), [theme]);
-  const showAlert = Alert.alert;
   const queryClient = useQueryClient();
+
+  const [user, setUser] = useState(null);
+  useEffect(() => {
+    const loadUser = async () => {
+      try {
+        const userString = await AsyncStorage.getItem('user');
+        if (userString) {
+          setUser(JSON.parse(userString));
+        }
+      } catch (_error) {}
+    };
+    loadUser();
+  }, []);
+
+  const isCaretaker = user?.role === 'caretaker';
+  const hasPermission = React.useCallback((key, aliases = []) => {
+    return checkPermission(user?.caretaker_permissions, isCaretaker, key, aliases);
+  }, [isCaretaker, user?.caretaker_permissions]);
+
+  const canManageMaintenance = !isCaretaker || hasPermission('maintenance');
 
   const [refreshing, setRefreshing] = useState(false);
   const [statusFilter, setStatusFilter] = useState('all');
@@ -42,6 +64,7 @@ export default function MaintenanceRequests({ route }) {
   const [selectedPropertyId, setSelectedPropertyId] = useState(routePropertyId ? String(routePropertyId) : 'all');
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [detailsVisible, setDetailsVisible] = useState(false);
+  const [assignModalVisible, setAssignModalVisible] = useState(false);
 
   const propertiesQuery = useQuery({
     queryKey: landlordQueryKeys.properties(),
@@ -123,7 +146,7 @@ export default function MaintenanceRequests({ route }) {
   useEffect(() => {
     const fetchError = requestsQuery.error?.message || propertiesQuery.error?.message;
     if (fetchError) {
-      showAlert('Error', fetchError || 'Failed to load maintenance requests');
+      showError('Error', fetchError || 'Failed to load maintenance requests');
     }
   }, [requestsQuery.error, propertiesQuery.error]);
 
@@ -157,7 +180,7 @@ export default function MaintenanceRequests({ route }) {
       const res = await updateStatusMutation.mutateAsync({ id, status: newStatus });
 
       if (res.success) {
-        showAlert('Success', `Request marked as ${newStatus.replace('_', ' ')}`);
+        showSuccess(`Request marked as ${newStatus.replace('_', ' ')}`);
 
         if (selectedRequest?.id === id) {
           setSelectedRequest(prev => ({ ...prev, status: newStatus }));
@@ -165,10 +188,24 @@ export default function MaintenanceRequests({ route }) {
 
         await queryClient.invalidateQueries({ queryKey: landlordQueryKeys.maintenanceRequestsRoot() });
       } else {
-        showAlert('Error', res.error || 'Failed to update status');
+        showError('Error', res.error || 'Failed to update status');
       }
     } catch {
-      showAlert('Error', 'Failed to update status');
+      showError('Error', 'Failed to update status');
+    }
+  };
+
+  const handleAssignWorker = async (id, workerId) => {
+    try {
+      const res = await MaintenanceService.assignWorker(id, workerId);
+      if (res.success) {
+        showSuccess('Worker assigned successfully');
+        await queryClient.invalidateQueries({ queryKey: landlordQueryKeys.maintenanceRequestsRoot() });
+      } else {
+        showError('Error', res.error || 'Failed to assign worker');
+      }
+    } catch {
+      showError('Error', 'Failed to assign worker');
     }
   };
 
@@ -407,38 +444,65 @@ export default function MaintenanceRequests({ route }) {
 
               {/* Actions Footer */}
               <SafeAreaView edges={['bottom']} style={[styles.modalFooter, { borderTopColor: theme.colors.border }]}>
-                {selectedRequest.status === 'pending' && (
-                  <TouchableOpacity
-                    style={[styles.actionButton, { backgroundColor: '#3B82F6' }]}
-                    onPress={() => handleUpdateStatus(selectedRequest.id, 'in_progress')}
-                    disabled={updating}
-                  >
-                    <Text style={styles.actionButtonText}>Accept & Start</Text>
-                  </TouchableOpacity>
-                )}
-                {selectedRequest.status === 'in_progress' && (
-                  <TouchableOpacity
-                    style={[styles.actionButton, { backgroundColor: '#16a34a' }]}
-                    onPress={() => handleUpdateStatus(selectedRequest.id, 'completed')}
-                    disabled={updating}
-                  >
-                    <Text style={styles.actionButtonText}>Mark Completed</Text>
-                  </TouchableOpacity>
-                )}
-                {(selectedRequest.status === 'pending' || selectedRequest.status === 'in_progress') && (
-                  <TouchableOpacity
-                    style={[styles.actionButton, { backgroundColor: '#EF4444', marginTop: 8 }]}
-                    onPress={() => handleUpdateStatus(selectedRequest.id, 'cancelled')}
-                    disabled={updating}
-                  >
-                    <Text style={styles.actionButtonText}>Cancel Request</Text>
-                  </TouchableOpacity>
+                {canManageMaintenance ? (
+                  <>
+                    {selectedRequest.status === 'pending' && (
+                      <>
+                        <TouchableOpacity
+                          style={[styles.actionButton, { backgroundColor: '#3B82F6' }]}
+                          onPress={() => handleUpdateStatus(selectedRequest.id, 'in_progress')}
+                          disabled={updating}
+                        >
+                          <Text style={styles.actionButtonText}>Accept & Start</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          style={[styles.actionButton, { backgroundColor: theme.colors.backgroundSecondary, borderWidth: 1, borderColor: theme.colors.border, marginTop: 8 }]}
+                          onPress={() => setAssignModalVisible(true)}
+                          disabled={updating}
+                        >
+                          <Text style={[styles.actionButtonText, { color: theme.colors.textSecondary }]}>Assign Worker</Text>
+                        </TouchableOpacity>
+                      </>
+                    )}
+                    {selectedRequest.status === 'in_progress' && (
+                      <TouchableOpacity
+                        style={[styles.actionButton, { backgroundColor: '#16a34a' }]}
+                        onPress={() => handleUpdateStatus(selectedRequest.id, 'completed')}
+                        disabled={updating}
+                      >
+                        <Text style={styles.actionButtonText}>Mark Completed</Text>
+                      </TouchableOpacity>
+                    )}
+                    {(selectedRequest.status === 'pending' || selectedRequest.status === 'in_progress') && (
+                      <TouchableOpacity
+                        style={[styles.actionButton, { backgroundColor: '#EF4444', marginTop: 8 }]}
+                        onPress={() => handleUpdateStatus(selectedRequest.id, 'cancelled')}
+                        disabled={updating}
+                      >
+                        <Text style={styles.actionButtonText}>Cancel Request</Text>
+                      </TouchableOpacity>
+                    )}
+                  </>
+                ) : (
+                  <View style={{ padding: 12, backgroundColor: theme.colors.backgroundSecondary, borderRadius: 8, flexDirection: 'row', alignItems: 'center' }}>
+                    <Ionicons name="lock-closed-outline" size={18} color={theme.colors.textSecondary} style={{ marginRight: 8 }} />
+                    <Text style={{ color: theme.colors.textSecondary, fontSize: 13, flex: 1 }}>
+                      You don't have permission to update maintenance requests.
+                    </Text>
+                  </View>
                 )}
               </SafeAreaView>
             </>
           )}
         </View>
       </Modal>
+
+      <AssignWorkerModal
+        isOpen={assignModalVisible}
+        onClose={() => setAssignModalVisible(false)}
+        request={selectedRequest}
+        onAssign={handleAssignWorker}
+      />
     </SafeAreaView>
   );
 }

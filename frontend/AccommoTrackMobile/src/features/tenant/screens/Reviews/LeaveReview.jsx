@@ -1,18 +1,18 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, TextInput, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, TextInput, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import { useTheme } from '../../../../contexts/ThemeContext.jsx';
 import tenantService from '../../../../services/TenantService.js';
 import { getStyles } from '../../../../styles/Tenant/ReviewStyles.js';
+import { showError, showSuccess } from '../../../../utils/toast.js';
 
 export default function LeaveReview() {
   const route = useRoute();
   const navigation = useNavigation();
   const { theme } = useTheme();
   const styles = React.useMemo(() => getStyles(theme), [theme]);
-  const showAlert = Alert.alert;
   const { bookingId = null, propertyId = null, reviewId = null, initialRating = 5, initialComment = '' } = route.params || {};
 
   const [rating, setRating] = useState(initialRating);
@@ -23,7 +23,7 @@ export default function LeaveReview() {
 
   const submit = async () => {
     if (!propertyId) {
-      showAlert('Missing data', 'Property information is missing.');
+      showError('Missing data', 'Property information is missing.');
       return;
     }
     setSubmitting(true);
@@ -41,14 +41,14 @@ export default function LeaveReview() {
         res = await tenantService.submitReview(payload);
       }
       if (res.success) {
-        showAlert('Thanks!', reviewId ? 'Your review has been updated.' : 'Your review has been submitted.');
+        showSuccess('Thanks!', reviewId ? 'Your review has been updated.' : 'Your review has been submitted.');
         navigation.goBack();
       } else {
-        showAlert('Error', res.error || 'Failed to submit review');
+        showError('Error', res.error || 'Failed to submit review');
       }
     } catch (err) {
       console.error('Submit review error', err);
-      showAlert('Error', 'Failed to submit review');
+      showError('Error', 'Failed to submit review');
     } finally {
       setSubmitting(false);
     }

@@ -1,7 +1,6 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   RefreshControl,
   ScrollView,
   StatusBar,
@@ -23,12 +22,12 @@ import {
   useLandlordFocusRefetch,
   useLandlordRefreshHandler,
 } from '../../hooks/useLandlordQueryHelpers.js';
+import { showError, showWarning, showInfo } from '../../../../utils/toast.js';
 
 const EMPTY_PROPERTIES = [];
 
 export default function PropertyPaymentSettings({ navigation }) {
   const { theme } = useTheme();
-  const showAlert = Alert.alert;
   const [refreshing, setRefreshing] = useState(false);
   const [saving, setSaving] = useState(null); // propertyId being saved
   const [actionError, setActionError] = useState('');
@@ -119,10 +118,9 @@ export default function PropertyPaymentSettings({ navigation }) {
     if (!property) return;
 
     if (method === 'online' && !isPayMongoVerified) {
-      showAlert(
+      showInfo(
         'PayMongo Not Verified',
-        'You need to complete PayMongo verification before enabling online payments. Go to Settings > Payments to connect.',
-        [{ text: 'OK' }]
+        'You need to complete PayMongo verification before enabling online payments. Go to Settings > Payments to connect.'
       );
       return;
     }
@@ -132,7 +130,7 @@ export default function PropertyPaymentSettings({ navigation }) {
     if (current.includes(method)) {
       // Prevent removing cash if it is the only method
       if (method === 'cash' && current.length === 1) {
-        showAlert('Required', 'At least one payment method (Cash) must be enabled.');
+        showWarning('Required', 'At least one payment method (Cash) must be enabled.');
         return;
       }
       updated = current.filter((m) => m !== method);
@@ -169,7 +167,7 @@ export default function PropertyPaymentSettings({ navigation }) {
       );
       const message = err.response?.data?.message || err.message || 'Failed to update payment methods';
       setActionError(message);
-      showAlert('Error', message);
+      showError('Error', message);
     } finally {
       setSaving(null);
     }

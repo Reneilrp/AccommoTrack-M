@@ -172,5 +172,18 @@ export const propertyService = {
                 localStorage.removeItem(key);
             }
         });
+    },
+
+    /**
+     * Get eligible workers (caretakers) for a property (Landlord)
+     */
+    async getPropertyWorkers(propertyId) {
+        try {
+            const response = await api.get(`/landlord/properties/${propertyId}/workers`);
+            return response.data;
+        } catch (error) {
+            console.error(`Error fetching workers for property ${propertyId}:`, error);
+            throw error;
+        }
     }
 };

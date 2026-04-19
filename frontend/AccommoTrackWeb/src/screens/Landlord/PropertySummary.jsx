@@ -1,16 +1,18 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api, { getImageUrl } from '../../utils/api';
-import toast from 'react-hot-toast';
+import { showSuccess, showError, showLoading } from '../../utils/toast';
 import {
   Building2, List, ArrowLeft, ArrowRight, Edit, Users, Loader2, Wrench, Star,
-  AlertCircle, Clock, Home, PackagePlus, CreditCard, BookOpen, ArrowLeftRight, ChevronRight, Check, X
+  AlertCircle, Clock, Home, PackagePlus, CreditCard, BookOpen, ArrowLeftRight, ChevronRight, Check, X, CheckCircle2
 } from 'lucide-react';
 import RoomDetails from '../../components/Rooms/RoomDetails';
 import PropertyActivityLogs from './PropertyActivityLogs';
 import { useSidebar } from '../../contexts/SidebarContext';
 import { useUIState } from '../../contexts/UIStateContext';
 import { cacheManager } from '../../utils/cache';
+import { maintenanceService } from '../../services/maintenanceService';
+import AssignWorkerModal from '../../components/Maintenance/AssignWorkerModal';
 
 import { Swiper, SwiperSlide } from 'swiper/react';
 import { Navigation, Pagination, Autoplay, Keyboard, A11y } from 'swiper/modules';
@@ -204,12 +206,32 @@ function PropertyDashboard({ propertyId, navigate, onCountsChange }) {
     item: null,
   });
 
+  const [transferApprovalModal, setTransferApprovalModal] = useState({
+    isOpen: false,
+    item: null,
+    loadingProration: false,
+    prorationDetails: null,
+    formData: {
+      damage_charge: '',
+      damage_description: '',
+      transfer_fee: '',
+      landlord_notes: '',
+      prorated_adjustment: '',
+    },
+  });
+
+  const [maintenanceAssignModal, setMaintenanceAssignModal] = useState({
+    isOpen: false,
+    item: null,
+  });
+
   useEffect(() => {
     if (!propertyId) return;
     loadDashboard();
-  }, [propertyId]);
+  }, [propertyId, loadDashboard]);
 
-  const loadDashboard = async () => {
+
+  const loadDashboard = useCallback(async () => {
     setLoading(true);
     try {
       const [bookingsRes, invoicesRes, addonRequestsRes, maintenanceRes, transfersRes, reviewsRes, roomsRes] = await Promise.allSettled([
@@ -268,17 +290,17 @@ function PropertyDashboard({ propertyId, navigate, onCountsChange }) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [propertyId, onCountsChange]);
 
   const handleBookingAction = async (bookingId, action, cancellationReason = null) => {
     if (!bookingId) {
-      toast.error('Booking reference is missing. Please refresh and try again.');
+      showError('Booking reference is missing. Please refresh and try again.');
       return;
     }
 
     const key = `booking_${bookingId}_${action}`;
     setActionLoading(p => ({ ...p, [key]: true }));
-    const toastId = toast.loading(action === 'confirm' ? 'Confirming booking...' : 'Declining booking...');
+    const toastId = showLoading(action === 'confirm' ? 'Confirming booking...' : 'Declining booking...');
     try {
       const status = action === 'confirm' ? 'confirmed' : 'cancelled';
       const payload = { status };
@@ -291,45 +313,162 @@ function PropertyDashboard({ propertyId, navigate, onCountsChange }) {
 
       await api.patch(`/bookings/${bookingId}/status`, payload);
       setDashData(p => ({ ...p, pendingBookings: p.pendingBookings.filter(b => b.id !== bookingId) }));
-      toast.success(action === 'confirm' ? 'Booking confirmed!' : 'Booking declined.', { id: toastId });
+      showSuccess(action === 'confirm' ? 'Booking confirmed!' : 'Booking declined.', { id: toastId });
     } catch (err) {
       console.error(`Failed to ${action} booking`, err);
-      toast.error(err.response?.data?.message || `Failed to ${action} booking`, { id: toastId });
+      showError(err.response?.data?.message || `Failed to ${action} booking`, { id: toastId });
     } finally {
       setActionLoading(p => ({ ...p, [key]: false }));
     }
   };
 
-  const handleTransferAction = async (transferId, action) => {
+  const handleTransferAction = async (transferId, action, payload = {}) => {
     if (!transferId) {
-      toast.error('Transfer request ID is missing. Please refresh and try again.');
-      return;
+      showError('Transfer request ID is missing. Please refresh and try again.');
+      return false;
     }
 
     const key = `transfer_${transferId}_${action}`;
     setActionLoading(p => ({ ...p, [key]: true }));
-    const toastId = toast.loading(action === 'approve' ? 'Approving transfer...' : 'Rejecting transfer...');
+    const toastId = showLoading(action === 'approve' ? 'Approving transfer...' : 'Rejecting transfer...');
     try {
-      await api.patch(`/landlord/transfers/${transferId}/handle`, { action });
+      await api.patch(`/landlord/transfers/${transferId}/handle`, { action, ...payload });
       setDashData(p => ({ ...p, transferRequests: p.transferRequests.filter(t => t.id !== transferId) }));
-      toast.success(`Transfer ${action}d successfully!`, { id: toastId });
+      showSuccess(`Transfer ${action}d successfully!`, { id: toastId });
+      return true;
     } catch (err) {
       console.error(`Failed to ${action} transfer`, err);
-      toast.error(err.response?.data?.message || `Failed to ${action} transfer`, { id: toastId });
+      showError(err.response?.data?.message || `Failed to ${action} transfer`, { id: toastId });
+      return false;
     } finally {
       setActionLoading(p => ({ ...p, [key]: false }));
+    }
+  };
+
+  const openTransferApprovalModal = async (rawItem) => {
+    const tenantName = readName(rawItem.tenant, rawItem.tenant_name || 'Tenant');
+    const roomChange = `Room ${rawItem.from_room?.room_number || rawItem.from_room_name || '—'} → ${rawItem.to_room?.room_number || rawItem.to_room_name || '—'}`;
+
+    setTransferApprovalModal(prev => ({
+      ...prev,
+      isOpen: true,
+      item: rawItem,
+      displayTenant: tenantName,
+      displayRoom: roomChange,
+      loadingProration: true,
+      prorationDetails: null,
+      formData: {
+        damage_charge: '',
+        damage_description: '',
+        transfer_fee: '',
+        landlord_notes: '',
+        prorated_adjustment: '',
+      },
+    }));
+
+    try {
+      const res = await api.get(`/landlord/transfers/${rawItem.id}/proration`);
+      const details = res?.data?.data || res?.data || null;
+      setTransferApprovalModal(prev => ({
+        ...prev,
+        loadingProration: false,
+        prorationDetails: details,
+        formData: {
+          ...prev.formData,
+          transfer_fee: details?.quoted_transfer_fee ?? details?.transfer_fee ?? 0,
+          prorated_adjustment: details?.suggested_adjustment ?? '',
+        },
+      }));
+    } catch (_err) {
+      setTransferApprovalModal(prev => ({ ...prev, loadingProration: false }));
+      showError('Failed to calculate rent proration details');
+    }
+  };
+
+  const closeTransferApprovalModal = () => {
+    setTransferApprovalModal(prev => ({ ...prev, isOpen: false, item: null }));
+  };
+
+  const handleConfirmTransferApproval = async () => {
+    const { item, formData } = transferApprovalModal;
+    if (!item) return;
+
+    const damageCharge = Number(formData.damage_charge || 0);
+    if (damageCharge > 0 && !formData.damage_description.trim()) {
+      showError('Damage description is required when damage charge is set.');
+      return;
+    }
+
+    const payload = {
+      landlord_notes: formData.landlord_notes.trim() || undefined,
+      damage_charge: damageCharge > 0 ? damageCharge : undefined,
+      damage_description: damageCharge > 0 ? formData.damage_description.trim() : undefined,
+      transfer_fee: formData.transfer_fee !== '' ? Number(formData.transfer_fee) : undefined,
+      prorated_adjustment: formData.prorated_adjustment !== '' ? Number(formData.prorated_adjustment) : undefined,
+    };
+
+    const success = await handleTransferAction(item.id, 'approve', payload);
+    if (success) closeTransferApprovalModal();
+  };
+
+  const handleUpdateStatus = async (id, newStatus) => {
+    try {
+      const response = await maintenanceService.updateStatus(id, newStatus);
+      if (response.success) {
+        showSuccess(`Request marked as ${newStatus.replace('_', ' ')}`);
+        setDashData(p => ({
+          ...p,
+          maintenanceRequests: p.maintenanceRequests.map(r => r.id === id ? { ...r, status: newStatus } : r),
+        }));
+      }
+    } catch {
+      showError('Failed to update status');
+    }
+  };
+
+  const handleCompleteRequest = async (id) => {
+    try {
+      const response = await maintenanceService.completeRequest(id);
+      if (response.success) {
+        showSuccess(response.message || 'Request resolved');
+        setDashData(p => ({
+          ...p,
+          maintenanceRequests: p.maintenanceRequests.map(r => r.id === id ? response.data : r),
+        }));
+      }
+    } catch {
+      showError('Failed to mark as completed');
+    }
+  };
+
+  const handleMaintenanceAssign = async (id, workerId) => {
+    try {
+      const response = await maintenanceService.assignWorker(id, workerId);
+      if (response.success) {
+        showSuccess(response.message || 'Worker assigned successfully');
+        setDashData(p => ({
+          ...p,
+          maintenanceRequests: p.maintenanceRequests.map(r => r.id === id ? response.data : r),
+        }));
+        setMaintenanceAssignModal({ isOpen: false, item: null });
+      } else {
+        showError(response.message || 'Failed to assign worker');
+      }
+    } catch (err) {
+      console.error('Assignment error', err);
+      showError('An error occurred during assignment');
     }
   };
 
   const handleAddonRequestAction = async (requestId, bookingId, addonId, action, note = null, approvedPrice = null) => {
     if (!requestId || !bookingId || !addonId) {
-      toast.error('Add-on request data is incomplete. Please refresh and try again.');
+      showError('Add-on request data is incomplete. Please refresh and try again.');
       return false;
     }
 
     const key = `addon_${requestId}_${action}`;
     setActionLoading(p => ({ ...p, [key]: true }));
-    const toastId = toast.loading(action === 'approve' ? 'Approving add-on...' : 'Rejecting add-on...');
+    const toastId = showLoading(action === 'approve' ? 'Approving add-on...' : 'Rejecting add-on...');
     try {
       const payload = {
         action,
@@ -351,11 +490,11 @@ function PropertyDashboard({ propertyId, navigate, onCountsChange }) {
         delete next[requestId];
         return next;
       });
-      toast.success(`Add-on ${action}d successfully!`, { id: toastId });
+      showSuccess(`Add-on ${action}d successfully!`, { id: toastId });
       return true;
     } catch (err) {
       console.error(`Failed to ${action} add-on request`, err);
-      toast.error(err.response?.data?.message || `Failed to ${action} add-on`, { id: toastId });
+      showError(err.response?.data?.message || `Failed to ${action} add-on`, { id: toastId });
       return false;
     } finally {
       setActionLoading(p => ({ ...p, [key]: false }));
@@ -398,7 +537,7 @@ function PropertyDashboard({ propertyId, navigate, onCountsChange }) {
       return next;
     });
 
-    toast.success('Action details updated.');
+    showSuccess('Action details updated.');
     closeAddonActionModal();
   };
 
@@ -408,7 +547,7 @@ function PropertyDashboard({ propertyId, navigate, onCountsChange }) {
 
     const reason = addonActionModal.rejectReason.trim();
     if (!reason) {
-      toast.error('Rejection reason is required.');
+      showError('Rejection reason is required.');
       return;
     }
 
@@ -500,7 +639,7 @@ function PropertyDashboard({ propertyId, navigate, onCountsChange }) {
       id: b.id,
       type: 'booking',
       tenant: readName(b.tenant, b.tenant_name || 'Tenant'),
-      room: b.room?.name || b.room_name || 'Room —',
+      room: b.room?.room_number || b.room_number || 'Room —',
       date: b.start_date || b.created_at,
       status: 'Pending',
       amount: null,
@@ -511,7 +650,7 @@ function PropertyDashboard({ propertyId, navigate, onCountsChange }) {
       id: inv.id,
       type: 'payment',
       tenant: readName(inv.tenant, inv.tenant_name || 'Tenant'),
-      room: inv.room?.name || inv.room_name || 'Room —',
+      room: inv.room?.room_number || inv.room_number || 'Room —',
       date: inv.due_date || inv.created_at,
       status: 'Overdue',
       amount: normalizeAmount(inv.amount ?? inv.total_amount),
@@ -522,22 +661,24 @@ function PropertyDashboard({ propertyId, navigate, onCountsChange }) {
       id: m.id,
       type: 'maintenance',
       tenant: readName(m.tenant, m.tenant_name || 'Tenant'),
-      room: m.room?.name || m.room_name || 'Room —',
+      room: m.room?.room_number || m.room_number || 'Room —',
       date: m.created_at || m.updated_at,
       status: m.status || 'Open',
       amount: null,
       note: m.title || m.issue || 'Maintenance issue',
+      raw: m,
     })),
     ...transferRequests.map((t) => ({
       key: `transfer-${t.id}`,
       id: t.id,
       type: 'transfer',
       tenant: readName(t.tenant, t.tenant_name || 'Tenant'),
-      room: `${t.from_room?.name || t.from_room_name || '—'} → ${t.to_room?.name || t.to_room_name || '—'}`,
+      room: `Room ${t.from_room?.room_number || t.from_room_name || '—'} → ${t.to_room?.room_number || t.to_room_name || '—'}`,
       date: t.created_at || t.updated_at,
       status: t.status || 'Pending',
       amount: null,
       note: 'Room transfer',
+      raw: t,
     })),
     ...pendingAddonRequests.map((req) => {
       const requestNote = req.requestNote || req.request_note || '';
@@ -562,7 +703,7 @@ function PropertyDashboard({ propertyId, navigate, onCountsChange }) {
       id: r.id,
       type: 'review',
       tenant: readName(r.tenant, r.reviewer_name || 'Tenant'),
-      room: r.room?.name || r.room_name || 'Room —',
+      room: r.room?.room_number || r.room_name || 'Room —',
       date: r.created_at || r.updated_at,
       status: `${Math.round(Number(r.rating) || 0)} stars`,
       amount: null,
@@ -585,52 +726,46 @@ function PropertyDashboard({ propertyId, navigate, onCountsChange }) {
 
   const renderActionButtons = (item) => {
     if (item.type === 'booking') {
-      const confirming = !!actionLoading[`booking_${item.id}_confirm`];
-      const declining = !!actionLoading[`booking_${item.id}_decline`];
       return (
-        <div className="inline-flex items-center gap-1">
-          <button
-            onClick={() => openActionConfirmModal('booking_confirm', item)}
-            title="Confirm booking"
-            aria-label="Confirm booking"
-            className="w-7 h-7 inline-flex items-center justify-center rounded-md bg-green-600 text-white hover:bg-green-700 transition-colors disabled:opacity-60"
-            disabled={confirming || declining}
-          >
-            {confirming ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
-          </button>
-          <button
-            onClick={() => openActionConfirmModal('booking_decline', item)}
-            title="Decline booking"
-            aria-label="Decline booking"
-            className="w-7 h-7 inline-flex items-center justify-center rounded-md bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-800 hover:bg-red-100 dark:hover:bg-red-900/50 transition-colors disabled:opacity-60"
-            disabled={confirming || declining}
-          >
-            {declining ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <X className="w-3.5 h-3.5" />}
-          </button>
-        </div>
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            navigate(`/bookings?bookingId=${item.id}`);
+          }}
+          title="Review booking"
+          aria-label="Review booking"
+          className="px-3 py-1 text-[11px] font-semibold rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition-colors flex items-center gap-1.5 shadow-sm active:scale-95"
+        >
+          <Check className="w-3 h-3" />
+          <span>Check</span>
+        </button>
       );
     }
 
     if (item.type === 'transfer') {
-      const approvingTransfer = !!actionLoading[`transfer_${item.id}_approve`];
       const rejectingTransfer = !!actionLoading[`transfer_${item.id}_reject`];
       return (
         <div className="inline-flex items-center gap-1">
           <button
-            onClick={() => openActionConfirmModal('transfer_approve', item)}
+            onClick={(e) => {
+              e.stopPropagation();
+              openTransferApprovalModal(item.raw || item);
+            }}
             title="Approve transfer request"
             aria-label="Approve transfer request"
             className="w-7 h-7 inline-flex items-center justify-center rounded-md bg-green-600 text-white hover:bg-green-700 transition-colors disabled:opacity-60"
-            disabled={approvingTransfer || rejectingTransfer}
           >
-            {approvingTransfer ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+            <Check className="w-3.5 h-3.5" />
           </button>
           <button
-            onClick={() => openActionConfirmModal('transfer_reject', item)}
+            onClick={(e) => {
+              e.stopPropagation();
+              openActionConfirmModal('transfer_reject', item);
+            }}
             title="Reject transfer request"
             aria-label="Reject transfer request"
             className="w-7 h-7 inline-flex items-center justify-center rounded-md bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-800 hover:bg-red-100 dark:hover:bg-red-900/50 transition-colors disabled:opacity-60"
-            disabled={approvingTransfer || rejectingTransfer}
+            disabled={rejectingTransfer}
           >
             {rejectingTransfer ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <X className="w-3.5 h-3.5" />}
           </button>
@@ -674,9 +809,64 @@ function PropertyDashboard({ propertyId, navigate, onCountsChange }) {
       );
     }
 
+    if (item.type === 'maintenance') {
+      const isPending = item.status === 'Pending' || item.status === 'Open';
+      const isInProgress = item.status === 'in_progress' || item.status === 'In Progress';
+
+      return (
+        <div className="inline-flex items-center gap-1">
+          {isPending && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                handleUpdateStatus(item.id, 'in_progress'); // We might need to add this method or use a generic one
+              }}
+              title="Start working"
+              className="w-7 h-7 inline-flex items-center justify-center rounded-md bg-blue-600 text-white hover:bg-blue-700 transition-colors shadow-sm"
+            >
+              <Check className="w-3.5 h-3.5" />
+            </button>
+          )}
+          {(isPending || isInProgress) && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setMaintenanceAssignModal({ isOpen: true, item: item.raw || item });
+              }}
+              title="Assign worker"
+              className="w-7 h-7 inline-flex items-center justify-center rounded-md bg-indigo-600 text-white hover:bg-indigo-700 transition-colors shadow-sm"
+            >
+              <Users className="w-3.5 h-3.5" />
+            </button>
+          )}
+          {isInProgress && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                handleCompleteRequest(item.id);
+              }}
+              title="Mark as completed"
+              className="w-7 h-7 inline-flex items-center justify-center rounded-md bg-green-600 text-white hover:bg-green-700 transition-colors shadow-sm"
+            >
+              <CheckCircle2 className="w-3.5 h-3.5" /> {/* Note: Need to verify if CheckCircle2 is imported, else use Check */}
+            </button>
+          )}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              navigate(`/maintenance?property_id=${propertyId}&requestId=${item.id}`);
+            }}
+            title="View Details"
+            className="w-7 h-7 inline-flex items-center justify-center rounded-md bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 transition-colors"
+          >
+            <ChevronRight className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      );
+    }
+
     const viewAction = () => {
       if (item.type === 'payment') navigate(`/payments?property_id=${propertyId}&status=overdue`);
-      else if (item.type === 'maintenance') navigate(`/maintenance?property_id=${propertyId}&request_id=${item.id}`);
       else if (item.type === 'review') navigate('/reviews');
       else navigate(`/bookings?property_id=${propertyId}&status=pending`);
     };
@@ -833,11 +1023,17 @@ function PropertyDashboard({ propertyId, navigate, onCountsChange }) {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-                  {filteredItems.map((item) => (
-                    <tr
-                      key={item.key}
-                      className="hover:bg-gray-50 dark:hover:bg-gray-800/40 transition-colors"
-                    >
+                    {filteredItems.map((item) => (
+                      <tr
+                        key={item.key}
+                        onClick={() => {
+                          if (item.type === 'booking') navigate(`/bookings?bookingId=${item.id}`);
+                          else if (item.type === 'payment') navigate(`/payments?property_id=${propertyId}`);
+                          else if (item.type === 'maintenance') navigate(`/maintenance?requestId=${item.id}`);
+                          else if (item.type === 'transfer') navigate(`/transfers?requestId=${item.id}`);
+                        }}
+                        className="hover:bg-gray-50 dark:hover:bg-gray-800/40 transition-colors cursor-pointer"
+                      >
                       <td className="px-5 py-3.5">
                         <div className="inline-flex items-center gap-2 min-w-0">
                           <TypeBadge type={item.type} />
@@ -884,7 +1080,16 @@ function PropertyDashboard({ propertyId, navigate, onCountsChange }) {
 
             <div className="md:hidden divide-y divide-gray-100 dark:divide-gray-800">
               {filteredItems.map((item) => (
-                <div key={item.key} className="p-4 space-y-3">
+                <div
+                  key={item.key}
+                  onClick={() => {
+                    if (item.type === 'booking') navigate(`/bookings?bookingId=${item.id}`);
+                    else if (item.type === 'payment') navigate(`/payments?property_id=${propertyId}`);
+                    else if (item.type === 'maintenance') navigate(`/maintenance?requestId=${item.id}`);
+                    else if (item.type === 'transfer') navigate(`/transfers?requestId=${item.id}`);
+                  }}
+                  className="p-4 space-y-3 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/40 transition-colors"
+                >
                   <div className="flex items-start justify-between gap-3">
                     <div className="space-y-1 min-w-0">
                       <div className="flex items-center gap-2 min-w-0">
@@ -1030,6 +1235,142 @@ function PropertyDashboard({ propertyId, navigate, onCountsChange }) {
           </div>
         </div>
       )}
+
+      {/* Advanced Transfer Approval Modal */}
+      {transferApprovalModal.isOpen && transferApprovalModal.item && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4" onClick={closeTransferApprovalModal}>
+          <div
+            className="w-full max-w-xl bg-white dark:bg-gray-800 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-700 overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center">
+              <h3 className="text-lg font-bold text-gray-900 dark:text-white">Review Transfer Request</h3>
+              <button onClick={closeTransferApprovalModal} className="text-gray-400 hover:text-gray-600 transition-colors">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-5 max-h-[80vh] overflow-y-auto">
+              {/* Tenant & Room Info */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="p-3 bg-gray-50 dark:bg-gray-900/40 rounded-xl">
+                  <p className="text-[10px] font-bold text-gray-400 tracking-wider uppercase mb-1">Tenant</p>
+                  <p className="text-sm font-bold text-gray-900 dark:text-white truncate">{transferApprovalModal.displayTenant}</p>
+                </div>
+                <div className="p-3 bg-gray-50 dark:bg-gray-900/40 rounded-xl">
+                  <p className="text-[10px] font-bold text-gray-400 tracking-wider uppercase mb-1">Room Change</p>
+                  <p className="text-sm font-bold text-gray-900 dark:text-white truncate">{transferApprovalModal.displayRoom}</p>
+                </div>
+              </div>
+
+              {/* Proration Section */}
+              <div className="p-4 bg-brand-50/50 dark:bg-brand-900/10 rounded-2xl border border-brand-100 dark:border-brand-900/20">
+                <p className="text-[10px] font-bold text-brand-700 dark:text-brand-400 uppercase tracking-widest mb-3">Credit & Proration (Estimates)</p>
+                {transferApprovalModal.loadingProration ? (
+                  <div className="flex items-center gap-2 text-brand-600 dark:text-brand-400 text-xs py-2">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Calculating credit details...
+                  </div>
+                ) : transferApprovalModal.prorationDetails ? (
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-xs">
+                      <span className="text-gray-600 dark:text-gray-400">Unused Value (Old Room):</span>
+                      <span className="font-bold text-gray-900 dark:text-white">₱{(transferApprovalModal.prorationDetails.old_room_unused_value || 0).toLocaleString()}</span>
+                    </div>
+                    {transferApprovalModal.prorationDetails.penalty > 0 && (
+                      <div className="flex justify-between text-xs">
+                        <span className="text-gray-600 dark:text-gray-400">Transfer Penalty:</span>
+                        <span className="font-bold text-red-600">-₱{(transferApprovalModal.prorationDetails.penalty || 0).toLocaleString()}</span>
+                      </div>
+                    )}
+                    <div className="flex justify-between text-xs pt-2 border-t border-brand-100 dark:border-brand-900/30">
+                      <span className="font-bold text-gray-700 dark:text-gray-300">Net Credit Transfer:</span>
+                      <span className="font-bold text-green-600">₱{(transferApprovalModal.prorationDetails.credit_available || 0).toLocaleString()}</span>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-xs text-red-500 italic">Proration data unavailable.</p>
+                )}
+              </div>
+
+              {/* Inputs */}
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-gray-500 mb-2 uppercase tracking-wide">Processing Fee (₱)</label>
+                    <input
+                      type="number"
+                      value={transferApprovalModal.formData.transfer_fee}
+                      onChange={(e) => setTransferApprovalModal(p => ({ ...p, formData: { ...p.formData, transfer_fee: e.target.value } }))}
+                      className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-sm outline-none focus:ring-2 focus:ring-brand-500"
+                      placeholder="0.00"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-500 mb-2 uppercase tracking-wide">Damage Charge (₱)</label>
+                    <input
+                      type="number"
+                      value={transferApprovalModal.formData.damage_charge}
+                      onChange={(e) => setTransferApprovalModal(p => ({ ...p, formData: { ...p.formData, damage_charge: e.target.value } }))}
+                      className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-sm outline-none focus:ring-2 focus:ring-red-500"
+                      placeholder="0.00"
+                    />
+                  </div>
+                </div>
+
+                {Number(transferApprovalModal.formData.damage_charge) > 0 && (
+                  <div>
+                    <label className="block text-xs font-bold text-gray-500 mb-2 uppercase tracking-wide">Damage Description <span className="text-red-500">*</span></label>
+                    <input
+                      type="text"
+                      value={transferApprovalModal.formData.damage_description}
+                      onChange={(e) => setTransferApprovalModal(p => ({ ...p, formData: { ...p.formData, damage_description: e.target.value } }))}
+                      className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-sm outline-none focus:ring-2 focus:ring-brand-500"
+                      placeholder="Describe the damage..."
+                    />
+                  </div>
+                )}
+
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 mb-2 uppercase tracking-wide">Landlord Notes</label>
+                  <textarea
+                    rows={2}
+                    value={transferApprovalModal.formData.landlord_notes}
+                    onChange={(e) => setTransferApprovalModal(p => ({ ...p, formData: { ...p.formData, landlord_notes: e.target.value } }))}
+                    className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-sm outline-none focus:ring-2 focus:ring-brand-500"
+                    placeholder="Instructions or internal notes..."
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="px-6 py-4 bg-gray-50 dark:bg-gray-900/20 border-t border-gray-100 dark:border-gray-700 flex justify-end gap-3">
+              <button
+                onClick={closeTransferApprovalModal}
+                className="px-5 py-2 text-sm font-bold text-gray-600 hover:text-gray-800 transition-colors"
+                disabled={transferApprovalModal.loadingProration}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirmTransferApproval}
+                disabled={transferApprovalModal.loadingProration}
+                className="px-6 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-black rounded-xl shadow-lg shadow-green-200 dark:shadow-none transition-all hover:scale-[1.02] active:scale-95"
+              >
+                Approve Transfer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Maintenance Assignment Modal */}
+      <AssignWorkerModal
+        isOpen={maintenanceAssignModal.isOpen}
+        onClose={() => setMaintenanceAssignModal({ isOpen: false, item: null })}
+        request={maintenanceAssignModal.item}
+        onAssign={handleMaintenanceAssign}
+      />
     </div>
   );
 }
@@ -1047,9 +1388,9 @@ export default function PropertySummary({ caretakerPermissions = null }) {
   const isCaretaker = !!caretakerPermissions;
   const ctPerms = caretakerPermissions || {};
 
-  const getCachedData = () => {
+  const getCachedData = useCallback(() => {
     return uiState.data?.[cacheKey] || cacheManager.get(cacheKey);
-  };
+  }, [uiState.data, cacheKey]);
 
   const [property, setProperty] = useState(() => getCachedData()?.property || null);
   const [loading, setLoading] = useState(!property);
@@ -1077,7 +1418,7 @@ export default function PropertySummary({ caretakerPermissions = null }) {
     if (!id) return;
     loadProperty();
     loadNotificationCounts();
-  }, [id]);
+  }, [id, loadProperty, loadNotificationCounts]);
 
   useEffect(() => {
     const cached = getCachedData();
@@ -1085,7 +1426,7 @@ export default function PropertySummary({ caretakerPermissions = null }) {
       setProperty(cached.property);
       setLoading(false);
     }
-  }, [uiState.data?.[cacheKey]]);
+  }, [getCachedData, property, cacheKey, uiState.data]);
 
   useEffect(() => {
     if (property?.images) {
@@ -1101,7 +1442,7 @@ export default function PropertySummary({ caretakerPermissions = null }) {
     }
   }, [property]);
 
-  const loadProperty = async () => {
+  const loadProperty = useCallback(async () => {
     try {
       if (!property) setLoading(true);
       setError(null);
@@ -1119,9 +1460,9 @@ export default function PropertySummary({ caretakerPermissions = null }) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [id, property, updateData, cacheKey, uiState.data]);
 
-  const loadNotificationCounts = async () => {
+  const loadNotificationCounts = useCallback(async () => {
     try {
       const [addonsRes, maintenanceRes, transfersRes, bookingsRes, paymentsRes] = await Promise.allSettled([
         api.get(`/landlord/properties/${id}/addons/pending`),
@@ -1150,7 +1491,7 @@ export default function PropertySummary({ caretakerPermissions = null }) {
     } catch (err) {
       console.error('Failed to load notification counts', err);
     }
-  };
+  }, [id]);
 
   const goToEdit = () => navigate(`/properties/${id}/edit`);
   const { open, setIsSidebarOpen, collapse } = useSidebar();
@@ -1480,9 +1821,10 @@ export default function PropertySummary({ caretakerPermissions = null }) {
               if (days) payload.days = days;
               if (months) payload.months = months;
               await api.post(`/rooms/${roomId}/extend`, payload);
+              showSuccess('Stay extended successfully!');
             } catch (err) {
               console.error('Failed to extend stay', err);
-              throw err;
+              showError(err.response?.data?.message || 'Failed to extend stay');
             }
           }}
         />

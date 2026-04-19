@@ -30,6 +30,7 @@ import {
   useLandlordFocusRefetch,
   useLandlordRefreshHandler,
 } from "../../../hooks/useLandlordQueryHelpers.js";
+import { showError, showSuccess, showWarning } from "../../../../../utils/toast.js";
 
 const EMPTY_ID_TYPES = [];
 const DOCUMENT_SUBMISSION_STATUSES = new Set([
@@ -56,7 +57,6 @@ const PERMIT_MIME_TO_EXTENSION = {
 export default function VerificationStatus({ navigation }) {
   const { theme } = useTheme();
   const styles = useMemo(() => getStyles(theme), [theme]);
-  const showAlert = Alert.alert;
   const insets = useSafeAreaInsets();
 
   const [refreshing, setRefreshing] = useState(false);
@@ -246,14 +246,14 @@ export default function VerificationStatus({ navigation }) {
         updatePickedPermitDocument(result.assets[0]);
       }
     } catch (_error) {
-      showAlert("Error", "Could not open file manager. Please try again.");
+      showError("Error", "Could not open file manager. Please try again.");
     }
   };
 
   const pickDocumentFromLibrary = async (field) => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== "granted") {
-      showAlert(
+      showWarning(
         "Permission Required",
         "Please allow photo library access to upload documents.",
       );
@@ -278,7 +278,7 @@ export default function VerificationStatus({ navigation }) {
   const takeDocumentPhoto = async (field) => {
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
     if (status !== "granted") {
-      showAlert(
+      showWarning(
         "Permission Required",
         "Please allow camera access to capture documents.",
       );
@@ -328,8 +328,8 @@ export default function VerificationStatus({ navigation }) {
     }
 
     options.push({ text: "Cancel", style: "cancel" });
-
-    showAlert(
+ 
+    Alert.alert(
       isPermitField ? "Upload Permit" : "Upload Document",
       isPermitField
         ? "Choose a source for your permit file (image or PDF)."
@@ -340,11 +340,12 @@ export default function VerificationStatus({ navigation }) {
         cancelable: true,
       },
     );
+
   };
 
   const handleSubmit = async () => {
     if (!formData.validIdType || !formData.validIdFront || !formData.permit) {
-      showAlert(
+      showWarning(
         "Validation",
         "Please select an ID type and upload your valid ID plus business/accommodation permit.",
       );
@@ -352,7 +353,7 @@ export default function VerificationStatus({ navigation }) {
     }
 
     if (!String(formData.validIdFront?.type || "").toLowerCase().startsWith("image/")) {
-      showAlert("Validation", "Valid ID front must be uploaded as an image.");
+      showWarning("Validation", "Valid ID front must be uploaded as an image.");
       return;
     }
 
@@ -360,7 +361,7 @@ export default function VerificationStatus({ navigation }) {
       formData.validIdBack
       && !String(formData.validIdBack?.type || "").toLowerCase().startsWith("image/")
     ) {
-      showAlert("Validation", "Valid ID back must be uploaded as an image.");
+      showWarning("Validation", "Valid ID back must be uploaded as an image.");
       return;
     }
 
@@ -369,12 +370,12 @@ export default function VerificationStatus({ navigation }) {
     const isPermitPdf = permitType === "application/pdf";
 
     if (!isPermitImage && !isPermitPdf) {
-      showAlert("Validation", "Permit must be an image or PDF file.");
+      showWarning("Validation", "Permit must be an image or PDF file.");
       return;
     }
 
     if (formData.validIdType === "other" && !formData.validIdOther) {
-      showAlert("Validation", "Please specify your ID type.");
+      showWarning("Validation", "Please specify your ID type.");
       return;
     }
 
@@ -427,7 +428,7 @@ export default function VerificationStatus({ navigation }) {
       }
 
       if (res.success) {
-        showAlert(
+        showSuccess(
           "Success",
           usedTenantFlow
             ? "Landlord registration submitted! Please wait for admin review."
@@ -443,10 +444,10 @@ export default function VerificationStatus({ navigation }) {
         });
         await refetchLandlordQueries(verificationRefetchers);
       } else {
-        showAlert("Error", res.error || "Failed to submit documents");
+        showError("Error", res.error || "Failed to submit documents");
       }
     } catch (_error) {
-      showAlert("Error", "An unexpected error occurred");
+      showError("Error", "An unexpected error occurred");
     } finally {
       setSubmitting(false);
     }

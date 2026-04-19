@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { X, Calendar, Loader2, Info, UserSearch, AlertTriangle } from 'lucide-react';
-import toast from 'react-hot-toast';
+import { showSuccess, showError } from '../../utils/toast';
 import api from '../../utils/api';
 import PriceRow from '../../components/Shared/PriceRow';
 import { normalizeActionError } from '../../utils/error';
@@ -193,7 +193,7 @@ export default function AddBookingModal({ isOpen, onClose, onBookingAdded }) {
         ? 'Please select a Tenant, Room, Check-in Date, and Check-out Date.'
         : 'Please select a Tenant, Room, and Check-in Date.';
       setError(msg);
-      toast.error(msg);
+      showError(msg);
       return;
     }
 
@@ -201,7 +201,7 @@ export default function AddBookingModal({ isOpen, onClose, onBookingAdded }) {
       const sexRest = selectedRoomData?.sex_restriction ? selectedRoomData.sex_restriction.charAt(0).toUpperCase() + selectedRoomData.sex_restriction.slice(1) : 'specific sex';
       const msg = `Conflict: This tenant cannot be added because the room is restricted to ${sexRest} only.`;
       setError(msg);
-      toast.error(msg);
+      showError(msg);
       return;
     }
 
@@ -209,14 +209,14 @@ export default function AddBookingModal({ isOpen, onClose, onBookingAdded }) {
     if (formData.checkIn < today) {
       const msg = `${requiresCheckOut ? 'Check-in' : 'Move-in'} date cannot be in the past.`;
       setError(msg);
-      toast.error(msg);
+      showError(msg);
       return;
     }
 
     if (formData.checkOut && formData.checkOut <= formData.checkIn) {
       const msg = 'Check-out date cannot be earlier than Check-in date.';
       setError(msg);
-      toast.error(msg);
+      showError(msg);
       return;
     }
 
@@ -238,7 +238,7 @@ export default function AddBookingModal({ isOpen, onClose, onBookingAdded }) {
 
       await api.post('/bookings', payload);
 
-      toast.success('Booking added successfully!');
+      showSuccess('Booking added successfully!');
       if (onBookingAdded) onBookingAdded();
       onClose();
     } catch (err) {
@@ -251,14 +251,14 @@ export default function AddBookingModal({ isOpen, onClose, onBookingAdded }) {
         const firstErrorMessage = errData.errors[firstErrorKey][0];
         
         setError(`Booking failed: ${firstErrorMessage}`);
-        toast.error(`Booking Rule: ${firstErrorMessage}`);
+        showError(`Booking Rule: ${firstErrorMessage}`);
       } else {
         const msg = normalizeActionError(
           errData?.error || errData?.message || err,
           'Unable to add booking right now.',
         );
         setError(msg);
-        toast.error(msg);
+        showError(msg);
       }
     } finally {
       setLoading(false);

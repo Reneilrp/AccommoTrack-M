@@ -10,7 +10,7 @@ export default function CartIcon({ isGuest = false, onAuthRequired }) {
   const { theme } = useTheme();
   const [itemCount, setItemCount] = useState(0);
 
-  const fetchCartCount = async () => {
+  const fetchCartCount = React.useCallback(async () => {
     if (isGuest) {
       setItemCount(0);
       return;
@@ -22,12 +22,12 @@ export default function CartIcon({ isGuest = false, onAuthRequired }) {
     } else {
       setItemCount(0);
     }
-  };
+  }, [isGuest]);
 
   useFocusEffect(
     React.useCallback(() => {
       fetchCartCount();
-    }, [isGuest])
+    }, [fetchCartCount])
   );
 
   useEffect(() => {
@@ -38,6 +38,7 @@ export default function CartIcon({ isGuest = false, onAuthRequired }) {
     return () => {
       subscription.remove();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isGuest]);
 
   const handlePress = () => {

@@ -1,12 +1,12 @@
 import React from 'react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import toast from 'react-hot-toast';
+import { showSuccess, showError } from '../../../utils/toast';
 import PaymentOversight from '../PaymentOversight';
 import adminService from '../../../services/adminService';
 
-jest.mock('react-hot-toast', () => ({
-  error: jest.fn(),
-  success: jest.fn(),
+jest.mock('../../../utils/toast', () => ({
+  showError: jest.fn(),
+  showSuccess: jest.fn(),
 }));
 
 jest.mock('../../../services/adminService', () => ({
@@ -120,7 +120,7 @@ describe('PaymentOversight screen', () => {
     fireEvent.click(screen.getAllByRole('button', { name: 'Override' })[0]);
     fireEvent.click(screen.getByRole('button', { name: 'Confirm Override' }));
 
-    expect(toast.error).toHaveBeenCalledWith('Override note is required.');
+    expect(showError).toHaveBeenCalledWith('Override note is required.');
     expect(adminService.overrideApprovePayment).not.toHaveBeenCalled();
   });
 
@@ -143,7 +143,7 @@ describe('PaymentOversight screen', () => {
     });
 
     expect(window.confirm).toHaveBeenCalled();
-    expect(toast.success).toHaveBeenCalledWith('Payment override applied successfully.');
+    expect(showSuccess).toHaveBeenCalledWith('Payment override applied successfully.');
 
     await waitFor(() => {
       expect(adminService.getPaymentOversightQueue).toHaveBeenLastCalledWith(

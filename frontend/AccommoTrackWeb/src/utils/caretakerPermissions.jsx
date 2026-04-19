@@ -44,6 +44,12 @@ export const CARETAKER_PERMISSION_FIELDS = [
     icon: <Users className="w-4 h-4" />,
   },
   {
+    key: 'delete_tenants',
+    label: 'Evict/Delete Tenant',
+    description: 'Remove tenants from the system.',
+    icon: <XCircle className="w-4 h-4" />,
+  },
+  {
     key: 'add_tenant_manually',
     label: 'Add Tenant Manually',
     description: 'Create tenant profiles without invites.',
@@ -81,9 +87,21 @@ export const CARETAKER_PERMISSION_FIELDS = [
   },
   {
     key: 'payments',
-    label: 'Payments',
-    description: 'Track and verify rental transactions.',
+    label: 'View Payments',
+    description: 'Track rental transactions.',
     icon: <Wallet className="w-4 h-4" />,
+  },
+  {
+    key: 'record_payments',
+    label: 'Record Payments',
+    description: 'Manually record tenant payments.',
+    icon: <Wallet className="w-4 h-4" />,
+  },
+  {
+    key: 'void_payments',
+    label: 'Void Payments',
+    description: 'Revoke or cancel incorrect payments.',
+    icon: <XCircle className="w-4 h-4" />,
   },
   {
     key: 'analytics',
@@ -108,7 +126,7 @@ export const MODULE_GROUPS = [
   {
     title: 'Tenant Management',
     icon: <Users className="w-5 h-5" />,
-    keys: ['tenants', 'messages', 'add_tenant_manually'],
+    keys: ['tenants', 'messages', 'add_tenant_manually', 'delete_tenants'],
   },
   {
     title: 'Properties & Rooms',
@@ -118,7 +136,7 @@ export const MODULE_GROUPS = [
   {
     title: 'Payments',
     icon: <Wallet className="w-5 h-5" />,
-    keys: ['payments'],
+    keys: ['payments', 'record_payments', 'void_payments'],
   },
   {
     title: 'Analytics & Admin',
@@ -132,14 +150,48 @@ export const LANDLORD_LEVEL_PERMISSION_KEYS = new Set([
   'properties',
   'maintenance',
   'payments',
+  'record_payments',
+  'void_payments',
   'analytics',
   'view_audit_logs',
   'approve_bookings',
   'cancel_bookings',
   'manage_add_ons',
   'add_tenant_manually',
+  'delete_tenants',
   'manual_bookings',
 ]);
+
+export const ROLE_PRESETS = [
+  {
+    id: 'receptionist',
+    label: 'Receptionist',
+    description: 'Front desk operations: Bookings, Tenants, and Messages.',
+    permissions: ['bookings', 'messages', 'tenants'],
+  },
+  {
+    id: 'manager',
+    label: 'Property Manager',
+    description: 'Full operational control: Rooms, Maintenance, and Approvals.',
+    permissions: [
+      'bookings', 'approve_bookings', 'cancel_bookings',
+      'tenants', 'messages', 'add_tenant_manually',
+      'properties', 'rooms', 'maintenance', 'manage_add_ons'
+    ],
+  },
+  {
+    id: 'finance',
+    label: 'Finance Officer',
+    description: 'Financial oversight: Payments and Analytics.',
+    permissions: ['payments', 'record_payments', 'analytics'],
+  },
+  {
+    id: 'admin',
+    label: 'General Manager',
+    description: 'Full access to all landlord modules.',
+    permissions: CARETAKER_PERMISSION_FIELDS.map(f => f.key),
+  },
+];
 
 export const LANDLORD_LEVEL_PERMISSION_MESSAGES = {
   rooms: 'Enabling this allows caretakers to modify room availability and tenant placements.',
@@ -152,8 +204,19 @@ export const LANDLORD_LEVEL_PERMISSION_MESSAGES = {
   cancel_bookings: 'Enabling this gives explicit right to decline, cancel, or reject bookings.',
   manage_add_ons: 'Enabling this allows the caretaker to approve or modify tenant add-ons.',
   add_tenant_manually: 'Enabling this allows caretakers to securely add new tenants into the system.',
+  delete_tenants: 'DANGER: Allows the caretaker to permanently remove tenants and histories.',
   manual_bookings: 'Enabling this allows caretakers to place override bookings forcefully behind the scenes.',
+  record_payments: 'Allows the caretaker to manually record cash or off-platform payments.',
+  void_payments: 'DANGER: Allows the caretaker to void or delete existing payment records.',
 };
+
+/**
+- [x] Caretaker Permissions & Role Templates
+    - [x] [BACKEND] Migration: Add granular permission columns
+    - [x] [BACKEND] Model: Update CaretakerAssignment fillable & casts
+    - [x] [BACKEND] Controller: Update CaretakerController to support new fields
+    - [x] [FRONTEND] Utils: Define ROLE_PRESETS in caretakerPermissions.jsx
+ */
 
 /**
  * Returns a short human-readable summary of active permission groups.
@@ -178,3 +241,35 @@ export function countActivePermissions(permissionsObject) {
   if (!permissionsObject || typeof permissionsObject !== 'object') return 0;
   return CARETAKER_PERMISSION_FIELDS.filter((f) => !!permissionsObject[f.key]).length;
 }
+
+/**
+ * Identifies if the current permissions match a specific role template.
+ * Returns the role object if a match is found, otherwise returns null.
+ */
+export function identifyRole(permissionsObject) {
+  if (!permissionsObject || typeof permissionsObject !== 'object') return null;
+
+  // We find a match if ALL keys in the preset are active, AND NO OTHER keys are active.
+  const activeKeys = Object.keys(permissionsObject).filter((k) => !!permissionsObject[k]);
+  
+  return ROLE_PRESETS.find((role) => {
+    if (activeKeys.length !== role.permissions.length) return false;
+    return role.permissions.every((k) => activeKeys.includes(k));
+  });
+}
+
+/**
+ * Returns the best human-readable label for a caretaker's role.
+ * Prioritizes custom_role_name, then preset labels, then "Custom Access".
+ */
+export function getRoleLabel(permissionsObject, customRoleName) {
+  if (customRoleName && customRoleName.trim()) {
+    return customRoleName;
+  }
+  
+  const matchedRole = identifyRole(permissionsObject);
+  return matchedRole ? matchedRole.label : 'Custom Access';
+}
+
+
+

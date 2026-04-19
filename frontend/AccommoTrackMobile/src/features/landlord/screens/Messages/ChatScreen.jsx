@@ -1,13 +1,15 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, TextInput, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform, StatusBar, ActivityIndicator, RefreshControl, Text, Image, Alert, Linking, useWindowDimensions, Animated, Pressable, Keyboard, Modal } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import * as ImagePicker from 'expo-image-picker';
+import * as DocumentPicker from 'expo-document-picker';
 import createEcho from '../../../../services/echo.js';
 import MessageService from '../../../../services/MessageService.js';
 import { useTheme } from '../../../../contexts/ThemeContext.jsx';
+import { showError, showSuccess, showWarning } from '../../../../utils/toast.js';
 import { getStyles } from '../../../../styles/Landlord/Messages.js';
 import { getImageUrl } from '../../../../utils/imageUtils.js';
 import api from '../../../../services/api.js';
@@ -23,6 +25,8 @@ const ROLE_LABELS = {
     landlord: 'Landlord',
 };
 
+const EMPTY_MESSAGES = [];
+
 const normalizeRole = (role) => String(role || '').trim().toLowerCase();
 
 const getRoleLabel = (role) => {
@@ -36,7 +40,6 @@ export default function ChatScreen({ navigation, route }) {
     const { width: viewportWidth } = useWindowDimensions();
     const { theme } = useTheme();
     const styles = React.useMemo(() => getStyles(theme), [theme]);
-    const showAlert = Alert.alert;
     const contentWrapStyle = React.useMemo(
         () => (viewportWidth >= 768 ? { width: '100%', maxWidth: 960, alignSelf: 'center' } : null),
         [viewportWidth],
@@ -45,11 +48,15 @@ export default function ChatScreen({ navigation, route }) {
     const conv = route.params?.conversation || null;
     const [messageText, setMessageText] = useState('');
     const [selectedImage, setSelectedImage] = useState(null);
+    const [selectedFile, setSelectedFile] = useState(null);
     const [refreshing, setRefreshing] = useState(false);
     const [isDetailsOpen, setIsDetailsOpen] = useState(false);
-    const insets = useSafeAreaInsets();
+    const [replyingTo, setReplyingTo] = useState(null);
+    const [editingMessage, setEditingMessage] = useState(null);
     const safeAreaEdges = ['top', 'bottom'];
     const [isKeyboardVisible, setKeyboardVisible] = useState(false);
+    const [isOtherTyping, setIsOtherTyping] = useState(false);
+    const typingTimeoutRef = useRef(null);
     
     // Assignment State
     const [caretakers, setCaretakers] = useState([]);
@@ -58,6 +65,7 @@ export default function ChatScreen({ navigation, route }) {
     const [caretakerSelectVisible, setCaretakerSelectVisible] = useState(false);
 
     const scrollViewRef = useRef(null);
+    const inputRef = useRef(null);
     const echoRef = useRef(null);
     const detailsPanelWidth = Math.min(380, Math.round(viewportWidth * 0.9));
     const detailsTranslateX = useRef(new Animated.Value(detailsPanelWidth)).current;
@@ -76,8 +84,8 @@ export default function ChatScreen({ navigation, route }) {
                 const parsed = JSON.parse(stored);
                 const userId = parsed?.id || parsed?.user_id || parsed?.user?.id;
                 return userId || null;
-            } catch (e) {
-                console.error('Failed to load user for chat:', e);
+            } catch (_e) {
+                console.error('Failed to load user for chat:', _e);
                 return null;
             }
         },
@@ -92,7 +100,7 @@ export default function ChatScreen({ navigation, route }) {
                 const stored = await AsyncStorage.getItem('user');
                 if (!stored) return null;
                 return JSON.parse(stored);
-            } catch (e) {
+            } catch (_e) {
                 return null;
             }
         },
@@ -115,7 +123,7 @@ export default function ChatScreen({ navigation, route }) {
         placeholderData: (previousData) => previousData,
     });
 
-    const messages = messagesQuery.data || [];
+    const messages = messagesQuery.data || EMPTY_MESSAGES;
     const isLoading = messagesQuery.isLoading;
     const refetchMessages = messagesQuery.refetch;
     const messageRefetchers = React.useMemo(
@@ -136,11 +144,14 @@ export default function ChatScreen({ navigation, route }) {
 
     // Send message mutation
     const sendMessageMutation = useMutation({
-        mutationFn: ({ text, imageUri }) => MessageService.sendMessage(conv.id, text, imageUri),
+        mutationFn: ({ text, imageUri, replyToId, fileUri, fileName }) => 
+            MessageService.sendMessage(conv.id, text, imageUri, replyToId, fileUri, fileName),
         onSuccess: (result) => {
             if (result.success) {
                 setMessageText('');
                 setSelectedImage(null);
+                setSelectedFile(null);
+                setReplyingTo(null);
                 // Optimistically update
                 queryClient.setQueryData(messagesQueryKey, (old) => {
                     const messages = old || [];
@@ -150,11 +161,11 @@ export default function ChatScreen({ navigation, route }) {
                 queryClient.invalidateQueries({ queryKey: landlordQueryKeys.messagesConversations() });
                 scrollToBottom();
             } else {
-                showAlert('Error', result.error || 'Failed to send message');
+                showError('Error', result.error || 'Failed to send message');
             }
         },
         onError: (err) => {
-            showAlert('Error', err.message || 'Failed to send message');
+            showError('Error', err.message || 'Failed to send message');
         }
     });
 
@@ -168,13 +179,46 @@ export default function ChatScreen({ navigation, route }) {
                 });
                 queryClient.invalidateQueries({ queryKey: landlordQueryKeys.messagesConversations() });
             } else {
-                showAlert('Error', result.error || 'Failed to unsend message');
+                showError('Error', result.error || 'Failed to unsend message');
             }
         },
         onError: (err) => {
-            showAlert('Error', err.message || 'Failed to unsend message');
+            showError('Error', err.message || 'Failed to unsend message');
         }
     });
+
+    const editMessageMutation = useMutation({
+        mutationFn: ({ messageId, text }) => MessageService.editMessage(messageId, text),
+        onSuccess: (result) => {
+            if (result.success) {
+                setMessageText('');
+                setEditingMessage(null);
+                queryClient.setQueryData(messagesQueryKey, (old) => {
+                    const messages = old || [];
+                    return messages.map(m => String(m.id) === String(result.data.id) ? result.data : m);
+                });
+                queryClient.invalidateQueries({ queryKey: landlordQueryKeys.messagesConversations() });
+            } else {
+                showError('Error', result.error || 'Failed to edit message');
+            }
+        },
+        onError: (err) => {
+            showError('Error', err.message || 'Failed to edit message');
+        }
+    });
+
+    const markAsReadMutation = useMutation({
+        mutationFn: (conversationId) => api.post(`/messages/${conversationId}/read`),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: landlordQueryKeys.messagesConversations() });
+        }
+    });
+
+    useEffect(() => {
+        if (replyingTo || editingMessage) {
+            inputRef.current?.focus();
+        }
+    }, [replyingTo, editingMessage]);
 
     useEffect(() => {
         const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
@@ -213,15 +257,37 @@ export default function ChatScreen({ navigation, route }) {
              const res = await MessageService.assignCaretaker(conv.id, idToAssign);
              if (res.success) {
                  setAssignedId(caretakerId);
+                 showSuccess('Success', caretakerId ? 'Caretaker assigned to conversation.' : 'Caretaker unassigned.');
              } else {
-                 showAlert('Error', res.error || 'Failed to update assignment.');
+                 showError('Error', res.error || 'Failed to update assignment.');
              }
-        } catch (_e) {
-             showAlert('Error', 'Network error.');
+        } catch (_err) {
+             showError('Error', 'Network error.');
         } finally {
              setIsAssigning(false);
         }
     };
+
+    // Mark as read when messages change and conversation is open
+    useEffect(() => {
+        if (conv?.id && messages.length > 0) {
+            const hasUnread = messages.some(m => !m.is_mine && !m.is_read);
+            if (hasUnread) {
+                markAsReadMutation.mutate(conv.id);
+            }
+        }
+    }, [conv?.id, messages, markAsReadMutation]);
+
+    // Signal typing status
+    useEffect(() => {
+        if (!conv?.id || !echoRef.current) return;
+        
+        if (messageText.length > 0) {
+            echoRef.current.private(`conversation.${conv.id}`).whisper('typing', { typing: true });
+        } else {
+            echoRef.current.private(`conversation.${conv.id}`).whisper('typing', { typing: false });
+        }
+    }, [messageText, conv?.id]);
 
     useEffect(() => {
         if (!conv?.id) return;
@@ -242,6 +308,29 @@ export default function ChatScreen({ navigation, route }) {
                     });
                     queryClient.invalidateQueries({ queryKey: landlordQueryKeys.messagesConversations() });
                     scrollToBottom();
+                    
+                    if (!incomingMessage.is_mine) {
+                       markAsReadMutation.mutate(conv.id);
+                    }
+                });
+
+                echoRef.current.private(`conversation.${conv.id}`).listen('.message.read', (e) => {
+                    queryClient.setQueryData(messagesQueryKey, (old) => {
+                        const messages = old || [];
+                        return messages.map((m) => 
+                            String(m.receiver_id) === String(e.reader_id) 
+                                ? { ...m, is_read: true, read_at: e.read_at } 
+                                : m
+                        );
+                    });
+                });
+
+                echoRef.current.private(`conversation.${conv.id}`).listenForWhisper('typing', (e) => {
+                    setIsOtherTyping(e.typing);
+                    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+                    if (e.typing) {
+                        typingTimeoutRef.current = setTimeout(() => setIsOtherTyping(false), 3000);
+                    }
                 });
             } catch (err) {
                 console.error('Echo setup failed:', err);
@@ -257,7 +346,7 @@ export default function ChatScreen({ navigation, route }) {
                 } catch (_error) {}
             }
         };
-    }, [conv?.id, messagesQueryKey, queryClient]);
+    }, [conv?.id, messagesQueryKey, queryClient, markAsReadMutation]);
 
     const scrollToBottom = (animated = true) => {
         setTimeout(() => scrollViewRef.current?.scrollToEnd({ animated }), 100);
@@ -285,7 +374,7 @@ export default function ChatScreen({ navigation, route }) {
     const handlePickImage = async () => {
         const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
         if (!permission.granted) {
-            showAlert('Permission required', 'Please allow photo library access to send images.');
+            showWarning('Permission required', 'Please allow photo library access to send images.');
             return;
         }
 
@@ -297,16 +386,53 @@ export default function ChatScreen({ navigation, route }) {
         if (!result.canceled && result.assets.length > 0) {
             const asset = result.assets[0];
             if (asset.fileSize && asset.fileSize > 5 * 1024 * 1024) {
-                showAlert('File too large', 'Image exceeds the 5MB limit.');
+                showWarning('File too large', 'Image exceeds the 5MB limit.');
                 return;
             }
             setSelectedImage(asset.uri);
+            setSelectedFile(null); // Clear file if image selected
+        }
+    };
+
+    const handlePickDocument = async () => {
+        try {
+            const result = await DocumentPicker.getDocumentAsync({
+                type: ['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'],
+                copyToCacheDirectory: true,
+            });
+
+            if (!result.canceled && result.assets.length > 0) {
+                const asset = result.assets[0];
+                if (asset.size > 10 * 1024 * 1024) {
+                    showWarning('File too large', 'File size must be less than 10MB');
+                    return;
+                }
+                setSelectedFile({
+                    uri: asset.uri,
+                    name: asset.name,
+                    size: asset.size
+                });
+                setSelectedImage(null); // Clear image if file selected
+            }
+        } catch (_err) {
+            showError('Error', 'Failed to pick document');
         }
     };
 
     const handleSendMessage = () => {
-        if ((!messageText.trim() && !selectedImage) || !conv || sendMessageMutation.isPending) return;
-        sendMessageMutation.mutate({ text: messageText.trim(), imageUri: selectedImage });
+        if ((!messageText.trim() && !selectedImage && !selectedFile) || !conv || sendMessageMutation.isPending) return;
+        
+        if (editingMessage) {
+            editMessageMutation.mutate({ messageId: editingMessage.id, text: messageText.trim() });
+        } else {
+            sendMessageMutation.mutate({ 
+                text: messageText.trim(), 
+                imageUri: selectedImage,
+                replyToId: replyingTo?.id,
+                fileUri: selectedFile?.uri,
+                fileName: selectedFile?.name
+            });
+        }
     };
 
     const formatTime = (timestamp) => {
@@ -410,10 +536,11 @@ export default function ChatScreen({ navigation, route }) {
                             <Text style={styles.chatHeaderName} numberOfLines={1}>
                                 {displayParticipantName}
                             </Text>
-                            {participantStatusLine ? (
-                                <Text style={styles.chatHeaderMeta} numberOfLines={1}>{participantStatusLine}</Text>
+                            {isOtherTyping ? (
+                                <Text style={{ fontSize: 10, color: '#93C5FD', fontStyle: 'italic', fontWeight: 'bold' }}>typing...</Text>
+                            ) : propertyName ? (
+                                <Text style={styles.chatHeaderProperty} numberOfLines={1}>{propertyName}</Text>
                             ) : null}
-                            {propertyName ? <Text style={styles.chatHeaderProperty} numberOfLines={1}>{propertyName}</Text> : null}
                         </View>
                     </View>
 
@@ -468,22 +595,42 @@ export default function ChatScreen({ navigation, route }) {
                             const isCaretakerMessage = msg.sender_role === 'caretaker';
                             const actualSenderName = msg.actual_sender ? `${msg.actual_sender.first_name} ${msg.actual_sender.last_name}` : 'Caretaker';
                             const isUnsent = Boolean(msg.is_unsent);
+                            const replyingToMessage = msg.parent || msg.reply_to || null;
 
                             const handleLongPress = () => {
-                                if (isMine && !isUnsent) {
-                                    showAlert(
-                                        'Unsend Message',
-                                        'Unsend this message for everyone?',
-                                        [
-                                            { text: 'Cancel', style: 'cancel' },
-                                            { 
-                                                text: 'Unsend', 
-                                                style: 'destructive',
-                                                onPress: () => unsendMutation.mutate(msg.id)
-                                            }
-                                        ]
-                                    );
+                                if (isUnsent) return;
+
+                                let options = [];
+                                if (isMine) {
+                                    options = [
+                                        { text: 'Edit', onPress: () => {
+                                            setEditingMessage(msg);
+                                            setReplyingTo(null);
+                                            setMessageText(msg.message);
+                                        }},
+                                        { text: 'Unsend', style: 'destructive', onPress: () => {
+                                            Alert.alert(
+                                                'Unsend Message',
+                                                'Unsend this message for everyone?',
+                                                [
+                                                    { text: 'Cancel', style: 'cancel' },
+                                                    { text: 'Unsend', style: 'destructive', onPress: () => unsendMutation.mutate(msg.id) }
+                                                ]
+                                            );
+                                        }},
+                                        { text: 'Cancel', style: 'cancel' }
+                                    ];
+                                } else {
+                                    options = [
+                                        { text: 'Reply', onPress: () => {
+                                            setReplyingTo(msg);
+                                            setEditingMessage(null);
+                                        }},
+                                        { text: 'Cancel', style: 'cancel' }
+                                    ];
                                 }
+
+                                Alert.alert('Message Options', '', options);
                             };
 
                             return (
@@ -505,6 +652,13 @@ export default function ChatScreen({ navigation, route }) {
                                                     borderWidth: 1, 
                                                     borderColor: theme.colors.border, 
                                                     borderStyle: 'dashed' 
+                                                },
+                                                (msg.image_path || msg.file_path) && !isUnsent && { 
+                                                    backgroundColor: 'transparent', 
+                                                    padding: 0,
+                                                    borderWidth: 0,
+                                                    elevation: 0,
+                                                    shadowOpacity: 0
                                                 }
                                             ]}
                                         >
@@ -512,20 +666,81 @@ export default function ChatScreen({ navigation, route }) {
                                                 <Text style={[styles.messageText, { color: theme.colors.textSecondary, fontStyle: 'italic', fontSize: 12 }]}>This message was unsent</Text>
                                             ) : (
                                                 <>
-                                                    {msg.image_url && (
-                                                        <Image 
-                                                            source={{ uri: msg.image_url }} 
-                                                            style={{ width: 200, height: 200, borderRadius: 8, marginBottom: msg.message ? 8 : 0 }} 
-                                                            resizeMode="cover" 
-                                                        />
+                                                    {replyingToMessage && (
+                                                        <View style={[
+                                                            styles.replyPreview, 
+                                                            { 
+                                                                backgroundColor: isMine ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.05)', 
+                                                                padding: 8, 
+                                                                borderRadius: 6, 
+                                                                borderLeftWidth: 3, 
+                                                                borderLeftColor: theme.colors.primary,
+                                                                marginBottom: 8
+                                                            }
+                                                        ]}>
+                                                            <Text style={{ fontSize: 10, fontWeight: 'bold', color: isMine ? '#FFF' : theme.colors.primary, marginBottom: 2 }}>
+                                                                {String(replyingToMessage.sender_id) === String(currentUserId) ? 'You' : (replyingToMessage.sender?.first_name || 'Someone')}
+                                                            </Text>
+                                                            <Text style={{ fontSize: 11, color: isMine ? '#EEE' : theme.colors.textSecondary }} numberOfLines={2}>
+                                                                {replyingToMessage.image_path ? '📷 Photo' : replyingToMessage.file_path ? '📄 Document' : replyingToMessage.message}
+                                                            </Text>
+                                                        </View>
+                                                    )}
+                                                    {msg.image_path && (
+                                                        <TouchableOpacity onPress={() => setSelectedImage(getImageUrl(msg.image_path))}>
+                                                            <Image 
+                                                                source={{ uri: getImageUrl(msg.image_path) }} 
+                                                                style={{ width: 200, height: 200, borderRadius: 12 }} 
+                                                                resizeMode="cover" 
+                                                            />
+                                                        </TouchableOpacity>
+                                                    )}
+                                                    {msg.file_path && (
+                                                        <TouchableOpacity 
+                                                            style={styles.fileCard}
+                                                            onPress={() => Linking.openURL(getImageUrl(msg.file_path))}
+                                                        >
+                                                            <View style={styles.fileIconContainer}>
+                                                                <Ionicons 
+                                                                    name={msg.file_path.toLowerCase().endsWith('.pdf') ? 'document-text' : 'document'} 
+                                                                    size={24} 
+                                                                    color={theme.colors.primary} 
+                                                                />
+                                                            </View>
+                                                            <View style={styles.fileInfo}>
+                                                                <Text style={styles.fileName} numberOfLines={1}>{msg.file_name || 'Document'}</Text>
+                                                                <Text style={styles.fileExt}>{msg.file_path.split('.').pop().toUpperCase()}</Text>
+                                                            </View>
+                                                            <Ionicons name="download-outline" size={20} color={theme.colors.textSecondary} />
+                                                        </TouchableOpacity>
                                                     )}
                                                     {msg.message ? (
-                                                        <Text style={[styles.messageText, isMine ? styles.myMessageText : styles.theirMessageText]}>{msg.message}</Text>
+                                                        <View style={[(msg.image_path || msg.file_path) ? { padding: 10, backgroundColor: isMine ? theme.colors.primary : '#fff', borderRadius: 10, marginTop: 4 } : null]}>
+                                                            <Text style={[styles.messageText, isMine ? styles.myMessageText : styles.theirMessageText]}>{msg.message}</Text>
+                                                            {msg.is_edited && (
+                                                                <Text style={{ fontSize: 9, color: isMine ? 'rgba(255,255,255,0.7)' : theme.colors.textSecondary, marginLeft: 4, fontWeight: 'bold' }}>
+                                                                    (edited)
+                                                                </Text>
+                                                            )}
+                                                        </View>
                                                     ) : null}
                                                 </>
                                             )}
                                         </TouchableOpacity>
-                                        <Text style={styles.messageTime}>{formatTime(msg.created_at)}</Text>
+                                        <View style={[
+                                            { flexDirection: 'row', alignItems: 'center', justifyContent: isMine ? 'flex-end' : 'flex-start' },
+                                            (msg.image_path || msg.file_path) && !isUnsent && styles.timestampOnMedia
+                                        ]}>
+                                            <Text style={[styles.messageTime, (msg.image_path || msg.file_path) && !isUnsent && { color: '#fff', marginTop: 0 }]}>{formatTime(msg.created_at)}</Text>
+                                            {isMine && !isUnsent && (
+                                                <Ionicons 
+                                                    name="checkmark-done" 
+                                                    size={14} 
+                                                    color={(msg.image_path || msg.file_path) ? '#fff' : (msg.is_read ? '#3B82F6' : '#9CA3AF')} 
+                                                    style={{ marginLeft: 4 }} 
+                                                />
+                                            )}
+                                        </View>
                                     </View>
                                 </View>
                             );
@@ -533,18 +748,63 @@ export default function ChatScreen({ navigation, route }) {
                     )}
                 </ScrollView>
 
-                {/* Selected Image Preview */}
-                {selectedImage && (
-                    <View style={[{ padding: 16, backgroundColor: theme.colors.surface, borderTopWidth: 1, borderTopColor: theme.colors.border, flexDirection: 'row', alignItems: 'flex-start' }, contentWrapStyle]}>
-                        <View style={{ position: 'relative' }}>
-                            <Image source={{ uri: selectedImage }} style={{ width: 80, height: 80, borderRadius: 8 }} />
-                            <TouchableOpacity 
-                                style={{ position: 'absolute', top: -8, right: -8, backgroundColor: theme.colors.error, borderRadius: 12 }}
-                                onPress={() => setSelectedImage(null)}
-                            >
-                                <Ionicons name="close-circle" size={24} color="#FFF" />
-                            </TouchableOpacity>
+                {/* Attachment Preview */}
+                {(selectedImage || selectedFile) && (
+                    <View style={[styles.attachmentPreviewContainer, contentWrapStyle]}>
+                        {selectedImage ? (
+                            <Image source={{ uri: selectedImage }} style={styles.attachmentPreviewImage} />
+                        ) : (
+                            <View style={styles.attachmentPreviewFile}>
+                                <Ionicons 
+                                    name={selectedFile.name.toLowerCase().endsWith('.pdf') ? 'document-text' : 'document'} 
+                                    size={32} 
+                                    color={theme.colors.primary} 
+                                />
+                                <Text style={styles.attachmentPreviewFileName} numberOfLines={1}>{selectedFile.name}</Text>
+                            </View>
+                        )}
+                        <TouchableOpacity 
+                            style={styles.attachmentPreviewClose}
+                            onPress={() => {
+                                setSelectedImage(null);
+                                setSelectedFile(null);
+                            }}
+                        >
+                            <Ionicons name="close-circle" size={24} color="#EF4444" />
+                        </TouchableOpacity>
+                    </View>
+                )}
+
+                {/* Reply Preview */}
+                {replyingTo && (
+                    <View style={[{ padding: 12, backgroundColor: theme.colors.backgroundSecondary, borderTopWidth: 1, borderTopColor: theme.colors.border, borderLeftWidth: 4, borderLeftColor: theme.colors.primary, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }, contentWrapStyle]}>
+                        <View style={{ flex: 1 }}>
+                            <Text style={{ fontSize: 10, fontWeight: 'bold', color: theme.colors.primary, textTransform: 'uppercase' }}>
+                                Replying to {replyingTo.sender?.first_name || 'User'}
+                            </Text>
+                            <Text style={{ fontSize: 12, color: theme.colors.textSecondary }} numberOfLines={1}>
+                                {replyingTo.image_path ? '📷 Photo' : replyingTo.file_path ? '📄 Document' : replyingTo.message}
+                            </Text>
                         </View>
+                        <TouchableOpacity onPress={() => setReplyingTo(null)}>
+                            <Ionicons name="close-circle" size={20} color={theme.colors.textSecondary} />
+                        </TouchableOpacity>
+                    </View>
+                )}
+
+                {/* Edit Preview */}
+                {editingMessage && (
+                    <View style={[{ padding: 12, backgroundColor: theme.colors.primaryLight, borderTopWidth: 1, borderTopColor: theme.colors.border, borderLeftWidth: 4, borderLeftColor: theme.colors.primary, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }, contentWrapStyle]}>
+                        <View style={{ flex: 1 }}>
+                            <Text style={{ fontSize: 10, fontWeight: 'bold', color: theme.colors.primary, textTransform: 'uppercase' }}>Editing Message</Text>
+                            <Text style={{ fontSize: 12, color: theme.colors.textSecondary }} numberOfLines={1}>{editingMessage.message}</Text>
+                        </View>
+                        <TouchableOpacity onPress={() => {
+                            setEditingMessage(null);
+                            setMessageText('');
+                        }}>
+                            <Ionicons name="close-circle" size={20} color={theme.colors.textSecondary} />
+                        </TouchableOpacity>
                     </View>
                 )}
 
@@ -559,9 +819,13 @@ export default function ChatScreen({ navigation, route }) {
                     ]}
                 >
                     <TouchableOpacity style={styles.attachButton} activeOpacity={0.7} onPress={handlePickImage}>
-                        <Ionicons name="image" size={28} color={theme.colors.primary} />
+                        <Ionicons name="camera" size={26} color={theme.colors.primary} />
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.attachButton} activeOpacity={0.7} onPress={handlePickDocument}>
+                        <Ionicons name="attach" size={28} color={theme.colors.primary} />
                     </TouchableOpacity>
                     <TextInput 
+                        ref={inputRef}
                         style={styles.textInput} 
                         placeholder="Type a message..." 
                         placeholderTextColor="#9CA3AF" 
@@ -570,14 +834,14 @@ export default function ChatScreen({ navigation, route }) {
                         multiline 
                     />
                     <TouchableOpacity 
-                        style={[styles.sendButton, (!messageText.trim() && !selectedImage || sendMessageMutation.isPending) && styles.sendButtonDisabled]} 
+                        style={[styles.sendButton, (!messageText.trim() && !selectedImage || sendMessageMutation.isPending || editMessageMutation.isPending) && styles.sendButtonDisabled, editingMessage && { backgroundColor: theme.colors.success || '#10B981' }]} 
                         onPress={handleSendMessage} 
-                        disabled={(!messageText.trim() && !selectedImage) || sendMessageMutation.isPending}
+                        disabled={(!messageText.trim() && !selectedImage) || sendMessageMutation.isPending || editMessageMutation.isPending}
                     >
-                        {sendMessageMutation.isPending ? (
+                        {sendMessageMutation.isPending || editMessageMutation.isPending ? (
                             <ActivityIndicator size="small" color="#FFFFFF" />
                         ) : (
-                            <Ionicons name="send" size={20} color="#FFFFFF" />
+                            <Ionicons name={editingMessage ? "checkmark" : "send"} size={20} color="#FFFFFF" />
                         )}
                     </TouchableOpacity>
                 </View>

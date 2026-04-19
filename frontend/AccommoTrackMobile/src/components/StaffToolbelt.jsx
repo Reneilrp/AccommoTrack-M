@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Animated, Modal, TextInput, ActivityIndicator, Alert, ScrollView, Pressable } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Animated, Modal, TextInput, ActivityIndicator, ScrollView, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import PropertyService from '../services/PropertyService.js';
 import MessageService from '../services/MessageService.js';
 import api from '../services/api.js';
-import Toast from 'react-native-toast-message';
+import { showSuccess, showError } from '../utils/toast.js';
 import { useTheme } from '../contexts/ThemeContext.jsx';
 import { useQueryClient } from '@tanstack/react-query';
 import { landlordQueryKeys } from '../features/landlord/hooks/useLandlordQueryHelpers.js';
@@ -38,10 +38,10 @@ export default function StaffToolbelt() {
       if (res.success && res.data) {
         navigation.navigate('Chat', { conversation: res.data });
       } else {
-        Toast.show({ type: 'error', text1: 'Failed to open direct chat', text2: res.error });
+        showError('Failed to open direct chat', res.error);
       }
-    } catch (err) {
-      Toast.show({ type: 'error', text1: 'Network error', text2: 'Could not connect' });
+    } catch (_err) {
+      showError('Network error', 'Could not connect');
     }
   };
 
@@ -135,8 +135,8 @@ function QuickReportModal({ visible, onClose, theme, queryClient }) {
           setPropertyId(res.data[0].id);
         }
       }
-    } catch (err) {
-      console.error(err);
+    } catch (_err) {
+      console.error(_err);
     } finally {
       setIsLoading(false);
     }
@@ -144,22 +144,22 @@ function QuickReportModal({ visible, onClose, theme, queryClient }) {
 
   const handleSubmit = async () => {
     if (!propertyId || !description.trim()) {
-      Alert.alert('Validation Error', 'Please select a property and enter a description.');
+      showError('Validation Error', 'Please select a property and enter a description.');
       return;
     }
     
     setIsSubmitting(true);
     try {
       const payload = { property_id: propertyId, description: description.trim() };
-      const response = await api.post('/landlord/property-reports', payload);
+      await api.post('/landlord/property-reports', payload);
       
-      Toast.show({ type: 'success', text1: 'Report Submitted', text2: 'Your activity log has been saved.' });
+      showSuccess('Report Submitted', 'Your activity log has been saved.');
       queryClient.invalidateQueries({ queryKey: landlordQueryKeys.dashboardStats() });
       queryClient.invalidateQueries({ queryKey: landlordQueryKeys.dashboardRecentActivities() });
       onClose();
     } catch (error) {
       const errMsg = error.response?.data?.message || 'Failed to submit report';
-      Alert.alert('Submission Failed', errMsg);
+      showError('Submission Failed', errMsg);
     } finally {
       setIsSubmitting(false);
     }

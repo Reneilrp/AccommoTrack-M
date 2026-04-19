@@ -512,6 +512,15 @@ export const getStyles = (theme) => StyleSheet.create({
     fontWeight: '800',
     color: '#9CA3AF',
   },
+  
+  // Refund Stats
+  refundStatsCard: {
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(126,34,206,0.2)',
+  },
 });
 
 export default getStyles;

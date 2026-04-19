@@ -3,7 +3,6 @@ import {
   Animated,
   View,
   ScrollView,
-  FlatList,
   StatusBar,
   TouchableOpacity,
   Text,
@@ -46,12 +45,6 @@ const DEFAULT_ADVANCED_FILTERS = {
   sex: "All",
 };
 
-const HEADER_HIDE_GAP = 20;
-const FILTER_HIDE_GAP = 52;
-const SEARCH_HIDE_GAP = 92;
-const FILTER_SHOW_GAP = 110;
-const HEADER_SHOW_GAP = 44;
-const SCROLL_DIRECTION_DELTA = 3;
 
 const hasActiveAdvancedFilters = (filters = {}) =>
   Boolean(
@@ -103,7 +96,6 @@ export default function TenantHomePage({
   const BUCKET = 'explore_properties';
 
   const [searchQuery, setSearchQuery] = useState("");
-  const [activeTab, setActiveTab] = useState("featured");
   const [filterModalVisible, setFilterModalVisible] = useState(false);
   const [menuModalVisible, setMenuModalVisible] = useState(false);
   const [selectedFilter, setSelectedFilter] = useState("All");
@@ -114,9 +106,9 @@ export default function TenantHomePage({
     ...DEFAULT_ADVANCED_FILTERS,
   });
   const [mapModalVisible, setMapModalVisible] = useState(false);
-  const [activeNavTab, setActiveNavTab] = useState("Explore");
   const [showGuestBanner, setShowGuestBanner] = useState(true);
   const [headerHeight, setHeaderHeight] = useState(200);
+  const [selectedSort, setSelectedSort] = useState("featured"); // eslint-disable-line no-unused-vars
 
   const scrollY = React.useRef(new Animated.Value(0)).current;
   
@@ -131,7 +123,7 @@ export default function TenantHomePage({
   });
 
   const { theme } = useTheme();
-  const insets = useSafeAreaInsets();
+  useSafeAreaInsets();
   const styles = React.useMemo(() => getStyles(theme), [theme]);
   const contentWrapStyle = React.useMemo(
     () => (viewportWidth >= 768 ? { width: '100%', maxWidth: 980, alignSelf: 'center' } : null),
@@ -220,7 +212,7 @@ export default function TenantHomePage({
     if (!explorePropertiesQuery.error) return;
 
     console.error("Error loading properties:", explorePropertiesQuery.error);
-    showAlert(
+    showError(
       "Error",
       explorePropertiesQuery.error.message || "Failed to load properties. Please try again.",
     );
@@ -231,9 +223,9 @@ export default function TenantHomePage({
   }, [
     properties,
     searchQuery,
-    activeTab,
     selectedFilter,
     advancedFilters,
+    filterProperties,
   ]);
 
   const onRefresh = useCallback(async () => {
@@ -242,7 +234,7 @@ export default function TenantHomePage({
     await refreshExploreProperties();
   }, [invalidateData, refreshExploreProperties]);
 
-  const filterProperties = () => {
+  const filterProperties = useCallback(() => {
     let filtered = [...properties];
 
     if (selectedFilter !== "All") {
@@ -334,10 +326,7 @@ export default function TenantHomePage({
       });
     }
 
-    switch (activeTab) {
-      case "rating":
-        filtered.sort((a, b) => (b.rating || 0) - (a.rating || 0));
-        break;
+    switch (selectedSort) {
       case "amenities":
         filtered.sort(
           (a, b) => (b.amenities?.length || 0) - (a.amenities?.length || 0),
@@ -352,7 +341,7 @@ export default function TenantHomePage({
     }
 
     setFilteredProperties(filtered);
-  };
+  }, [properties, selectedFilter, advancedFilters, searchQuery, selectedSort]);
 
   const handleFilterSelect = (filterValue) => {
     setSelectedFilter(filterValue);
@@ -405,7 +394,7 @@ export default function TenantHomePage({
       && Number(nextFilters.maxPrice) > 0
       && Number(nextFilters.minPrice) > Number(nextFilters.maxPrice)
     ) {
-      showAlert('Invalid Price Range', 'Minimum price cannot be greater than maximum price.');
+      showError('Invalid Price Range', 'Minimum price cannot be greater than maximum price.');
       return;
     }
 
@@ -638,8 +627,8 @@ export default function TenantHomePage({
 
     console.log("Like pressed for:", id);
   };
-
-  const handleProfilePress = () => {
+  
+  const handleProfilePress = () => { // eslint-disable-line no-unused-vars
     if (isGuest) {
       if (onAuthRequired) {
         onAuthRequired();

@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { showSuccess, showError } from '../../../utils/toast';
 import { tenantService } from '../../../services/tenantService';
 import { getImageUrl } from '../../../utils/api';
 import { hasAnyValidationError, normalizeNameInput, validateProfileNameField } from '../../../utils/nameValidation';
@@ -12,7 +13,6 @@ const ProfileTab = ({ onUserUpdate }) => {
 
   const [loading, setLoading] = useState(!cachedProfile);
   const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState({ type: '', text: '' });
   const [nameErrors, setNameErrors] = useState({});
   const [imagePreview, setImagePreview] = useState(null);
 
@@ -37,14 +37,7 @@ const ProfileTab = ({ onUserUpdate }) => {
     emergency_contact_relationship: '',
   });
 
-  useEffect(() => {
-    if (cachedProfile) {
-      mapDataToForm(cachedProfile);
-    }
-    fetchProfile();
-  }, []);
-
-  const mapDataToForm = (data) => {
+  const mapDataToForm = useCallback((data) => {
     // Extract sex from preferences
     let prefs = data.tenant_profile?.preference || {};
     if (typeof prefs === 'string') {
@@ -75,9 +68,9 @@ const ProfileTab = ({ onUserUpdate }) => {
     } else {
       setImagePreview(null);
     }
-  };
+  }, []);
 
-  const fetchProfile = async () => {
+  const fetchProfile = useCallback(async () => {
     try {
       if (!cachedProfile) setLoading(true);
       const data = await tenantService.getProfile();
@@ -87,11 +80,18 @@ const ProfileTab = ({ onUserUpdate }) => {
 
     } catch (error) {
       console.error('Failed to load profile', error);
-      setMessage({ type: 'error', text: 'Failed to load profile data.' });
+      showError('Failed to load profile data.');
     } finally {
       setLoading(false);
     }
-  };
+  }, [cachedProfile, mapDataToForm, updateData]);
+
+  useEffect(() => {
+    if (cachedProfile) {
+      mapDataToForm(cachedProfile);
+    }
+    fetchProfile();
+  }, [cachedProfile, mapDataToForm, fetchProfile]);
 
   const NAME_FIELDS = ['first_name', 'middle_name', 'last_name'];
   const NAME_LABELS = {
@@ -152,12 +152,11 @@ const ProfileTab = ({ onUserUpdate }) => {
     setNameErrors(prev => ({ ...prev, ...nextNameErrors }));
 
     if (hasAnyValidationError(nextNameErrors)) {
-      setMessage({ type: 'error', text: 'Please fix the name errors before saving.' });
+      showError('Please fix the name errors before saving.');
       return;
     }
 
     setSaving(true);
-    setMessage({ type: '', text: '' });
 
     try {
       const data = new FormData();
@@ -200,14 +199,14 @@ const ProfileTab = ({ onUserUpdate }) => {
         onUserUpdate(response.user);
       }
 
-      setMessage({ type: 'success', text: 'Profile updated successfully!' });
+      showSuccess('Profile updated successfully!');
       setIsEditing(false);
 
       // Refetch to ensure all cached data is synced
       fetchProfile();
     } catch (error) {
       console.error('Update failed', error);
-      setMessage({ type: 'error', text: 'Failed to update profile. Please try again.' });
+      showError('Failed to update profile. Please try again.');
     } finally {
       setSaving(false);
     }
@@ -221,7 +220,6 @@ const ProfileTab = ({ onUserUpdate }) => {
       fetchProfile();
     }
     setIsEditing(!isEditing);
-    setMessage({ type: '', text: '' });
   };
 
   return (
@@ -238,11 +236,6 @@ const ProfileTab = ({ onUserUpdate }) => {
         )}
       </div>
 
-      {message.text && (
-        <div className={`mb-6 p-4 rounded-lg ${message.type === 'success' ? 'bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400' : 'bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-400'}`}>
-          {message.text}
-        </div>
-      )}
 
 
 

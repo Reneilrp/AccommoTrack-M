@@ -1,12 +1,12 @@
 import React from 'react';
-import { View, ActivityIndicator, Alert } from 'react-native';
+import { View, ActivityIndicator } from 'react-native';
 import homeStyles from '../../../../styles/Tenant/HomePage.js';
 import { WebView } from 'react-native-webview';
 import PaymentService from '../../../../services/PaymentService.js';
+import { showError, showInfo } from '../../../../utils/toast.js';
 
 export default function PaymentCardWebview({ route, navigation }) {
   const { tokenizeUrl, invoiceId } = route.params || {};
-  const showAlert = Alert.alert;
 
   const onMessage = async (event) => {
     try {
@@ -15,17 +15,17 @@ export default function PaymentCardWebview({ route, navigation }) {
         // Send payment_method_id to backend to create payment
         const resp = await PaymentService.createPaymongoPayment(invoiceId, { payment_method_id: payload.payment_method_id });
         if (resp.success) {
-          showAlert('Payment initiated', 'Payment is processing; refresh payments after webhook confirmation.');
+          showInfo('Payment initiated', 'Payment is processing; refresh payments after webhook confirmation.');
           navigation.goBack();
         } else {
-          showAlert('Payment failed', resp.error || 'Could not create payment');
+          showError('Payment failed', resp.error || 'Could not create payment');
         }
       } else {
-        showAlert('Tokenization failed', 'No payment_method_id returned');
+        showError('Tokenization failed', 'No payment_method_id returned');
       }
     } catch (e) {
       console.error('WebView message error', e);
-      showAlert('Error', 'Invalid response from payment page');
+      showError('Error', 'Invalid response from payment page');
     }
   };
 

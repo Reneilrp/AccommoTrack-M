@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,7 +8,6 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
-  Alert,
   Image,
   StatusBar,
   Modal,
@@ -26,7 +25,7 @@ import { useNavigation } from '@react-navigation/native';
 import { API_BASE_URL as API_URL } from '../../../config/index.js';
 import BlockedUserModal from '../../../components/BlockedUserModal.jsx';
 import ForgotPasswordModal from '../../../components/ForgotPasswordModal.jsx';
-import { showSuccess, showError } from '../../../utils/toast.js';
+import { showSuccess } from '../../../utils/toast.js';
 import { useTheme } from '../../../contexts/ThemeContext.jsx';
 import { useAuthStore } from '../../../stores/auth/authStore.js';
 import { useUIState } from '../../../contexts/UIStateContext.jsx';
@@ -288,7 +287,7 @@ const ResubmitModal = ({ visible, onClose, theme }) => {
       } else {
         showAlert('Error', data.message || 'Failed to resubmit documents.');
       }
-    } catch (err) {
+    } catch (_err) {
       showAlert('Error', 'An error occurred while resubmitting documents.');
     } finally {
       setLoading(false);
@@ -733,7 +732,6 @@ const ClaimExistingAccountModal = ({ visible, onClose, onClaimed, theme }) => {
 export default function AuthScreen({ onLoginSuccess, onClose, onContinueAsGuest }) {
   const { width: viewportWidth } = useWindowDimensions();
   const { theme, isDarkMode } = useTheme();
-  const { showAlert } = useUIState();
   const styles = React.useMemo(() => getStyles(theme), [theme]);
   const contentWrapStyle = React.useMemo(
     () => (viewportWidth >= 768 ? { width: '100%', maxWidth: 760, alignSelf: 'center' } : null),
@@ -822,7 +820,7 @@ export default function AuthScreen({ onLoginSuccess, onClose, onContinueAsGuest 
             const data = await response.json();
             setEmailAvailable(data.available);
             setEmailCheckMsg(data.message);
-          } catch (err) {
+          } catch (_err) {
             // In case of network error, don't block the user
             setEmailAvailable(null);
             setEmailCheckMsg('');

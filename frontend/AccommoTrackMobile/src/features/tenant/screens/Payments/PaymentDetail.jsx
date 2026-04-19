@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, Alert, TextInput, Image } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, TextInput, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
@@ -15,6 +15,7 @@ import {
   tenantQueryKeys,
   useTenantFocusRefetch,
 } from '../../hooks/useTenantQueryHelpers.js';
+import { showError, showSuccess, showWarning } from '../../../../utils/toast.js';
 
 const DEFAULT_PAYMENT_SETTINGS = {
   allowed: ['cash'],
@@ -27,6 +28,76 @@ const REFUND_SETTLED_STATUSES = new Set([
   'partially_refunded',
   'refunded',
 ]);
+
+const REFUND_FIXED_PENALTY_CENTS = 50000;
+const REFUND_ELIGIBLE_STATUSES = ['paid', 'succeeded'];
+
+const toDateOnly = (date) => {
+  if (!date) return null;
+  const d = new Date(date);
+  if (isNaN(d.getTime())) return null;
+  d.setHours(0, 0, 0, 0);
+  return d;
+};
+
+const addCalendarMonth = (date, dayOfMonth) => {
+  const d = new Date(date);
+  const currentMonth = d.getMonth();
+  d.setMonth(currentMonth + 1);
+  if (d.getMonth() > (currentMonth + 1) % 12) {
+    d.setDate(0);
+  } else {
+    d.setDate(Math.min(dayOfMonth, new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate()));
+  }
+  return d;
+};
+
+const calculateTotalMonths = (startDate, endDate, billingDay) => {
+  if (!startDate || !endDate) return 0;
+  let months = 0;
+  let cursor = new Date(startDate);
+  while (cursor < endDate) {
+    months++;
+    cursor = addCalendarMonth(cursor, billingDay);
+  }
+  return months;
+};
+
+const calculateMonthsElapsed = (startDate, today, billingDay) => {
+  if (!startDate || !today) return 0;
+  let months = 0;
+  let cursor = new Date(startDate);
+  while (cursor <= today) {
+    months++;
+    cursor = addCalendarMonth(cursor, billingDay);
+  }
+  return Math.max(0, months - 1);
+};
+
+const getStayProgress = (booking) => {
+  const start = toDateOnly(booking?.start_date || booking?.checkIn);
+  const end = toDateOnly(booking?.end_date || booking?.checkOut);
+  if (!start || !end || end < start) return null;
+
+  const today = toDateOnly(new Date());
+  const totalDays = Math.max(1, Math.floor((end - start) / 86400000) + 1);
+  const billingDay = booking?.billing_day || start.getDate();
+  const billingPolicy = booking?.billing_policy || 'monthly';
+
+  if (billingPolicy === 'daily') {
+    let stayedDays = 0;
+    if (today >= start && today <= end) stayedDays = Math.floor((today - start) / 86400000) + 1;
+    else if (today > end) stayedDays = totalDays;
+    const refundableDays = Math.max(0, totalDays - stayedDays);
+    return { mode: 'daily', totalUnits: totalDays, usedUnits: stayedDays, refundableUnits: refundableDays, unitLabel: 'days' };
+  }
+
+  const totalMonths = Math.max(1, calculateTotalMonths(start, end, billingDay));
+  const usedMonths = calculateMonthsElapsed(start, today, billingDay);
+  const refundableMonths = Math.max(0, totalMonths - usedMonths);
+
+  return { mode: 'monthly', totalUnits: totalMonths, usedUnits: usedMonths, refundableUnits: refundableMonths, unitLabel: totalMonths === 1 ? 'month' : 'months' };
+};
 
 const parseJsonIfNeeded = (value, fallback) => {
   if (value == null) return fallback;
@@ -121,7 +192,6 @@ export default function PaymentDetail() {
   const navigation = useNavigation();
   const queryClient = useQueryClient();
   const { theme } = useTheme();
-  const showAlert = Alert.alert;
   const styles = React.useMemo(() => getStyles(theme), [theme]);
   const { invoiceId } = route.params || {};
 
@@ -214,7 +284,7 @@ export default function PaymentDetail() {
   useEffect(() => {
     if (!paymentDetailQuery.error) return;
     console.error('Error fetching invoice:', paymentDetailQuery.error);
-    showAlert('Error', paymentDetailQuery.error.message || 'Failed to load invoice');
+    showError('Error', paymentDetailQuery.error.message || 'Failed to load invoice');
   }, [paymentDetailQuery.error]);
 
   useEffect(() => {
@@ -314,56 +384,60 @@ export default function PaymentDetail() {
   };
 
   const handleGCashPay = async () => {
+    if (isPaying) return;
+
     if (isPaymentDisabled) {
-      showAlert('Payment Unavailable', paymentDisabledReason);
+      showWarning('Payment Unavailable', paymentDisabledReason);
       return;
     }
 
     if (!showOnline) {
-      showAlert('Payment Method Unavailable', 'Online payments are currently not enabled for this property.');
+      showWarning('Payment Method Unavailable', 'Online payments are currently not enabled for this property.');
       return;
     }
 
     if (!invoice) return;
     const { amount: amountToPay, error } = resolveAmountToPay();
     if (error) {
-      return showAlert('Invalid Amount', error);
+      return showWarning('Invalid Amount', error);
     }
 
     try {
       setIsPaying(true);
       const res = await PaymentService.createPaymongoSource(invoice.id, 'gcash', null, amountToPay);
-      if (!res.success) return showAlert('Payment Error', res.error || 'Failed to create source');
+      if (!res.success) return showError('Payment Error', res.error || 'Failed to create source');
 
       const sourceBody = res.data?.source || res.data;
       const checkoutUrl = sourceBody?.data?.attributes?.redirect?.checkout_url;
       if (checkoutUrl) {
         navigation.navigate('PaymentRedirectWebview', { checkoutUrl, invoiceId: invoice.id });
       } else {
-        showAlert('Payment', 'No checkout URL returned.');
+        showError('Payment', 'No checkout URL returned.');
       }
     } catch (e) {
       console.error('GCash pay error', e);
-      showAlert('Payment Error', 'Failed to initiate GCash payment');
+      showError('Payment Error', 'Failed to initiate GCash payment');
     } finally {
       setIsPaying(false);
     }
   };
 
   const handleCardPay = () => {
+    if (isPaying) return;
+
     if (isPaymentDisabled) {
-      showAlert('Payment Unavailable', paymentDisabledReason);
+      showWarning('Payment Unavailable', paymentDisabledReason);
       return;
     }
 
     if (!showOnline) {
-      showAlert('Payment Method Unavailable', 'Online payments are currently not enabled for this property.');
+      showWarning('Payment Method Unavailable', 'Online payments are currently not enabled for this property.');
       return;
     }
 
     const { amount: amountToPay, error } = resolveAmountToPay();
     if (error) {
-      showAlert('Invalid Amount', error);
+      showWarning('Invalid Amount', error);
       return;
     }
 
@@ -376,7 +450,7 @@ export default function PaymentDetail() {
     const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
 
     if (permissionResult.granted === false) {
-      showAlert('Permission required', "You've refused to allow this app to access your photos!");
+      showWarning('Permission required', "You've refused to allow this app to access your photos!");
       return;
     }
 
@@ -392,34 +466,36 @@ export default function PaymentDetail() {
   };
 
   const handleOfflinePayment = async (method) => {
+    if (isPaying) return;
+
     if (tenantPaymentsTempDisabled) {
-      showAlert('Payments Temporarily Disabled', 'Tenant payments are temporarily unavailable while payment compliance updates are in progress.');
+      showWarning('Payments Temporarily Disabled', 'Tenant payments are temporarily unavailable while payment compliance updates are in progress.');
       return;
     }
 
     if (method === 'cash' && !showCash) {
-      showAlert('Payment Method Unavailable', 'Cash payments are currently not enabled for this property.');
+      showWarning('Payment Method Unavailable', 'Cash payments are currently not enabled for this property.');
       return;
     }
 
     if (method === 'gcash' && !showManualGcash) {
-      showAlert('Payment Method Unavailable', 'Manual GCash transfer is currently not enabled.');
+      showWarning('Payment Method Unavailable', 'Manual GCash transfer is currently not enabled.');
       return;
     }
 
     const { amount: amountToPay, error } = resolveAmountToPay();
     if (error) {
-      showAlert('Invalid Amount', error);
+      showWarning('Invalid Amount', error);
       return;
     }
 
     if (method === 'gcash' && !offlineDetails.reference.trim()) {
-      showAlert('Reference Required', 'Please provide the GCash transfer reference number.');
+      showWarning('Reference Required', 'Please provide the GCash transfer reference number.');
       return;
     }
 
     if (!proofImage) {
-      showAlert('Proof Required', 'Please upload a proof of payment attachment.');
+      showWarning('Proof Required', 'Please upload a proof of payment attachment.');
       return;
     }
 
@@ -450,12 +526,12 @@ export default function PaymentDetail() {
       const response = await PaymentService.createOfflineRecord(invoice.id, formData);
 
       if (!response.success) {
-        showAlert('Payment Error', response.error || 'Failed to submit offline payment details.');
+        showError('Payment Error', response.error || 'Failed to submit offline payment details.');
         return;
       }
 
-      showAlert('Submitted', method === 'gcash'
-        ? 'Manual GCash transfer successfully auto-approved securely.'
+      showSuccess('Submitted', method === 'gcash'
+        ? 'Manual GCash transfer successfully submitted. Please wait for landlord verification.'
         : 'Cash payment request submitted. Waiting for landlord confirmation.');
       setOfflineDetails({ reference: '', notes: '' });
       setProofImage(null);
@@ -463,22 +539,24 @@ export default function PaymentDetail() {
       queryClient.invalidateQueries(tenantQueryKeys.all);
     } catch (error) {
       console.error('Offline payment submit error', error);
-      showAlert('Payment Error', 'Failed to submit offline payment details.');
+      showError('Payment Error', 'Failed to submit offline payment details.');
     } finally {
       setIsPaying(false);
     }
   };
 
   const handleWalletCreditPayment = async () => {
+    if (isPaying) return;
+
     if (tenantPaymentsTempDisabled) {
-      showAlert('Payments Temporarily Disabled', 'Tenant payments are temporarily unavailable while payment compliance updates are in progress.');
+      showWarning('Payments Temporarily Disabled', 'Tenant payments are temporarily unavailable while payment compliance updates are in progress.');
       return;
     }
 
     const amountToPay = Math.min(remainingBalance, walletBalance);
     
     if (amountToPay <= 0) {
-      showAlert('Invalid Amount', 'No remaining balance or wallet credits available.');
+      showWarning('Invalid Amount', 'No remaining balance or wallet credits available.');
       return;
     }
 
@@ -488,11 +566,11 @@ export default function PaymentDetail() {
       setIsPaying(true);
       const result = await PaymentService.applyWalletCredit(invoice.id, amountCents);
       if (!result?.success) {
-        showAlert('Payment Error', result?.error || 'Failed to apply wallet credits.');
+        showError('Payment Error', result?.error || 'Failed to apply wallet credits.');
         return;
       }
 
-      showAlert('Payment Success', 'Wallet credits applied successfully.');
+      showSuccess('Payment Success', 'Wallet credits applied successfully.');
       await refetchPaymentDetail();
       queryClient.invalidateQueries(tenantQueryKeys.all);
 
@@ -503,7 +581,7 @@ export default function PaymentDetail() {
       }
     } catch (error) {
       console.error('Wallet payment error', error);
-      showAlert('Payment Error', 'Failed to apply wallet credits.');
+      showError('Payment Error', 'Failed to apply wallet credits.');
     } finally {
       setIsPaying(false);
     }
@@ -611,6 +689,58 @@ export default function PaymentDetail() {
             </View>
           </View>
 
+          {invoice?.status === 'rejected' && invoice?.rejection_reason && (
+            <View style={{ marginTop: 12, padding: 12, borderRadius: 10, backgroundColor: 'rgba(239,68,68,0.05)', borderLeftWidth: 4, borderLeftColor: '#EF4444' }}>
+              <Text style={{ fontSize: 12, fontWeight: '700', color: '#EF4444', textTransform: 'uppercase', marginBottom: 4 }}>
+                Reason for Rejection
+              </Text>
+              <Text style={{ fontSize: 14, color: theme.colors.text }}>{invoice.rejection_reason}</Text>
+            </View>
+          )}
+
+          {invoice?.status === 'refunded' || invoice?.status === 'partially_refunded' ? (() => {
+            const stayProgress = getStayProgress(invoice.booking);
+            if (!stayProgress) return null;
+            
+            const totalPaidCents = invoice.transactions?.filter(t => (t.amount_cents || 0) > 0 && REFUND_ELIGIBLE_STATUSES.includes(String(t.status || '').toLowerCase())).reduce((sum, t) => sum + (t.amount_cents || 0), 0) || 0;
+            const proratedCents = stayProgress.totalUnits > 0 ? Math.floor((totalPaidCents * stayProgress.refundableUnits) / stayProgress.totalUnits) : 0;
+            
+            return (
+              <View style={styles.refundStatsCard}>
+                <Text style={[styles.sectionTitle, { fontSize: 13, marginBottom: 12, color: theme.colors.purple }]}>
+                  Refund Breakdown
+                </Text>
+                <View style={styles.refundStatRow}>
+                  <Text style={styles.refundStatLabel}>Stay Progress</Text>
+                  <Text style={styles.refundStatValue}>
+                    {stayProgress.usedUnits} / {stayProgress.totalUnits} {stayProgress.unitLabel} used
+                  </Text>
+                </View>
+                <View style={styles.refundStatRow}>
+                  <Text style={styles.refundStatLabel}>Refundable Portion</Text>
+                  <Text style={[styles.refundStatValue, styles.refundStatEmphasis]}>
+                    {Math.round((stayProgress.refundableUnits / stayProgress.totalUnits) * 100)}%
+                  </Text>
+                </View>
+                <View style={styles.refundStatRow}>
+                  <Text style={styles.refundStatLabel}>Prorated Amount</Text>
+                  <Text style={styles.refundStatValue}>₱{(proratedCents / 100).toLocaleString()}</Text>
+                </View>
+                <View style={styles.refundStatRow}>
+                  <Text style={styles.refundStatLabel}>Fixed Penalty</Text>
+                  <Text style={styles.refundStatValue}>- ₱{(REFUND_FIXED_PENALTY_CENTS / 100).toLocaleString()}</Text>
+                </View>
+                <View style={[styles.separator, { marginVertical: 4, backgroundColor: 'rgba(126,34,206,0.1)' }]} />
+                <View style={styles.refundStatRow}>
+                  <Text style={[styles.refundStatLabel, { fontWeight: '800', color: theme.colors.text }]}>Total Refunded</Text>
+                  <Text style={[styles.refundStatValue, { fontSize: 15, color: theme.colors.purple }]}>
+                    ₱{(invoice.transactions?.reduce((s, t) => s + (t.refunded_amount_cents || 0), 0) / 100).toLocaleString()}
+                  </Text>
+                </View>
+              </View>
+            );
+          })() : null}
+
           <Text style={[styles.statusRow, { color: theme.colors.textSecondary }]}>Status: <Text style={[styles.statusValue, { color: theme.colors.text }]}>{invoice.status}</Text></Text>
 
           {isFullyPaid ? (
@@ -714,10 +844,18 @@ export default function PaymentDetail() {
 
               {showOnline && !isPaymentDisabled && (
                 <View style={styles.actionsRow}>
-                  <TouchableOpacity onPress={handleGCashPay} disabled={isPaymentDisabled || !!paymentAmountError} style={[homeStyles.buttonFlex, styles.payBtn, { backgroundColor: '#007AFF', opacity: (isPaymentDisabled || paymentAmountError) ? 0.5 : 1 }]}>
+                  <TouchableOpacity 
+                    onPress={handleGCashPay} 
+                    disabled={isPaymentDisabled || isPaying || !!paymentAmountError} 
+                    style={[homeStyles.buttonFlex, styles.payBtn, { backgroundColor: '#007AFF', opacity: (isPaymentDisabled || isPaying || paymentAmountError) ? 0.5 : 1 }]}
+                  >
                     <Text style={styles.payBtnText}>Pay with GCash</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity onPress={handleCardPay} disabled={isPaymentDisabled || !!paymentAmountError} style={[homeStyles.buttonFlex, styles.payBtn, { backgroundColor: theme.colors.primary, opacity: (isPaymentDisabled || paymentAmountError) ? 0.5 : 1 }]}>
+                  <TouchableOpacity 
+                    onPress={handleCardPay} 
+                    disabled={isPaymentDisabled || isPaying || !!paymentAmountError} 
+                    style={[homeStyles.buttonFlex, styles.payBtn, { backgroundColor: theme.colors.primary, opacity: (isPaymentDisabled || isPaying || paymentAmountError) ? 0.5 : 1 }]}
+                  >
                     <Text style={styles.payBtnText}>Pay with Card</Text>
                   </TouchableOpacity>
                 </View>
@@ -802,8 +940,8 @@ export default function PaymentDetail() {
                   {showManualGcash && (
                     <TouchableOpacity
                       onPress={() => handleOfflinePayment('gcash')}
-                      disabled={tenantPaymentsTempDisabled}
-                      style={[styles.payBtn, { backgroundColor: '#2563EB', opacity: tenantPaymentsTempDisabled ? 0.6 : 1, marginBottom: 8 }]}
+                      disabled={tenantPaymentsTempDisabled || isPaying}
+                      style={[styles.payBtn, { backgroundColor: '#2563EB', opacity: (tenantPaymentsTempDisabled || isPaying) ? 0.6 : 1, marginBottom: 8 }]}
                     >
                       <Text style={styles.payBtnText}>Submit Manual GCash Transfer</Text>
                     </TouchableOpacity>
@@ -812,8 +950,8 @@ export default function PaymentDetail() {
                   {showCash && (
                     <TouchableOpacity
                       onPress={() => handleOfflinePayment('cash')}
-                      disabled={tenantPaymentsTempDisabled}
-                      style={[styles.payBtn, { backgroundColor: '#16a34a', opacity: tenantPaymentsTempDisabled ? 0.6 : 1 }]}
+                      disabled={tenantPaymentsTempDisabled || isPaying}
+                      style={[styles.payBtn, { backgroundColor: '#16a34a', opacity: (tenantPaymentsTempDisabled || isPaying) ? 0.6 : 1 }]}
                     >
                       <Text style={styles.payBtnText}>Request Cash Payment</Text>
                     </TouchableOpacity>
@@ -825,8 +963,8 @@ export default function PaymentDetail() {
                 <View style={{ marginTop: 16 }}>
                   <TouchableOpacity
                     onPress={handleWalletCreditPayment}
-                    disabled={tenantPaymentsTempDisabled}
-                    style={[styles.payBtn, { backgroundColor: '#7C3AED', opacity: tenantPaymentsTempDisabled ? 0.6 : 1, marginBottom: 8 }]}
+                    disabled={tenantPaymentsTempDisabled || isPaying}
+                    style={[styles.payBtn, { backgroundColor: '#7C3AED', opacity: (tenantPaymentsTempDisabled || isPaying) ? 0.6 : 1, marginBottom: 8 }]}
                   >
                     <Text style={styles.payBtnText}>Apply Wallet Credits (₱{Math.min(remainingBalance, walletBalance).toLocaleString()})</Text>
                   </TouchableOpacity>

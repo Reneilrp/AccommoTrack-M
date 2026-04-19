@@ -106,7 +106,6 @@ jest.mock('../features/tenant/components/MenuDrawer.jsx', () => () => null);
 
 jest.mock('../features/tenant/components/PropertyCard.jsx', () => {
   const ReactNative = require('react-native');
-  const ReactLib = require('react');
 
   return {
     __esModule: true,

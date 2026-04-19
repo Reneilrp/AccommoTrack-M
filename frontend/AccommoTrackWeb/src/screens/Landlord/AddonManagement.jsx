@@ -4,7 +4,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { addonService } from "../../services/addonService";
 import { useUIState } from "../../contexts/UIStateContext";
 import { cacheManager } from "../../utils/cache";
-import toast from "react-hot-toast";
+import { showSuccess, showError } from "../../utils/toast";
 import {
   Plus,
   Pencil,
@@ -101,6 +101,7 @@ const AddonManagement = ({ propertyId, user, accessRole }) => {
       return;
     }
     fetchData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [effectivePropertyId]);
 
   const fetchData = async () => {
@@ -131,7 +132,7 @@ const AddonManagement = ({ propertyId, user, accessRole }) => {
       cacheManager.set(ck, combined);
     } catch (error) {
       console.error("Failed to fetch addon data:", error);
-      toast.error(
+      showError(
         error?.response?.data?.message || "Failed to load add-on data",
       );
     } finally {
@@ -150,17 +151,17 @@ const AddonManagement = ({ propertyId, user, accessRole }) => {
 
       if (editingAddon) {
         await addonService.updateAddon(effectivePropertyId, editingAddon.id, data);
-        toast.success("Addon updated successfully!");
+        showSuccess("Addon updated successfully!");
       } else {
         await addonService.createAddon(effectivePropertyId, data);
-        toast.success("Addon created successfully!");
+        showSuccess("Addon created successfully!");
       }
 
       setShowModal(false);
       resetForm();
       fetchData();
     } catch (error) {
-      toast.error(error.response?.data?.message || "Failed to save addon");
+      showError(error.response?.data?.message || "Failed to save addon");
     }
   };
 
@@ -168,10 +169,10 @@ const AddonManagement = ({ propertyId, user, accessRole }) => {
     if (!confirm("Are you sure you want to delete this addon?")) return;
     try {
       await addonService.deleteAddon(effectivePropertyId, addonId);
-      toast.success("Addon deleted successfully!");
+      showSuccess("Addon deleted successfully!");
       fetchData();
     } catch (error) {
-      toast.error(error.response?.data?.message || "Failed to delete addon");
+      showError(error.response?.data?.message || "Failed to delete addon");
     }
   };
 
@@ -181,12 +182,12 @@ const AddonManagement = ({ propertyId, user, accessRole }) => {
       await addonService.updateAddon(effectivePropertyId, addon.id, {
         is_active: !addon.isActive,
       });
-      toast.success(
+      showSuccess(
         addon.isActive ? "Add-on deactivated" : "Add-on activated",
       );
       fetchData();
     } catch (error) {
-      toast.error(error.response?.data?.message || "Failed to update add-on");
+      showError(error.response?.data?.message || "Failed to update add-on");
     } finally {
       setTogglingAddonId(null);
     }
@@ -212,10 +213,10 @@ const AddonManagement = ({ propertyId, user, accessRole }) => {
       }
       
       await addonService.handleAddonRequest(bookingId, addonId, payload);
-      toast.success(`Request ${action}ed successfully!`);
+      showSuccess(`Request ${action}ed successfully!`);
       fetchData();
     } catch (error) {
-      toast.error(
+      showError(
         error.response?.data?.message || `Failed to ${action} request`,
       );
     }
@@ -602,7 +603,7 @@ const RequestsTab = ({ requests, onHandle }) => {
     const finalPrice = customPrice !== undefined ? parseFloat(customPrice) : request.price;
     
     if (isNaN(finalPrice) || finalPrice < 0) {
-      toast.error('Please enter a valid price');
+      showError('Please enter a valid price');
       return;
     }
 
@@ -750,21 +751,21 @@ const ActiveTab = ({ data, onUpdatePrice }) => {
   const handleSavePrice = async (item) => {
     const newPrice = editingPrices[item.requestId];
     if (!newPrice || isNaN(parseFloat(newPrice)) || parseFloat(newPrice) < 0) {
-      toast.error('Please enter a valid price');
+      showError('Please enter a valid price');
       return;
     }
 
     setSavingPriceId(item.requestId);
     try {
       await onUpdatePrice(item.bookingId, item.addonId, parseFloat(newPrice));
-      toast.success('Price updated! Changes will apply to next billing cycle.');
+      showSuccess('Price updated! Changes will apply to next billing cycle.');
       setEditingPrices(prev => {
         const updated = { ...prev };
         delete updated[item.requestId];
         return updated;
       });
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Failed to update price');
+      showError(error.response?.data?.message || 'Failed to update price');
     } finally {
       setSavingPriceId(null);
     }

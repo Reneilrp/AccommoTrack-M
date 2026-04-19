@@ -5,6 +5,10 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTheme } from '../../../contexts/ThemeContext.jsx';
+import { 
+  canAccessModule as checkModuleAccess
+} from '../../../utils/permissionHelpers.js';
+import PermissionBlockedModal from '../components/PermissionBlockedModal.jsx';
 
 import LandlordDashboard from '../screens/Dashboard/DashboardPage.jsx';
 import CaretakerDashboard from '../screens/Dashboard/CaretakerDashboard.jsx';
@@ -60,6 +64,10 @@ export default function LandlordBottomNavigation({ onLogout }) {
   const insets = useSafeAreaInsets();
   const [user, setUser] = React.useState(null);
   const [unreadCount, setUnreadCount] = React.useState(0);
+  const [permissionModal, setPermissionModal] = React.useState({
+    visible: false,
+    actionTitle: '',
+  });
 
   React.useEffect(() => {
     const loadUser = async () => {
@@ -88,46 +96,10 @@ export default function LandlordBottomNavigation({ onLogout }) {
   }, []);
 
   const isCaretaker = user?.role === 'caretaker';
-  const permissions = React.useMemo(() => user?.caretaker_permissions || {}, [user?.caretaker_permissions]);
 
-  const normalizePermissionValue = React.useCallback((value) => {
-    if (typeof value === 'string') {
-      const normalized = value.trim().toLowerCase();
-      return normalized === '1' || normalized === 'true' || normalized === 'yes' || normalized === 'allowed';
-    }
-    return Boolean(value);
-  }, []);
-
-  const buildPermissionCandidates = React.useCallback((key, aliases = []) => {
-    const base = String(key || '').trim();
-    const singular = base.endsWith('ies')
-      ? `${base.slice(0, -3)}y`
-      : base.endsWith('s')
-        ? base.slice(0, -1)
-        : base;
-    const plural = base.endsWith('s')
-      ? base
-      : singular === 'property'
-        ? 'properties'
-        : `${singular}s`;
-
-    const keys = new Set([base, singular, plural, ...aliases]);
-    const expanded = [];
-
-    keys.forEach((entry) => {
-      if (!entry) return;
-      expanded.push(entry, `can_view_${entry}`, `can_manage_${entry}`);
-    });
-
-    return expanded;
-  }, []);
-
-  const hasPermission = React.useCallback((key, aliases = []) => {
-    if (!isCaretaker) return true;
-    return buildPermissionCandidates(key, aliases).some((candidate) =>
-      normalizePermissionValue(permissions?.[candidate]),
-    );
-  }, [buildPermissionCandidates, isCaretaker, normalizePermissionValue, permissions]);
+  const canAccessModule = React.useCallback((slug) => {
+    return checkModuleAccess(user?.caretaker_permissions, isCaretaker, slug);
+  }, [isCaretaker, user?.caretaker_permissions]);
 
   const homeComponent = isCaretaker ? CaretakerDashboard : LandlordDashboard;
 
@@ -145,21 +117,24 @@ export default function LandlordBottomNavigation({ onLogout }) {
       component: MyProperties,
       label: 'Properties',
       icon: (focused) => focused ? 'business' : 'business-outline',
-      show: !isCaretaker || hasPermission('properties', ['property', 'property_management']),
+      show: true, // Always show properties
+      permissionKey: 'properties',
     },
     {
       name: 'Bookings',
       component: Bookings,
       label: 'Bookings',
       customButton: true,
-      show: !isCaretaker || hasPermission('bookings'),
+      show: true, // Always show bookings
+      permissionKey: 'bookings',
     },
     {
       name: 'Messages',
       component: Messages,
       label: 'Messages',
       icon: (focused) => focused ? 'chatbubbles' : 'chatbubbles-outline',
-      show: !isCaretaker || hasPermission('messages'),
+      show: true, // Always show messages
+      permissionKey: 'messages',
     },
     {
       name: 'Settings',
@@ -171,84 +146,102 @@ export default function LandlordBottomNavigation({ onLogout }) {
   ];
 
   return (
-    <Tab.Navigator
-      screenOptions={({ route }) => {
-        const tabInfo = tabs.find(t => t.name === route.name);
-        return {
-          headerShown: false,
-          tabBarIcon: ({ focused, color, size }) => {
-            if (tabInfo?.customButton) {
-              return <Ionicons name="calendar" size={28} color="#FFFFFF" />;
-            }
-            const iconName = tabInfo?.icon ? tabInfo.icon(focused) : 'help-outline';
-            return (
-              <View>
-                <Ionicons name={iconName} size={size} color={color} />
-                {route.name === 'Messages' && unreadCount > 0 && (
-                  <View style={{
-                    position: 'absolute',
-                    right: -6,
-                    top: -3,
-                    backgroundColor: '#EF4444',
-                    borderRadius: 10,
-                    minWidth: 20,
-                    height: 20,
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                    paddingHorizontal: 4,
-                    borderWidth: 2,
-                    borderColor: theme.colors.surface,
-                  }}>
-                    <Text style={{
-                      color: '#FFFFFF',
-                      fontSize: 10,
-                      fontWeight: '700',
+    <>
+      <Tab.Navigator
+        screenOptions={({ route }) => {
+          const tabInfo = tabs.find(t => t.name === route.name);
+          return {
+            headerShown: false,
+            tabBarIcon: ({ focused, color, size }) => {
+              if (tabInfo?.customButton) {
+                return <Ionicons name="calendar" size={28} color="#FFFFFF" />;
+              }
+              const iconName = tabInfo?.icon ? tabInfo.icon(focused) : 'help-outline';
+              return (
+                <View>
+                  <Ionicons name={iconName} size={size} color={color} />
+                  {route.name === 'Messages' && unreadCount > 0 && (
+                    <View style={{
+                      position: 'absolute',
+                      right: -6,
+                      top: -3,
+                      backgroundColor: '#EF4444',
+                      borderRadius: 10,
+                      minWidth: 20,
+                      height: 20,
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                      paddingHorizontal: 4,
+                      borderWidth: 2,
+                      borderColor: theme.colors.surface,
                     }}>
-                      {unreadCount > 99 ? '99+' : unreadCount}
-                    </Text>
-                  </View>
-                )}
-              </View>
-            );
-          },
-          tabBarActiveTintColor: theme.colors.primary,
-          tabBarInactiveTintColor: theme.colors.textTertiary,
-          tabBarStyle: {
-            backgroundColor: theme.colors.surface,
-            borderTopWidth: 1,
-            borderTopColor: theme.colors.border,
-            paddingBottom: insets.bottom > 0 ? insets.bottom : 8,
-            paddingTop: 10,
-            height: (insets.bottom > 0 ? 68 + insets.bottom : 68),
-            elevation: 8,
-            shadowColor: '#000',
-            shadowOffset: { width: 0, height: -2 },
-            shadowOpacity: theme.isDark ? 0.3 : 0.1,
-            shadowRadius: 8,
-          },
-          tabBarLabelStyle: {
-            fontSize: 11,
-            fontWeight: '600',
-            marginTop: 4,
-            marginBottom: 2,
-          }
-        };
-      }}
-    >
-      {tabs.filter(t => t.show).map((tab) => (
-        <Tab.Screen
-          key={tab.name}
-          name={tab.name}
-          options={{
-            tabBarLabel: tab.customButton ? () => null : tab.label,
-            tabBarButton: tab.customButton 
-              ? (props) => <CustomTabBarButton {...props} theme={theme} />
-              : undefined,
-          }}
-        >
-          {(props) => <tab.component {...props} onLogout={onLogout} />}
-        </Tab.Screen>
-      ))}
-    </Tab.Navigator>
+                      <Text style={{
+                        color: '#FFFFFF',
+                        fontSize: 10,
+                        fontWeight: '700',
+                      }}>
+                        {unreadCount > 99 ? '99+' : unreadCount}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+              );
+            },
+            tabBarActiveTintColor: theme.colors.primary,
+            tabBarInactiveTintColor: theme.colors.textTertiary,
+            tabBarStyle: {
+              backgroundColor: theme.colors.surface,
+              borderTopWidth: 1,
+              borderTopColor: theme.colors.border,
+              paddingBottom: insets.bottom > 0 ? insets.bottom : 8,
+              paddingTop: 10,
+              height: (insets.bottom > 0 ? 68 + insets.bottom : 68),
+              elevation: 8,
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: -2 },
+              shadowOpacity: theme.isDark ? 0.3 : 0.1,
+              shadowRadius: 8,
+            },
+            tabBarLabelStyle: {
+              fontSize: 11,
+              fontWeight: '600',
+              marginTop: 4,
+              marginBottom: 2,
+            }
+          };
+        }}
+      >
+        {tabs.filter(t => t.show).map((tab) => (
+          <Tab.Screen
+            key={tab.name}
+            name={tab.name}
+            listeners={{
+              tabPress: (e) => {
+                if (tab.permissionKey && !canAccessModule(tab.permissionKey)) {
+                  e.preventDefault();
+                  setPermissionModal({
+                    visible: true,
+                    actionTitle: tab.label,
+                  });
+                }
+              },
+            }}
+            options={{
+              tabBarLabel: tab.customButton ? () => null : tab.label,
+              tabBarButton: tab.customButton 
+                ? (props) => <CustomTabBarButton {...props} theme={theme} />
+                : undefined,
+            }}
+          >
+            {(props) => <tab.component {...props} onLogout={onLogout} />}
+          </Tab.Screen>
+        ))}
+      </Tab.Navigator>
+      <PermissionBlockedModal 
+        visible={permissionModal.visible}
+        onClose={() => setPermissionModal({ visible: false, actionTitle: '' })}
+        actionTitle={permissionModal.actionTitle}
+      />
+    </>
   );
 }

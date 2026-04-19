@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { X, AlertTriangle, ShieldAlert, Loader2 } from 'lucide-react';
 import { reportService } from '../../services/reportService';
-import toast from 'react-hot-toast';
+import { showSuccess, showError } from '../../utils/toast';
 
 export default function ReportModal({ isOpen, onClose, propertyId, propertyTitle }) {
   const [reason, setReason] = useState('');
@@ -20,7 +20,7 @@ export default function ReportModal({ isOpen, onClose, propertyId, propertyTitle
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!reason || description.length < 10) {
-      toast.error('Please provide a reason and description (min 10 chars)');
+      showError('Please provide a reason and description (min 10 chars)');
       return;
     }
 
@@ -31,10 +31,10 @@ export default function ReportModal({ isOpen, onClose, propertyId, propertyTitle
         reason,
         description
       });
-      toast.success('Report submitted to Admin for review');
+      showSuccess('Report submitted to Admin for review');
       onClose();
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to submit report');
+      showError(err.response?.data?.message || 'Failed to submit report');
     } finally {
       setLoading(false);
     }

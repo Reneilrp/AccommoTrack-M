@@ -82,18 +82,20 @@ const formatDate = (d) => {
 // ─── Invoice Row ──────────────────────────────────────────────────────────────
 
 function InvoiceRow({ invoice, navigate }) {
+  const isSubscription = invoice.invoice_type === 'subscription';
   const status = getInvoiceStatus(invoice);
   const meta = getStatusMeta(status);
   const StatusIcon = meta.icon;
-  const tenantName = buildTenantName(invoice);
-  const roomLabel = buildRoomLabel(invoice);
-  const property = invoice?.property?.title || invoice?.property_title || invoice?.booking?.property?.title || '—';
+
+  const tenantName = isSubscription ? (invoice.description || 'Platform Subscription') : buildTenantName(invoice);
+  const roomLabel = isSubscription ? 'System' : buildRoomLabel(invoice);
+  const property = isSubscription ? 'AccommoTrack' : (invoice?.property?.title || invoice?.property_title || invoice?.booking?.property?.title || '—');
   const amount = invoice?.amount_cents ? invoice.amount_cents / 100 : Number(invoice?.amount || 0);
 
   return (
     <tr
       className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors cursor-pointer"
-      onClick={() => navigate(`/payments?invoiceId=${invoice.id}`)}
+      onClick={() => navigate(isSubscription ? `/invoices/${invoice.id}/receipt?print=1` : `/payments?invoiceId=${invoice.id}`)}
     >
       <td className="px-4 py-3 text-xs font-mono text-gray-500 dark:text-gray-400 whitespace-nowrap">
         #{invoice.id}
@@ -113,9 +115,11 @@ function InvoiceRow({ invoice, navigate }) {
       <td className="px-4 py-3 text-sm text-gray-500 dark:text-gray-400 whitespace-nowrap">
         {formatDate(invoice.issued_at || invoice.created_at)}
       </td>
-      <td className="px-4 py-3 text-sm text-gray-500 dark:text-gray-400 whitespace-nowrap">
-        {formatDate(invoice.due_date)}
-      </td>
+      {!isSubscription && (
+        <td className="px-4 py-3 text-sm text-gray-500 dark:text-gray-400 whitespace-nowrap">
+          {formatDate(invoice.due_date)}
+        </td>
+      )}
       <td className="px-4 py-3">
         <span className={`inline-flex items-center gap-1 px-2 py-0.5 text-xs font-semibold rounded-full border ${meta.cls}`}>
           <StatusIcon className="w-3 h-3 flex-shrink-0" />
@@ -138,26 +142,38 @@ export default function LandlordPaymentLogs() {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [archiveOpen, setArchiveOpen] = useState(false);
+  const [logType, setLogType] = useState('tenant'); // 'tenant' or 'subscription'
 
   const loadData = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const [allRes, archiveRes] = await Promise.all([
-        invoiceService.getInvoices({ exclude_invoice_type: 'subscription', t: Date.now() }),
-        invoiceService.getInvoices({ exclude_invoice_type: 'subscription', archive_filter: 'archived', t: Date.now() }),
-      ]);
-
-      if (allRes.success) {
-        const list = Array.isArray(allRes.data) ? allRes.data : (allRes.data?.data || []);
-        setAllInvoices(list);
+      if (logType === 'subscription') {
+        const res = await invoiceService.getSubscriptionInvoices({ t: Date.now() });
+        if (res.success) {
+          const list = Array.isArray(res.data) ? res.data : (res.data?.data || []);
+          setAllInvoices(list);
+          setArchivedInvoices([]); // Subscriptions don't use archive logic for now
+        } else {
+          setError(res.error || 'Failed to load subscription invoices');
+        }
       } else {
-        setError(allRes.error || 'Failed to load invoices');
-      }
+        const [allRes, archiveRes] = await Promise.all([
+          invoiceService.getInvoices({ exclude_invoice_type: 'subscription', t: Date.now() }),
+          invoiceService.getInvoices({ exclude_invoice_type: 'subscription', archive_filter: 'archived', t: Date.now() }),
+        ]);
 
-      if (archiveRes.success) {
-        const list = Array.isArray(archiveRes.data) ? archiveRes.data : (archiveRes.data?.data || []);
-        setArchivedInvoices(list);
+        if (allRes.success) {
+          const list = Array.isArray(allRes.data) ? allRes.data : (allRes.data?.data || []);
+          setAllInvoices(list);
+        } else {
+          setError(allRes.error || 'Failed to load invoices');
+        }
+
+        if (archiveRes.success) {
+          const list = Array.isArray(archiveRes.data) ? archiveRes.data : (archiveRes.data?.data || []);
+          setArchivedInvoices(list);
+        }
       }
     } catch (e) {
       setError('Unexpected error loading payment logs.');
@@ -165,7 +181,7 @@ export default function LandlordPaymentLogs() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [logType]);
 
   useEffect(() => { loadData(); }, [loadData]);
 
@@ -201,11 +217,19 @@ export default function LandlordPaymentLogs() {
   const tableHead = (
     <thead className="bg-gray-50 dark:bg-gray-700/50 sticky top-0 z-10">
       <tr>
-        {['Invoice #', 'Tenant', 'Property', 'Room', 'Amount', 'Issued', 'Due', 'Status'].map((h) => (
-          <th key={h} className="px-4 py-3 text-left text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">
-            {h}
-          </th>
-        ))}
+        {logType === 'subscription' ? (
+          ['Invoice #', 'Plan / Detail', 'Platform', 'Type', 'Amount', 'Date', 'Status'].map((h) => (
+            <th key={h} className="px-4 py-3 text-left text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">
+              {h}
+            </th>
+          ))
+        ) : (
+          ['Invoice #', 'Tenant', 'Property', 'Room', 'Amount', 'Issued', 'Due', 'Status'].map((h) => (
+            <th key={h} className="px-4 py-3 text-left text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">
+              {h}
+            </th>
+          ))
+        )}
       </tr>
     </thead>
   );
@@ -215,7 +239,7 @@ export default function LandlordPaymentLogs() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
 
         {/* ── Header ── */}
-        <div className="flex items-center justify-between mb-6 gap-4 flex-wrap">
+        <div className="flex items-center justify-between mb-2 gap-4 flex-wrap">
           <div className="flex items-center gap-3">
             <button
               onClick={() => navigate('/payments')}
@@ -241,6 +265,30 @@ export default function LandlordPaymentLogs() {
           >
             {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
             Refresh
+          </button>
+        </div>
+
+        {/* ── Log Type Toggle ── */}
+        <div className="flex items-center gap-2 mb-6 bg-gray-100 dark:bg-gray-800 p-1.5 rounded-2xl border border-gray-200 dark:border-gray-700 w-fit">
+          <button
+            onClick={() => setLogType('tenant')}
+            className={`px-4 py-2 rounded-xl text-sm font-bold transition-all ${
+              logType === 'tenant' 
+              ? 'bg-white dark:bg-gray-700 text-green-600 dark:text-green-400 shadow-sm' 
+              : 'text-gray-500 dark:text-gray-400 hover:text-gray-700'
+            }`}
+          >
+            Tenant Payments
+          </button>
+          <button
+            onClick={() => setLogType('subscription')}
+            className={`px-4 py-2 rounded-xl text-sm font-bold transition-all ${
+              logType === 'subscription' 
+              ? 'bg-white dark:bg-gray-700 text-green-600 dark:text-green-400 shadow-sm' 
+              : 'text-gray-500 dark:text-gray-400 hover:text-gray-700'
+            }`}
+          >
+            Platform Billing
           </button>
         </div>
 

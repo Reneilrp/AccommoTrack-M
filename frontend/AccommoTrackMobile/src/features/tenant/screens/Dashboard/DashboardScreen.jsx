@@ -10,6 +10,7 @@ import {
   useWindowDimensions,
   View,
 } from 'react-native';
+import Svg, { Circle, G } from 'react-native-svg';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -433,6 +434,50 @@ const DashboardScreen = () => {
     setExpandedPanel((current) => (current === panel ? null : panel));
   };
 
+  const StayProgress = ({ percentage, label, sublabel, color }) => {
+    const size = 120;
+    const strokeWidth = 10;
+    const center = size / 2;
+    const radius = size / 2 - strokeWidth / 2;
+    const circumference = 2 * Math.PI * radius;
+    const strokeDashoffset = circumference - (percentage / 100) * circumference;
+
+    return (
+      <View style={styles.progressCircleContainer}>
+        <Svg width={size} height={size}>
+          <G rotation="-90" origin={`${center}, ${center}`}>
+            <Circle
+              cx={center}
+              cy={center}
+              r={radius}
+              stroke={theme.colors.border}
+              strokeWidth={strokeWidth}
+              fill="transparent"
+            />
+            <Circle
+              cx={center}
+              cy={center}
+              r={radius}
+              stroke={color || theme.colors.primary}
+              strokeWidth={strokeWidth}
+              strokeDasharray={circumference}
+              strokeDashoffset={strokeDashoffset}
+              strokeLinecap="round"
+              fill="transparent"
+            />
+          </G>
+          <View style={StyleSheet.absoluteFill}>
+            <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+              <Text style={styles.progressPercentText}>{Math.round(percentage)}%</Text>
+              <Text style={styles.progressLabelText}>{label}</Text>
+            </View>
+          </View>
+        </Svg>
+        <Text style={styles.progressSublabel}>{sublabel}</Text>
+      </View>
+    );
+  };
+
   const renderStatCard = ({ key, icon, title, value, subtitle, bgColor, iconColor }) => (
     <TouchableOpacity
       key={key}
@@ -627,6 +672,38 @@ const DashboardScreen = () => {
           />
         }
       >
+        <View style={styles.greetingSection}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.greetingTitle}>Your Stay Hub</Text>
+              <Text style={styles.greetingSubtitle}>
+                {activeRooms.length > 0 
+                  ? `Active at ${activeRooms[0].propertyTitle}`
+                  : 'Welcome to AccommoTrack'}
+              </Text>
+            </View>
+            {activeRooms.length > 0 && (
+              <StayProgress 
+                percentage={activeRooms[0].daysStayed > 0 ? (activeRooms[0].daysStayed / (activeRooms[0].daysStayed + activeRooms[0].daysRemaining)) * 100 : 0}
+                label="Days"
+                sublabel={`${activeRooms[0].daysRemaining} left`}
+                color={theme.colors.primary}
+              />
+            )}
+          </View>
+
+          {activeRooms.length > 0 && (
+            <TouchableOpacity 
+              style={[styles.primaryButton, { marginTop: 16, backgroundColor: 'rgba(255,255,255,0.15)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)' }]}
+              onPress={() => navigation.navigate('UnitHub')}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <Ionicons name="grid-outline" size={18} color={theme.colors.textInverse} />
+                <Text style={styles.primaryButtonText}>Open Stay Hub</Text>
+              </View>
+            </TouchableOpacity>
+          )}
+        </View>
 
         <View style={styles.section}>
           <View style={styles.sectionHeader}>

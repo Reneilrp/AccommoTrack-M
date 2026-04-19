@@ -27,7 +27,7 @@ import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
 import markerIcon from 'leaflet/dist/images/marker-icon.png';
 import markerShadow from 'leaflet/dist/images/marker-shadow.png';
 // Toast
-import toast from 'react-hot-toast';
+import { showSuccess, showError } from '../../utils/toast';
 
 import api from '../../utils/api';
 import { usePreferences } from '../../contexts/PreferencesContext';
@@ -228,11 +228,11 @@ export default function AddProperty({ onBack, onSave }) {
 
     files.forEach(file => {
       if (!allowedTypes.includes(file.type)) {
-        toast.error(`${file.name}: unsupported file type`);
+        showError(`${file.name}: unsupported file type`);
         return;
       }
       if (file.size > MAX_SIZE) {
-        toast.error(`${file.name}: file too large (max 10 MB)`);
+        showError(`${file.name}: file too large (max 10 MB)`);
         return;
       }
       validFiles.push(file);
@@ -259,7 +259,7 @@ export default function AddProperty({ onBack, onSave }) {
     if (!file) return;
 
     if (file.size > 200 * 1024 * 1024) {
-      toast.error('Video is too large. Maximum size is 200MB.');
+      showError('Video is too large. Maximum size is 200MB.');
       return;
     }
 
@@ -268,7 +268,7 @@ export default function AddProperty({ onBack, onSave }) {
     videoEl.onloadedmetadata = () => {
       window.URL.revokeObjectURL(videoEl.src);
       if (videoEl.duration > 45) {
-        toast.error('Video must be 45 seconds or less.');
+        showError('Video must be 45 seconds or less.');
         return;
       }
       setVideoFile(file);
@@ -401,7 +401,7 @@ export default function AddProperty({ onBack, onSave }) {
     });
 
     if (hasLargeFile) {
-      toast.error('Some documents were skipped because they exceed the 10MB limit.');
+      showError('Some documents were skipped because they exceed the 10MB limit.');
     }
 
     if (validFiles.length > 0) {
@@ -549,18 +549,18 @@ export default function AddProperty({ onBack, onSave }) {
           'Content-Type': 'multipart/form-data'
         }
       });
-      toast.success(isDraft ? 'Property draft saved successfully!' : 'Property submitted for approval!');
+      showSuccess(isDraft ? 'Property draft saved successfully!' : 'Property submitted for approval!');
       setShowSuccessModal({ visible: true, isDraft, result });
     } catch (err) {
       const errData = err.response?.data;
       if (errData?.errors) {
         setFieldErrors(errData.errors);
         setError('Submission failed. Please review the errors below and try again.');
-        toast.error('Please fix the validation errors.');
+        showError('Please fix the validation errors.');
       } else {
         const errorMessage = errData?.message || err.message || 'Something went wrong';
         setError(errorMessage);
-        toast.error(errorMessage);
+        showError(errorMessage);
       }
     } finally {
       setLoading(false);

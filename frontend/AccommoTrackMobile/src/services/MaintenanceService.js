@@ -1,5 +1,4 @@
 import api from './api.js';
-import { API_BASE_URL as API_URL } from '../config/index.js';
 
 class MaintenanceService {
 
@@ -34,6 +33,32 @@ class MaintenanceService {
     } catch (error) {
       console.error('Error updating status:', error);
       return { success: false, error: error.response?.data?.message || 'Failed to update status' };
+    }
+  }
+
+  /**
+   * Assign maintenance request to a worker
+   */
+  async assignWorker(id, workerId) {
+    try {
+      const response = await api.patch(`/landlord/maintenance-requests/${id}/assign`, { worker_id: workerId });
+      return { success: true, data: response.data?.data || response.data || null };
+    } catch (error) {
+      console.error('Error assigning worker:', error);
+      return { success: false, error: error.response?.data?.message || 'Failed to assign worker' };
+    }
+  }
+
+  /**
+   * Mark maintenance request as completed
+   */
+  async completeRequest(id, notes = null) {
+    try {
+      const response = await api.post(`/landlord/maintenance-requests/${id}/complete`, { notes });
+      return { success: true, data: response.data?.data || response.data || null };
+    } catch (error) {
+      console.error('Error completing request:', error);
+      return { success: false, error: error.response?.data?.message || 'Failed to complete request' };
     }
   }
 

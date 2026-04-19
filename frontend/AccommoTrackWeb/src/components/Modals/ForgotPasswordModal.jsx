@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { X, Mail, Key, Lock, ArrowRight, CheckCircle, Loader2, ChevronLeft } from 'lucide-react';
 import { authService } from '../../services/authService';
-import toast from 'react-hot-toast';
+import { showSuccess, showError } from '../../utils/toast';
 
 const EMPTY_CODE = ['', '', '', '', '', ''];
 
@@ -54,16 +54,16 @@ export default function ForgotPasswordModal({
   const handleSendCode = async (e) => {
     e.preventDefault();
     const normalizedEmail = email.trim();
-    if (!normalizedEmail) return toast.error('Please enter your email');
+    if (!normalizedEmail) return showError('Please enter your email');
     
     setLoading(true);
     try {
       const result = await authService.forgotPassword(normalizedEmail);
       setEmail(normalizedEmail);
-      toast.success(result?.message || 'If your email is registered, a reset code has been sent.');
+      showSuccess(result?.message || 'If your email is registered, a reset code has been sent.');
       setStep(2);
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to send code');
+      showError(err.response?.data?.message || 'Failed to send code');
     } finally {
       setLoading(false);
     }
@@ -72,15 +72,15 @@ export default function ForgotPasswordModal({
   const handleVerifyCode = async (e) => {
     e.preventDefault();
     const fullCode = code.join('');
-    if (fullCode.length !== 6) return toast.error('Please enter the 6-digit code');
+    if (fullCode.length !== 6) return showError('Please enter the 6-digit code');
 
     setLoading(true);
     try {
       await authService.verifyCode(email, fullCode);
-      toast.success('Code verified');
+      showSuccess('Code verified');
       setStep(3);
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Invalid code');
+      showError(err.response?.data?.message || 'Invalid code');
     } finally {
       setLoading(false);
     }
@@ -88,16 +88,16 @@ export default function ForgotPasswordModal({
 
   const handleResetPassword = async (e) => {
     e.preventDefault();
-    if (passwords.password !== passwords.confirm) return toast.error('Passwords do not match');
-    if (passwords.password.length < 8) return toast.error('Password must be at least 8 characters');
+    if (passwords.password !== passwords.confirm) return showError('Passwords do not match');
+    if (passwords.password.length < 8) return showError('Password must be at least 8 characters');
 
     setLoading(true);
     try {
       await authService.resetPassword(email, code.join(''), passwords.password, passwords.confirm);
-      toast.success('Password reset successfully! Please login.');
+      showSuccess('Password reset successfully! Please login.');
       onClose();
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to reset password');
+      showError(err.response?.data?.message || 'Failed to reset password');
     } finally {
       setLoading(false);
     }

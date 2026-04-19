@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { CalendarClock, Gift, Loader2, RefreshCcw, Search } from 'lucide-react';
-import toast from 'react-hot-toast';
+import { showSuccess, showError } from '../../utils/toast';
 import adminService from '../../services/adminService';
 
 const getLocalDateInputValue = () => {
@@ -233,7 +233,7 @@ export default function SubscriptionGrants() {
       ]);
 
       if (!plansResponse.success) {
-        toast.error(plansResponse.error || plansResponse.message || 'Failed to load subscription plans.');
+        showError(plansResponse.error || plansResponse.message || 'Failed to load subscription plans.');
       }
 
       const availablePlans = Array.isArray(plansResponse.data) ? plansResponse.data : [];
@@ -263,7 +263,7 @@ export default function SubscriptionGrants() {
         return firstLandlordId ? String(firstLandlordId) : '';
       });
     } catch (error) {
-      toast.error(error?.response?.data?.message || error?.message || 'Failed to load admin subscription grant data.');
+      showError(error?.response?.data?.message || error?.message || 'Failed to load admin subscription grant data.');
     } finally {
       setBootstrapLoading(false);
     }
@@ -292,12 +292,12 @@ export default function SubscriptionGrants() {
     const planId = toPositiveIntegerOrNull(grantForm.plan_id);
 
     if (!landlordId) {
-      toast.error('Select a landlord before creating a grant.');
+      showError('Select a landlord before creating a grant.');
       return;
     }
 
     if (!planId) {
-      toast.error('Select a subscription plan for this grant.');
+      showError('Select a subscription plan for this grant.');
       return;
     }
 
@@ -314,14 +314,14 @@ export default function SubscriptionGrants() {
     if (grantForm.mode === 'duration_months') {
       const durationMonths = toPositiveIntegerOrNull(grantForm.duration_months);
       if (!durationMonths) {
-        toast.error('Duration in months must be at least 1.');
+        showError('Duration in months must be at least 1.');
         return;
       }
 
       payload.duration_months = durationMonths;
     } else {
       if (!grantForm.ends_at) {
-        toast.error('End date is required when grant mode uses end date.');
+        showError('End date is required when grant mode uses end date.');
         return;
       }
 
@@ -338,11 +338,11 @@ export default function SubscriptionGrants() {
     setGrantSubmitting(false);
 
     if (!response.success) {
-      toast.error(response.error || response.message || 'Failed to create subscription grant.');
+      showError(response.error || response.message || 'Failed to create subscription grant.');
       return;
     }
 
-    toast.success(response.message || 'Subscription grant created successfully.');
+    showSuccess(response.message || 'Subscription grant created successfully.');
 
     const createdGrantId = response?.data?.grant?.id;
     if (createdGrantId) {
@@ -366,12 +366,12 @@ export default function SubscriptionGrants() {
     const grantId = toPositiveIntegerOrNull(extendForm.grant_id);
 
     if (!landlordId) {
-      toast.error('Select a landlord before extending a grant.');
+      showError('Select a landlord before extending a grant.');
       return;
     }
 
     if (!grantId) {
-      toast.error('Grant ID is required to extend a grant.');
+      showError('Grant ID is required to extend a grant.');
       return;
     }
 
@@ -380,14 +380,14 @@ export default function SubscriptionGrants() {
     if (extendForm.mode === 'add_months') {
       const addMonths = toPositiveIntegerOrNull(extendForm.add_months);
       if (!addMonths) {
-        toast.error('Months to add must be at least 1.');
+        showError('Months to add must be at least 1.');
         return;
       }
 
       payload.add_months = addMonths;
     } else {
       if (!extendForm.ends_at) {
-        toast.error('New end date is required when extending by date.');
+        showError('New end date is required when extending by date.');
         return;
       }
 
@@ -404,11 +404,11 @@ export default function SubscriptionGrants() {
     setExtendSubmitting(false);
 
     if (!response.success) {
-      toast.error(response.error || response.message || 'Failed to extend subscription grant.');
+      showError(response.error || response.message || 'Failed to extend subscription grant.');
       return;
     }
 
-    toast.success(response.message || 'Subscription grant extended successfully.');
+    showSuccess(response.message || 'Subscription grant extended successfully.');
     setExtendForm((prev) => ({
       ...INITIAL_EXTEND_FORM,
       grant_id: prev.grant_id,
@@ -424,12 +424,12 @@ export default function SubscriptionGrants() {
     const grantId = toPositiveIntegerOrNull(revokeForm.grant_id);
 
     if (!landlordId) {
-      toast.error('Select a landlord before revoking a grant.');
+      showError('Select a landlord before revoking a grant.');
       return;
     }
 
     if (!grantId) {
-      toast.error('Grant ID is required to revoke a grant.');
+      showError('Grant ID is required to revoke a grant.');
       return;
     }
 
@@ -449,11 +449,11 @@ export default function SubscriptionGrants() {
     setRevokeSubmitting(false);
 
     if (!response.success) {
-      toast.error(response.error || response.message || 'Failed to revoke subscription grant.');
+      showError(response.error || response.message || 'Failed to revoke subscription grant.');
       return;
     }
 
-    toast.success(response.message || 'Subscription grant revoked successfully.');
+    showSuccess(response.message || 'Subscription grant revoked successfully.');
     setRevokeForm((prev) => ({
       ...INITIAL_REVOKE_FORM,
       grant_id: prev.grant_id,
@@ -470,7 +470,7 @@ export default function SubscriptionGrants() {
       document.getElementById('subscription-extend-panel')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
     });
     window.setTimeout(() => setFocusedActionPanel(''), 1800);
-    toast.success(`Grant #${grantId} loaded into Extend Grant.`);
+    showSuccess(`Grant #${grantId} loaded into Extend Grant.`);
   };
 
   const handleUseGrantForRevoke = (grantId) => {
@@ -481,7 +481,7 @@ export default function SubscriptionGrants() {
       document.getElementById('subscription-revoke-panel')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
     });
     window.setTimeout(() => setFocusedActionPanel(''), 1800);
-    toast.success(`Grant #${grantId} loaded into Revoke Grant.`);
+    showSuccess(`Grant #${grantId} loaded into Revoke Grant.`);
   };
 
   return (

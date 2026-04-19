@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, Switch, StatusBar, Alert } from 'react-native';
+import { View, Text, Switch, StatusBar } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNavigation } from '@react-navigation/native';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -12,6 +12,7 @@ import {
   tenantQueryKeys,
   useTenantFocusRefetch,
 } from '../../hooks/useTenantQueryHelpers.js';
+import { showError } from '../../../../utils/toast.js';
 
 const DEFAULT_PREFS = {
   email_booking_updates: true,
@@ -39,7 +40,6 @@ export default function NotificationPreferences() {
   const { theme } = useTheme();
   const queryClient = useQueryClient();
   const settingsStyles = React.useMemo(() => getSettingsStyles(theme), [theme]);
-  const showAlert = Alert.alert;
 
   const [prefs, setPrefs] = useState(DEFAULT_PREFS);
 
@@ -91,7 +91,7 @@ export default function NotificationPreferences() {
       }
     } catch (e) {
       console.warn('Save pref error', e);
-      showAlert("Error", "Failed to save preferences to the server.");
+      showError("Error", "Failed to save preferences to the server.");
       // Rollback on fail
       setPrefs(previousPrefs);
       queryClient.setQueryData(tenantQueryKeys.notificationPreferences(), previousPrefs);
