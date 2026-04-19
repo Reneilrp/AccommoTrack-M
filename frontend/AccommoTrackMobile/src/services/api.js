@@ -56,7 +56,7 @@ const shouldRetryWithProductionHost = (error) => {
 // Create axios instance
 const api = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 15000, // 15 second timeout
+  timeout: 60000, // Increased to 60 seconds to accommodate slow backend processes
   headers: {
     'Accept': 'application/json',
     'Content-Type': 'application/json',
@@ -199,25 +199,25 @@ api.interceptors.request.use(async (config) => {
 
     const isFormDataPayload = typeof FormData !== 'undefined' && config.data instanceof FormData;
     if (isFormDataPayload) {
-      if (typeof config.headers?.delete === 'function') {
-        config.headers.delete('Content-Type');
-        config.headers.delete('content-type');
-      } else if (config.headers) {
-        delete config.headers['Content-Type'];
-        delete config.headers['content-type'];
+      const currentContentType = typeof config.headers?.get === 'function'
+        ? config.headers.get('Content-Type')
+        : (config.headers['Content-Type'] || config.headers['content-type']);
+
+      const isJsonContentType = String(currentContentType || '')
+        .toLowerCase()
+        .includes('application/json');
+
+      if (isJsonContentType) {
+        if (typeof config.headers?.delete === 'function') {
+          config.headers.delete('Content-Type');
+        } else if (config.headers) {
+          delete config.headers['Content-Type'];
+          delete config.headers['content-type'];
+        }
       }
 
       if (__DEV__) {
-        console.log('[api] FormData payload detected, stripped Content-Type to allow boundary generation.');
-        try {
-          // Log keys for transparency in development
-          const keys = [];
-          if (typeof config.data?._parts === 'object') {
-            // React Native's FormData internal structure
-            config.data._parts.forEach(part => keys.push(part[0]));
-          }
-          console.log('[api] FormData keys:', keys.join(', '));
-        } catch (_e) { /* ignore */ }
+        console.log('[api] FormData payload detected, conditional Content-Type removal applied.');
       }
     }
 

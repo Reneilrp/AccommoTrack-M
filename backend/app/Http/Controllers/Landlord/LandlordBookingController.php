@@ -162,10 +162,19 @@ class LandlordBookingController extends Controller
                     $this->checkPropertyAccess($context, (int) $room->property_id);
                 }
 
+                $startTime = microtime(true);
+                Log::info('Proceeding to create single booking', ['tenant_id' => $tenantId]);
+                
                 $booking = $this->bookingService->createBooking(
                     $validated,
                     $tenantId
                 );
+                
+                $duration = round((microtime(true) - $startTime) * 1000, 2);
+                Log::info('Single booking created successfully', [
+                    'booking_id' => $booking->id,
+                    'duration_ms' => $duration
+                ]);
 
                 // Fetch the reservation invoice if one was generated
                 $reservationInvoice = \App\Models\Invoice::where('booking_id', $booking->id)

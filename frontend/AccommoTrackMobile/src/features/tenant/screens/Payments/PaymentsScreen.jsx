@@ -298,10 +298,23 @@ export default function PaymentsScreen() {
   };
 
   const isPayable = (payment) => {
+    // 1. Basic status check
     const status = (payment.status || '').toString().toLowerCase();
     const paymentStatus = (payment.paymentStatus || '').toString().toLowerCase();
+    
+    // 2. Booking status check (Prevention)
+    // If the associated booking is still pending, the invoice should not be payable yet.
+    const bookingStatus = (payment.booking?.status || payment.booking_status || '').toString().toLowerCase();
+    if (bookingStatus === 'pending') {
+      return false;
+    }
+
     const payableStatus = ['unpaid', 'pending', 'partial'];
     const payableBookingStatus = ['unpaid', 'partial'];
+    
+    // Status 'refunded' or 'cancelled' should never be payable
+    if (status === 'refunded' || status === 'cancelled') return false;
+
     return payableStatus.includes(status) || payableBookingStatus.includes(paymentStatus);
   };
 
@@ -626,7 +639,7 @@ export default function PaymentsScreen() {
                         Room {payment.roomNumber || (payment.room && (payment.room.roomNumber || payment.room.room_number)) || 'N/A'}
                       </Text>
                       <Text numberOfLines={1} style={[styles.paymentDate, { color: theme.colors.textTertiary }]}>
-                        {formatDate(payment.date)}
+                        {formatDate(payment.date || payment.issued_at || payment.created_at)}
                       </Text>
                     </View>
                   </View>
@@ -699,18 +712,18 @@ export default function PaymentsScreen() {
                 <View style={{ gap: 8 }}>
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                     <Text style={{ color: theme.colors.textSecondary, fontSize: 12 }}>Date</Text>
-                    <Text style={{ color: theme.colors.text, fontSize: 13 }}>{formatDate(selectedPayment.date)}</Text>
+                    <Text style={{ color: theme.colors.text, fontSize: 13 }}>{formatDate(selectedPayment.date || selectedPayment.issued_at || selectedPayment.created_at)}</Text>
                   </View>
-                  {selectedPayment.dueDate && (
+                  {(selectedPayment.due_date || selectedPayment.dueDate) && (
                     <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                       <Text style={{ color: theme.colors.textSecondary, fontSize: 12 }}>Due Date</Text>
-                      <Text style={{ color: theme.colors.text, fontSize: 13 }}>{formatDate(selectedPayment.dueDate)}</Text>
+                      <Text style={{ color: theme.colors.text, fontSize: 13 }}>{formatDate(selectedPayment.due_date || selectedPayment.dueDate)}</Text>
                     </View>
                   )}
-                  {selectedPayment.referenceNo && (
+                  {(selectedPayment.referenceNo || selectedPayment.reference) && (
                     <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                       <Text style={{ color: theme.colors.textSecondary, fontSize: 12 }}>Reference</Text>
-                      <Text style={{ color: theme.colors.text, fontSize: 13 }}>{selectedPayment.referenceNo}</Text>
+                      <Text style={{ color: theme.colors.text, fontSize: 13 }}>{selectedPayment.referenceNo || selectedPayment.reference}</Text>
                     </View>
                   )}
                   {selectedPayment.method && (
