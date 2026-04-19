@@ -163,95 +163,26 @@ const DashboardScreen = () => {
     checkAuth();
   }, [navigation]);
 
-  const currentStayQuery = useQuery({
-    queryKey: tenantQueryKeys.dashboardCurrentStay(),
+  const bundleQuery = useQuery({
+    queryKey: tenantQueryKeys.dashboardBundle(),
     queryFn: async () => {
-      const response = await tenantService.getCurrentStay();
+      const response = await tenantService.getDashboardBundle();
       if (!response.success) {
-        throw new Error(response.error || 'Failed to load stay data');
+        throw new Error(response.error || 'Failed to load dashboard data');
       }
       return response.data;
     },
     retry: false,
+    staleTime: 30 * 1000,
     onError: (error) => {
-      console.error('Current stay error:', error);
+      console.error('Dashboard bundle error:', error);
       if (error.response?.status === 401 || error.response?.status === 403) {
         navigation.replace('TenantHome');
       }
     },
   });
 
-  const statsQuery = useQuery({
-    queryKey: tenantQueryKeys.dashboardStats(),
-    queryFn: async () => {
-      const response = await tenantService.getDashboardStats();
-      if (!response.success) {
-        throw new Error(response.error || 'Failed to load dashboard stats');
-      }
-      return response.data;
-    },
-    retry: false,
-    enabled: !currentStayQuery.isError,
-  });
-
-  const activitiesQuery = useQuery({
-    queryKey: tenantQueryKeys.dashboardActivities(),
-    queryFn: async () => {
-      const response = await tenantService.getDashboardActivities();
-      if (!response.success) {
-        throw new Error(response.error || 'Failed to load activities');
-      }
-      return safeArray(response.data);
-    },
-    staleTime: 30 * 1000,
-    retry: false,
-    enabled: !currentStayQuery.isError,
-  });
-
-  const upcomingQuery = useQuery({
-    queryKey: tenantQueryKeys.dashboardUpcoming(),
-    queryFn: async () => {
-      const response = await tenantService.getDashboardUpcoming();
-      if (!response.success) {
-        throw new Error(response.error || 'Failed to load upcoming details');
-      }
-      return response.data || {};
-    },
-    staleTime: 30 * 1000,
-    retry: false,
-    enabled: !currentStayQuery.isError,
-  });
-
-  const breakdownQuery = useQuery({
-    queryKey: tenantQueryKeys.dashboardPaymentBreakdown(6),
-    queryFn: async () => {
-      const response = await tenantService.getPaymentBreakdown(6);
-      if (!response.success) {
-        throw new Error(response.error || 'Failed to load payment breakdown');
-      }
-      return response.data || { upcoming_months: [] };
-    },
-    staleTime: 60 * 1000,
-    retry: false,
-    enabled: !currentStayQuery.isError,
-  });
-
-  const dashboardRefetchers = useMemo(
-    () => [
-      currentStayQuery.refetch,
-      statsQuery.refetch,
-      activitiesQuery.refetch,
-      upcomingQuery.refetch,
-      breakdownQuery.refetch,
-    ],
-    [
-      currentStayQuery.refetch,
-      statsQuery.refetch,
-      activitiesQuery.refetch,
-      upcomingQuery.refetch,
-      breakdownQuery.refetch,
-    ],
-  );
+  const dashboardRefetchers = useMemo(() => [bundleQuery.refetch], [bundleQuery.refetch]);
 
   useTenantFocusRefetch({ refetchers: dashboardRefetchers });
 
@@ -260,75 +191,138 @@ const DashboardScreen = () => {
     refetchers: dashboardRefetchers,
   });
 
-  const loading = currentStayQuery.isLoading || statsQuery.isLoading;
-  const stayData = normalizeStayPayload(currentStayQuery.data || {});
-  const stats = statsQuery.data || {};
-  const activities = safeArray(activitiesQuery.data).slice(0, 5);
-  const upcoming = upcomingQuery.data || {};
+  const loading = bundleQuery.isLoading;
 
-  const stays = resolveStays(stayData);
-  const pendingCheckIns = resolvePendingCheckIns(stayData);
-  const upcomingBooking = resolveUpcomingBooking(stayData);
-  const totalDaysStayed = stays.reduce(
-    (sum, stay) => sum + getNumeric(stay?.booking?.daysStayed, stay?.booking?.days_stayed),
-    0,
-  );
+  // Process and memoize bundle data
+  const {
+    bundleStats,
+    bundleActivities,
+    bundleUpcoming,
+    bundleStay,
+    bundleBreakdown,
+  } = useMemo(() => {
+    const d = bundleQuery.data || {};
+    return {
+      bundleStats: d.stats || {},
+      bundleActivities: safeArray(d.activities).slice(0, 5),
+      bundleUpcoming: d.upcoming || {},
+      bundleStay: d.stay || {},
+      bundleBreakdown: d.breakdown || { upcoming_months: [] },
+    };
+  }, [bundleQuery.data]);
 
-  const monthlyRentTotal = stays.reduce((sum, stay) => {
-    const base = getNumeric(stay?.booking?.monthlyRent, stay?.booking?.monthly_rent);
-    const addons = getNumeric(stay?.addons?.monthlyTotal, stay?.addons?.monthly_total);
-    return sum + base + addons;
-  }, 0);
+  const {
+    stays,
+    pendingCheckIns,
+    upcomingBooking,
+    totalDaysStayed,
+    monthlyRentTotal,
+    balanceDue,
+    hasOverdueInvoices,
+    totalPaid,
+    activeRooms,
+    unpaidInvoices,
+    scheduleTimeline,
+  } = useMemo(() => {
+    const resolvedStays = safeArray(bundleStay.stays);
+    const resolvedPending = safeArray(bundleStay.pendingCheckIns);
+    const resolvedUpcoming = bundleStay.upcomingBooking || null;
 
-  const paymentData = stats?.payments || {};
-  const balanceDue = getNumeric(
-    paymentData.pendingAmount,
-    paymentData.pending_amount,
-    paymentData.totalDue,
-    paymentData.total_due,
-    paymentData.monthlyDue,
-    paymentData.monthly_due,
-  );
+    const daysStayedTotal = resolvedStays.reduce(
+      (sum, stay) => sum + getNumeric(stay?.booking?.daysStayed, stay?.booking?.days_stayed),
+      0,
+    );
 
-  const hasOverdueInvoices = Boolean(paymentData.hasOverdueInvoices || paymentData.has_overdue_invoices);
-  const totalPaid = getNumeric(
-    paymentData.totalPaid,
-    paymentData.total_paid,
-    paymentData.paidAmount,
-    paymentData.paid_amount,
-  );
+    const rentTotal = resolvedStays.reduce((sum, stay) => {
+      const base = getNumeric(stay?.booking?.monthlyRent, stay?.booking?.monthly_rent);
+      const addons = getNumeric(stay?.addons?.monthlyTotal, stay?.addons?.monthly_total);
+      return sum + base + addons;
+    }, 0);
 
-  const activeRooms = stays.map((stay) => {
-    const booking = stay?.booking || {};
-    const room = stay?.room || {};
-    const property = stay?.property || {};
+    const paymentData = bundleStats?.payments || {};
+    const due = getNumeric(
+      paymentData.pendingAmount,
+      paymentData.pending_amount,
+      paymentData.totalDue,
+      paymentData.total_due,
+      paymentData.monthlyDue,
+      paymentData.monthly_due,
+    );
+
+    const overdue = Boolean(paymentData.hasOverdueInvoices || paymentData.has_overdue_invoices);
+    const paidSum = getNumeric(
+      paymentData.totalPaid,
+      paymentData.total_paid,
+      paymentData.paidAmount,
+      paymentData.paid_amount,
+    );
+
+    const rooms = resolvedStays.map((stay) => {
+      const booking = stay?.booking || {};
+      const room = stay?.room || {};
+      const property = stay?.property || {};
+
+      return {
+        id: booking.id || `${property.id || 'p'}-${room.id || 'r'}`,
+        roomNumber: room.roomNumber || room.room_number || 'N/A',
+        roomType: room.roomType || room.room_type || 'Room',
+        floor: room.floor || room.floor_level || 'N/A',
+        propertyTitle: property.title || property.property_name || 'Property',
+        moveIn: booking.startDate || booking.start_date,
+        status: booking.paymentStatus || booking.payment_status || 'unknown',
+        monthlyTotal: getNumeric(booking.monthlyRent, booking.monthly_rent) + getNumeric(stay?.addons?.monthlyTotal, stay?.addons?.monthly_total),
+        daysStayed: getNumeric(booking.daysStayed, booking.days_stayed),
+        daysRemaining: getNumeric(booking.daysRemaining, booking.days_remaining),
+      };
+    });
+
+    const unpaid = resolvedStays
+      .flatMap((stay) => safeArray(stay?.financials?.invoices))
+      .filter((invoice) => ['pending', 'partial', 'overdue', 'unpaid'].includes(String(invoice?.status || '').toLowerCase()))
+      .slice(0, 8)
+      .map((invoice) => ({
+        id: invoice.id,
+        amount: getNumeric(invoice.amount),
+        date: invoice.date,
+        dueDate: invoice.dueDate,
+        status: String(invoice.status || '').toLowerCase(),
+        description: invoice.description || 'Outstanding invoice',
+      }));
+
+    const upcomingMonths = safeArray(bundleBreakdown.upcoming_months);
+    const timeline = upcomingMonths.length > 0
+      ? upcomingMonths
+      : safeArray(bundleUpcoming?.unpaidBookings).slice(0, 4).map((item) => ({
+          month: new Date(item?.dueDate || item?.due_date || Date.now()).toLocaleDateString('en-US', {
+            month: 'long',
+            year: 'numeric',
+          }),
+          due_date: item?.dueDate || item?.due_date,
+          month_total: getNumeric(item?.amount),
+          bookings: [
+            {
+              booking_id: item?.id,
+              room_number: item?.roomNumber || item?.room_number || 'N/A',
+              total: getNumeric(item?.amount),
+              status: item?.paymentStatus || item?.payment_status || 'pending',
+            },
+          ],
+        }));
 
     return {
-      id: booking.id || `${property.id || 'p'}-${room.id || 'r'}`,
-      roomNumber: room.roomNumber || room.room_number || 'N/A',
-      roomType: room.roomType || room.room_type || 'Room',
-      floor: room.floor || room.floor_level || 'N/A',
-      propertyTitle: property.title || property.property_name || 'Property',
-      moveIn: booking.startDate || booking.start_date,
-      status: booking.paymentStatus || booking.payment_status || 'unknown',
-      monthlyTotal: getNumeric(booking.monthlyRent, booking.monthly_rent) + getNumeric(stay?.addons?.monthlyTotal, stay?.addons?.monthly_total),
-      daysStayed: getNumeric(booking.daysStayed, booking.days_stayed),
-      daysRemaining: getNumeric(booking.daysRemaining, booking.days_remaining),
+      stays: resolvedStays,
+      pendingCheckIns: resolvedPending,
+      upcomingBooking: resolvedUpcoming,
+      totalDaysStayed: daysStayedTotal,
+      monthlyRentTotal: rentTotal,
+      balanceDue: due,
+      hasOverdueInvoices: overdue,
+      totalPaid: paidSum,
+      activeRooms: rooms,
+      unpaidInvoices: unpaid,
+      scheduleTimeline: timeline,
     };
-  });
-
-  const unpaidInvoices = stays
-    .flatMap((stay) => safeArray(stay?.financials?.invoices))
-    .filter((invoice) => ['pending', 'partial', 'overdue', 'unpaid'].includes(String(invoice?.status || '').toLowerCase()))
-    .slice(0, 8)
-    .map((invoice) => ({
-      id: invoice.id,
-      amount: getNumeric(invoice.amount),
-      date: invoice.date,
-      dueDate: invoice.dueDate,
-      status: String(invoice.status || '').toLowerCase(),
-      description: invoice.description || 'Outstanding invoice',
-    }));
+  }, [bundleStats, bundleStay, bundleBreakdown, bundleUpcoming]);
 
   const tableColumnWidths = useMemo(() => {
     const roomColumn = estimateColumnWidth(
@@ -432,25 +426,7 @@ const DashboardScreen = () => {
 
   const daysTotal = Math.max(1, activeRooms.reduce((sum, room) => sum + room.daysStayed, 0));
 
-  const upcomingMonths = safeArray(breakdownQuery.data?.upcoming_months);
-  const scheduleTimeline = upcomingMonths.length > 0
-    ? upcomingMonths
-    : safeArray(upcoming?.unpaidBookings).slice(0, 4).map((item) => ({
-      month: new Date(item?.dueDate || item?.due_date || Date.now()).toLocaleDateString('en-US', {
-        month: 'long',
-        year: 'numeric',
-      }),
-      due_date: item?.dueDate || item?.due_date,
-      month_total: getNumeric(item?.amount),
-      bookings: [
-        {
-          booking_id: item?.id,
-          room_number: item?.roomNumber || item?.room_number || 'N/A',
-          total: getNumeric(item?.amount),
-          status: item?.paymentStatus || item?.payment_status || 'pending',
-        },
-      ],
-    }));
+  const activities = bundleActivities;
 
   const togglePanel = (panel) => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);

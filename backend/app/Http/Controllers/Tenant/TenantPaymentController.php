@@ -138,10 +138,9 @@ class TenantPaymentController extends Controller
 
             $pendingAmountCents = 0;
             foreach ($pendingInvoices as $inv) {
-                $totalPaid = $inv->transactions()
-                    ->whereIn('status', ['succeeded', 'paid', 'partially_refunded', 'pending_offline'])
-                    ->selectRaw('SUM(amount_cents - refunded_amount_cents) as net_cents')
-                    ->value('net_cents') ?? 0;
+                $totalPaid = $inv->transactions
+                    ->filter(fn($tx) => in_array($tx->status, ['succeeded', 'paid', 'partially_refunded', 'pending_offline']))
+                    ->sum(fn($tx) => $tx->amount_cents - ($tx->refunded_amount_cents ?? 0));
                 $pendingAmountCents += max(0, ($inv->total_cents ?? $inv->amount_cents) - $totalPaid);
             }
 
@@ -191,7 +190,7 @@ class TenantPaymentController extends Controller
             $months = max(1, min((int) $request->query('months', 6), 12));
             $windowEnd = now()->copy()->addMonthsNoOverflow($months)->endOfMonth();
 
-            $invoices = Invoice::with(['booking.room'])
+            $invoices = Invoice::with(['booking.room', 'transactions'])
                 ->where('tenant_id', $tenantId)
                 ->whereNotNull('due_date')
                 ->whereDate('due_date', '<=', $windowEnd)

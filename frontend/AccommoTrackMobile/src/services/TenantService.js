@@ -124,6 +124,26 @@ class TenantService {
   }
 
   /**
+   * Get consolidated dashboard data (stats, activities, upcoming, stay, breakdown)
+   */
+  async getDashboardBundle() {
+    try {
+      const response = await api.get(`/tenant/dashboard/bundle`);
+      return {
+        success: true,
+        data: response.data.data || response.data,
+      };
+    } catch (error) {
+      console.error("Error fetching dashboard bundle:", error);
+      return {
+        success: false,
+        error: error.response?.data?.message || "Failed to fetch dashboard bundle",
+        data: null,
+      };
+    }
+  }
+
+  /**
    * Get recent tenant activities for dashboard feed.
    */
   async getDashboardActivities() {

@@ -3,6 +3,7 @@ import { useFocusEffect } from '@react-navigation/native';
 
 export const tenantQueryKeys = {
   dashboardCurrentStay: () => ['tenantDashboardCurrentStay'],
+  dashboardBundle: () => ['tenantDashboardBundle'],
   dashboardStats: () => ['tenantDashboardStats'],
   dashboardActivities: () => ['tenantDashboardActivities'],
   dashboardUpcoming: () => ['tenantDashboardUpcoming'],

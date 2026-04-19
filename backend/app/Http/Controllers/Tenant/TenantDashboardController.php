@@ -144,291 +144,244 @@ class TenantDashboardController extends Controller
     {
         try {
             $data = $this->dashboardService->getUpcomingPayments(Auth::id());
-
-            $upcomingCheckouts = $data['upcomingCheckouts']->map(function ($booking) {
-                $daysLeft = $booking->end_date ? now()->diffInDays($booking->end_date, false) : null;
-                $rentSnapshot = $this->resolveBookingRentSnapshot($booking);
-
-                return [
-                    'id' => $booking->id, 'propertyTitle' => $booking->property->title, 'roomNumber' => $booking->room->room_number,
-                    'endDate' => $booking->end_date ? $booking->end_date->format('Y-m-d') : null,
-                    'daysLeft' => $daysLeft !== null ? (int) $daysLeft : null,
-                    'amount' => (float) $rentSnapshot['monthly_rent'], 'paymentStatus' => $booking->payment_status,
-                    'urgency' => $daysLeft === null ? 'low' : ($daysLeft <= 7 ? 'high' : ($daysLeft <= 14 ? 'medium' : 'low')),
-                ];
-            });
-
-            $unpaidBookings = $data['unpaidBookings']->map(function ($booking) {
-                return [
-                    'id' => $booking->id, 'propertyTitle' => $booking->property->title, 'roomNumber' => $booking->room->room_number,
-                    'dueDate' => $booking->start_date->format('Y-m-d'), 'amount' => (float) $booking->total_amount,
-                    'paymentStatus' => $booking->payment_status, 'type' => 'payment',
-                ];
-            });
-
-            return response()->json(['upcomingCheckouts' => $upcomingCheckouts, 'unpaidBookings' => $unpaidBookings], 200);
+            return response()->json($this->formatUpcomingPayments($data), 200);
         } catch (\Exception $e) {
             return response()->json(['message' => 'Failed to fetch upcoming payments', 'error' => $e->getMessage()], 500);
+        }
+    }
+
+    private function formatUpcomingPayments(array $data): array
+    {
+        $upcomingCheckouts = $data['upcomingCheckouts']->map(function ($booking) {
+            $daysLeft = $booking->end_date ? now()->diffInDays($booking->end_date, false) : null;
+            $rentSnapshot = $this->resolveBookingRentSnapshot($booking);
+
+            return [
+                'id' => $booking->id, 'propertyTitle' => $booking->property->title, 'roomNumber' => $booking->room->room_number,
+                'endDate' => $booking->end_date ? $booking->end_date->format('Y-m-d') : null,
+                'daysLeft' => $daysLeft !== null ? (int) $daysLeft : null,
+                'amount' => (float) $rentSnapshot['monthly_rent'], 'paymentStatus' => $booking->payment_status,
+                'urgency' => $daysLeft === null ? 'low' : ($daysLeft <= 7 ? 'high' : ($daysLeft <= 14 ? 'medium' : 'low')),
+            ];
+        });
+
+        $unpaidBookings = $data['unpaidBookings']->map(function ($booking) {
+            return [
+                'id' => $booking->id, 'propertyTitle' => $booking->property->title, 'roomNumber' => $booking->room->room_number,
+                'dueDate' => $booking->start_date->format('Y-m-d'), 'amount' => (float) $booking->total_amount,
+                'paymentStatus' => $booking->payment_status, 'type' => 'payment',
+            ];
+        });
+
+        return ['upcomingCheckouts' => $upcomingCheckouts, 'unpaidBookings' => $unpaidBookings];
+    }
+
+    public function getDashboardBundle(Request $request)
+    {
+        try {
+            $tenantId = Auth::id();
+
+            // 1. Core dashboard stats
+            $stats = $this->dashboardService->getStats($tenantId);
+
+            // 2. Recent activities
+            $recentBookings = $this->dashboardService->getRecentActivities($tenantId);
+            $activities = collect($recentBookings)->map(function ($booking) {
+                return [
+                    'id' => $booking->id, 'type' => 'booking', 'action' => 'Booking update',
+                    'description' => 'Your booking for '.$booking->property->title.' - Room '.$booking->room->room_number.' is '.$booking->status,
+                    'status' => $booking->status, 'timestamp' => $booking->created_at, 'icon' => 'calendar',
+                    'color' => $booking->status === 'pending' ? 'yellow' : ($booking->status === 'confirmed' ? 'green' : 'gray'),
+                ];
+            })->values();
+
+            // 3. Upcoming payments/check-ins
+            $upcomingRaw = $this->dashboardService->getUpcomingPayments($tenantId);
+            $upcoming = $this->formatUpcomingPayments($upcomingRaw);
+
+            // 4. Stay details (Consolidated)
+            $stayData = $this->getStayDetailsInternal($tenantId);
+
+            // 5. Payment breakdown (Invoke standalone controller method)
+            $paymentController = app(\App\Http\Controllers\Tenant\TenantPaymentController::class);
+            $breakdownResponse = $paymentController->getBreakdown($request);
+            $breakdown = $breakdownResponse->getData(true);
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'stats' => $stats,
+                    'activities' => $activities,
+                    'upcoming' => $upcoming,
+                    'stay' => $stayData,
+                    'breakdown' => $breakdown['data'] ?? ['upcoming_months' => []],
+                ]
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json(['message' => 'Failed to fetch dashboard bundle', 'error' => $e->getMessage()], 500);
         }
     }
 
     public function getCurrentStay()
     {
         try {
-            $tenantId = Auth::id();
-            $bookings = $this->dashboardService->getActiveStays($tenantId);
-            $upcomingBooking = $this->dashboardService->getUpcomingBooking($tenantId);
-            $pendingCheckIns = $this->dashboardService->getPendingCheckInBookings($tenantId);
-
-            $formattedUpcoming = $upcomingBooking ? [
-                'id' => $upcomingBooking->id, 'property' => $upcomingBooking->property->title,
-                'room' => $upcomingBooking->room->room_number, 'startDate' => $upcomingBooking->start_date->format('Y-m-d'),
-                'daysUntil' => max(0, (int) now()->startOfDay()->diffInDays($upcomingBooking->start_date->copy()->startOfDay(), false)),
-            ] : null;
-
-            $formattedPendingCheckIns = $pendingCheckIns->map(function ($b) {
-                $startDate = \Carbon\Carbon::parse($b->start_date)->startOfDay();
-                $today = now()->startOfDay();
-                $daysOverdue = max(0, (int) $startDate->diffInDays($today, false));
-
-                return [
-                    'id' => $b->id, 'property' => $b->property->title,
-                    'room' => $b->room->room_number, 'startDate' => $b->start_date->format('Y-m-d'),
-                    'daysOverdue' => $daysOverdue,
-                    'property_id' => $b->property_id,
-                    'propertyId' => $b->property_id,
-                    'status' => $b->status,
-                    'isOverdue' => true,
-                ];
-            });
-
-            if ($bookings->isEmpty()) {
-                return response()->json([
-                    'hasActiveStay' => false,
-                    'stays' => [],
-                    'upcomingBooking' => $formattedUpcoming,
-                    'pendingCheckIns' => $formattedPendingCheckIns,
-                ], 200);
-            }
-
-            $stays = $bookings->map(function ($booking) {
-                $monthlyAddonTotal = $booking->addons->where('price_type', 'monthly')
-                    ->whereIn('pivot.status', ['active', 'approved'])
-                    ->sum(function ($a) {
-                        $price = $this->resolveAddonEffectivePrice($a);
-
-                        return $price * ((float) ($a->pivot->quantity ?? 1));
-                    });
-                $resolvedBedCount = max(1, (int) ($booking->bed_count ?? 1));
-                $resolvedOccupantCount = (int) ($booking->occupants_count ?? 0);
-                if ($resolvedOccupantCount <= 0 && $booking->booking_mode === 'proxy') {
-                    $resolvedOccupantCount = $resolvedBedCount;
-                }
-                $rentSnapshot = $this->resolveBookingRentSnapshot($booking, $resolvedOccupantCount);
-                $roomCapacity = (int) ($booking->room->capacity ?? 0);
-                $occupants = $booking->occupants->map(function ($occupant) {
-                    return [
-                        'id' => $occupant->id,
-                        'first_name' => $occupant->first_name,
-                        'middle_name' => $occupant->middle_name,
-                        'last_name' => $occupant->last_name,
-                        'date_of_birth' => $occupant->date_of_birth,
-                        'sex' => $occupant->sex,
-                        'relationship_to_booker' => $occupant->relationship_to_booker,
-                        'phone' => $occupant->phone,
-                        'email' => $occupant->email,
-                    ];
-                })->values();
-
-                // For multiple stays, we might want to fetch available addons per property
-                // But for now let's use the standard service call which finds the "first" active booking context
-                // Or better, let's just use the current booking's property context directly here.
-                $availableAddons = \App\Models\Addon::where('property_id', $booking->property_id)
-                    ->where('is_active', true)
-                    ->whereNotIn('id', $booking->addons->pluck('id')->toArray())
-                    ->get();
-
-                return [
-                    'booking' => [
-                        'id' => $booking->id, 'bookingReference' => $booking->booking_reference,
-                        'status' => $booking->status,
-                        'startDate' => $booking->start_date->format('Y-m-d'), 'endDate' => $booking->end_date ? $booking->end_date->format('Y-m-d') : null,
-                        'start_date' => $booking->start_date->format('Y-m-d'), 'end_date' => $booking->end_date ? $booking->end_date->format('Y-m-d') : null,
-                        'bookingMode' => $booking->booking_mode,
-                        'booking_mode' => $booking->booking_mode,
-                        'bedCount' => $resolvedBedCount,
-                        'bed_count' => $resolvedBedCount,
-                        'occupantCount' => $resolvedOccupantCount,
-                        'occupant_count' => $resolvedOccupantCount,
-                        'occupants' => $occupants,
-                        'totalMonths' => $booking->total_months, 'monthlyRent' => (float) $rentSnapshot['monthly_rent'],
-                        'total_months' => $booking->total_months, 'monthly_rent' => (float) $rentSnapshot['monthly_rent'],
-                        'billing_policy' => $booking->room->billing_policy ?? 'monthly',
-                        'unit_price' => (float) $rentSnapshot['unit_price'],
-                        'totalAmount' => (float) $booking->total_amount, 'paymentStatus' => $booking->payment_status,
-                        'total_amount' => (float) $booking->total_amount, 'payment_status' => $booking->payment_status,
-                        'contract_mode' => $booking->contract_mode,
-                        'contractMode' => $booking->contract_mode,
-                        'next_billing_date' => $booking->next_billing_date ? $booking->next_billing_date->format('Y-m-d') : null,
-                        'billing_day' => $booking->billing_day,
-                        'notice_given_at' => $booking->notice_given_at ? $booking->notice_given_at->toISOString() : null,
-                        'hasReview' => (bool) $booking->review,
-                        'isOverdue' => $booking->end_date ? (now()->gt($booking->end_date) && ! in_array($booking->status, ['completed', 'cancelled'])) : false,
-                        'due_day' => (int) $booking->start_date->format('d'),
-                        'daysRemaining' => $booking->end_date
-                            ? (now()->diffInDays($booking->end_date, false) < 0 ? 0 : (int) floor(now()->diffInDays($booking->end_date)))
-                            : null,
-                        'daysStayed' => now()->diffInDays($booking->start_date, false) > 0 ? 0 : (int) floor(abs(now()->diffInDays($booking->start_date, false))),
-                        'monthsRemaining' => $booking->end_date ? now()->diffInMonths($booking->end_date) : null,
-                    ],
-                    'room' => [
-                        'id' => $booking->room->id,
-                        'roomNumber' => $booking->room->room_number,
-                        'room_number' => $booking->room->room_number,
-                        'capacity' => $roomCapacity,
-                        'roomType' => $booking->room->room_type ?? null,
-                        'room_type' => $booking->room->room_type ?? null,
-                        'pricing_model' => $booking->room->pricing_model ?? 'full_room',
-                        'require_1month_advance' => $booking->room->requiresAdvance(),
-                        'advance_feature_enabled' => $booking->room->requiresAdvance(),
-                        'advance_feature_status' => $booking->room->requiresAdvance() ? 'enabled' : 'disabled',
-                        'requires_advance' => $booking->room->requiresAdvance(),
-                        'requiresAdvance' => $booking->room->requiresAdvance(),
-                        'floor' => $booking->room->floor_level ?? null, 'images' => $booking->room->images ?? [],
-                    ],
-                    'property' => [
-                        'id' => $booking->property->id,
-                        'title' => $booking->property->title,
-                        'address' => $booking->property->full_address,
-                        'full_address' => $booking->property->full_address,
-                        'image' => $booking->property->image_url,
-                    ],
-                    'landlord' => ['id' => $booking->landlord->id, 'name' => $booking->landlord->name, 'email' => $booking->landlord->email, 'phone' => $booking->landlord->phone_number ?? null],
-                    'addons' => [
-                        'active' => $booking->addons->whereIn('pivot.status', ['active', 'approved'])->map(function ($a) {
-                            $price = $this->resolveAddonEffectivePrice($a);
-                            if ($price > 0) {
-                                $a->pivot->price_at_booking = $price;
-                                $a->price = $price;
-                            }
-
-                            return $a;
-                        })->values(),
-                        'pending' => $booking->addons->where('pivot.status', 'pending')->map(function ($a) {
-                            $price = $this->resolveAddonEffectivePrice($a);
-                            if ($price > 0) {
-                                $a->pivot->price_at_booking = $price;
-                                $a->price = $price;
-                            }
-
-                            return $a;
-                        })->values(),
-                        'available' => $availableAddons, 'monthlyTotal' => (float) $monthlyAddonTotal,
-                        'pendingCount' => $booking->addons->where('pivot.status', 'pending')->count(),
-                    ],
-                    'financials' => [
-                        'monthlyRent' => (float) $rentSnapshot['monthly_rent'], 'monthlyAddons' => (float) $monthlyAddonTotal,
-                        'billing_policy' => $booking->room->billing_policy ?? 'monthly',
-                        'unit_price' => (float) $rentSnapshot['unit_price'],
-                        'monthlyTotal' => (float) ($rentSnapshot['monthly_rent'] + $monthlyAddonTotal),
-                        'invoices' => $booking->invoices->map(function ($invoice) use ($booking, $rentSnapshot) {
-                            $metadata = is_array($invoice->metadata) ? $invoice->metadata : [];
-                            $rawLineItems = collect($metadata['line_items'] ?? $metadata['lineItems'] ?? []);
-                            $invoiceTotalCents = (int) ($invoice->total_cents ?? $invoice->amount_cents ?? 0);
-
-                            $normalizedLineItems = $rawLineItems
-                                ->map(function ($item) {
-                                    $itemArr = is_array($item) ? $item : [];
-                                    $quantity = (float) ($itemArr['quantity'] ?? 1);
-                                    $unitAmount = (float) ($itemArr['unit_amount'] ?? $itemArr['unitAmount'] ?? 0);
-                                    $totalAmount = (float) ($itemArr['total_amount'] ?? $itemArr['totalAmount'] ?? ($unitAmount * $quantity));
-
-                                    return [
-                                        'type' => $itemArr['type'] ?? 'charge',
-                                        'label' => $itemArr['label'] ?? 'Charge',
-                                        'quantity' => $quantity,
-                                        'unit_amount' => $unitAmount,
-                                        'total_amount' => $totalAmount,
-                                        'billed_days' => (int) ($itemArr['billed_days'] ?? $itemArr['billedDays'] ?? 0),
-                                    ];
-                                })
-                                ->values();
-
-                            if ($normalizedLineItems->isEmpty()) {
-                                $addonItems = collect($metadata['addons'] ?? [])->map(function ($addon) {
-                                    $addonArr = is_array($addon) ? $addon : [];
-                                    $quantity = (float) ($addonArr['quantity'] ?? 1);
-                                    $totalAmount = (float) (($addonArr['price'] ?? 0) / 100);
-
-                                    return [
-                                        'type' => 'addon',
-                                        'label' => $addonArr['addon_name'] ?? 'Add-on',
-                                        'quantity' => $quantity,
-                                        'unit_amount' => $quantity > 0 ? ($totalAmount / $quantity) : $totalAmount,
-                                        'total_amount' => $totalAmount,
-                                        'billed_days' => 0,
-                                    ];
-                                })->values();
-
-                                $addonsTotalCents = (int) round($addonItems->sum(function ($item) {
-                                    return (float) ($item['total_amount'] ?? 0) * 100;
-                                }));
-                                $baseTotalCents = max(0, $invoiceTotalCents - $addonsTotalCents);
-                                $billingPolicy = $booking->room->billing_policy ?? 'monthly';
-                                $unitPrice = (float) ($billingPolicy === 'daily'
-                                    ? ($booking->room->daily_rate ?? ($rentSnapshot['monthly_rent'] / 30))
-                                    : $rentSnapshot['monthly_rent']);
-                                $inferredDays = $billingPolicy === 'daily' && $unitPrice > 0
-                                    ? max(1, (int) round(($baseTotalCents / 100) / $unitPrice))
-                                    : 0;
-
-                                $baseItem = [
-                                    'type' => $billingPolicy === 'daily' ? 'daily_rent' : 'base_rent',
-                                    'label' => $billingPolicy === 'daily' ? 'Daily Room Charges' : 'Base Rent',
-                                    'quantity' => $billingPolicy === 'daily' ? $inferredDays : 1,
-                                    'unit_amount' => $billingPolicy === 'daily' ? $unitPrice : (float) ($baseTotalCents / 100),
-                                    'total_amount' => (float) ($baseTotalCents / 100),
-                                    'billed_days' => $inferredDays,
-                                ];
-
-                                $normalizedLineItems = collect([$baseItem])
-                                    ->merge($addonItems)
-                                    ->values();
-                            }
-
-                            return [
-                                'id' => $invoice->id,
-                                'amount' => (float) ($invoice->total_cents ?? $invoice->amount_cents) / 100,
-                                'status' => $invoice->status,
-                                'description' => $invoice->description,
-                                'date' => $invoice->issued_at ? $invoice->issued_at->format('M d, Y') : $invoice->created_at->format('M d, Y'),
-                                'dueDate' => $invoice->due_date ? $invoice->due_date->format('M d, Y') : null,
-                                'metadata' => $metadata,
-                                'line_items' => $normalizedLineItems,
-                                'transactions' => $invoice->transactions->map(function ($tx) {
-                                    return [
-                                        'id' => $tx->id,
-                                        'amount' => (float) $tx->amount_cents / 100,
-                                        'status' => $tx->status,
-                                        'method' => $tx->method,
-                                        'date' => $tx->created_at->format('M d, Y H:i'),
-                                    ];
-                                }),
-                            ];
-                        }),
-                    ],
-                ];
-            });
-
-            return response()->json([
-                'hasActiveStay' => true,
-                'stays' => $stays,
-                'upcomingBooking' => $formattedUpcoming,
-                'pendingCheckIns' => $formattedPendingCheckIns,
-            ], 200);
+            $data = $this->getStayDetailsInternal(Auth::id());
+            return response()->json($data, 200);
         } catch (\Exception $e) {
             return response()->json(['message' => 'Failed to fetch current stays', 'error' => $e->getMessage()], 500);
         }
+    }
+
+    private function getStayDetailsInternal(int $tenantId): array
+    {
+        $bookings = $this->dashboardService->getActiveStays($tenantId);
+        $upcomingBooking = $this->dashboardService->getUpcomingBooking($tenantId);
+        $pendingCheckIns = $this->dashboardService->getPendingCheckInBookings($tenantId);
+
+        $formattedUpcoming = $upcomingBooking ? [
+            'id' => $upcomingBooking->id, 'property' => $upcomingBooking->property->title,
+            'room' => $upcomingBooking->room->room_number, 'startDate' => $upcomingBooking->start_date->format('Y-m-d'),
+            'daysUntil' => max(0, (int) now()->startOfDay()->diffInDays($upcomingBooking->start_date->copy()->startOfDay(), false)),
+        ] : null;
+
+        $formattedPendingCheckIns = $pendingCheckIns->map(function ($b) {
+            $startDate = \Carbon\Carbon::parse($b->start_date)->startOfDay();
+            $today = now()->startOfDay();
+            $daysOverdue = max(0, (int) $startDate->diffInDays($today, false));
+
+            return [
+                'id' => $b->id, 'property' => $b->property->title,
+                'room' => $b->room->room_number, 'startDate' => $b->start_date->format('Y-m-d'),
+                'daysOverdue' => $daysOverdue,
+                'property_id' => $b->property_id,
+                'propertyId' => $b->property_id,
+                'status' => $b->status,
+                'isOverdue' => true,
+            ];
+        });
+
+        if ($bookings->isEmpty()) {
+            return [
+                'hasActiveStay' => false,
+                'stays' => [],
+                'upcomingBooking' => $formattedUpcoming,
+                'pendingCheckIns' => $formattedPendingCheckIns,
+            ];
+        }
+
+        // --- OPTIMIZATION: Bulk fetch available addons for all stay properties ---
+        $propertyIds = $bookings->pluck('property_id')->unique()->toArray();
+        $allAvailableAddons = \App\Models\Addon::whereIn('property_id', $propertyIds)
+            ->where('is_active', true)
+            ->get()
+            ->groupBy('property_id');
+
+        $stays = $bookings->map(function ($booking) use ($allAvailableAddons) {
+            $monthlyAddonTotal = $booking->addons->where('price_type', 'monthly')
+                ->whereIn('pivot.status', ['active', 'approved'])
+                ->sum(function ($a) {
+                    $price = $this->resolveAddonEffectivePrice($a);
+                    return $price * ((float) ($a->pivot->quantity ?? 1));
+                });
+
+            $resolvedBedCount = max(1, (int) ($booking->bed_count ?? 1));
+            $resolvedOccupantCount = (int) ($booking->occupants_count ?? 0);
+            if ($resolvedOccupantCount <= 0 && $booking->booking_mode === 'proxy') {
+                $resolvedOccupantCount = $resolvedBedCount;
+            }
+            $rentSnapshot = $this->resolveBookingRentSnapshot($booking, $resolvedOccupantCount);
+
+            $availableAddons = $allAvailableAddons->get($booking->property_id, collect())
+                ->whereNotIn('id', $booking->addons->pluck('id')->toArray())
+                ->values();
+
+            return [
+                'booking' => [
+                    'id' => $booking->id, 'bookingReference' => $booking->booking_reference,
+                    'status' => $booking->status,
+                    'startDate' => $booking->start_date->format('Y-m-d'), 'endDate' => $booking->end_date ? $booking->end_date->format('Y-m-d') : null,
+                    'start_date' => $booking->start_date->format('Y-m-d'), 'end_date' => $booking->end_date ? $booking->end_date->format('Y-m-d') : null,
+                    'bookingMode' => $booking->booking_mode,
+                    'booking_mode' => $booking->booking_mode,
+                    'bedCount' => $resolvedBedCount,
+                    'bed_count' => $resolvedBedCount,
+                    'occupantCount' => $resolvedOccupantCount,
+                    'occupant_count' => $resolvedOccupantCount,
+                    'occupants' => $booking->occupants->map(fn($o) => [
+                        'id' => $o->id, 'first_name' => $o->first_name, 'last_name' => $o->last_name,
+                        'phone' => $o->phone, 'email' => $o->email,
+                    ])->values(),
+                    'totalMonths' => $booking->total_months, 'monthlyRent' => (float) $rentSnapshot['monthly_rent'],
+                    'total_months' => $booking->total_months, 'monthly_rent' => (float) $rentSnapshot['monthly_rent'],
+                    'billing_policy' => $booking->room->billing_policy ?? 'monthly',
+                    'unit_price' => (float) $rentSnapshot['unit_price'],
+                    'totalAmount' => (float) $booking->total_amount, 'paymentStatus' => $booking->payment_status,
+                    'total_amount' => (float) $booking->total_amount, 'payment_status' => $booking->payment_status,
+                    'contract_mode' => $booking->contract_mode,
+                    'contractMode' => $booking->contract_mode,
+                    'next_billing_date' => $booking->next_billing_date ? $booking->next_billing_date->format('Y-m-d') : null,
+                    'billing_day' => $booking->billing_day,
+                    'notice_given_at' => $booking->notice_given_at ? $booking->notice_given_at->toISOString() : null,
+                    'hasReview' => (bool) $booking->review,
+                    'isOverdue' => $booking->end_date ? (now()->gt($booking->end_date) && ! in_array($booking->status, ['completed', 'cancelled'])) : false,
+                    'due_day' => (int) $booking->start_date->format('d'),
+                    'daysRemaining' => $booking->end_date
+                        ? (now()->diffInDays($booking->end_date, false) < 0 ? 0 : (int) floor(now()->diffInDays($booking->end_date)))
+                        : null,
+                    'daysStayed' => now()->diffInDays($booking->start_date, false) > 0 ? 0 : (int) floor(abs(now()->diffInDays($booking->start_date, false))),
+                ],
+                'room' => [
+                    'id' => $booking->room->id, 'roomNumber' => $booking->room->room_number,
+                    'room_number' => $booking->room->room_number, 'capacity' => (int) ($booking->room->capacity ?? 0),
+                    'roomType' => $booking->room->room_type ?? null, 'floor' => $booking->room->floor_level ?? null,
+                ],
+                'property' => [
+                    'id' => $booking->property->id, 'title' => $booking->property->title,
+                    'address' => $booking->property->full_address, 'image' => $booking->property->image_url,
+                ],
+                'landlord' => ['id' => $booking->landlord->id, 'name' => $booking->landlord->name, 'email' => $booking->landlord->email],
+                'addons' => [
+                    'active' => $booking->addons->whereIn('pivot.status', ['active', 'approved'])->map(function ($a) {
+                        $price = $this->resolveAddonEffectivePrice($a);
+                        $a->price = $price;
+                        return $a;
+                    })->values(),
+                    'pending' => $booking->addons->where('pivot.status', 'pending')->map(function ($a) {
+                        $price = $this->resolveAddonEffectivePrice($a);
+                        $a->price = $price;
+                        return $a;
+                    })->values(),
+                    'available' => $availableAddons, 'monthlyTotal' => (float) $monthlyAddonTotal,
+                    'pendingCount' => $booking->addons->where('pivot.status', 'pending')->count(),
+                ],
+                'financials' => [
+                    'monthlyRent' => (float) $rentSnapshot['monthly_rent'], 'monthlyAddons' => (float) $monthlyAddonTotal,
+                    'monthlyTotal' => (float) ($rentSnapshot['monthly_rent'] + $monthlyAddonTotal),
+                    'invoices' => $booking->invoices->map(function ($invoice) {
+                        return [
+                            'id' => $invoice->id,
+                            'amount' => (float) ($invoice->total_cents ?? $invoice->amount_cents) / 100,
+                            'status' => $invoice->status,
+                            'description' => $invoice->description,
+                            'date' => $invoice->issued_at ? $invoice->issued_at->format('M d, Y') : $invoice->created_at->format('M d, Y'),
+                            'dueDate' => $invoice->due_date ? $invoice->due_date->format('M d, Y') : null,
+                            'metadata' => $invoice->metadata,
+                            'transactions' => $invoice->transactions->map(fn($tx) => [
+                                'id' => $tx->id, 'amount' => (float) $tx->amount_cents / 100,
+                                'status' => $tx->status, 'method' => $tx->method, 'date' => $tx->created_at->format('M d, Y H:i'),
+                            ]),
+                        ];
+                    }),
+                ],
+            ];
+        });
+
+        return [
+            'hasActiveStay' => true,
+            'stays' => $stays,
+            'upcomingBooking' => $formattedUpcoming,
+            'pendingCheckIns' => $formattedPendingCheckIns,
+        ];
     }
 
     public function getHistory()

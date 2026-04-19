@@ -142,6 +142,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // ===== TENANT-ONLY ENDPOINTS (Mobile App) =====
     Route::prefix('tenant')->group(function () {
+        Route::get('/dashboard/bundle', [TenantDashboardController::class, 'getDashboardBundle']);
         Route::get('/dashboard/stats', [TenantDashboardController::class, 'getStats']);
         Route::get('/dashboard/activities', [TenantDashboardController::class, 'getRecentActivities']);
         Route::get('/dashboard/upcoming', [TenantDashboardController::class, 'getUpcomingPayments']);
