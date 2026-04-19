@@ -175,17 +175,6 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
   };
 
   useEffect(() => {
-    fetchBookings();
-    fetchStats();
-    fetchExtensions();
-    fetchTransfers();
-
-    const handleOpenAdd = () => setShowAddBookingModal(true);
-    window.addEventListener('open-add-booking', handleOpenAdd);
-    return () => window.removeEventListener('open-add-booking', handleOpenAdd);
-  }, [fetchBookings, fetchStats, fetchExtensions, fetchTransfers]);
-
-  useEffect(() => {
     const params = new URLSearchParams(location.search || '');
     const nextStatus = params.get('status');
     const nextSearch = params.get('search');
@@ -200,23 +189,6 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
 
     setDrilldownApplied(false);
   }, [location.search]);
-
-  useEffect(() => {
-    const params = new URLSearchParams(location.search || '');
-    const bookingId = params.get('bookingId');
-
-    if (!bookingId || drilldownApplied || bookings.length === 0) {
-      return;
-    }
-
-    const targetBooking = bookings.find((booking) => String(booking.id) === String(bookingId));
-    if (!targetBooking) {
-      return;
-    }
-
-    setDrilldownApplied(true);
-    handleOpenDetailModal(targetBooking);
-  }, [location.search, bookings, drilldownApplied, handleOpenDetailModal]);
 
   const fetchBookings = useCallback(async () => {
     try {
@@ -290,6 +262,17 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
       setLoadingTransfers(false);
     }
   }, []);
+
+  useEffect(() => {
+    fetchBookings();
+    fetchStats();
+    fetchExtensions();
+    fetchTransfers();
+
+    const handleOpenAdd = () => setShowAddBookingModal(true);
+    window.addEventListener('open-add-booking', handleOpenAdd);
+    return () => window.removeEventListener('open-add-booking', handleOpenAdd);
+  }, [fetchBookings, fetchStats, fetchExtensions, fetchTransfers]);
 
   const handleHandleExtension = async (id, action, modifyData = null) => {
     if (guardAnyBookingAction()) return;
@@ -593,6 +576,23 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
     }
   }, [fetchDepositSettlementHistory]);
 
+  useEffect(() => {
+    const params = new URLSearchParams(location.search || '');
+    const bookingId = params.get('bookingId');
+
+    if (!bookingId || drilldownApplied || bookings.length === 0) {
+      return;
+    }
+
+    const targetBooking = bookings.find((booking) => String(booking.id) === String(bookingId));
+    if (!targetBooking) {
+      return;
+    }
+
+    setDrilldownApplied(true);
+    handleOpenDetailModal(targetBooking);
+  }, [location.search, bookings, drilldownApplied, handleOpenDetailModal]);
+
   const handleDepositSettlementInput = (field, value) => {
     setDepositSettlementForm((prev) => ({
       ...prev,
@@ -706,7 +706,7 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
       showError('Email is required');
       return;
     }
-    
+
     setProcessing(true);
     const toastId = showLoading('Registering occupant as tenant...');
     try {
@@ -716,12 +716,12 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
       if (!response.success) {
         throw new Error(response.error || 'Failed to convert occupant');
       }
-      
+
       showSuccess(response.message || 'Occupant registered as tenant successfully!', toastId);
       setShowConvertModal(false);
       setOccupantToConvert(null);
       setConvertEmail('');
-      
+
       // Refresh data
       refreshLandlordMutationViews();
       await fetchBookings();

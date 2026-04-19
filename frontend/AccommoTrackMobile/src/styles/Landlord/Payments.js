@@ -99,7 +99,7 @@ export const getStyles = (theme) => StyleSheet.create({
     color: theme.colors.textInverse,
   },
   listContent: {
-    padding: 16,
+    paddingHorizontal: 0,
     paddingBottom: 100,
   },
   invoiceCard: {
@@ -107,6 +107,7 @@ export const getStyles = (theme) => StyleSheet.create({
     borderRadius: 12,
     padding: 16,
     marginBottom: 16,
+    marginHorizontal: 16,
     borderWidth: 1,
     borderColor: theme.colors.border,
     shadowColor: '#000',
@@ -194,6 +195,7 @@ export const getStyles = (theme) => StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 80,
+    paddingHorizontal: 16,
   },
   emptyTitle: {
     fontSize: 18,

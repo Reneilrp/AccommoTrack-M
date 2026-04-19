@@ -20,6 +20,7 @@ import PaymentDetail from '../screens/Payments/PaymentDetail.jsx';
 import PaymentCardWebview from '../screens/Payments/PaymentCardWebview.jsx';
 import PaymentRedirectWebview from '../screens/Payments/PaymentRedirectWebview.jsx';
 import PaymentHistory from '../screens/Payments/PaymentHistory.jsx';
+import PaymentArchive from '../screens/Payments/PaymentArchive.jsx';
 import Settings from '../screens/Settings/Settings.jsx';
 import MyWallet from '../screens/Settings/MyWallet.jsx';
 import HelpSupport from '../screens/Support/HelpSupport.jsx';
@@ -148,6 +149,7 @@ function TenantMain({ onLogout, isGuest = false, onAuthRequired }) {
             <MainStack.Screen name="Payments" component={PaymentsScreen} options={{ animation: 'none' }} />
             <MainStack.Screen name="PaymentHistory" component={PaymentHistory} options={{ animation: 'none' }} />
             <MainStack.Screen name="PaymentDetail" component={PaymentDetail} options={{ animation: 'none' }} />
+            <MainStack.Screen name="PaymentArchive" component={PaymentArchive} options={{ animation: 'none' }} />
             <MainStack.Screen name="PaymentCardWebview" component={PaymentCardWebview} options={{ animation: 'none' }} />
             <MainStack.Screen name="PaymentRedirectWebview" component={PaymentRedirectWebview} options={{ animation: 'none' }} />
             <MainStack.Screen name="CreateMaintenanceRequest" component={CreateRequest} options={{ animation: 'none' }} />

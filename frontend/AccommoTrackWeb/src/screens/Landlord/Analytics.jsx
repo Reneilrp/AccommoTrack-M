@@ -60,14 +60,6 @@ export default function Analytics() {
     };
   });
 
-  useEffect(() => {
-    // Auto-collapse sidebar when entering analytics for wider chart area.
-    if (collapse) collapse().catch(() => { });
-
-    // Always refresh property access on analytics entry to avoid stale cached IDs.
-    loadProperties();
-  }, [collapse, loadProperties]);
-
   const loadProperties = useCallback(async () => {
     try {
       setPropertiesLoading(true);
@@ -82,6 +74,16 @@ export default function Analytics() {
       setPropertiesLoading(false);
     }
   }, [updateData]);
+
+  useEffect(() => {
+    // Auto-collapse sidebar when entering analytics for wider chart area.
+    if (collapse) collapse().catch(() => { });
+  }, [collapse]);
+
+  useEffect(() => {
+    // Always refresh property access on analytics entry to avoid stale cached IDs.
+    loadProperties();
+  }, [loadProperties]);
 
   const loadAnalytics = useCallback(async (isManualRefresh = false) => {
     const hasSelectedProperty = selectedProperty !== 'all' && properties?.some(p => String(p.id) === String(selectedProperty));
@@ -545,10 +547,10 @@ export default function Analytics() {
           <div className="flex items-center justify-between gap-2 min-w-0">
             <p className="text-sm md:text-base font-semibold text-gray-900 dark:text-white truncate">Collection Efficiency</p>
             <div className={`inline-flex items-center gap-1 px-2 py-1 rounded-full border text-[10px] md:text-xs font-semibold shrink-0 ${collectionRate >= 80
-                ? 'text-green-700 bg-green-50 border-green-200 dark:text-green-300 dark:bg-green-900/30 dark:border-green-800'
-                : collectionRate >= 60
-                  ? 'text-amber-700 bg-amber-50 border-amber-200 dark:text-amber-300 dark:bg-amber-900/30 dark:border-amber-800'
-                  : 'text-red-700 bg-red-50 border-red-200 dark:text-red-300 dark:bg-red-900/30 dark:border-red-800'
+              ? 'text-green-700 bg-green-50 border-green-200 dark:text-green-300 dark:bg-green-900/30 dark:border-green-800'
+              : collectionRate >= 60
+                ? 'text-amber-700 bg-amber-50 border-amber-200 dark:text-amber-300 dark:bg-amber-900/30 dark:border-amber-800'
+                : 'text-red-700 bg-red-50 border-red-200 dark:text-red-300 dark:bg-red-900/30 dark:border-red-800'
               }`}>
               <span>{collectionRate.toFixed(1)}%</span>
             </div>
@@ -807,13 +809,13 @@ export default function Analytics() {
                   <AreaChart data={analytics.revenue.monthly_trend}>
                     <defs>
                       <linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor={COLORS.primary} stopOpacity={0.3}/>
-                        <stop offset="95%" stopColor={COLORS.primary} stopOpacity={0}/>
+                        <stop offset="5%" stopColor={COLORS.primary} stopOpacity={0.3} />
+                        <stop offset="95%" stopColor={COLORS.primary} stopOpacity={0} />
                       </linearGradient>
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={effectiveTheme === 'dark' ? '#374151' : '#f0f0f0'} />
                     <XAxis dataKey="month" stroke={effectiveTheme === 'dark' ? '#9ca3af' : '#6b7280'} style={{ fontSize: '11px', fontWeight: 'bold' }} tickLine={false} axisLine={false} />
-                    <YAxis stroke={effectiveTheme === 'dark' ? '#9ca3af' : '#6b7280'} style={{ fontSize: '11px' }} tickLine={false} axisLine={false} tickFormatter={(v) => `₱${v >= 1000 ? (v/1000)+'k' : v}`} />
+                    <YAxis stroke={effectiveTheme === 'dark' ? '#9ca3af' : '#6b7280'} style={{ fontSize: '11px' }} tickLine={false} axisLine={false} tickFormatter={(v) => `₱${v >= 1000 ? (v / 1000) + 'k' : v}`} />
                     <Tooltip
                       contentStyle={{
                         backgroundColor: effectiveTheme === 'dark' ? '#1f2937' : '#fff',
@@ -844,15 +846,15 @@ export default function Analytics() {
                       <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={effectiveTheme === 'dark' ? '#374151' : '#f0f0f0'} />
                       <XAxis dataKey="label" stroke={effectiveTheme === 'dark' ? '#9ca3af' : '#6b7280'} axisLine={false} tickLine={false} style={{ fontSize: '11px', fontWeight: 'bold' }} />
                       <YAxis stroke={effectiveTheme === 'dark' ? '#9ca3af' : '#6b7280'} axisLine={false} tickLine={false} style={{ fontSize: '11px' }} />
-                      <Tooltip 
-                        cursor={{fill: 'transparent'}}
+                      <Tooltip
+                        cursor={{ fill: 'transparent' }}
                         contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)' }}
                       />
                       <Bar dataKey="occupancy_rate" name="Occupancy %" fill={COLORS.secondary} radius={[6, 6, 0, 0]} barSize={40} />
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
-                
+
                 <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-300 dark:border-gray-700 p-6">
                   <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Move-in Velocity</h2>
                   <div className="space-y-4">
@@ -1085,7 +1087,7 @@ export default function Analytics() {
                           return (
                             <tr key={property.id || index} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
                               <td className="px-6 py-4">
-                                <a 
+                                <a
                                   href={`/properties/${property.id}`}
                                   className="font-medium text-emerald-600 dark:text-emerald-400 hover:underline"
                                 >
@@ -1123,7 +1125,7 @@ export default function Analytics() {
                           return (
                             <tr key={room.id || index} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
                               <td className="px-6 py-4">
-                                <a 
+                                <a
                                   href="/rooms"
                                   className="font-medium text-emerald-600 dark:text-emerald-400 hover:underline"
                                 >

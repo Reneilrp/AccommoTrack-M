@@ -225,11 +225,6 @@ function PropertyDashboard({ propertyId, navigate, onCountsChange }) {
     item: null,
   });
 
-  useEffect(() => {
-    if (!propertyId) return;
-    loadDashboard();
-  }, [propertyId, loadDashboard]);
-
 
   const loadDashboard = useCallback(async () => {
     setLoading(true);
@@ -291,6 +286,11 @@ function PropertyDashboard({ propertyId, navigate, onCountsChange }) {
       setLoading(false);
     }
   }, [propertyId, onCountsChange]);
+
+  useEffect(() => {
+    if (!propertyId) return;
+    loadDashboard();
+  }, [propertyId, loadDashboard]);
 
   const handleBookingAction = async (bookingId, action, cancellationReason = null) => {
     if (!bookingId) {
@@ -1023,17 +1023,17 @@ function PropertyDashboard({ propertyId, navigate, onCountsChange }) {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-                    {filteredItems.map((item) => (
-                      <tr
-                        key={item.key}
-                        onClick={() => {
-                          if (item.type === 'booking') navigate(`/bookings?bookingId=${item.id}`);
-                          else if (item.type === 'payment') navigate(`/payments?property_id=${propertyId}`);
-                          else if (item.type === 'maintenance') navigate(`/maintenance?requestId=${item.id}`);
-                          else if (item.type === 'transfer') navigate(`/transfers?requestId=${item.id}`);
-                        }}
-                        className="hover:bg-gray-50 dark:hover:bg-gray-800/40 transition-colors cursor-pointer"
-                      >
+                  {filteredItems.map((item) => (
+                    <tr
+                      key={item.key}
+                      onClick={() => {
+                        if (item.type === 'booking') navigate(`/bookings?bookingId=${item.id}`);
+                        else if (item.type === 'payment') navigate(`/payments?property_id=${propertyId}`);
+                        else if (item.type === 'maintenance') navigate(`/maintenance?requestId=${item.id}`);
+                        else if (item.type === 'transfer') navigate(`/transfers?requestId=${item.id}`);
+                      }}
+                      className="hover:bg-gray-50 dark:hover:bg-gray-800/40 transition-colors cursor-pointer"
+                    >
                       <td className="px-5 py-3.5">
                         <div className="inline-flex items-center gap-2 min-w-0">
                           <TypeBadge type={item.type} />
@@ -1402,6 +1402,20 @@ export default function PropertySummary({ caretakerPermissions = null }) {
     bookings: 0,
     payments: 0,
   });
+  const handleCountsChange = useCallback((counts) => {
+    setNotificationCounts((prev) => {
+      if (
+        prev.addons === counts.addons
+        && prev.maintenance === counts.maintenance
+        && prev.transfers === counts.transfers
+        && prev.bookings === counts.bookings
+        && prev.payments === counts.payments
+      ) {
+        return prev;
+      }
+      return counts;
+    });
+  }, []);
 
   const [images, setImages] = useState([]);
   const [idx, setIdx] = useState(0);
@@ -1413,12 +1427,6 @@ export default function PropertySummary({ caretakerPermissions = null }) {
   // Keep RoomDetails modal state for if user navigates to rooms
   const [selectedRoomDetails, setSelectedRoomDetails] = useState(null);
   const [showRoomDetails, setShowRoomDetails] = useState(false);
-
-  useEffect(() => {
-    if (!id) return;
-    loadProperty();
-    loadNotificationCounts();
-  }, [id, loadProperty, loadNotificationCounts]);
 
   useEffect(() => {
     const cached = getCachedData();
@@ -1444,23 +1452,21 @@ export default function PropertySummary({ caretakerPermissions = null }) {
 
   const loadProperty = useCallback(async () => {
     try {
-      if (!property) setLoading(true);
+      setLoading(true);
       setError(null);
       const res = await api.get(`/landlord/properties/${id}?t=${Date.now()}`);
       const data = res.data;
       setProperty(data);
-      const newState = { ...uiState.data?.[cacheKey], property: data };
+      const newState = { ...(cacheManager.get(cacheKey) || {}), property: data };
       updateData(cacheKey, newState);
       cacheManager.set(cacheKey, newState);
     } catch (err) {
       console.error('Failed to fetch property', err);
-      if (!property) {
-        setError(err.response?.data?.message || err.message || 'Failed to load property');
-      }
+      setError(err.response?.data?.message || err.message || 'Failed to load property');
     } finally {
       setLoading(false);
     }
-  }, [id, property, updateData, cacheKey, uiState.data]);
+  }, [id, updateData, cacheKey]);
 
   const loadNotificationCounts = useCallback(async () => {
     try {
@@ -1492,6 +1498,12 @@ export default function PropertySummary({ caretakerPermissions = null }) {
       console.error('Failed to load notification counts', err);
     }
   }, [id]);
+
+  useEffect(() => {
+    if (!id) return;
+    loadProperty();
+    loadNotificationCounts();
+  }, [id, loadProperty, loadNotificationCounts]);
 
   const goToEdit = () => navigate(`/properties/${id}/edit`);
   const { open, setIsSidebarOpen, collapse } = useSidebar();
@@ -1657,16 +1669,16 @@ export default function PropertySummary({ caretakerPermissions = null }) {
           </div>
 
           {/* Edit — hidden for caretakers (read-only view) */}
-            {!isCaretaker && (
-              <button
-                onClick={goToEdit}
-                className="absolute top-4 right-4 w-10 h-10 bg-white dark:bg-gray-700 rounded-full shadow flex items-center justify-center hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
-                title="Edit property"
-                aria-label="Edit property"
-              >
-                <Edit className="w-5 h-5 text-green-600" />
-              </button>
-            )}
+          {!isCaretaker && (
+            <button
+              onClick={goToEdit}
+              className="absolute top-4 right-4 w-10 h-10 bg-white dark:bg-gray-700 rounded-full shadow flex items-center justify-center hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
+              title="Edit property"
+              aria-label="Edit property"
+            >
+              <Edit className="w-5 h-5 text-green-600" />
+            </button>
+          )}
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 m-2 items-stretch">
             {/* Gallery */}
@@ -1805,7 +1817,7 @@ export default function PropertySummary({ caretakerPermissions = null }) {
           <PropertyDashboard
             propertyId={id}
             navigate={navigate}
-            onCountsChange={(counts) => setNotificationCounts(counts)}
+            onCountsChange={handleCountsChange}
           />
         </div>
 

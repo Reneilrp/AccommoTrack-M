@@ -10,7 +10,6 @@ import {
   useWindowDimensions,
   View,
 } from 'react-native';
-import Svg, { Circle, G } from 'react-native-svg';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -434,49 +433,6 @@ const DashboardScreen = () => {
     setExpandedPanel((current) => (current === panel ? null : panel));
   };
 
-  const StayProgress = ({ percentage, label, sublabel, color }) => {
-    const size = 120;
-    const strokeWidth = 10;
-    const center = size / 2;
-    const radius = size / 2 - strokeWidth / 2;
-    const circumference = 2 * Math.PI * radius;
-    const strokeDashoffset = circumference - (percentage / 100) * circumference;
-
-    return (
-      <View style={styles.progressCircleContainer}>
-        <Svg width={size} height={size}>
-          <G rotation="-90" origin={`${center}, ${center}`}>
-            <Circle
-              cx={center}
-              cy={center}
-              r={radius}
-              stroke={theme.colors.border}
-              strokeWidth={strokeWidth}
-              fill="transparent"
-            />
-            <Circle
-              cx={center}
-              cy={center}
-              r={radius}
-              stroke={color || theme.colors.primary}
-              strokeWidth={strokeWidth}
-              strokeDasharray={circumference}
-              strokeDashoffset={strokeDashoffset}
-              strokeLinecap="round"
-              fill="transparent"
-            />
-          </G>
-          <View style={StyleSheet.absoluteFill}>
-            <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-              <Text style={styles.progressPercentText}>{Math.round(percentage)}%</Text>
-              <Text style={styles.progressLabelText}>{label}</Text>
-            </View>
-          </View>
-        </Svg>
-        <Text style={styles.progressSublabel}>{sublabel}</Text>
-      </View>
-    );
-  };
 
   const renderStatCard = ({ key, icon, title, value, subtitle, bgColor, iconColor }) => (
     <TouchableOpacity
@@ -672,139 +628,61 @@ const DashboardScreen = () => {
           />
         }
       >
-        <View style={styles.greetingSection}>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.greetingTitle}>Your Stay Hub</Text>
-              <Text style={styles.greetingSubtitle}>
-                {activeRooms.length > 0 
-                  ? `Active at ${activeRooms[0].propertyTitle}`
-                  : 'Welcome to AccommoTrack'}
-              </Text>
-            </View>
-            {activeRooms.length > 0 && (
-              <StayProgress 
-                percentage={activeRooms[0].daysStayed > 0 ? (activeRooms[0].daysStayed / (activeRooms[0].daysStayed + activeRooms[0].daysRemaining)) * 100 : 0}
-                label="Days"
-                sublabel={`${activeRooms[0].daysRemaining} left`}
-                color={theme.colors.primary}
-              />
-            )}
-          </View>
 
-          {activeRooms.length > 0 && (
-            <TouchableOpacity 
-              style={[styles.primaryButton, { marginTop: 16, backgroundColor: 'rgba(255,255,255,0.15)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)' }]}
-              onPress={() => navigation.navigate('UnitHub')}
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Dashboard Overview</Text>
+              <Text style={styles.sectionHint}>Tap a card to view table details</Text>
+            </View>
+
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.statsGrid}
             >
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                <Ionicons name="grid-outline" size={18} color={theme.colors.textInverse} />
-                <Text style={styles.primaryButtonText}>Open Stay Hub</Text>
-              </View>
-            </TouchableOpacity>
-          )}
-        </View>
+              {renderStatCard({
+                key: 'rooms',
+                icon: 'bed-outline',
+                title: 'Active Rooms',
+                value: String(activeRooms.length),
+                subtitle: activeRooms.length ? activeRooms[0].propertyTitle : 'No active stays',
+                bgColor: theme.colors.primaryLight,
+                iconColor: theme.colors.primary,
+              })}
+              {renderStatCard({
+                key: 'days',
+                icon: 'calendar-outline',
+                title: 'Days Stayed',
+                value: String(totalDaysStayed),
+                subtitle: totalDaysStayed > 0 ? 'Across all stays' : 'No stay days yet',
+                bgColor: theme.colors.infoLight,
+                iconColor: theme.colors.info,
+              })}
+              {renderStatCard({
+                key: 'rent',
+                icon: 'cash-outline',
+                title: 'Monthly Rent',
+                value: formatCurrency(monthlyRentTotal),
+                subtitle: activeRooms.length ? `${activeRooms.length} room(s) total` : 'No active rent',
+                bgColor: theme.colors.purpleLight,
+                iconColor: theme.colors.purple,
+              })}
+              {renderStatCard({
+                key: 'balance',
+                icon: 'wallet-outline',
+                title: hasOverdueInvoices ? 'Balance Due' : 'Status',
+                value: hasOverdueInvoices ? formatCurrency(balanceDue) : (balanceDue > 0 ? formatCurrency(balanceDue) : 'Fully Paid'),
+                subtitle: hasOverdueInvoices ? 'Overdue detected' : 'Current billing state',
+                bgColor: hasOverdueInvoices ? theme.colors.errorLight : theme.colors.warningLight,
+                iconColor: hasOverdueInvoices ? theme.colors.error : theme.colors.warning,
+              })}
+            </ScrollView>
 
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Payments & Invoices</Text>
-            {unpaidInvoices.length > 0 && (
-              <TouchableOpacity onPress={() => navigation.navigate('Payments')}>
-                <Text style={[styles.alertLink, { color: theme.colors.primary }]}>View All</Text>
-              </TouchableOpacity>
-            )}
+            {renderPanel('rooms')}
+            {renderPanel('days')}
+            {renderPanel('rent')}
+            {renderPanel('balance')}
           </View>
-
-          {unpaidInvoices.length === 0 ? (
-            <View style={styles.emptyCard}>
-              <Text style={styles.emptyCardText}>No pending invoices.</Text>
-            </View>
-          ) : (
-            unpaidInvoices.map((invoice) => {
-              const palette = getPaymentStatusPalette(invoice.status, theme);
-              return (
-                <TouchableOpacity
-                  key={`invoice-${invoice.id}`}
-                  style={[
-                    styles.invoiceCard,
-                    { borderColor: palette.bg }
-                  ]}
-                  onPress={() => navigation.navigate('PaymentDetail', { invoiceId: invoice.id })}
-                >
-                  <View style={styles.invoiceHeader}>
-                    <View style={styles.invoiceLeft}>
-                      <Text style={styles.invoiceTitle}>{invoice.description}</Text>
-                      <Text style={styles.invoiceMeta}>Due {formatDate(invoice.dueDate)}</Text>
-                    </View>
-                    <View style={styles.invoiceRight}>
-                      <Text style={styles.invoiceAmount}>{formatCurrency(invoice.amount)}</Text>
-                      <View style={[styles.statusBadgeInline, { backgroundColor: palette.bg }]}>
-                        <Text style={[styles.statusBadgeInlineText, { color: palette.fg }]}>
-                          {toTitleCaseWords(invoice.status)}
-                        </Text>
-                      </View>
-                    </View>
-                  </View>
-                </TouchableOpacity>
-              );
-            })
-          )}
-        </View>
-
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Dashboard Overview</Text>
-            <Text style={styles.sectionHint}>Tap a card to view table details</Text>
-          </View>
-
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.statsGrid}
-          >
-            {renderStatCard({
-              key: 'rooms',
-              icon: 'bed-outline',
-              title: 'Active Rooms',
-              value: String(activeRooms.length),
-              subtitle: activeRooms.length ? activeRooms[0].propertyTitle : 'No active stays',
-              bgColor: theme.colors.primaryLight,
-              iconColor: theme.colors.primary,
-            })}
-            {renderStatCard({
-              key: 'days',
-              icon: 'calendar-outline',
-              title: 'Days Stayed',
-              value: String(totalDaysStayed),
-              subtitle: totalDaysStayed > 0 ? 'Across all stays' : 'No stay days yet',
-              bgColor: theme.colors.infoLight,
-              iconColor: theme.colors.info,
-            })}
-            {renderStatCard({
-              key: 'rent',
-              icon: 'cash-outline',
-              title: 'Monthly Rent',
-              value: formatCurrency(monthlyRentTotal),
-              subtitle: activeRooms.length ? `${activeRooms.length} room(s) total` : 'No active rent',
-              bgColor: theme.colors.purpleLight,
-              iconColor: theme.colors.purple,
-            })}
-            {renderStatCard({
-              key: 'balance',
-              icon: 'wallet-outline',
-              title: hasOverdueInvoices ? 'Balance Due' : 'Status',
-              value: hasOverdueInvoices ? formatCurrency(balanceDue) : (balanceDue > 0 ? formatCurrency(balanceDue) : 'Fully Paid'),
-              subtitle: hasOverdueInvoices ? 'Overdue detected' : 'Current billing state',
-              bgColor: hasOverdueInvoices ? theme.colors.errorLight : theme.colors.warningLight,
-              iconColor: hasOverdueInvoices ? theme.colors.error : theme.colors.warning,
-            })}
-          </ScrollView>
-
-          {renderPanel('rooms')}
-          {renderPanel('days')}
-          {renderPanel('rent')}
-          {renderPanel('balance')}
-        </View>
 
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
@@ -872,6 +750,52 @@ const DashboardScreen = () => {
               <Text style={styles.emptyCardText}>No alerts right now.</Text>
             </View>
           ) : null}
+        </View>
+
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Payments & Invoices</Text>
+            {unpaidInvoices.length > 0 && (
+              <TouchableOpacity onPress={() => navigation.navigate('Payments')}>
+                <Text style={[styles.alertLink, { color: theme.colors.primary }]}>View All</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+
+          {unpaidInvoices.length === 0 ? (
+            <View style={styles.emptyCard}>
+              <Text style={styles.emptyCardText}>No pending invoices.</Text>
+            </View>
+          ) : (
+            unpaidInvoices.map((invoice) => {
+              const palette = getPaymentStatusPalette(invoice.status, theme);
+              return (
+                <TouchableOpacity
+                  key={`invoice-${invoice.id}`}
+                  style={[
+                    styles.invoiceCard,
+                    { borderColor: palette.bg }
+                  ]}
+                  onPress={() => navigation.navigate('PaymentDetail', { invoiceId: invoice.id })}
+                >
+                  <View style={styles.invoiceHeader}>
+                    <View style={styles.invoiceLeft}>
+                      <Text style={styles.invoiceTitle}>{invoice.description}</Text>
+                      <Text style={styles.invoiceMeta}>Due {formatDate(invoice.dueDate)}</Text>
+                    </View>
+                    <View style={styles.invoiceRight}>
+                      <Text style={styles.invoiceAmount}>{formatCurrency(invoice.amount)}</Text>
+                      <View style={[styles.statusBadgeInline, { backgroundColor: palette.bg }]}>
+                        <Text style={[styles.statusBadgeInlineText, { color: palette.fg }]}>
+                          {toTitleCaseWords(invoice.status)}
+                        </Text>
+                      </View>
+                    </View>
+                  </View>
+                </TouchableOpacity>
+              );
+            })
+          )}
         </View>
 
         <View style={styles.section}>

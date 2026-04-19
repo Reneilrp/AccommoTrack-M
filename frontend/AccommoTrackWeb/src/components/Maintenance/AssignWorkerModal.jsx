@@ -9,15 +9,24 @@ export default function AssignWorkerModal({ isOpen, onClose, request, onAssign }
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [selectedWorkerId, setSelectedWorkerId] = useState(null);
+  const propertyId = request?.property_id ?? request?.property?.id ?? null;
 
   const fetchWorkers = useCallback(async () => {
+    if (!propertyId) {
+      setWorkers([]);
+      setLandlord(null);
+      setSelectedWorkerId(null);
+      setLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
-      const response = await propertyService.getPropertyWorkers(request.property_id);
+      const response = await propertyService.getPropertyWorkers(propertyId);
       if (response.success) {
         setWorkers(response.data.workers || []);
         setLandlord(response.data.landlord || null);
-        
+
         // Default select if only one or if landlord exists
         if (response.data.workers?.length > 0) {
           setSelectedWorkerId(response.data.workers[0].id);
@@ -31,16 +40,22 @@ export default function AssignWorkerModal({ isOpen, onClose, request, onAssign }
     } finally {
       setLoading(false);
     }
-  }, [request.property_id]);
+  }, [propertyId]);
 
   useEffect(() => {
-    if (isOpen && request?.property_id) {
+    if (isOpen && propertyId) {
       fetchWorkers();
     }
-  }, [isOpen, request?.property_id, fetchWorkers]);
+  }, [isOpen, propertyId, fetchWorkers]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    const requestId = request?.id;
+    if (!requestId) {
+      showError('Maintenance request not found');
+      return;
+    }
+
     if (!selectedWorkerId) {
       showError('Please select a worker');
       return;
@@ -48,7 +63,7 @@ export default function AssignWorkerModal({ isOpen, onClose, request, onAssign }
 
     try {
       setSubmitting(true);
-      await onAssign(request.id, selectedWorkerId);
+      await onAssign(requestId, selectedWorkerId);
       showSuccess('Maintenance worker assigned successfully');
       onClose();
     } catch {
@@ -73,7 +88,7 @@ export default function AssignWorkerModal({ isOpen, onClose, request, onAssign }
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           <div>
             <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
-              Select a worker or caretaker to handle this request for <strong>{request.property?.title}</strong>.
+              Select a worker or caretaker to handle this request for <strong>{request?.property?.title || 'this property'}</strong>.
             </p>
 
             {loading ? (
@@ -83,12 +98,11 @@ export default function AssignWorkerModal({ isOpen, onClose, request, onAssign }
             ) : (
               <div className="space-y-2 max-h-[40vh] overflow-y-auto pr-2">
                 {landlord && (
-                  <label 
-                    className={`flex items-center gap-4 p-4 rounded-xl border-2 cursor-pointer transition-all ${
-                      selectedWorkerId === landlord.id 
-                      ? 'border-brand-600 bg-brand-50/50 dark:bg-brand-900/20' 
-                      : 'border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50'
-                    }`}
+                  <label
+                    className={`flex items-center gap-4 p-4 rounded-xl border-2 cursor-pointer transition-all ${selectedWorkerId === landlord.id
+                        ? 'border-brand-600 bg-brand-50/50 dark:bg-brand-900/20'
+                        : 'border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50'
+                      }`}
                   >
                     <input
                       type="radio"
@@ -110,13 +124,12 @@ export default function AssignWorkerModal({ isOpen, onClose, request, onAssign }
                 )}
 
                 {workers.map((worker) => (
-                  <label 
+                  <label
                     key={worker.id}
-                    className={`flex items-center gap-4 p-4 rounded-xl border-2 cursor-pointer transition-all ${
-                      selectedWorkerId === worker.id 
-                      ? 'border-brand-600 bg-brand-50/50 dark:bg-brand-900/20' 
-                      : 'border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50'
-                    }`}
+                    className={`flex items-center gap-4 p-4 rounded-xl border-2 cursor-pointer transition-all ${selectedWorkerId === worker.id
+                        ? 'border-brand-600 bg-brand-50/50 dark:bg-brand-900/20'
+                        : 'border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50'
+                      }`}
                   >
                     <input
                       type="radio"

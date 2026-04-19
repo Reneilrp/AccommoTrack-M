@@ -225,18 +225,6 @@ export default function Payments() {
   );
 
   useEffect(() => {
-    // Auto-collapse sidebar when entering payments for wider table area.
-    if (collapse) collapse().catch(() => { });
-
-    loadInvoices();
-  }, [collapse, loadInvoices]);
-
-  useEffect(() => {
-    loadInvoices();
-    // Re-fetch when archive filter changes
-  }, [archiveFilter, loadInvoices]);
-
-  useEffect(() => {
     const params = new URLSearchParams(location.search || "");
     const filterParam = params.get("filter");
     const searchParam = params.get("search");
@@ -471,6 +459,67 @@ export default function Payments() {
     // statsRange is the only intended trigger.
   }, [statsRange, loadSummary]);
 
+  const loadBookingDetails = useCallback(async (bookingIds = []) => {
+    try {
+      const map = {};
+      // fetch each booking; if your API supports batch fetching, replace with a single call
+      await Promise.all(
+        bookingIds.map(async (id) => {
+          try {
+            const response = await bookingService.getBooking(id);
+            if (!response.success) return;
+            const booking = response.data || null;
+            if (booking) {
+              // derive simple display fields so Payments can render quickly
+              const tenant_name = booking.tenant?.first_name
+                ? `${booking.tenant.first_name} ${booking.tenant.last_name || ""}`.trim()
+                : booking.tenant?.name || booking.guestName || null;
+              const property_title =
+                booking.property?.title ||
+                booking.propertyTitle ||
+                booking.property_title ||
+                null;
+
+              // derive room label from common shapes
+              const roomCandidates = [
+                booking.roomNumber,
+                booking.room?.room_number,
+                booking.room?.number,
+                booking.room?.name,
+                booking.room_number,
+                booking.room_name,
+                booking.rooms?.[0]?.number,
+                booking.rooms?.[0]?.name,
+                booking.room_no,
+                booking.roomLabel,
+                booking.room_label,
+              ];
+              const room_label =
+                roomCandidates.find(
+                  (r) => r !== undefined && r !== null && r !== "",
+                ) || null;
+
+              map[id] = {
+                ...booking,
+                __derived: {
+                  tenant_name,
+                  property_title,
+                  room_label,
+                },
+              };
+            }
+          } catch (__err) {
+            // ignore individual booking fetch errors
+          }
+        }),
+      );
+      return map;
+    } catch (err) {
+      console.error("Failed to load booking details", err);
+      return {};
+    }
+  }, []);
+
   const loadInvoices = useCallback(async () => {
     try {
       if (!cachedData) setLoading(true);
@@ -523,6 +572,16 @@ export default function Payments() {
       setLoading(false);
     }
   }, [archiveFilter, bookingsMap, cachedData, getPaymentError, loadBookingDetails, loadSummary, statsRange, uiState.data?.landlord_payments, updateData]);
+
+  useEffect(() => {
+    // Auto-collapse sidebar when entering payments for wider table area.
+    if (collapse) collapse().catch(() => { });
+  }, [collapse]);
+
+  useEffect(() => {
+    loadInvoices();
+  }, [loadInvoices]);
+
 
   const handleRecordOffline = async () => {
     if (!selectedInvoice || !recordData.amount || !recordData.method) {
@@ -669,10 +728,10 @@ export default function Payments() {
       showSuccess(
         `Merged refund of ₱${(amountCents / 100).toLocaleString()} processed successfully`,
       );
-      
+
       setShowMergedRefundModal(false);
       setMergedRefundPreview(null);
-      
+
       // Refresh current invoice details
       const updatedInv = await invoiceService.getInvoice(invoiceId);
       if (updatedInv.success) setSelectedInvoice(updatedInv.data);
@@ -699,67 +758,6 @@ export default function Payments() {
     setRefundConfirmTx({ ...tx, refund_preview: preview });
     setRefundAmount((suggested / 100).toFixed(2));
   };
-
-  const loadBookingDetails = useCallback(async (bookingIds = []) => {
-    try {
-      const map = {};
-      // fetch each booking; if your API supports batch fetching, replace with a single call
-      await Promise.all(
-        bookingIds.map(async (id) => {
-          try {
-            const response = await bookingService.getBooking(id);
-            if (!response.success) return;
-            const booking = response.data || null;
-            if (booking) {
-              // derive simple display fields so Payments can render quickly
-              const tenant_name = booking.tenant?.first_name
-                ? `${booking.tenant.first_name} ${booking.tenant.last_name || ""}`.trim()
-                : booking.tenant?.name || booking.guestName || null;
-              const property_title =
-                booking.property?.title ||
-                booking.propertyTitle ||
-                booking.property_title ||
-                null;
-
-              // derive room label from common shapes
-              const roomCandidates = [
-                booking.roomNumber,
-                booking.room?.room_number,
-                booking.room?.number,
-                booking.room?.name,
-                booking.room_number,
-                booking.room_name,
-                booking.rooms?.[0]?.number,
-                booking.rooms?.[0]?.name,
-                booking.room_no,
-                booking.roomLabel,
-                booking.room_label,
-              ];
-              const room_label =
-                roomCandidates.find(
-                  (r) => r !== undefined && r !== null && r !== "",
-                ) || null;
-
-              map[id] = {
-                ...booking,
-                __derived: {
-                  tenant_name,
-                  property_title,
-                  room_label,
-                },
-              };
-            }
-          } catch (__err) {
-            // ignore individual booking fetch errors
-          }
-        }),
-      );
-      return map;
-    } catch (err) {
-      console.error("Failed to load booking details", err);
-      return {};
-    }
-  }, []);
 
   const updateBookingPayment = async (bookingId, paymentStatus, silent = false) => {
     try {
@@ -1259,11 +1257,10 @@ export default function Payments() {
         <div className="flex gap-6 mb-4 border-b border-gray-200 dark:border-gray-700">
           <button
             onClick={() => setArchiveFilter("active")}
-            className={`pb-3 px-2 text-sm font-bold transition-all relative ${
-              archiveFilter === "active"
+            className={`pb-3 px-2 text-sm font-bold transition-all relative ${archiveFilter === "active"
                 ? "text-green-600 dark:text-green-400"
                 : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-            }`}
+              }`}
           >
             Active Billing
             {archiveFilter === "active" && (
@@ -1272,11 +1269,10 @@ export default function Payments() {
           </button>
           <button
             onClick={() => setArchiveFilter("archived")}
-            className={`pb-3 px-2 text-sm font-bold transition-all relative flex items-center gap-2 ${
-              archiveFilter === "archived"
+            className={`pb-3 px-2 text-sm font-bold transition-all relative flex items-center gap-2 ${archiveFilter === "archived"
                 ? "text-gray-900 dark:text-white"
                 : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-            }`}
+              }`}
           >
             Payment Archive
             {archiveFilter === "archived" && (

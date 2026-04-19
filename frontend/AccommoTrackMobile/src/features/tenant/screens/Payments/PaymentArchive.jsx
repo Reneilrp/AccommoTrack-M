@@ -24,15 +24,6 @@ import {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-const STATUS_FILTERS = [
-  { value: 'all', label: 'All' },
-  { value: 'paid', label: 'Paid' },
-  { value: 'pending', label: 'Pending' },
-  { value: 'partial', label: 'Partial' },
-  { value: 'overdue', label: 'Overdue' },
-  { value: 'refunded', label: 'Refunded' },
-];
-
 const getStatusStyle = (status, isDark) => {
   const s = (status || '').toLowerCase();
   const map = {
@@ -66,7 +57,6 @@ const formatCurrency = (amount) => {
 function PaymentCard({ payment, theme, onPress }) {
   const status = (payment.status || '').toLowerCase();
   const ss = getStatusStyle(status, theme.isDark);
-  const isPayable = ['pending', 'unpaid', 'partial', 'overdue'].includes(status);
 
   return (
     <TouchableOpacity
@@ -112,9 +102,6 @@ function PaymentCard({ payment, theme, onPress }) {
             {status ? status.charAt(0).toUpperCase() + status.slice(1) : 'Pending'}
           </Text>
         </View>
-        {isPayable && (
-          <Text style={{ fontSize: 10, color: theme.colors.primary, fontWeight: '700', marginTop: 4 }}>Tap to Pay →</Text>
-        )}
       </View>
     </TouchableOpacity>
   );
@@ -122,64 +109,50 @@ function PaymentCard({ payment, theme, onPress }) {
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
-export default function PaymentHistory() {
+export default function PaymentArchive() {
   const navigation = useNavigation();
   const { theme } = useTheme();
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [activeFilter, setActiveFilter] = useState('all');
 
-  // ── All payments ────────────────────────────────────────────────────────────
-  const allPaymentsQuery = useQuery({
-    queryKey: [...tenantQueryKeys.paymentHistory(), 'all'],
+  // ── Archived payments ────────────────────────────────────────────────────────
+  const archivedPaymentsQuery = useQuery({
+    queryKey: [...tenantQueryKeys.paymentHistory(), 'archived'],
     queryFn: async () => {
-      const res = await PaymentService.getPayments('all', 'all');
+      const res = await PaymentService.getPayments('all', 'archived');
       if (res?.success && Array.isArray(res.data)) return res.data;
       return [];
     },
     placeholderData: (prev) => prev,
   });
 
-
-  const allPayments = useMemo(() => allPaymentsQuery.data || [], [allPaymentsQuery.data]);
-  const loading = allPaymentsQuery.isLoading;
+  const archivedPayments = useMemo(() => archivedPaymentsQuery.data || [], [archivedPaymentsQuery.data]);
+  const loading = archivedPaymentsQuery.isLoading;
 
   const refetchers = useMemo(
-    () => [allPaymentsQuery.refetch],
-    [allPaymentsQuery.refetch],
+    () => [archivedPaymentsQuery.refetch],
+    [archivedPaymentsQuery.refetch],
   );
 
   useTenantFocusRefetch({ refetchers });
   const onRefresh = useTenantRefreshHandler({ setRefreshing, refetchers });
 
-  // ── Filter helpers ──────────────────────────────────────────────────────────
-
-  const applyFilter = useCallback((list) => {
+  const filteredArchived = useMemo(() => {
     const q = (searchQuery || '').trim().toLowerCase();
-    return list
-      .filter((p) => {
-        const status = (p.status || '').toLowerCase();
-        const matchFilter = activeFilter === 'all' || status === activeFilter ||
-          (activeFilter === 'pending' && ['pending', 'unpaid', 'awaiting verification'].includes(status));
-        if (!matchFilter) return false;
-        if (!q) return true;
-        const prop = (p.propertyName || '').toLowerCase();
-        const ref = (p.referenceNo || '').toLowerCase();
-        const room = (p.roomNumber || '').toLowerCase();
-        const method = (p.method || '').toLowerCase();
-        return prop.includes(q) || ref.includes(q) || room.includes(q) || method.includes(q);
-      })
-      .sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
-  }, [searchQuery, activeFilter]);
-
-  const filteredAll = useMemo(() => applyFilter(allPayments), [applyFilter, allPayments]);
+    const sorted = [...archivedPayments].sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
+    if (!q) return sorted;
+    return sorted.filter((p) => {
+      const prop = (p.propertyName || '').toLowerCase();
+      const ref = (p.referenceNo || '').toLowerCase();
+      const room = (p.roomNumber || '').toLowerCase();
+      return prop.includes(q) || ref.includes(q) || room.includes(q);
+    });
+  }, [archivedPayments, searchQuery]);
 
   const handlePaymentPress = useCallback((payment) => {
     const id = payment.invoiceId || payment.invoice_id || payment.id;
     if (id) navigation.navigate('PaymentDetail', { invoiceId: id });
   }, [navigation]);
-
-  // ─────────────────────────────────────────────────────────────────────────────
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.background }} edges={['top']}>
@@ -191,24 +164,24 @@ export default function PaymentHistory() {
           <Ionicons name="arrow-back" size={24} color="#fff" />
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
-          <Text style={{ color: '#fff', fontSize: 18, fontWeight: '800', letterSpacing: -0.3 }}>Payment Logs</Text>
-          <Text style={{ color: 'rgba(255,255,255,0.75)', fontSize: 12, marginTop: 1 }}>Full payment history</Text>
+          <Text style={{ color: '#fff', fontSize: 18, fontWeight: '800', letterSpacing: -0.3 }}>Payment Archive</Text>
+          <Text style={{ color: 'rgba(255,255,255,0.75)', fontSize: 12, marginTop: 1 }}>Settled payments older than 30 days</Text>
         </View>
         <TouchableOpacity
-          onPress={() => navigation.navigate('PaymentArchive')}
+          onPress={() => archivedPaymentsQuery.refetch()}
           style={{ padding: 6, borderRadius: 8, backgroundColor: 'rgba(255,255,255,0.18)' }}
         >
-          <Ionicons name="archive-outline" size={20} color="#fff" />
+          <Ionicons name="refresh-outline" size={20} color="#fff" />
         </TouchableOpacity>
       </View>
 
-      {/* Search + Filter */}
-      <View style={{ backgroundColor: theme.colors.surface, borderBottomWidth: 1, borderBottomColor: theme.colors.border, paddingHorizontal: 16, paddingTop: 14, paddingBottom: 10 }}>
+      {/* Search */}
+      <View style={{ backgroundColor: theme.colors.surface, borderBottomWidth: 1, borderBottomColor: theme.colors.border, paddingHorizontal: 16, paddingVertical: 14 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: theme.colors.background, borderRadius: 10, paddingHorizontal: 12, height: 42, borderWidth: 1, borderColor: theme.colors.border }}>
           <Ionicons name="search-outline" size={18} color={theme.colors.textTertiary} />
           <TextInput
             style={{ flex: 1, marginLeft: 8, fontSize: 14, color: theme.colors.text }}
-            placeholder="Search property, room, reference…"
+            placeholder="Search archived property, room, ref…"
             placeholderTextColor={theme.colors.textTertiary}
             value={searchQuery}
             onChangeText={setSearchQuery}
@@ -219,43 +192,12 @@ export default function PaymentHistory() {
             </TouchableOpacity>
           ) : null}
         </View>
-
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 10 }} contentContainerStyle={{ gap: 6, paddingRight: 4 }}>
-          {STATUS_FILTERS.map((f) => (
-            <TouchableOpacity
-              key={f.value}
-              onPress={() => setActiveFilter(f.value)}
-              style={{
-                paddingHorizontal: 12,
-                paddingVertical: 6,
-                borderRadius: 99,
-                backgroundColor: activeFilter === f.value ? theme.colors.primary : theme.colors.background,
-                borderWidth: 1,
-                borderColor: activeFilter === f.value ? theme.colors.primary : theme.colors.border,
-              }}
-            >
-              <Text style={{ fontSize: 12, fontWeight: '700', color: activeFilter === f.value ? '#fff' : theme.colors.textSecondary }}>
-                {f.label}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
       </View>
 
       <FlatList
-        data={filteredAll}
+        data={filteredArchived}
         keyExtractor={(item) => String(item.id || Math.random())}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[theme.colors.primary]} />}
-        ListHeaderComponent={
-          <>
-            {/* ── LOG HEADER ──────────────────────────────────── */}
-            <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingTop: 14, paddingBottom: 10, gap: 8 }}>
-              <Ionicons name="receipt-outline" size={16} color={theme.colors.primary} />
-              <Text style={{ fontSize: 13, fontWeight: '700', color: theme.colors.text }}>Full Log</Text>
-              <Text style={{ fontSize: 12, color: theme.colors.textSecondary }}>({filteredAll.length} records)</Text>
-            </View>
-          </>
-        }
         renderItem={({ item }) => (
           <PaymentCard payment={item} theme={theme} onPress={() => handlePaymentPress(item)} />
         )}
@@ -263,19 +205,19 @@ export default function PaymentHistory() {
           loading ? (
             <View style={{ alignItems: 'center', paddingVertical: 48 }}>
               <ActivityIndicator size="large" color={theme.colors.primary} />
-              <Text style={{ fontSize: 13, color: theme.colors.textSecondary, marginTop: 12 }}>Loading payment logs…</Text>
+              <Text style={{ fontSize: 13, color: theme.colors.textSecondary, marginTop: 12 }}>Loading archive…</Text>
             </View>
           ) : (
             <View style={{ alignItems: 'center', paddingVertical: 48, paddingHorizontal: 24 }}>
-              <Ionicons name="receipt-outline" size={48} color={theme.colors.textTertiary} />
-              <Text style={{ fontSize: 15, fontWeight: '700', color: theme.colors.textSecondary, marginTop: 12 }}>No payments found</Text>
+              <Ionicons name="archive-outline" size={48} color={theme.colors.textTertiary} />
+              <Text style={{ fontSize: 15, fontWeight: '700', color: theme.colors.textSecondary, marginTop: 12 }}>Archive is empty</Text>
               <Text style={{ fontSize: 13, color: theme.colors.textTertiary, marginTop: 4, textAlign: 'center' }}>
-                Try adjusting your search or filters
+                Paid invoices older than 30 days will appear here.
               </Text>
             </View>
           )
         }
-        contentContainerStyle={{ paddingBottom: 32 }}
+        contentContainerStyle={{ paddingVertical: 16, paddingBottom: 32 }}
       />
     </SafeAreaView>
   );

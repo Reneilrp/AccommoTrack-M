@@ -281,8 +281,8 @@ export default function Payments({ navigation, route }) {
 
   const screenWidth = Dimensions.get('window').width;
   const isTablet = screenWidth > 768;
-  const cardWidth = isTablet ? 170 : 142;
-  const cardHeight = isTablet ? 132 : 116;
+  const cardWidth = isTablet ? 260 : 220;
+  const cardHeight = isTablet ? 86 : 78;
 
   const [user, setUser] = useState(null);
   useEffect(() => {
@@ -874,154 +874,189 @@ export default function Payments({ navigation, route }) {
         </TouchableOpacity>
       </View>
 
-      {/* ── Stats Summary Cards (W4) ── */}
-      <View style={{ backgroundColor: theme.colors.surface, borderBottomWidth: 1, borderBottomColor: theme.colors.border }}>
-        <View style={styles.statsRangeContainer}>
-          {[
-            { value: 'month', label: 'This Month' },
-            { value: 'all', label: 'All Time' },
-          ].map((option) => (
-            <TouchableOpacity
-              key={option.value}
-              style={[
-                styles.statsRangeChip,
-                statsRange === option.value && styles.statsRangeChipActive,
-              ]}
-              onPress={() => setStatsRange(option.value)}
-            >
-              <Text
-                style={[
-                  styles.statsRangeChipText,
-                  statsRange === option.value && styles.statsRangeChipTextActive,
-                ]}
-              >
-                {option.label}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{
-            paddingHorizontal: 16,
-            paddingVertical: 8,
-          }}
-        >
-          {[
-            { label: statsRange === 'month' ? 'Collected' : 'Collected', sublabel: statsRange === 'month' ? '(Month)' : '(All Time)', value: `₱${stats.totalPaid.toLocaleString(undefined, { maximumFractionDigits: 0 })}`, icon: 'checkmark-circle', color: '#16a34a', bg: '#DCFCE7' },
-            { label: statsRange === 'month' ? 'Outstanding' : 'Outstanding', sublabel: statsRange === 'month' ? '(Month)' : '(All Time)', value: `₱${stats.totalBalance.toLocaleString(undefined, { maximumFractionDigits: 0 })}`, icon: 'time-outline', color: '#D97706', bg: '#FEF3C7' },
-            { label: statsRange === 'month' ? 'Paid' : 'Paid', sublabel: statsRange === 'month' ? '(Month)' : '(All Time)', value: stats.paidCount, icon: 'receipt-outline', color: '#16a34a', bg: '#DCFCE7' },
-            { label: statsRange === 'month' ? 'Pending' : 'Pending', sublabel: statsRange === 'month' ? '(Month)' : '(All Time)', value: stats.pendingCount, icon: 'hourglass-outline', color: '#92400E', bg: '#FEF3C7' },
-            { label: statsRange === 'month' ? 'Cash Verify' : 'Cash Verify', sublabel: statsRange === 'month' ? '(Month)' : '(All Time)', value: stats.pendingVerifCount, icon: 'shield-checkmark-outline', color: '#C2410C', bg: '#FFEDD5' },
-            { label: statsRange === 'month' ? 'Overdue' : 'Overdue', sublabel: statsRange === 'month' ? '(Month)' : '(All Time)', value: stats.overdueCount, icon: 'alert-circle-outline', color: '#DC2626', bg: '#FEE2E2' },
-          ].map((card, i) => (
-            <View
-              key={i}
-              style={{
-                backgroundColor: theme.isDark ? theme.colors.surface : card.bg,
-                borderRadius: 12,
-                padding: isTablet ? 16 : 14,
-                width: cardWidth,
-                height: cardHeight,
-                borderWidth: 1,
-                borderColor: theme.isDark ? theme.colors.border : 'transparent',
-                justifyContent: 'flex-start',
-                marginRight: 8,
-              }}
-            >
-              <Ionicons name={card.icon} size={isTablet ? 24 : 20} color={theme.isDark ? theme.colors.textSecondary : card.color} />
-              <Text
-                style={{
-                  fontSize: isTablet ? 20 : 18,
-                  fontWeight: '800',
-                  color: theme.isDark ? theme.colors.text : card.color,
-                  marginTop: 8,
-                  lineHeight: isTablet ? 24 : 22,
-                }}
-                numberOfLines={1}
-                adjustsFontSizeToFit
-                minimumFontScale={0.85}
-              >
-                {card.value}
-              </Text>
-              <View style={{ marginTop: 8, minHeight: isTablet ? 34 : 30 }}>
-                <Text
-                  style={{
-                    fontSize: isTablet ? 12 : 11,
-                    fontWeight: '600',
-                    color: theme.isDark ? theme.colors.textSecondary : card.color,
-                    opacity: 0.8,
-                    lineHeight: isTablet ? 16 : 14,
-                  }}
-                  numberOfLines={1}
-                >
-                  {card.label}
-                </Text>
-                <Text
-                  style={{
-                    fontSize: isTablet ? 11 : 10,
-                    fontWeight: '500',
-                    color: theme.isDark ? theme.colors.textSecondary : card.color,
-                    opacity: 0.7,
-                    lineHeight: isTablet ? 15 : 13,
-                  }}
-                  numberOfLines={1}
-                >
-                  {card.sublabel}
-                </Text>
-              </View>
-            </View>
-          ))}
-        </ScrollView>
-      </View>
-
-      {/* Search */}
-      <View style={styles.searchContainer}>
-        <View style={styles.searchBar}>
-          <Ionicons name="search" size={20} color="#9CA3AF" />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Search by invoice, tenant, property..."
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            placeholderTextColor="#9CA3AF"
-          />
-          {searchQuery !== '' && (
-            <TouchableOpacity onPress={() => setSearchQuery('')}>
-              <Ionicons name="close-circle" size={20} color="#9CA3AF" />
-            </TouchableOpacity>
-          )}
-        </View>
-      </View>
-
-      {/* Filters */}
-      <View style={styles.filterContainer}>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.filterScroll}
-        >
-          {STATUS_FILTERS.map((filter) => (
-            <TouchableOpacity
-              key={filter}
-              style={[styles.filterChip, activeFilter === filter && styles.activeFilterChip]}
-              onPress={() => setActiveFilter(filter)}
-            >
-              <Text style={[styles.filterText, activeFilter === filter && styles.activeFilterText]}>
-                {getStatusLabel(filter)}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-      </View>
-
+      {/* Main List */}
       <FlatList
-        data={filteredInvoices}
-        renderItem={renderInvoiceItem}
+        data={useMemo(() => [
+          { id: 'sticky-search' },
+          { id: 'sticky-filters' },
+          ...filteredInvoices
+        ], [filteredInvoices, searchQuery, activeFilter, theme.isDark])}
+        renderItem={({ item }) => {
+          if (item.id === 'sticky-search') {
+            return (
+              <View style={styles.searchContainer}>
+                <View style={styles.searchBar}>
+                  <Ionicons name="search" size={20} color="#9CA3AF" />
+                  <TextInput
+                    style={styles.searchInput}
+                    placeholder="Search by invoice, tenant, property..."
+                    value={searchQuery}
+                    onChangeText={setSearchQuery}
+                    placeholderTextColor="#9CA3AF"
+                  />
+                  {searchQuery !== '' && (
+                    <TouchableOpacity onPress={() => setSearchQuery('')}>
+                      <Ionicons name="close-circle" size={20} color="#9CA3AF" />
+                    </TouchableOpacity>
+                  )}
+                </View>
+              </View>
+            );
+          }
+
+          if (item.id === 'sticky-filters') {
+            return (
+              <View style={styles.filterContainer}>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.filterScroll}
+                >
+                  {STATUS_FILTERS.map((filter) => (
+                    <TouchableOpacity
+                      key={filter}
+                      style={[styles.filterChip, activeFilter === filter && styles.activeFilterChip]}
+                      onPress={() => setActiveFilter(filter)}
+                    >
+                      <Text style={[styles.filterText, activeFilter === filter && styles.activeFilterText]}>
+                        {getStatusLabel(filter)}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
+            );
+          }
+
+          return renderInvoiceItem({ item });
+        }}
         keyExtractor={(item) => item.id.toString()}
         contentContainerStyle={styles.listContent}
+        stickyHeaderIndices={[0, 1]}
+        ListHeaderComponent={useMemo(() => (
+          <View style={{ backgroundColor: theme.colors.surface, borderBottomWidth: 1, borderBottomColor: theme.colors.border }}>
+            <View style={styles.statsRangeContainer}>
+              {[
+                { value: 'month', label: 'This Month' },
+                { value: 'all', label: 'All Time' },
+              ].map((option) => (
+                <TouchableOpacity
+                  key={option.value}
+                  style={[
+                    styles.statsRangeChip,
+                    statsRange === option.value && styles.statsRangeChipActive,
+                  ]}
+                  onPress={() => setStatsRange(option.value)}
+                >
+                  <Text
+                    style={[
+                      styles.statsRangeChipText,
+                      statsRange === option.value && styles.statsRangeChipTextActive,
+                    ]}
+                  >
+                    {option.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={{
+                paddingHorizontal: 16,
+                paddingVertical: 8,
+              }}
+            >
+              {[
+                { label: 'Collected', sublabel: statsRange === 'month' ? '(Month)' : '(All Time)', value: `₱${stats.totalPaid.toLocaleString(undefined, { maximumFractionDigits: 0 })}`, icon: 'checkmark-circle', color: '#16a34a', bg: '#DCFCE7' },
+                { label: 'Outstanding', sublabel: statsRange === 'month' ? '(Month)' : '(All Time)', value: `₱${stats.totalBalance.toLocaleString(undefined, { maximumFractionDigits: 0 })}`, icon: 'time-outline', color: '#D97706', bg: '#FEF3C7' },
+                { label: 'Paid', sublabel: statsRange === 'month' ? '(Month)' : '(All Time)', value: stats.paidCount, icon: 'receipt-outline', color: '#16a34a', bg: '#DCFCE7' },
+                { label: 'Pending', sublabel: statsRange === 'month' ? '(Month)' : '(All Time)', value: stats.pendingCount, icon: 'hourglass-outline', color: '#92400E', bg: '#FEF3C7' },
+                { label: 'Cash Verify', sublabel: statsRange === 'month' ? '(Month)' : '(All Time)', value: stats.pendingVerifCount, icon: 'shield-checkmark-outline', color: '#C2410C', bg: '#FFEDD5' },
+                { label: 'Overdue', sublabel: statsRange === 'month' ? '(Month)' : '(All Time)', value: stats.overdueCount, icon: 'alert-circle-outline', color: '#DC2626', bg: '#FEE2E2' },
+              ].map((card, i) => (
+                <View
+                  key={i}
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    backgroundColor: theme.isDark ? theme.colors.surface : card.bg,
+                    borderRadius: 14,
+                    paddingHorizontal: isTablet ? 16 : 14,
+                    width: cardWidth,
+                    height: cardHeight,
+                    borderWidth: 1,
+                    borderColor: theme.isDark ? theme.colors.border : 'transparent',
+                    marginRight: 10,
+                    elevation: theme.isDark ? 0 : 1,
+                    shadowColor: '#000',
+                    shadowOffset: { width: 0, height: 1 },
+                    shadowOpacity: 0.05,
+                    shadowRadius: 2,
+                  }}
+                >
+                  <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1.2 }}>
+                    <View style={{
+                      width: isTablet ? 44 : 38,
+                      height: isTablet ? 44 : 38,
+                      borderRadius: 12,
+                      backgroundColor: theme.isDark ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.4)',
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                      marginRight: isTablet ? 12 : 10,
+                      borderWidth: theme.isDark ? 1 : 0,
+                      borderColor: 'rgba(255,255,255,0.1)',
+                    }}>
+                      <Ionicons name={card.icon} size={isTablet ? 22 : 18} color={theme.isDark ? theme.colors.textSecondary : card.color} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text
+                        style={{
+                          fontSize: isTablet ? 13 : 11,
+                          fontWeight: '700',
+                          color: theme.isDark ? theme.colors.text : card.color,
+                          textTransform: 'uppercase',
+                          letterSpacing: 0.3,
+                        }}
+                        numberOfLines={1}
+                      >
+                        {card.label}
+                      </Text>
+                      <Text
+                        style={{
+                          fontSize: isTablet ? 11 : 9,
+                          fontWeight: '500',
+                          color: theme.isDark ? theme.colors.textSecondary : card.color,
+                          opacity: 0.8,
+                          marginTop: 1,
+                        }}
+                        numberOfLines={1}
+                      >
+                        {card.sublabel}
+                      </Text>
+                    </View>
+                  </View>
+
+                  <View style={{ flex: 1, alignItems: 'flex-end', marginLeft: 4 }}>
+                    <Text
+                      style={{
+                        fontSize: isTablet ? 20 : 17,
+                        fontWeight: '800',
+                        color: theme.isDark ? theme.colors.text : card.color,
+                      }}
+                      numberOfLines={1}
+                      adjustsFontSizeToFit
+                      minimumFontScale={0.75}
+                    >
+                      {card.value}
+                    </Text>
+                  </View>
+                </View>
+              ))}
+            </ScrollView>
+          </View>
+        ), [statsRange, stats, theme.isDark, isTablet, cardWidth, cardHeight])}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}

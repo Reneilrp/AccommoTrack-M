@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useSidebar } from '../../contexts/SidebarContext';
 import AddProperty from './AddProperty';
@@ -76,14 +76,15 @@ const scopePropertiesForCaretaker = (properties, user) => {
 export default function MyProperties({ user }) {
   const { uiState, updateData } = useUIState();
   const cachedProperties = uiState.data?.landlord_properties || cacheManager.get('landlord_properties');
-  const activeUser = (() => {
+  const activeUser = useMemo(() => {
     if (user) return user;
     try {
       return JSON.parse(localStorage.getItem('userData') || '{}');
     } catch {
       return {};
     }
-  })();
+  }, [user]);
+  const hasInitialCachedProperties = useRef(Boolean(cachedProperties));
   const isCaretaker = activeUser?.role === 'caretaker';
   const scopedCachedProperties = scopePropertiesForCaretaker(cachedProperties || [], activeUser);
   const [activeTab, setActiveTab] = useState('all');
@@ -101,6 +102,62 @@ export default function MyProperties({ user }) {
   const [passwordError, setPasswordError] = useState('');
   const [verifying, setVerifying] = useState(false);
   const [isVerified, setIsVerified] = useState(isCaretaker ? true : null);
+
+  const checkVerificationStatus = useCallback(async () => {
+    try {
+      const res = await api.get('/landlord/my-verification');
+      const status = res.data?.status;
+      const hasLandlordAccess = ['approved', 'partial_verified', 'pending_documents_review'].includes(status);
+      setIsVerified(hasLandlordAccess || res.data?.user?.is_verified === true);
+    } catch (__err) {
+      setIsVerified(false);
+    }
+  }, []);
+
+  const fetchProperties = useCallback(async () => {
+    try {
+      if (!hasInitialCachedProperties.current) setLoading(true);
+      setError(null);
+
+      // Using the axios instance
+      const response = await api.get('/landlord/properties');
+      const payload = response.data;
+      const propertiesData = Array.isArray(payload)
+        ? payload
+        : Array.isArray(payload?.data)
+          ? payload.data
+          : [];
+      const scopedProperties = scopePropertiesForCaretaker(propertiesData, activeUser);
+
+      setProperties(scopedProperties);
+      updateData('landlord_properties', scopedProperties);
+      cacheManager.set('landlord_properties', scopedProperties);
+
+      // Pre-cache individual property summaries to enable instant transition to PropertySummary
+      if (Array.isArray(scopedProperties)) {
+        scopedProperties.forEach(prop => {
+          const summaryKey = `property_summary_${prop.id}`;
+          const existingSummary = cacheManager.get(summaryKey);
+
+          // Only update if summary doesn't exist or we want to refresh the basic property info
+          const updatedSummary = {
+            ...(existingSummary || {}),
+            property: prop // Update the property object with latest from list
+          };
+
+          updateData(summaryKey, updatedSummary);
+          cacheManager.set(summaryKey, updatedSummary);
+        });
+      }
+
+    } catch (err) {
+      console.error('Error fetching properties:', err);
+      setError(err.response?.data?.message || err.message);
+    } finally {
+      setLoading(false);
+      hasInitialCachedProperties.current = true;
+    }
+  }, [activeUser, updateData]);
 
   useEffect(() => {
     fetchProperties();
@@ -124,61 +181,6 @@ export default function MyProperties({ user }) {
       setCurrentView(uiState.data.landlord_property_view);
     }
   }, [uiState.data?.landlord_property_view, currentView]);
-
-  const checkVerificationStatus = useCallback(async () => {
-    try {
-      const res = await api.get('/landlord/my-verification');
-      const status = res.data?.status;
-      const hasLandlordAccess = ['approved', 'partial_verified', 'pending_documents_review'].includes(status);
-      setIsVerified(hasLandlordAccess || res.data?.user?.is_verified === true);
-    } catch (__err) {
-      setIsVerified(false);
-    }
-  }, []);
-
-  const fetchProperties = useCallback(async () => {
-    try {
-      if (!cachedProperties) setLoading(true);
-      setError(null);
-
-      // Using the axios instance
-      const response = await api.get('/landlord/properties');
-      const payload = response.data;
-      const propertiesData = Array.isArray(payload)
-        ? payload
-        : Array.isArray(payload?.data)
-          ? payload.data
-          : [];
-      const scopedProperties = scopePropertiesForCaretaker(propertiesData, activeUser);
-
-      setProperties(scopedProperties);
-      updateData('landlord_properties', scopedProperties);
-      cacheManager.set('landlord_properties', scopedProperties);
-
-      // Pre-cache individual property summaries to enable instant transition to PropertySummary
-      if (Array.isArray(scopedProperties)) {
-        scopedProperties.forEach(prop => {
-          const summaryKey = `property_summary_${prop.id}`;
-          const existingSummary = uiState.data?.[summaryKey] || cacheManager.get(summaryKey);
-          
-          // Only update if summary doesn't exist or we want to refresh the basic property info
-          const updatedSummary = {
-            ...(existingSummary || {}),
-            property: prop // Update the property object with latest from list
-          };
-          
-          updateData(summaryKey, updatedSummary);
-          cacheManager.set(summaryKey, updatedSummary);
-        });
-      }
-      
-    } catch (err) {
-      console.error('Error fetching properties:', err);
-      setError(err.response?.data?.message || err.message);
-    } finally {
-      setLoading(false);
-    }
-  }, [activeUser, cachedProperties, updateData, uiState.data]);
 
   const stats = {
     activeListings: properties.filter(p => p.current_status === 'active').length,
@@ -227,7 +229,7 @@ export default function MyProperties({ user }) {
     try {
       setVerifying(true);
       setPasswordError('');
-      
+
       const response = await api.post('/landlord/properties/verify-password', {
         password: password
       });
@@ -249,14 +251,14 @@ export default function MyProperties({ user }) {
 
   const confirmDelete = async () => {
     if (!deleteConfirm.property) return;
-    
+
     try {
       setLoading(true);
       // Send password in request body for DELETE request
       const response = await api.delete(`/landlord/properties/${deleteConfirm.property.id}`, {
         data: { password: password }
       });
-      
+
       if (response.status === 200) {
         showSuccess(response.data.message || 'Property deleted successfully');
         fetchProperties();
@@ -290,7 +292,7 @@ export default function MyProperties({ user }) {
       <div className="flex flex-col lg:flex-row lg:items-start gap-6">
         {/* Image skeleton */}
         <Skeleton className="w-full lg:w-60 lg:h-48 h-56 rounded-xl flex-shrink-0" />
-        
+
         {/* Content skeleton */}
         <div className="flex-1 pt-0 lg:pt-6">
           <div className="flex items-center gap-4 mb-4">
@@ -450,9 +452,8 @@ export default function MyProperties({ user }) {
                   <button
                     key={tab}
                     onClick={() => setActiveTab(tab)}
-                    className={`flex-1 md:flex-none px-4 py-2.5 text-xs md:text-sm font-bold rounded-md transition-colors whitespace-nowrap ${
-                      activeTab === tab ? 'bg-green-600 text-white shadow-sm' : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white'
-                    }`}
+                    className={`flex-1 md:flex-none px-4 py-2.5 text-xs md:text-sm font-bold rounded-md transition-colors whitespace-nowrap ${activeTab === tab ? 'bg-green-600 text-white shadow-sm' : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white'
+                      }`}
                   >
                     {tab.charAt(0).toUpperCase() + tab.slice(1)}
                   </button>
@@ -518,15 +519,14 @@ export default function MyProperties({ user }) {
                             </span>
                           </div>
                           <span
-                            className={`px-2 py-0.5 text-xs font-medium rounded-full capitalize flex-shrink-0 ${
-                              property.current_status === 'active' && !property.is_published
+                            className={`px-2 py-0.5 text-xs font-medium rounded-full capitalize flex-shrink-0 ${property.current_status === 'active' && !property.is_published
                                 ? 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300'
                                 : property.current_status === 'active'
-                                ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
-                                : property.current_status === 'inactive'
-                                ? 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300'
-                                : 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'
-                            }`}
+                                  ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                                  : property.current_status === 'inactive'
+                                    ? 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300'
+                                    : 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'
+                              }`}
                           >
                             {property.current_status === 'active' && !property.is_published ? 'hidden' : property.current_status}
                           </span>
@@ -556,7 +556,7 @@ export default function MyProperties({ user }) {
                             <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">Available Rooms</p>
                             <p className="text-sm font-semibold text-gray-900 dark:text-white">{property.available_rooms || 0}</p>
                           </div>
-                          
+
                           <div className="h-8 w-px bg-gray-200 dark:bg-gray-700 hidden sm:block"></div>
 
                           <div>
@@ -598,9 +598,8 @@ export default function MyProperties({ user }) {
                     verifyPassword();
                   }
                 }}
-                className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 dark:bg-gray-700 dark:text-white ${
-                  passwordError ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
-                }`}
+                className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 dark:bg-gray-700 dark:text-white ${passwordError ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
+                  }`}
                 placeholder="Enter your password"
                 autoFocus
               />
