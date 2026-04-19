@@ -41,6 +41,7 @@ return [
         'test_secret_key' => env('PAYMONGO_TEST_SECRET_KEY'),
         'test_public_key' => env('PAYMONGO_TEST_PUBLIC_KEY'),
         'webhook_secret' => env('PAYMONGO_WEBHOOK_SECRET'),
+        'test_webhook_secret' => env('PAYMONGO_TEST_WEBHOOK_SECRET'),
         'parent_org_id' => env('PAYMONGO_PARENT_ORG_ID'),
         'verify_ssl' => env('PAYMONGO_VERIFY_SSL', true),
     ],

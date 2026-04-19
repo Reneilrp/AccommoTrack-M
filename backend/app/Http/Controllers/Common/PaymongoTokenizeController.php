@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Common;
 
 use App\Http\Controllers\Controller;
 use App\Support\SystemToggle;
+use App\Support\PaymongoKeyResolver;
 use Illuminate\Http\Request;
 
 class PaymongoTokenizeController extends Controller
@@ -47,7 +48,7 @@ class PaymongoTokenizeController extends Controller
             return response($disabledHtml, 503)->header('Content-Type', 'text/html');
         }
 
-        $publicKey = config('services.paymongo.public_key');
+        $publicKey = PaymongoKeyResolver::getPublicKey();
         $returnUrl = $request->query('return_url', 'about:blank');
 
         // Build the HTML without using PHP string interpolation to avoid deprecation warnings

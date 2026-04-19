@@ -96,7 +96,7 @@ class PaymongoWebhookController extends Controller
     public function handle(Request $request)
     {
         $rawPayload = $request->getContent();
-        $webhookSecret = config('services.paymongo.webhook_secret');
+        $webhookSecret = PaymongoKeyResolver::getWebhookSecret();
         $signatureHeader = $request->header('Paymongo-Signature')
             ?? $request->header('PayMongo-Signature')
             ?? $request->header('paymongo-signature')

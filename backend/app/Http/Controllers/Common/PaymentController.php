@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
+use App\Support\PaymongoKeyResolver;
 
 class PaymentController extends Controller
 {
@@ -29,7 +30,7 @@ class PaymentController extends Controller
         }
 
         $pendingRequest = Http::withHeaders([
-            'Authorization' => 'Basic '.base64_encode(config('services.paymongo.secret_key').':'),
+            'Authorization' => 'Basic '.base64_encode(PaymongoKeyResolver::getSecretKey().':'),
         ]);
 
         if ($verify === false) {
