@@ -73,7 +73,8 @@ const getStatusBadgeMap = (isDark) => {
     refunded: activity.red,
     inactive: activity.gray,
     maintenance: activity.gray,
-    draft: activity.gray
+    draft: activity.gray,
+    notified: activity.blue
   };
 };
 
@@ -101,6 +102,7 @@ const resolveActivityColorKey = (activity) => {
   if (['cancelled', 'canceled', 'rejected', 'failed', 'declined', 'overdue', 'refunded'].includes(status)) return 'red';
   if (['pending', 'pending_offline', 'in_progress', 'partial', 'partial-completed', 'processing'].includes(status)) return 'yellow';
   if (['confirmed', 'completed', 'paid', 'approved', 'active', 'available', 'resolved', 'succeeded', 'verified'].includes(status)) return 'green';
+  if (['notified', 'received', 'submitted'].includes(status)) return 'blue';
   if (['inactive', 'maintenance', 'draft'].includes(status)) return 'gray';
 
   return 'gray';

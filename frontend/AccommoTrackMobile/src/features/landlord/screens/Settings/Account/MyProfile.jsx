@@ -86,12 +86,37 @@ export default function MyProfileScreen({ navigation }) {
   const calculateAge = (dob) => {
     const today = new Date();
     const birthDate = new Date(dob);
+    if (isNaN(birthDate.getTime())) return null;
     let age = today.getFullYear() - birthDate.getFullYear();
     const m = today.getMonth() - birthDate.getMonth();
     if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
       age--;
     }
     return age;
+  };
+
+  const formatDateForDisplay = (dateString) => {
+    if (!dateString) return "";
+    try {
+      const parts = dateString.split("-");
+      if (parts.length === 3) {
+        const date = new Date(parts[0], parts[1] - 1, parts[2]);
+        return date.toLocaleDateString("en-US", {
+          month: "long",
+          day: "numeric",
+          year: "numeric",
+        });
+      }
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) return dateString;
+      return date.toLocaleDateString("en-US", {
+        month: "long",
+        day: "numeric",
+        year: "numeric",
+      });
+    } catch (e) {
+      return dateString;
+    }
   };
 
   const handleDateChange = (event, selectedDate) => {
@@ -426,7 +451,7 @@ export default function MyProfileScreen({ navigation }) {
               style={[styles.fieldValue, isEditing && styles.fieldValueEditable]}
             >
               <Text style={{ color: tempUser?.sex ? theme.colors.text : "#9CA3AF", fontSize: 16, textTransform: "capitalize" }}>
-                {tempUser?.sex ? tempUser.sex.replace(/_/g, ' ') : "Not set"}
+                {tempUser?.sex ? tempUser.sex : "Not set"}
               </Text>
             </TouchableOpacity>
           </View>
@@ -452,7 +477,7 @@ export default function MyProfileScreen({ navigation }) {
               style={[styles.fieldValue, isEditing && styles.fieldValueEditable]}
             >
               <Text style={{ color: tempUser?.date_of_birth ? theme.colors.text : "#9CA3AF", fontSize: 16 }}>
-                {tempUser?.date_of_birth || "Select Date of Birth"}
+                {tempUser?.date_of_birth ? formatDateForDisplay(tempUser.date_of_birth) : "Select Date of Birth"}
               </Text>
             </TouchableOpacity>
             {showDatePicker && (

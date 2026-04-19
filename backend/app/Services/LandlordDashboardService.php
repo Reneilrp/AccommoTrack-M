@@ -140,11 +140,11 @@ class LandlordDashboardService
                 'type' => 'booking',
                 'action' => 'Move-out Notice Submitted',
                 'description' => ($noticeBooking->tenant->first_name ?? 'Tenant').' submitted a move-out notice for '.($noticeBooking->property->title ?? 'Property').' - Room '.($noticeBooking->room->room_number ?? 'N/A'),
-                'status' => 'pending',
+                'status' => 'notified',
                 'timestamp' => $noticeBooking->notice_given_at,
                 'created_at' => $noticeBooking->notice_given_at,
                 'icon' => 'log-out-outline',
-                'color' => 'yellow',
+                'color' => 'blue',
                 'booking_id' => $noticeBooking->id,
             ]);
         }

@@ -56,13 +56,13 @@ class TransferController extends Controller
             ], 422);
         }
 
-        $hasOverdue = $this->hasBlockingOverdueInvoices($tenantId);
+        $hasOverdue = $this->hasBlockingOverdueInvoices($tenantId, (int) $validated['property_id']);
 
         if ($hasOverdue) {
             return response()->json([
                 'success' => false,
                 'data' => [],
-                'message' => 'You cannot request a transfer while you have overdue invoices. Please settle your balance first.',
+                'message' => 'You cannot request a transfer while you have overdue invoices for this property. Please settle your balance first.',
             ], 422);
         }
 
@@ -124,10 +124,10 @@ class TransferController extends Controller
             return response()->json(['message' => 'No active booking found for the selected property.'], 422);
         }
 
-        $hasOverdue = $this->hasBlockingOverdueInvoices($tenantId);
+        $hasOverdue = $this->hasBlockingOverdueInvoices($tenantId, (int) $validated['property_id']);
 
         if ($hasOverdue) {
-            return response()->json(['message' => 'You cannot request a transfer while you have overdue invoices. Please settle your balance first.'], 422);
+            return response()->json(['message' => 'You cannot request a transfer while you have overdue invoices for this property. Please settle your balance first.'], 422);
         }
 
         $property = $activeBooking->property;
@@ -197,9 +197,13 @@ class TransferController extends Controller
         return response()->json($transferRequest, 201);
     }
 
-    private function hasBlockingOverdueInvoices(int $tenantId): bool
+    private function hasBlockingOverdueInvoices(int $tenantId, int $propertyId): bool
     {
         return Invoice::where('tenant_id', $tenantId)
+            ->where(function ($q) use ($propertyId) {
+                $q->where('property_id', $propertyId)
+                    ->orWhereNull('property_id');
+            })
             ->where(function ($query) {
                 $query->where('status', 'overdue')
                     ->orWhere(function ($partialQuery) {

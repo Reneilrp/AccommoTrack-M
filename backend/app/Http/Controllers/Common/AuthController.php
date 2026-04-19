@@ -607,8 +607,29 @@ class AuthController extends Controller
         }
 
         return response()->json([
-            'user' => $user,
+            'user' => $this->formatUserResponse($user),
         ]);
+    }
+
+    private function formatUserResponse(User $user): array
+    {
+        return [
+            'id' => $user->id,
+            'first_name' => $user->first_name,
+            'middle_name' => $user->middle_name,
+            'last_name' => $user->last_name,
+            'email' => $user->email,
+            'phone' => $user->phone,
+            'role' => $user->role,
+            'profile_image' => $user->profile_image,
+            'is_verified' => (bool) $user->is_verified,
+            'is_active' => (bool) $user->is_active,
+            'notification_preferences' => $user->notification_preferences,
+            'date_of_birth' => $user->date_of_birth ? $user->date_of_birth->format('Y-m-d') : null,
+            'sex' => $user->sex,
+            'identified_as' => $user->identified_as,
+            'preferences' => $user->preferences,
+        ];
     }
 
     public function switchRole(Request $request)
@@ -749,7 +770,7 @@ class AuthController extends Controller
             }
 
             return response()->json([
-                'user' => $user->fresh()->load('tenantProfile'),
+                'user' => $this->formatUserResponse($user->fresh()->load('tenantProfile')),
                 'message' => 'Profile updated successfully',
             ]);
         } catch (\Illuminate\Validation\ValidationException $e) {
