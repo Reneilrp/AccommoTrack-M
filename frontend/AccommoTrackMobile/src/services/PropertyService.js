@@ -442,14 +442,7 @@ const PropertyService = {
    */
   async createProperty(propertyData) {
     try {
-      const headers = {
-        "Content-Type": isFormData(propertyData)
-          ? "multipart/form-data"
-          : "application/json",
-      };
-      const response = await api.post(`/landlord/properties`, propertyData, {
-        headers,
-      });
+      const response = await api.post(`/landlord/properties`, propertyData);
 
       await cacheManager.invalidate(CACHE_KEYS.LANDLORD_PROPERTIES);
       await cacheManager.clearAll(); // Invalidate public caches too
@@ -482,13 +475,6 @@ const PropertyService = {
   async updateProperty(propertyId, propertyData) {
     try {
       let payload = propertyData;
-      let headers = {
-        "Content-Type": isFormData(propertyData)
-          ? "multipart/form-data"
-          : "application/json",
-      };
-
-      // For multipart/form-data with PUT, use POST + _method=PUT spoofing
       if (isFormData(propertyData)) {
         propertyData.append("_method", "PUT");
       }
@@ -496,7 +482,6 @@ const PropertyService = {
       const response = await api.post(
         `/landlord/properties/${propertyId}`,
         payload,
-        { headers },
       );
 
       await cacheManager.invalidate(CACHE_KEYS.LANDLORD_PROPERTIES);
@@ -641,12 +626,7 @@ const PropertyService = {
    */
   async createRoom(roomData) {
     try {
-      const headers = {
-        "Content-Type": isFormData(roomData)
-          ? "multipart/form-data"
-          : "application/json",
-      };
-      const response = await api.post(`/landlord/rooms`, roomData, { headers });
+      const response = await api.post(`/landlord/rooms`, roomData);
       return {
         success: true,
         data: response.data,
@@ -672,21 +652,12 @@ const PropertyService = {
   async updateRoom(roomId, roomData) {
     try {
       let payload = roomData;
-      let headers = {
-        "Content-Type": isFormData(roomData)
-          ? "multipart/form-data"
-          : "application/json",
-      };
-
       if (isFormData(roomData)) {
         roomData.append("_method", "PUT");
-        const response = await api.post(`/rooms/${roomId}`, payload, {
-          headers,
-        });
-        return { success: true, data: response.data, error: null };
+        return api.post(`/rooms/${roomId}`, payload).then(res => ({ success: true, data: res.data, error: null }));
       }
 
-      const response = await api.put(`/rooms/${roomId}`, payload, { headers });
+      const response = await api.put(`/rooms/${roomId}`, payload);
       return {
         success: true,
         data: response.data,

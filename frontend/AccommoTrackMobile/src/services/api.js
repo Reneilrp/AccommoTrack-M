@@ -199,21 +199,25 @@ api.interceptors.request.use(async (config) => {
 
     const isFormDataPayload = typeof FormData !== 'undefined' && config.data instanceof FormData;
     if (isFormDataPayload) {
-      const currentContentType = typeof config.headers?.get === 'function'
-        ? config.headers.get('Content-Type')
-        : (config.headers['Content-Type'] || config.headers['content-type']);
+      if (typeof config.headers?.delete === 'function') {
+        config.headers.delete('Content-Type');
+        config.headers.delete('content-type');
+      } else if (config.headers) {
+        delete config.headers['Content-Type'];
+        delete config.headers['content-type'];
+      }
 
-      const isJsonContentType = String(currentContentType || '')
-        .toLowerCase()
-        .includes('application/json');
-
-      if (isJsonContentType) {
-        if (typeof config.headers?.delete === 'function') {
-          config.headers.delete('Content-Type');
-        } else {
-          delete config.headers['Content-Type'];
-          delete config.headers['content-type'];
-        }
+      if (__DEV__) {
+        console.log('[api] FormData payload detected, stripped Content-Type to allow boundary generation.');
+        try {
+          // Log keys for transparency in development
+          const keys = [];
+          if (typeof config.data?._parts === 'object') {
+            // React Native's FormData internal structure
+            config.data._parts.forEach(part => keys.push(part[0]));
+          }
+          console.log('[api] FormData keys:', keys.join(', '));
+        } catch (_e) { /* ignore */ }
       }
     }
 

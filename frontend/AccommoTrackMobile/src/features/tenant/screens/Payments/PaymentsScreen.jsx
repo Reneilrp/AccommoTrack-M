@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   Alert,
   useWindowDimensions,
+  Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery } from '@tanstack/react-query';
@@ -47,6 +48,8 @@ export default function PaymentsScreen() {
   const [tenantPaymentsTempDisabled, setTenantPaymentsTempDisabled] = useState(
     SystemToggleService.getDefaults().tenantPaymentsDisabled,
   );
+  const [selectedPayment, setSelectedPayment] = useState(null);
+  const [showDetailModal, setShowDetailModal] = useState(false);
 
   const currentUserIdQuery = useQuery({
     queryKey: tenantQueryKeys.paymentsCurrentUserId(),
@@ -297,8 +300,8 @@ export default function PaymentsScreen() {
   const isPayable = (payment) => {
     const status = (payment.status || '').toString().toLowerCase();
     const paymentStatus = (payment.paymentStatus || '').toString().toLowerCase();
-    const payableStatus = ['unpaid', 'pending', 'refunded', 'partial'];
-    const payableBookingStatus = ['unpaid', 'partial', 'refunded'];
+    const payableStatus = ['unpaid', 'pending', 'partial'];
+    const payableBookingStatus = ['unpaid', 'partial'];
     return payableStatus.includes(status) || payableBookingStatus.includes(paymentStatus);
   };
 
@@ -558,15 +561,7 @@ export default function PaymentsScreen() {
             {!tenantPaymentsTempDisabled && (
               <View style={{ marginBottom: 12, padding: 12, backgroundColor: '#dbeafe', borderWidth: 1, borderColor: '#93c5fd', borderRadius: 10 }}>
                 <Text style={{ color: '#1e40af', fontWeight: '600', fontSize: 12 }}>
-                  💡 Tip: "Pay Next Unpaid" and "Pay Next 2 Unpaid" automatically skip any already-paid advance months.
-                </Text>
-              </View>
-            )}
-
-            {tenantPaymentsTempDisabled && (
-              <View style={{ marginBottom: 12, padding: 12, backgroundColor: '#fffbeb', borderWidth: 1, borderColor: '#fde68a', borderRadius: 10 }}>
-                <Text style={{ color: '#92400e', fontWeight: '600' }}>
-                  Tenant payments are temporarily unavailable while payment compliance updates are in progress.
+                  💡 Tip: Click any transaction to view full details and payment options.
                 </Text>
               </View>
             )}
@@ -586,8 +581,13 @@ export default function PaymentsScreen() {
               </View>
             ) : (
               filteredPayments.map((payment, index) => (
-                <View
+                <TouchableOpacity
                   key={payment.id || index}
+                  onPress={() => {
+                    setSelectedPayment(payment);
+                    setShowDetailModal(true);
+                  }}
+                  activeOpacity={0.7}
                   style={[
                     styles.paymentItem,
                     { minHeight: 88 },
@@ -620,9 +620,12 @@ export default function PaymentsScreen() {
                     </View>
                     <View style={[styles.paymentInfo, { flex: 1, maxWidth: '60%' }]}>
                       <Text numberOfLines={2} ellipsizeMode="tail" style={[styles.paymentTitle, { color: theme.colors.text }]}>
-                        {payment.description || `Payment #${payment.id}`}
+                        {payment.propertyName || payment.property?.title || 'System Payment'}
                       </Text>
-                      <Text numberOfLines={1} style={[styles.paymentDate, { color: theme.colors.textSecondary }]}>
+                      <Text style={{ color: theme.colors.textSecondary, fontSize: 12, marginTop: 4 }}>
+                        Room {payment.roomNumber || (payment.room && (payment.room.roomNumber || payment.room.room_number)) || 'N/A'}
+                      </Text>
+                      <Text numberOfLines={1} style={[styles.paymentDate, { color: theme.colors.textTertiary }]}>
                         {formatDate(payment.date)}
                       </Text>
                     </View>
@@ -638,41 +641,113 @@ export default function PaymentsScreen() {
                         {payment.status}
                       </Text>
                     </View>
-
-                    {!tenantPaymentsTempDisabled && isPayable(payment) && (
-                      <TouchableOpacity
-                        disabled={resolvingPaymentId === resolveEntryKey(payment)}
-                        onPress={() => {
-                          if (payment?.bookingId || payment?.booking_id) {
-                            openCheckoutOptions(payment);
-                            return;
-                          }
-                          openCheckout(payment);
-                        }}
-                        style={[
-                          styles.payBtn,
-                          {
-                            backgroundColor: theme.colors.primary,
-                            opacity: resolvingPaymentId === resolveEntryKey(payment) ? 0.65 : 1,
-                            minWidth: 70,
-                            height: 32,
-                          },
-                        ]}
-                      >
-                        {resolvingPaymentId === resolveEntryKey(payment) ? (
-                          <ActivityIndicator size="small" color="#FFFFFF" />
-                        ) : (
-                          <Text style={styles.payBtnText}>Pay</Text>
-                        )}
-                      </TouchableOpacity>
-                    )}
                   </View>
-                </View>
+                </TouchableOpacity>
               ))
             )}
           </View>
         </View>
       </ScrollView>
+
+      {/* Transaction Detail Modal */}
+      <Modal
+        visible={showDetailModal}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowDetailModal(false)}
+      >
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setShowDetailModal(false)}
+        >
+          <View style={styles.modalContent}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+              <Text style={styles.modalTitle}>Transaction Details</Text>
+              <TouchableOpacity onPress={() => setShowDetailModal(false)}>
+                <Ionicons name="close-circle" size={24} color={theme.colors.textTertiary} />
+              </TouchableOpacity>
+            </View>
+
+            {selectedPayment && (
+              <View style={{ gap: 16 }}>
+                <View style={{ padding: 16, backgroundColor: theme.colors.backgroundSecondary, borderRadius: 12, gap: 12 }}>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                    <Text style={{ color: theme.colors.textSecondary, fontSize: 12 }}>Property</Text>
+                    <Text style={{ color: theme.colors.text, fontWeight: '700', fontSize: 14 }}>{selectedPayment.propertyName || 'N/A'}</Text>
+                  </View>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                    <Text style={{ color: theme.colors.textSecondary, fontSize: 12 }}>Room</Text>
+                    <Text style={{ color: theme.colors.text, fontWeight: '700', fontSize: 14 }}>
+                      {selectedPayment.roomNumber || (selectedPayment.room && (selectedPayment.room.roomNumber || selectedPayment.room.room_number)) || 'N/A'}
+                    </Text>
+                  </View>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                    <Text style={{ color: theme.colors.textSecondary, fontSize: 12 }}>Amount</Text>
+                    <Text style={{ color: theme.colors.primary, fontWeight: '800', fontSize: 18 }}>{formatCurrency(selectedPayment.amount)}</Text>
+                  </View>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                    <Text style={{ color: theme.colors.textSecondary, fontSize: 12 }}>Status</Text>
+                    <View style={{ backgroundColor: `${getStatusColor(selectedPayment.status || selectedPayment.paymentStatus)}20`, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 }}>
+                      <Text style={{ color: getStatusColor(selectedPayment.status || selectedPayment.paymentStatus), fontWeight: '700', fontSize: 12 }}>
+                        {selectedPayment.status || selectedPayment.paymentStatus}
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+
+                <View style={{ gap: 8 }}>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                    <Text style={{ color: theme.colors.textSecondary, fontSize: 12 }}>Date</Text>
+                    <Text style={{ color: theme.colors.text, fontSize: 13 }}>{formatDate(selectedPayment.date)}</Text>
+                  </View>
+                  {selectedPayment.dueDate && (
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                      <Text style={{ color: theme.colors.textSecondary, fontSize: 12 }}>Due Date</Text>
+                      <Text style={{ color: theme.colors.text, fontSize: 13 }}>{formatDate(selectedPayment.dueDate)}</Text>
+                    </View>
+                  )}
+                  {selectedPayment.referenceNo && (
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                      <Text style={{ color: theme.colors.textSecondary, fontSize: 12 }}>Reference</Text>
+                      <Text style={{ color: theme.colors.text, fontSize: 13 }}>{selectedPayment.referenceNo}</Text>
+                    </View>
+                  )}
+                  {selectedPayment.method && (
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                      <Text style={{ color: theme.colors.textSecondary, fontSize: 12 }}>Method</Text>
+                      <Text style={{ color: theme.colors.text, fontSize: 13 }}>{selectedPayment.method}</Text>
+                    </View>
+                  )}
+                </View>
+
+                {!tenantPaymentsTempDisabled && isPayable(selectedPayment) && (
+                  <TouchableOpacity
+                    onPress={() => {
+                      setShowDetailModal(false);
+                      if (selectedPayment?.bookingId || selectedPayment?.booking_id) {
+                        openCheckoutOptions(selectedPayment);
+                      } else {
+                        openCheckout(selectedPayment);
+                      }
+                    }}
+                    style={{
+                      backgroundColor: theme.colors.primary,
+                      height: 50,
+                      borderRadius: 12,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      marginTop: 10,
+                    }}
+                  >
+                    <Text style={{ color: '#fff', fontWeight: '700', fontSize: 16 }}>Proceed to Payment</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            )}
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </SafeAreaView>
   );
 }

@@ -517,10 +517,14 @@ export default function PaymentDetail() {
           : 'Cash payment request submitted by tenant'),
       );
 
+      const proofUri = proofImage.uri;
+      const proofName = proofImage.fileName || proofImage.name || proofUri.split('/').pop() || 'proof.jpg';
+      const proofType = proofImage.mimeType || proofImage.type || 'image/jpeg';
+
       formData.append("proof_image", {
-        uri: proofImage.uri,
-        type: proofImage.mimeType || "image/jpeg",
-        name: proofImage.fileName || "proof.jpg",
+        uri: proofUri,
+        type: proofType,
+        name: proofName,
       });
 
       const response = await PaymentService.createOfflineRecord(invoice.id, formData);

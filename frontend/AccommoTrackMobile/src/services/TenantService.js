@@ -449,16 +449,7 @@ class TenantService {
    */
   async submitMaintenanceRequest(payload, isForm = false) {
     try {
-      const headers = {};
-      if (isForm) {
-        headers["Content-Type"] = "multipart/form-data";
-      } else {
-        headers["Content-Type"] = "application/json";
-      }
-
-      const response = await api.post(`/tenant/maintenance-requests`, payload, {
-        headers,
-      });
+      const response = await api.post(`/tenant/maintenance-requests`, payload);
 
       return { success: true, data: response.data.data || response.data };
     } catch (error) {

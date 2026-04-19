@@ -320,11 +320,7 @@ const ProfileService = {
    */
   async resubmitVerification(formData) {
     try {
-      const headers = formData instanceof FormData
-        ? { 'Content-Type': 'multipart/form-data' }
-        : undefined;
-
-      const response = await api.post('/landlord/resubmit-verification', formData, { headers });
+      const response = await api.post('/landlord/resubmit-verification', formData);
       return {
         success: true,
         data: response.data,
@@ -345,11 +341,7 @@ const ProfileService = {
    */
   async registerAsLandlord(formData) {
     try {
-      const headers = formData instanceof FormData
-        ? { 'Content-Type': 'multipart/form-data' }
-        : undefined;
-
-      const response = await api.post('/tenant/register-landlord', formData, { headers });
+      const response = await api.post('/tenant/register-landlord', formData);
 
       return {
         success: true,

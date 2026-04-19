@@ -68,6 +68,7 @@ class Invoice extends Model
         'amount_cents', 'currency', 'status', 'due_date', 'issued_at', 'paid_at', 'metadata',
         'subtotal_cents', 'tax_cents', 'total_cents', 'tax_percent',
         'invoice_type', 'billing_period_start', 'billing_period_end', 'billing_period_key',
+        'receipt_reference', 'receipt_sent_at',
     ];
 
     protected $casts = [

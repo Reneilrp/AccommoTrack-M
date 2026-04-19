@@ -344,6 +344,16 @@ class InvoiceController extends Controller
             return "This invoice is not in a payable/paid state.";
         }
 
+        // Lazy generate receipt reference if missing for a paid invoice
+        if (($invoice->status === 'paid' || $invoice->status === 'partially_refunded') && !$invoice->receipt_reference) {
+            do {
+                $ref = 'RCPT-' . date('Ymd') . '-' . strtoupper(\Illuminate\Support\Str::random(6));
+            } while (Invoice::where('receipt_reference', $ref)->exists());
+
+            $invoice->receipt_reference = $ref;
+            $invoice->save();
+        }
+
         return view('invoices.receipt', compact('invoice'));
     }
 
@@ -1139,14 +1149,16 @@ class InvoiceController extends Controller
                 ],
             ]);
 
-            // Update invoice status since it's confirmed
+            // Sync status via ledger service to ensure booking and invoice alignment
             $statusBefore = $invoice->status;
-            if ($remainingCents - $validated['amount_cents'] <= 0) {
-                $invoice->status = 'paid';
-            } else {
-                $invoice->status = 'partial';
+            $invoice = $this->paymentLedgerService->recomputeInvoiceAndBookingStatus($invoice, Auth::id());
+
+            if ($statusBefore !== $invoice->status) {
+                $this->logInvoiceStatusTransition($invoice, $statusBefore, [
+                    'payment_transaction_id' => $tx->id,
+                    'summary' => 'Invoice status updated after applying wallet credits.',
+                ]);
             }
-            $invoice->save();
 
             DB::commit();
 

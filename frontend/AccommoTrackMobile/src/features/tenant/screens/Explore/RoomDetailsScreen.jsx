@@ -32,9 +32,12 @@ import BookingService from '../../../../services/BookingService.js';
 import CartService from '../../../../services/CartService.js';
 import PropertyService from '../../../../services/PropertyService.js';
 import PaymentService from '../../../../services/PaymentService.js';
+import ProfileService from '../../../../services/ProfileService.js';
 import { BASE_URL as API_BASE_URL } from '../../../../config/index.js';
 import SystemToggleService from '../../../../services/SystemToggleService.js';
 import { showError, showSuccess, showWarning } from '../../../../utils/toast.js';
+import Toast from 'react-native-toast-message';
+import { getToastConfig } from '../../../../config/toastConfig.jsx';
 import { useTheme } from '../../../../contexts/ThemeContext.jsx';
 import {
   tenantQueryKeys,
@@ -98,6 +101,15 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
   const [propertyData, setPropertyData] = useState(property || null);
   const [roomData, setRoomData] = useState(room || null);
   const [receiptImage, setReceiptImage] = useState(null);
+
+  const { data: profileResult } = useQuery({
+    queryKey: tenantQueryKeys.profilePage(),
+    queryFn: () => ProfileService.getProfile(),
+    staleTime: 5 * 60 * 1000,
+  });
+  const tenantProfile = profileResult?.success ? profileResult.data : null;
+
+  const toastConfig = React.useMemo(() => getToastConfig(theme), [theme]);
   const [bookingMode, setBookingMode] = useState('normal');
   const [isCartMode, setIsCartMode] = useState(false);
   const [reservationFeeTempDisabled, setReservationFeeTempDisabled] = useState(
@@ -1018,6 +1030,17 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
         return;
       }
 
+      if (bookingMode === 'normal' && roomData?.sex_restriction && roomData.sex_restriction !== 'mixed') {
+        const tenantSex = normalizeGenderValue(tenantProfile?.sex);
+        if (tenantSex && tenantSex !== roomData.sex_restriction) {
+          showError(
+            'Sex Restriction',
+            `This room is specifically for ${roomData.sex_restriction === 'male' ? 'boys' : 'girls'} only. Please update your profile if this is incorrect.`
+          );
+          return;
+        }
+      }
+
       setIsSubmitting(true);
 
       const data = new FormData();
@@ -1102,14 +1125,14 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
       }
 
       if (isReservationRequired && receiptImage) {
-        const localUri = receiptImage.uri;
-        const filename = receiptImage.name || localUri.split('/').pop();
-        const type = receiptImage.mimeType || receiptImage.type || 'image/jpeg';
+        const proofUri = receiptImage.uri;
+        const proofName = receiptImage.name || receiptImage.fileName || proofUri.split('/').pop() || 'receipt.jpg';
+        const proofType = receiptImage.mimeType || receiptImage.type || 'image/jpeg';
 
         data.append('receipt_image', {
-          uri: localUri,
-          name: filename,
-          type
+          uri: proofUri,
+          name: proofName,
+          type: proofType
         });
       }
 
@@ -2196,6 +2219,7 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
                 <Text style={styles.cancelButtonText}>Cancel</Text>
               </TouchableOpacity>
             </ScrollView>
+            <Toast config={toastConfig} />
           </View>
         </View>
       </Modal>

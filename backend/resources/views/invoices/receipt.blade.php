@@ -200,6 +200,7 @@
             <p style="font-weight: 800; color: #111827; margin-bottom: 4px;">Thank you for your prompt payment.</p>
             <p style="margin-top: 0; color: #6b7280;">This is an official computer-generated receipt from the AccommoTrack Management System. All records are secured and verifiable.</p>
             
+            @if($invoice->receipt_reference)
             <div style="display: flex; align-items: center; gap: 12px; margin-top: 20px;">
                 <div style="background: #ecfdf5; padding: 10px; border-radius: 12px; border: 1px solid #d1fae5;">
                     <img src="https://api.qrserver.com/v1/create-qr-code/?size=100x100&data={{ urlencode(route('public.receipt.verify', ['reference' => $invoice->receipt_reference])) }}" alt="QR Code" style="width: 80px; height: 80px; display: block;">
@@ -210,6 +211,11 @@
                     <p style="font-size: 10px; color: #9ca3af; margin-top: 4px; font-family: monospace;">REF: {{ $invoice->receipt_reference }}</p>
                 </div>
             </div>
+            @else
+            <div style="margin-top: 20px; color: #9ca3af; font-size: 11px;">
+                Verification QR code is unavailable for this legacy record.
+            </div>
+            @endif
         </div>
         <div style="text-align: right; min-width: 150px;">
             <div style="display: inline-block; border: 2px solid #059669; color: #059669; padding: 8px 16px; border-radius: 8px; font-weight: 800; font-size: 14px; transform: rotate(-5deg); opacity: 0.6;">

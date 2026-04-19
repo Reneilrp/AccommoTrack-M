@@ -32,9 +32,7 @@ class BookingService {
       const response = await api.post(
         `/bookings`,
         bookingData,
-        {
-          headers: isFormData ? { 'Content-Type': 'multipart/form-data' } : {},
-        }
+        {}
       );
       console.log('Booking response:', response.data);
       return {
