@@ -25,37 +25,42 @@ class LandlordDashboardController extends Controller
             $isCaretaker = $context['is_caretaker'];
             $assignedPropertyIds = ($isCaretaker && $context['assignment']) ? $context['assignment']->getAssignedPropertyIds() : null;
 
-            // Run all heavy data fetching in one bundled request
-            $stats = $this->dashboardService->getStats($context['landlord_id'], $assignedPropertyIds, $isCaretaker);
+            // Cache the dashboard bundle for 60 seconds to prevent CPU spikes from rapid refreshes
+            $cacheKey = "landlord_dashboard_bundle_{$context['landlord_id']}_" . ($isCaretaker ? 'caretaker' : 'landlord');
             
-            // Re-use logic from individual methods to maintain consistency
-            $activities = $this->getRecentActivitiesInternal($request, $context);
-            $upcoming = $this->getUpcomingPaymentsInternal($request, $context);
-            $performance = $this->getPropertyPerformanceInternal($request, $context);
-            
-            $revenueChart = [
-                'labels' => [],
-                'data' => []
-            ];
-            
-            if (!$isCaretaker) {
-                $chartData = $this->dashboardService->getRevenueChart($context['landlord_id']);
+            return \Illuminate\Support\Facades\Cache::remember($cacheKey, 60, function() use ($request, $context, $isCaretaker, $assignedPropertyIds) {
+                // Run all heavy data fetching in one bundled request
+                $stats = $this->dashboardService->getStats($context['landlord_id'], $assignedPropertyIds, $isCaretaker);
+                
+                // Re-use logic from individual methods to maintain consistency
+                $activities = $this->getRecentActivitiesInternal($request, $context);
+                $upcoming = $this->getUpcomingPaymentsInternal($request, $context);
+                $performance = $this->getPropertyPerformanceInternal($request, $context);
+                
                 $revenueChart = [
-                    'labels' => array_keys($chartData),
-                    'data' => array_values($chartData),
+                    'labels' => [],
+                    'data' => []
                 ];
-            }
+                
+                if (!$isCaretaker) {
+                    $chartData = $this->dashboardService->getRevenueChart($context['landlord_id']);
+                    $revenueChart = [
+                        'labels' => array_keys($chartData),
+                        'data' => array_values($chartData),
+                    ];
+                }
 
-            return response()->json([
-                'success' => true,
-                'data' => [
-                    'stats' => $stats,
-                    'activities' => $activities,
-                    'upcomingPayments' => $upcoming,
-                    'revenueChart' => $revenueChart,
-                    'propertyPerformance' => $performance
-                ]
-            ], 200);
+                return [
+                    'success' => true,
+                    'data' => [
+                        'stats' => $stats,
+                        'activities' => $activities,
+                        'upcomingPayments' => $upcoming,
+                        'revenueChart' => $revenueChart,
+                        'propertyPerformance' => $performance
+                    ]
+                ];
+            });
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
@@ -117,7 +122,9 @@ class LandlordDashboardController extends Controller
             $roomId
         );
 
-        $formattedActivities = $activities->map(function ($item) {
+        $limit = $propertyId ? 50 : 20;
+
+        $formattedActivities = $activities->take($limit)->map(function ($item) {
             if (is_array($item)) {
                 return $this->normalizeActivityPayload($item);
             }
@@ -259,8 +266,7 @@ class LandlordDashboardController extends Controller
             return $this->normalizeActivityPayload((array) $item);
         })->filter()->values();
 
-        $limit = $propertyId ? 50 : 20;
-        return $formattedActivities->take($limit);
+        return $formattedActivities;
     }
 
 
@@ -546,16 +552,16 @@ class LandlordDashboardController extends Controller
         $revenueByProperty = $result['revenueByProperty'];
 
         return $properties->map(function ($property) use ($context, $revenueByProperty) {
-            $totalRooms = $property->rooms->count();
-            $occupiedRooms = $property->rooms->where('status', 'occupied')->count();
+            $totalRooms = (int) $property->total_rooms;
+            $occupiedRooms = (int) $property->occupied_rooms;
             $data = [
                 'id' => $property->id, 'title' => $property->title, 'totalRooms' => $totalRooms,
-                'occupiedRooms' => $occupiedRooms, 'availableRooms' => $property->rooms->where('status', 'available')->count(),
+                'occupiedRooms' => $occupiedRooms, 'availableRooms' => (int) $property->available_rooms,
                 'occupancyRate' => $totalRooms > 0 ? round(($occupiedRooms / $totalRooms) * 100, 1) : 0,
                 'status' => $property->current_status,
             ];
             if (! $context['is_caretaker']) {
-                $data['potentialRevenue'] = (float) $property->rooms->sum('monthly_rate');
+                $data['potentialRevenue'] = (float) ($property->potential_revenue ?? 0);
                 $data['actualRevenue'] = (float) ($revenueByProperty[$property->id] ?? 0);
             }
             return $data;

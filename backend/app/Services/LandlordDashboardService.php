@@ -381,7 +381,12 @@ class LandlordDashboardService
 
     public function getPropertyPerformance(int $landlordId, ?array $assignedPropertyIds)
     {
-        $propertiesQuery = Property::where('landlord_id', $landlordId)->with(['rooms']);
+        $propertiesQuery = Property::where('landlord_id', $landlordId)
+            ->withCount(['rooms as total_rooms'])
+            ->withCount(['rooms as occupied_rooms' => fn($q) => $q->where('status', 'occupied')])
+            ->withCount(['rooms as available_rooms' => fn($q) => $q->where('status', 'available')])
+            ->withSum('rooms as potential_revenue', 'monthly_rate');
+
         if ($assignedPropertyIds) {
             $propertiesQuery->whereIn('id', $assignedPropertyIds);
         }

@@ -89,6 +89,7 @@ export default function CaretakerDashboard({ __user }) {
 
     if (type === 'property' && (status === 'updated' || status === 'changed')) return 'green';
     if (type === 'room' && status === 'occupied') return 'green';
+    if (['notified', 'received', 'submitted'].includes(status)) return 'blue';
     if (['cancelled', 'canceled', 'rejected', 'failed', 'declined', 'overdue', 'refunded'].includes(status)) return 'red';
     if (['pending', 'pending_offline', 'in_progress', 'partial', 'partial-completed', 'processing'].includes(status)) return 'yellow';
     if (['confirmed', 'completed', 'paid', 'approved', 'active', 'available', 'resolved', 'succeeded', 'verified'].includes(status)) return 'green';
@@ -100,6 +101,7 @@ export default function CaretakerDashboard({ __user }) {
   const getActivityColor = (activity) => {
     switch (resolveActivityColor(activity)) {
       case 'green': return 'bg-green-100 text-green-600';
+      case 'blue': return 'bg-blue-100 text-blue-600';
       case 'yellow': return 'bg-yellow-100 text-yellow-600';
       case 'red': return 'bg-red-100 text-red-600';
       case 'gray': return 'bg-gray-100 text-gray-600';
@@ -110,7 +112,7 @@ export default function CaretakerDashboard({ __user }) {
   const getStatusColor = (activity) => {
     const status = String(activity?.status || '').toLowerCase();
 
-    if (status === 'updated' || status === 'changed') return 'bg-green-100 text-green-600';
+    if (status === 'updated' || status === 'changed' || ['notified', 'received', 'submitted'].includes(status)) return 'bg-green-100 text-green-600';
     if (['pending', 'pending_offline', 'in_progress', 'partial', 'partial-completed', 'processing'].includes(status)) return 'bg-yellow-100 text-yellow-600';
     if (['confirmed', 'completed', 'paid', 'approved', 'active', 'available', 'resolved', 'succeeded', 'verified'].includes(status)) return 'bg-green-100 text-green-600';
     if (['cancelled', 'canceled', 'rejected', 'failed', 'declined', 'overdue', 'refunded'].includes(status)) return 'bg-red-100 text-red-600';

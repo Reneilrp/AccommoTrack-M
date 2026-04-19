@@ -928,12 +928,30 @@ class AdminController extends Controller
 
         try {
             $user = User::onlyTrashed()->findOrFail($id);
-            // Optionally, handle related records cleanup here if not using ON DELETE CASCADE at DB level
-            // For now, since properties handle their own SoftDeletes, we just forceDelete the user.
-            $user->forceDelete();
+            $userId = $user->id;
+
+            DB::transaction(function () use ($user, $userId) {
+                // Manually clean up or nullify records that have RESTRICT foreign key constraints
+                // 1. Bookings (Restrict) - we nullify to keep historical property/financial data link safely
+                DB::table('bookings')->where('tenant_id', $userId)->update(['tenant_id' => null]);
+                DB::table('bookings')->where('landlord_id', $userId)->update(['landlord_id' => null]);
+
+                // 2. Reports (Restrict) - we nullify the reporter
+                DB::table('reports')->where('reporter_id', $userId)->update(['reporter_id' => null]);
+
+                // 3. User Logs / Audit Logs: Audit logs usually want to keep user IDs but might restrict
+                // If there are other tables like tenant_profiles, they should cascade automatically if set in migration.
+                
+                // Finally, force delete the user record
+                $user->forceDelete();
+            });
 
             return response()->json(['message' => 'User permanently removed']);
         } catch (\Exception $e) {
+            \Log::error("Failed to purge user {$id}: " . $e->getMessage(), [
+                'exception' => $e,
+                'trace' => $e->getTraceAsString()
+            ]);
             return response()->json(['message' => 'Failed to purge user', 'error' => $e->getMessage()], 422);
         }
     }
