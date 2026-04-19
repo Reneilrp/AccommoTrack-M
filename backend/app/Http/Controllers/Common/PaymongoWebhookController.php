@@ -122,9 +122,27 @@ class PaymongoWebhookController extends Controller
             }
         }
 
-        $expected = hash_hmac('sha256', $rawPayload, $webhookSecret);
-        if (! hash_equals($expected, $sig)) {
-            Log::warning('PayMongo webhook signature mismatch', ['header' => $signatureHeader, 'expected' => $expected]);
+        // 1. Try Live Webhook Secret first (Always required for Subscriptions)
+        $liveWebhookSecret = PaymongoKeyResolver::getWebhookSecret(true);
+        $expectedLive = hash_hmac('sha256', $rawPayload, $liveWebhookSecret);
+        $verified = hash_equals($expectedLive, $sig);
+        $webhookSecret = $liveWebhookSecret;
+
+        // 2. If Live fails and Test Mode is enabled, try the Test Webhook Secret
+        if (! $verified && PaymongoKeyResolver::isTestMode()) {
+            $testWebhookSecret = PaymongoKeyResolver::getWebhookSecret(false);
+            $expectedTest = hash_hmac('sha256', $rawPayload, $testWebhookSecret);
+            if (hash_equals($expectedTest, $sig)) {
+                $verified = true;
+                $webhookSecret = $testWebhookSecret;
+            }
+        }
+
+        if (! $verified) {
+            Log::warning('PayMongo webhook signature mismatch (tried live/test if applicable)', [
+                'header' => $signatureHeader,
+                'test_mode' => PaymongoKeyResolver::isTestMode(),
+            ]);
 
             return response()->json(['message' => 'Invalid signature'], 400);
         }
@@ -167,8 +185,10 @@ class PaymongoWebhookController extends Controller
         }
 
         try {
+            $isLiveMode = (bool) ($payload['data']['attributes']['livemode'] ?? true);
+
             if ($eventType === 'source.chargeable') {
-                DB::transaction(function () use ($resourceId, $providerEventId) {
+                DB::transaction(function () use ($resourceId, $providerEventId, $isLiveMode) {
                     $tx = PaymentTransaction::query()
                         ->where('gateway_reference', $resourceId)
                         ->lockForUpdate()
@@ -196,7 +216,7 @@ class PaymongoWebhookController extends Controller
                         'verify' => $verify,
                     ]);
                     $res = $client->post('payments', [
-                        'auth' => [PaymongoKeyResolver::getSecretKey(), ''],
+                        'auth' => [PaymongoKeyResolver::getSecretKey($isLiveMode), ''],
                         'json' => [
                             'data' => [
                                 'attributes' => [

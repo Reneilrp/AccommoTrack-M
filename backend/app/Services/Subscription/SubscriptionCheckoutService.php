@@ -361,7 +361,7 @@ class SubscriptionCheckoutService
             }
 
             $res = $client->post('links', [
-                'auth' => [PaymongoKeyResolver::getSecretKey(), ''],
+                'auth' => [PaymongoKeyResolver::getSecretKey(true), ''],
                 'json' => $payload,
             ]);
 

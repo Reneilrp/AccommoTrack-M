@@ -73,11 +73,11 @@ const scopePropertiesForCaretaker = (properties, user) => {
   return properties.slice(0, 1);
 };
 
-export default function MyProperties({ __user }) {
+export default function MyProperties({ user }) {
   const { uiState, updateData } = useUIState();
   const cachedProperties = uiState.data?.landlord_properties || cacheManager.get('landlord_properties');
   const activeUser = (() => {
-    if (__user) return __user;
+    if (user) return user;
     try {
       return JSON.parse(localStorage.getItem('userData') || '{}');
     } catch {

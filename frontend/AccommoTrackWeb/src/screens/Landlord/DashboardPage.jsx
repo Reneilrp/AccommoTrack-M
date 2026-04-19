@@ -4,7 +4,7 @@ import {
   Home,
   Calendar,
   TrendingUp,
-  LucidePhilippinePeso,
+  PhilippinePeso,
   AlertCircle,
   Building2,
   XCircle,
@@ -106,7 +106,7 @@ export default function DashboardPage({ user }) {
       case 'room': return <Home className="w-5 h-5" />;
       case 'property': return <Building2 className="w-5 h-5" />;
       case 'payment':
-      case 'invoice': return <LucidePhilippinePeso className="w-5 h-5" />;
+      case 'invoice': return <PhilippinePeso className="w-5 h-5" />;
       default: return <AlertCircle className="w-5 h-5" />;
     }
   };
@@ -390,7 +390,7 @@ export default function DashboardPage({ user }) {
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-300 dark:border-gray-700 p-6">
             <div className="flex items-center justify-between mb-4">
               <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
-                <LucidePhilippinePeso className="w-6 h-6 text-orange-600" />
+                <PhilippinePeso className="w-6 h-6 text-orange-600" />
               </div>
               <TrendingUp className="w-4 h-4 text-green-500" />
             </div>

@@ -7,9 +7,9 @@ class PaymongoKeyResolver
     /**
      * Get the appropriate PayMongo secret key based on test mode toggle.
      */
-    public static function getSecretKey(): string
+    public static function getSecretKey(bool $forceLive = false): string
     {
-        if (self::isTestMode()) {
+        if (! $forceLive && self::isTestMode()) {
             $testKey = config('services.paymongo.test_secret_key');
             if ($testKey && trim($testKey) !== '') {
                 return $testKey;
@@ -22,9 +22,9 @@ class PaymongoKeyResolver
     /**
      * Get the appropriate PayMongo public key based on test mode toggle.
      */
-    public static function getPublicKey(): string
+    public static function getPublicKey(bool $forceLive = false): string
     {
-        if (self::isTestMode()) {
+        if (! $forceLive && self::isTestMode()) {
             $testKey = config('services.paymongo.test_public_key');
             if ($testKey && trim($testKey) !== '') {
                 return $testKey;
@@ -37,9 +37,9 @@ class PaymongoKeyResolver
     /**
      * Get the appropriate PayMongo webhook secret based on test mode toggle.
      */
-    public static function getWebhookSecret(): string
+    public static function getWebhookSecret(bool $forceLive = false): string
     {
-        if (self::isTestMode()) {
+        if (! $forceLive && self::isTestMode()) {
             $testSecret = config('services.paymongo.test_webhook_secret');
             if ($testSecret && trim($testSecret) !== '') {
                 return $testSecret;
@@ -47,6 +47,17 @@ class PaymongoKeyResolver
         }
 
         return (string) config('services.paymongo.webhook_secret', '');
+    }
+
+    /**
+     * Resolve the webhook secret based on the payload's livemode.
+     * Use this when mixed mode (test/live) is possible.
+     */
+    public static function getWebhookSecretForPayload(array $payload): string
+    {
+        $livemode = (bool) ($payload['data']['attributes']['livemode'] ?? true);
+
+        return self::getWebhookSecret(! $livemode === false);
     }
 
     /**

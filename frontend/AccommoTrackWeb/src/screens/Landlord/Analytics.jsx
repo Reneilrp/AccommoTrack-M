@@ -4,7 +4,7 @@ import {
   Users,
   Download,
   Building2,
-  LucidePhilippinePeso,
+  PhilippinePeso,
   TrendingUp,
   ArrowUpRight,
   ArrowDownRight,
@@ -540,7 +540,7 @@ export default function Analytics() {
       <div className="relative overflow-hidden bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-300 dark:border-gray-700 p-4 md:p-6">
         <div className="grid grid-cols-[auto,1fr] items-center gap-3 mb-4">
           <div className="w-10 h-10 md:w-12 md:h-12 rounded-lg flex items-center justify-center bg-green-100">
-            <LucidePhilippinePeso className="w-5 h-5 md:w-6 md:h-6 text-green-600" />
+            <PhilippinePeso className="w-5 h-5 md:w-6 md:h-6 text-green-600" />
           </div>
           <div className="flex items-center justify-between gap-2 min-w-0">
             <p className="text-sm md:text-base font-semibold text-gray-900 dark:text-white truncate">Collection Efficiency</p>
@@ -734,7 +734,7 @@ export default function Analytics() {
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 md:gap-6 mb-8">
                 {/* Card 1: Total Revenue */}
                 <MetricCard
-                  Icon={LucidePhilippinePeso}
+                  Icon={PhilippinePeso}
                   iconBgClass="bg-green-100"
                   iconColorClass="text-green-600"
                   title="Total Revenue"
@@ -761,7 +761,7 @@ export default function Analytics() {
 
                 {/* Card 3: Collected */}
                 <MetricCard
-                  Icon={LucidePhilippinePeso}
+                  Icon={PhilippinePeso}
                   iconBgClass="bg-emerald-100"
                   iconColorClass="text-emerald-600"
                   title="Collected"
