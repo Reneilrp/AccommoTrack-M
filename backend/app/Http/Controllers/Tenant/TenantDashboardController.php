@@ -423,6 +423,7 @@ class TenantDashboardController extends Controller
             return response()->json([
                 'hasActiveStay' => true,
                 'stays' => $stays,
+                'upcomingBooking' => $formattedUpcoming,
                 'pendingCheckIns' => $formattedPendingCheckIns,
             ], 200);
         } catch (\Exception $e) {

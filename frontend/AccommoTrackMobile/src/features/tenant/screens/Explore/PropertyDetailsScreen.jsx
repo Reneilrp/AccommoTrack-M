@@ -59,7 +59,7 @@ const transformPropertyDetailsPayload = (rawData) => {
     .map((room) => {
       const isPhysicallyAvailable = (room.is_physically_available ?? Number(room.available_slots ?? 0) > 0) && room.status !== 'maintenance';
       const rawStatus = (room.display_status || room.status || "unknown").toString().toLowerCase();
-      
+
       // Override status to 'occupied' if it's supposed to be available but has no slots
       const resolvedStatus = (rawStatus === 'available' && !isPhysicallyAvailable) ? 'occupied' : rawStatus;
 
@@ -306,7 +306,7 @@ export default function PropertyDetailsScreen({
       property_rules:
         sourceProperty.property_rules || sourceProperty.propertyRules,
       nearby_landmarks: sourceProperty.nearby_landmarks,
-      
+
       // Booking Limits & Usage
       normal_booking_limit: sourceProperty.normal_booking_limit,
       proxy_booking_limit: sourceProperty.proxy_booking_limit,
@@ -964,7 +964,7 @@ export default function PropertyDetailsScreen({
                               100,
                               ((active.tenant_usage?.normal || 0) /
                                 active.normal_booking_limit) *
-                                100
+                              100
                             )}%`,
                           }}
                         />
@@ -1020,7 +1020,7 @@ export default function PropertyDetailsScreen({
                               100,
                               ((active.tenant_usage?.proxy || 0) /
                                 active.proxy_booking_limit) *
-                                100
+                              100
                             )}%`,
                           }}
                         />
@@ -1464,7 +1464,7 @@ export default function PropertyDetailsScreen({
                               {capitalizeStatus(room.status)}
                             </Text>
                           </View>
-                          
+
                           {/* New Badges for Tenancy/Reservation */}
                           <View style={{ flexDirection: 'row', gap: 6 }}>
                             {room.is_tenant && (

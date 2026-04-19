@@ -270,13 +270,6 @@ export default function PropertyDetails({ propertyId, onBack }) {
     });
   };
 
-  useEffect(() => {
-    if (propertyId) {
-      fetchProperty();
-      fetchReviews(propertyId);
-    }
-  }, [propertyId, fetchProperty, fetchReviews]);
-
   // If navigation included state or query params to open booking, handle it after property loads
   const location = useLocation();
   useEffect(() => {
@@ -373,6 +366,13 @@ export default function PropertyDetails({ propertyId, onBack }) {
     }
   }, [propertyId, isAuthenticated]);
 
+  useEffect(() => {
+    if (propertyId) {
+      fetchProperty();
+      fetchReviews(propertyId);
+    }
+  }, [propertyId, fetchProperty, fetchReviews]);
+
   // Optimistically mark a room as occupied in the local `property` state after booking
   const handleBookingSuccessForProperty = (updatedRoom) => {
     if (!updatedRoom || !updatedRoom.id) return;
@@ -381,12 +381,12 @@ export default function PropertyDetails({ propertyId, onBack }) {
       const rooms = (Array.isArray(prev.rooms) ? prev.rooms : []).map((r) =>
         r.id === updatedRoom.id
           ? {
-              ...r,
-              status: updatedRoom.status || r.status || "available",
-              display_status: updatedRoom.display_status || "reserved",
-              reserved_by_me: updatedRoom.reserved_by_me || true,
-              reservation: updatedRoom.reservation || null,
-            }
+            ...r,
+            status: updatedRoom.status || r.status || "available",
+            display_status: updatedRoom.display_status || "reserved",
+            reserved_by_me: updatedRoom.reserved_by_me || true,
+            reservation: updatedRoom.reservation || null,
+          }
           : r,
       );
       return { ...prev, rooms };
@@ -394,12 +394,12 @@ export default function PropertyDetails({ propertyId, onBack }) {
     setSelectedRoom((prev) =>
       prev && prev.id === updatedRoom.id
         ? {
-            ...prev,
-            status: updatedRoom.status || prev.status || "available",
-            display_status: updatedRoom.display_status || "reserved",
-            reserved_by_me: updatedRoom.reserved_by_me || true,
-            reservation: updatedRoom.reservation || null,
-          }
+          ...prev,
+          status: updatedRoom.status || prev.status || "available",
+          display_status: updatedRoom.display_status || "reserved",
+          reserved_by_me: updatedRoom.reserved_by_me || true,
+          reservation: updatedRoom.reservation || null,
+        }
         : prev,
     );
   };
@@ -443,231 +443,229 @@ export default function PropertyDetails({ propertyId, onBack }) {
 
   const renderRooms = () => {
     const rooms = Array.isArray(property.rooms) ? property.rooms : [];
-              const filteredRooms = rooms.filter((room) => {
-                if (roomFilter === "all") return true;
-                return (room.status || "").toLowerCase() === roomFilter.toLowerCase();
-              });
+    const filteredRooms = rooms.filter((room) => {
+      if (roomFilter === "all") return true;
+      return (room.status || "").toLowerCase() === roomFilter.toLowerCase();
+    });
+
+    return (
+      <div className="animate-in fade-in duration-300 space-y-6">
+        <div className="flex flex-wrap gap-4 pb-4 border-b border-gray-300 dark:border-gray-700">
+          {["all", "available", "occupied", "maintenance"].map((filter) => (
+            <button
+              key={filter}
+              onClick={() => setRoomFilter(filter)}
+              className={`
+                          px-4 py-2 rounded-full text-sm font-medium capitalize transition-all
+                          ${roomFilter === filter
+                  ? "bg-green-600 text-white shadow-md"
+                  : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 shadow-sm"
+                }
+                        `}
+            >
+              {filter}
+            </button>
+          ))}
+        </div>
+        {filteredRooms.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {filteredRooms.map((room) => {
+              const genderBadge = getGenderBadge(room.sex_restriction);
+              const showGenderBadge = shouldShowGenderBadge(
+                room.sex_restriction,
+                property?.property_type,
+              );
+              const displayStatus = (room.display_status || room.status || "available").toString().toLowerCase();
+
+              const isPhysicallyAvailable = room.is_physically_available ?? (
+                displayStatus === "available"
+                && Number(room.available_slots ?? 1) > 0
+                && !room.is_booking_locked
+              );
+
+              const isFull = Number(room.available_slots ?? 0) === 0;
+              const canEnterBookingFlow = isPhysicallyAvailable;
+              const promoTerms = getRoomPromoTerms(room);
 
               return (
-                <div className="animate-in fade-in duration-300 space-y-6">
-                  <div className="flex flex-wrap gap-4 pb-4 border-b border-gray-300 dark:border-gray-700">
-                    {["all", "available", "occupied", "maintenance"].map((filter) => (
-                      <button
-                        key={filter}
-                        onClick={() => setRoomFilter(filter)}
-                        className={`
-                          px-4 py-2 rounded-full text-sm font-medium capitalize transition-all
-                          ${
-                            roomFilter === filter
-                              ? "bg-green-600 text-white shadow-md"
-                              : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 shadow-sm"
-                          }
-                        `}
-                      >
-                        {filter}
-                      </button>
-                    ))}
-                  </div>
-                  {filteredRooms.length > 0 ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                      {filteredRooms.map((room) => {
-                        const genderBadge = getGenderBadge(room.sex_restriction);
-                        const showGenderBadge = shouldShowGenderBadge(
-                          room.sex_restriction,
-                          property?.property_type,
-                        );
-                        const displayStatus = (room.display_status || room.status || "available").toString().toLowerCase();
-                        
-                        const isPhysicallyAvailable = room.is_physically_available ?? (
-                          displayStatus === "available"
-                          && Number(room.available_slots ?? 1) > 0
-                          && !room.is_booking_locked
-                        );
-
-                        const isFull = Number(room.available_slots ?? 0) === 0;
-                        const canEnterBookingFlow = isPhysicallyAvailable;
-                        const promoTerms = getRoomPromoTerms(room);
-                        
-                        return (
-                        <div
-                          key={room.id || `room-${room.room_number}`}
-                          className={`bg-white dark:bg-gray-800 rounded-xl border border-gray-300 dark:border-gray-700 overflow-hidden shadow-md hover:shadow-lg transition-all flex flex-col ${isFull ? 'opacity-60 grayscale-[0.5]' : ''}`}
-                        >
-                <div className="h-48 bg-gray-200 dark:bg-gray-700 relative">
-                  {/* Placeholder for room image if available, or generic */}
-                  {getImageUrl(room.images?.[0] || room.image) ? (
-                    <img
-                      src={getImageUrl(room.images?.[0] || room.image)}
-                      alt={`Room ${room.room_number}`}
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <ImagePlaceholder className="w-full h-full" />
-                  )}
-                  <div className="absolute top-3 left-3 flex flex-col gap-1.5">
-                    {room.is_tenant && (
-                      <span className="px-4 py-2 rounded-full text-[10px] font-bold uppercase tracking-wider shadow-sm bg-blue-600 text-white border border-blue-700 self-start">
-                        Living Here
-                      </span>
-                    )}
-                    {room.reserved_by_me ? (
-                      <span className="px-4 py-2 rounded-full text-[10px] font-bold uppercase tracking-wider shadow-sm bg-amber-100 text-amber-800 border border-amber-200 self-start">
-                        Reserved by you
-                      </span>
+                <div
+                  key={room.id || `room-${room.room_number}`}
+                  className={`bg-white dark:bg-gray-800 rounded-xl border border-gray-300 dark:border-gray-700 overflow-hidden shadow-md hover:shadow-lg transition-all flex flex-col ${isFull ? 'opacity-60 grayscale-[0.5]' : ''}`}
+                >
+                  <div className="h-48 bg-gray-200 dark:bg-gray-700 relative">
+                    {/* Placeholder for room image if available, or generic */}
+                    {getImageUrl(room.images?.[0] || room.image) ? (
+                      <img
+                        src={getImageUrl(room.images?.[0] || room.image)}
+                        alt={`Room ${room.room_number}`}
+                        className="w-full h-full object-cover"
+                      />
                     ) : (
-                      <span
-                        className={`
+                      <ImagePlaceholder className="w-full h-full" />
+                    )}
+                    <div className="absolute top-3 left-3 flex flex-col gap-1.5">
+                      {room.is_tenant && (
+                        <span className="px-4 py-2 rounded-full text-[10px] font-bold uppercase tracking-wider shadow-sm bg-blue-600 text-white border border-blue-700 self-start">
+                          Living Here
+                        </span>
+                      )}
+                      {room.reserved_by_me ? (
+                        <span className="px-4 py-2 rounded-full text-[10px] font-bold uppercase tracking-wider shadow-sm bg-amber-100 text-amber-800 border border-amber-200 self-start">
+                          Reserved by you
+                        </span>
+                      ) : (
+                        <span
+                          className={`
                           px-4 py-2 rounded-full text-[10px] font-bold uppercase tracking-wider shadow-sm self-start
                           ${displayStatus === "available" ? "bg-green-100 text-green-700" : displayStatus === "reserved" ? "bg-amber-100 text-amber-800" : displayStatus === "occupied" ? "bg-red-100 text-red-700" : "bg-yellow-100 text-yellow-700"}
                         `}
-                      >
-                        {(room.display_status_label || displayStatus || "")
-                          .toString()
-                          .charAt(0)
-                          .toUpperCase() +
-                          (room.display_status_label || displayStatus || "").toString().slice(1)}
-                      </span>
-                    )}
-                  </div>
-                  <div className="absolute top-3 right-3 flex">
-                    {showGenderBadge && (
-                      <span
-                        className={`px-4 py-2 rounded-full text-xs font-bold uppercase tracking-wider shadow-sm ${genderBadge.className}`}
-                      >
-                        {genderBadge.label}
-                      </span>
-                    )}
-                  </div>
-                </div>
-                <div className="p-6 flex-1 flex flex-col">
-                  <div className="flex justify-between items-center mb-3">
-                    <h4 className="text-lg font-bold text-gray-900 dark:text-white line-clamp-1 flex-1 mr-2">
-                      Room {room.room_number}
-                    </h4>
-                    <div className="text-right flex items-baseline justify-end gap-1 shrink-0">
-                      {(() => {
-                        const pricing = getRoomPriceDisplay(room);
-                        return (
-                          <>
-                      <span className="text-xl font-bold text-green-600 leading-none">
-                        ₱{pricing.amount.toLocaleString()}
-                      </span>
-                      <span className="text-sm text-gray-500 dark:text-gray-400 font-bold leading-none">
-                        / {pricing.suffix === '/day' ? 'D' : 'M'}
-                      </span>
-                          </>
-                        );
-                      })()}
-                    </div>
-                  </div>
-
-                  <div className="flex flex-wrap gap-2 mb-3">
-                    <span className="inline-flex px-2 py-1.5 rounded-md text-[11px] font-semibold bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border border-blue-100 dark:border-blue-800/30 capitalize">
-                      {(room.type_label || room.room_type || "Standard Room").replace(/_/g, " ")}
-                    </span>
-                    {room.floor && (
-                      <span className="inline-flex px-2 py-1.5 rounded-md text-[11px] font-semibold bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-600 shadow-sm">
-                        Flr {room.floor}
-                      </span>
-                    )}
-                    <span className="inline-flex px-2 py-1.5 rounded-md text-[11px] font-semibold bg-purple-50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 border border-purple-100 dark:border-purple-800/30 shadow-sm">
-                      {(room.billing_policy || "Monthly").replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())} Billing
-                    </span>
-                  </div>
-
-                  {promoTerms.length > 0 && (
-                    <div className="flex flex-wrap gap-1 mb-3">
-                      {promoTerms.slice(0, 2).map((promo) => (
-                        <span
-                          key={`${room.id}-promo-${promo.months}`}
-                          className="inline-flex px-2 py-1 rounded-md text-[10px] font-semibold bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-700/50"
                         >
-                          {formatPromoTermLabel(promo)}
-                        </span>
-                      ))}
-                      {promoTerms.length > 2 && (
-                        <span className="inline-flex px-2 py-1 rounded-md text-[10px] font-semibold bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-600">
-                          +{promoTerms.length - 2} more terms
+                          {(room.display_status_label || displayStatus || "")
+                            .toString()
+                            .charAt(0)
+                            .toUpperCase() +
+                            (room.display_status_label || displayStatus || "").toString().slice(1)}
                         </span>
                       )}
                     </div>
-                  )}
-
-                  {(() => {
-                    const roomAmenities = (Array.isArray(room.amenities) ? room.amenities : [])
-                      .map((amenity) => (typeof amenity === 'string' ? amenity.trim() : String(amenity?.name || amenity?.title || '').trim()))
-                      .filter(Boolean);
-
-                    if (roomAmenities.length > 0) {
-                      return (
-                        <div className="flex flex-wrap gap-1 mb-3">
-                          {roomAmenities.slice(0, 3).map((label, idx) => (
-                            <span
-                              key={idx}
-                              className="inline-flex px-1.5 py-0.5 rounded-md text-[10px] font-medium bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 border border-emerald-100 dark:border-emerald-800/30"
-                              title={label}
-                            >
-                              {label}
-                            </span>
-                          ))}
-                          {roomAmenities.length > 3 && (
-                            <span className="inline-flex px-1.5 py-0.5 rounded-md text-[10px] font-medium bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-600">
-                              +{roomAmenities.length - 3} more
-                            </span>
-                          )}
-                        </div>
-                      );
-                    }
-                    return null;
-                  })()}
-
-                  <p className="text-gray-600 dark:text-gray-300 text-sm mb-4 line-clamp-2">
-                    {room.description || "No description available."}
-                  </p>
-
-                  <div className="flex items-center gap-4 text-sm text-gray-500 dark:text-gray-400 mb-6">
-                    <div className="flex items-center gap-2">
-                      <Users className="w-4 h-4" />
-                      <span>{room.occupied || 0} / {room.capacity}</span>
+                    <div className="absolute top-3 right-3 flex">
+                      {showGenderBadge && (
+                        <span
+                          className={`px-4 py-2 rounded-full text-xs font-bold uppercase tracking-wider shadow-sm ${genderBadge.className}`}
+                        >
+                          {genderBadge.label}
+                        </span>
+                      )}
                     </div>
                   </div>
+                  <div className="p-6 flex-1 flex flex-col">
+                    <div className="flex justify-between items-center mb-3">
+                      <h4 className="text-lg font-bold text-gray-900 dark:text-white line-clamp-1 flex-1 mr-2">
+                        Room {room.room_number}
+                      </h4>
+                      <div className="text-right flex items-baseline justify-end gap-1 shrink-0">
+                        {(() => {
+                          const pricing = getRoomPriceDisplay(room);
+                          return (
+                            <>
+                              <span className="text-xl font-bold text-green-600 leading-none">
+                                ₱{pricing.amount.toLocaleString()}
+                              </span>
+                              <span className="text-sm text-gray-500 dark:text-gray-400 font-bold leading-none">
+                                / {pricing.suffix === '/day' ? 'D' : 'M'}
+                              </span>
+                            </>
+                          );
+                        })()}
+                      </div>
+                    </div>
 
-                  <div className="mt-auto">
-                    {isAuthenticated && canEnterBookingFlow ? (
-                      <button
-                        onClick={() => setSelectedRoom(room)}
-                        className="w-full py-4 bg-green-600 text-white rounded-xl font-bold hover:bg-green-700 transition-colors shadow-sm flex items-center justify-center gap-2"
-                      >
-                        Book This Room
-                      </button>
-                    ) : (
-                      <button
-                        disabled={
-                          !isAuthenticated && canEnterBookingFlow
-                            ? false
-                            : true
-                        }
-                        onClick={() =>
-                          !isAuthenticated && setSelectedRoom(room)
-                        }
-                        className={`w-full py-4 rounded-xl font-bold flex items-center justify-center gap-2
-                          ${
+                    <div className="flex flex-wrap gap-2 mb-3">
+                      <span className="inline-flex px-2 py-1.5 rounded-md text-[11px] font-semibold bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border border-blue-100 dark:border-blue-800/30 capitalize">
+                        {(room.type_label || room.room_type || "Standard Room").replace(/_/g, " ")}
+                      </span>
+                      {room.floor && (
+                        <span className="inline-flex px-2 py-1.5 rounded-md text-[11px] font-semibold bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-600 shadow-sm">
+                          Flr {room.floor}
+                        </span>
+                      )}
+                      <span className="inline-flex px-2 py-1.5 rounded-md text-[11px] font-semibold bg-purple-50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 border border-purple-100 dark:border-purple-800/30 shadow-sm">
+                        {(room.billing_policy || "Monthly").replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())} Billing
+                      </span>
+                    </div>
+
+                    {promoTerms.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mb-3">
+                        {promoTerms.slice(0, 2).map((promo) => (
+                          <span
+                            key={`${room.id}-promo-${promo.months}`}
+                            className="inline-flex px-2 py-1 rounded-md text-[10px] font-semibold bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-700/50"
+                          >
+                            {formatPromoTermLabel(promo)}
+                          </span>
+                        ))}
+                        {promoTerms.length > 2 && (
+                          <span className="inline-flex px-2 py-1 rounded-md text-[10px] font-semibold bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-600">
+                            +{promoTerms.length - 2} more terms
+                          </span>
+                        )}
+                      </div>
+                    )}
+
+                    {(() => {
+                      const roomAmenities = (Array.isArray(room.amenities) ? room.amenities : [])
+                        .map((amenity) => (typeof amenity === 'string' ? amenity.trim() : String(amenity?.name || amenity?.title || '').trim()))
+                        .filter(Boolean);
+
+                      if (roomAmenities.length > 0) {
+                        return (
+                          <div className="flex flex-wrap gap-1 mb-3">
+                            {roomAmenities.slice(0, 3).map((label, idx) => (
+                              <span
+                                key={idx}
+                                className="inline-flex px-1.5 py-0.5 rounded-md text-[10px] font-medium bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 border border-emerald-100 dark:border-emerald-800/30"
+                                title={label}
+                              >
+                                {label}
+                              </span>
+                            ))}
+                            {roomAmenities.length > 3 && (
+                              <span className="inline-flex px-1.5 py-0.5 rounded-md text-[10px] font-medium bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-600">
+                                +{roomAmenities.length - 3} more
+                              </span>
+                            )}
+                          </div>
+                        );
+                      }
+                      return null;
+                    })()}
+
+                    <p className="text-gray-600 dark:text-gray-300 text-sm mb-4 line-clamp-2">
+                      {room.description || "No description available."}
+                    </p>
+
+                    <div className="flex items-center gap-4 text-sm text-gray-500 dark:text-gray-400 mb-6">
+                      <div className="flex items-center gap-2">
+                        <Users className="w-4 h-4" />
+                        <span>{room.occupied || 0} / {room.capacity}</span>
+                      </div>
+                    </div>
+
+                    <div className="mt-auto">
+                      {isAuthenticated && canEnterBookingFlow ? (
+                        <button
+                          onClick={() => setSelectedRoom(room)}
+                          className="w-full py-4 bg-green-600 text-white rounded-xl font-bold hover:bg-green-700 transition-colors shadow-sm flex items-center justify-center gap-2"
+                        >
+                          Book This Room
+                        </button>
+                      ) : (
+                        <button
+                          disabled={
                             !isAuthenticated && canEnterBookingFlow
+                              ? false
+                              : true
+                          }
+                          onClick={() =>
+                            !isAuthenticated && setSelectedRoom(room)
+                          }
+                          className={`w-full py-4 rounded-xl font-bold flex items-center justify-center gap-2
+                          ${!isAuthenticated && canEnterBookingFlow
                               ? "bg-green-600 text-white hover:bg-green-700 cursor-pointer"
                               : "bg-gray-100 text-gray-500 cursor-not-allowed shadow-inner"
-                          }
+                            }
                         `}
-                      >
-                        {!isAuthenticated && canEnterBookingFlow
-                          ? "Login to Book"
-                          : canEnterBookingFlow
-                            ? "Book This Room"
-                            : "Not Available"}
-                      </button>
-                    )}
+                        >
+                          {!isAuthenticated && canEnterBookingFlow
+                            ? "Login to Book"
+                            : canEnterBookingFlow
+                              ? "Book This Room"
+                              : "Not Available"}
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
               );
             })}
           </div>
@@ -692,8 +690,8 @@ export default function PropertyDetails({ propertyId, onBack }) {
       sexRestriction === "male" || sexRestriction === "boys" || sexRestriction === "boy"
         ? { label: "Boys only", icon: <Mars className="w-3.5 h-3.5" />, cls: "bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-700 shadow-sm" }
         : sexRestriction === "female" || sexRestriction === "girls" || sexRestriction === "girl"
-        ? { label: "Girls only", icon: <Venus className="w-3.5 h-3.5" />, cls: "bg-rose-50 dark:bg-rose-900/30 text-rose-700 dark:text-rose-300 border-rose-200 dark:border-rose-700 shadow-sm" }
-        : { label: "Mixed genders", icon: <VenetianMask className="w-3.5 h-3.5" />, cls: "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 border-gray-200 dark:border-gray-600 shadow-sm" };
+          ? { label: "Girls only", icon: <Venus className="w-3.5 h-3.5" />, cls: "bg-rose-50 dark:bg-rose-900/30 text-rose-700 dark:text-rose-300 border-rose-200 dark:border-rose-700 shadow-sm" }
+          : { label: "Mixed genders", icon: <VenetianMask className="w-3.5 h-3.5" />, cls: "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 border-gray-200 dark:border-gray-600 shadow-sm" };
 
     // Stat cards (flat, uniform dark cards like the mockup)
     const statCards = [
@@ -725,11 +723,10 @@ export default function PropertyDetails({ propertyId, onBack }) {
               {statCards.map((s, i) => (
                 <div
                   key={i}
-                  className={`${CARD} py-4 px-4 flex flex-col items-center justify-center text-center ${
-                    s.highlight
-                      ? "border-green-400/60 dark:border-green-500/50 bg-green-50/80 dark:bg-green-900/20"
-                      : ""
-                  }`}
+                  className={`${CARD} py-4 px-4 flex flex-col items-center justify-center text-center ${s.highlight
+                    ? "border-green-400/60 dark:border-green-500/50 bg-green-50/80 dark:bg-green-900/20"
+                    : ""
+                    }`}
                 >
                   <span className={`text-2xl font-extrabold leading-none ${s.highlight ? "text-green-600 dark:text-green-400" : "text-gray-900 dark:text-white"}`}>
                     {s.value}
@@ -787,7 +784,7 @@ export default function PropertyDetails({ propertyId, onBack }) {
                             100,
                             ((property.tenant_usage?.normal || 0) /
                               property.normal_booking_limit) *
-                              100
+                            100
                           )}%`,
                         }}
                       />
@@ -813,7 +810,7 @@ export default function PropertyDetails({ propertyId, onBack }) {
                             100,
                             ((property.tenant_usage?.proxy || 0) /
                               property.proxy_booking_limit) *
-                              100
+                            100
                           )}%`,
                         }}
                       />
@@ -1112,11 +1109,10 @@ export default function PropertyDetails({ propertyId, onBack }) {
                 <button
                   key={i}
                   onClick={(e) => { e.stopPropagation(); setHeroImageIndex(i); }}
-                  className={`rounded-full transition-all ${
-                    i === heroImageIndex
-                      ? 'w-5 h-2 bg-white'
-                      : 'w-2 h-2 bg-white/50 hover:bg-white/80'
-                  }`}
+                  className={`rounded-full transition-all ${i === heroImageIndex
+                    ? 'w-5 h-2 bg-white'
+                    : 'w-2 h-2 bg-white/50 hover:bg-white/80'
+                    }`}
                   aria-label={`Photo ${i + 1}`}
                 />
               ))}
@@ -1270,10 +1266,9 @@ export default function PropertyDetails({ propertyId, onBack }) {
                   onClick={() => setActiveTab(tabKey)}
                   className={`
                     py-4 text-sm font-semibold whitespace-nowrap border-b-2 transition-colors
-                    ${
-                      isActive
-                        ? "border-green-600 text-green-700 dark:text-green-400"
-                        : "border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:border-gray-300 dark:hover:border-gray-600"
+                    ${isActive
+                      ? "border-green-600 text-green-700 dark:text-green-400"
+                      : "border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:border-gray-300 dark:hover:border-gray-600"
                     }
                   `}
                 >
@@ -1305,8 +1300,8 @@ export default function PropertyDetails({ propertyId, onBack }) {
           onLoginRequired={() => (window.location.href = "/login")}
           initialView={
             location.state?.openBooking ||
-            new URLSearchParams(location.search).get("open_booking") === "1" ||
-            new URLSearchParams(location.search).get("open_booking") === "true"
+              new URLSearchParams(location.search).get("open_booking") === "1" ||
+              new URLSearchParams(location.search).get("open_booking") === "true"
               ? "booking"
               : undefined
           }
@@ -1402,10 +1397,9 @@ export default function PropertyDetails({ propertyId, onBack }) {
                       key={i}
                       className={`
                         relative w-16 h-16 md:w-20 md:h-20 rounded-2xl overflow-hidden border-2 transition-all duration-300 cursor-pointer flex-shrink-0 snap-center
-                        ${
-                          i === galleryIndex
-                            ? "border-green-500 scale-110 shadow-[0_0_30px_rgba(34,197,94,0.5)] ring-4 ring-green-500/20"
-                            : "border-white/10 opacity-40 hover:opacity-100 hover:border-white/30"
+                        ${i === galleryIndex
+                          ? "border-green-500 scale-110 shadow-[0_0_30px_rgba(34,197,94,0.5)] ring-4 ring-green-500/20"
+                          : "border-white/10 opacity-40 hover:opacity-100 hover:border-white/30"
                         }
                       `}
                       onClick={() => window._detailsGallerySwiper?.slideTo(i)}

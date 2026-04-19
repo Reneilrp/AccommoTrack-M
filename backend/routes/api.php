@@ -269,6 +269,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/rooms/{id}/assign-tenant', [RoomController::class, 'assignTenant']);
         Route::delete('/rooms/{id}/remove-tenant', [RoomController::class, 'removeTenant']);
         Route::get('/rooms', [RoomController::class, 'index']);
+        Route::get('/dashboard/bundle', [LandlordDashboardController::class, 'getDashboardBundle']);
         Route::get('/dashboard/stats', [LandlordDashboardController::class, 'getStats']);
         Route::get('/dashboard/recent-activities', [LandlordDashboardController::class, 'getRecentActivities']);
         Route::post('/property-reports', [LandlordDashboardController::class, 'storeCaretakerReport']);
@@ -353,6 +354,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/reservation-disputes', [ReservationDisputeController::class, 'store']);
 
     Route::get('/bookings', [LandlordBookingController::class, 'index']);
+    Route::get('/bookings/bundle', [LandlordBookingController::class, 'getBookingBundle']);
     Route::post('/bookings', [LandlordBookingController::class, 'store'])->middleware('throttle:5,1');
     Route::get('/bookings/stats', [LandlordBookingController::class, 'getStats']);
     Route::get('/bookings/{id}', [LandlordBookingController::class, 'show']);
@@ -367,6 +369,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // ===== PAYMENTS / INVOICES =====
     Route::get('/invoices', [InvoiceController::class, 'index']);
+    Route::get('/invoices/bundle', [InvoiceController::class, 'getPaymentBundle']);
     Route::get('/invoices/summary', [InvoiceController::class, 'summary']);
     Route::get('/invoices/{id}/receipt', [InvoiceController::class, 'receipt'])->name('invoices.receipt');
     Route::post('/invoices', [InvoiceController::class, 'store']);

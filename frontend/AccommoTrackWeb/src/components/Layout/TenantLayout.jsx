@@ -116,6 +116,8 @@ export default function TenantLayout({ user, onLogout, children }) {
     };
   }, [refreshMessageUnreadCount]);
 
+  const suppressHeader = location.pathname === '/payments/logs';
+
   return (
     <div className="flex h-screen bg-gray-200 dark:bg-gray-900">
       {/* Sidebar */}
@@ -253,34 +255,36 @@ export default function TenantLayout({ user, onLogout, children }) {
       {/* Main Content */}
       <main className={`flex-1 flex flex-col min-w-0 overflow-hidden transition-all duration-300 ${isSidebarOpen ? 'lg:ml-64' : 'lg:ml-20'}`}>
         {/* Top Header - Simplified (No Menu Button) */}
-        <header className="bg-white dark:bg-gray-800 shadow-sm dark:shadow-gray-900/20 h-14 md:h-18 flex items-center justify-between px-4 lg:px-8 border-b border-gray-300 dark:border-gray-700 relative">
-          <h1 className="text-xl md:text-2xl font-bold text-gray-900 dark:text-white tracking-tight">
-            {getPageTitle()}
-          </h1>
+        {!suppressHeader && (
+          <header className="bg-white dark:bg-gray-800 shadow-sm dark:shadow-gray-900/20 h-14 md:h-18 flex items-center justify-between px-4 lg:px-8 border-b border-gray-300 dark:border-gray-700 relative">
+            <h1 className="text-xl md:text-2xl font-bold text-gray-900 dark:text-white tracking-tight">
+              {getPageTitle()}
+            </h1>
 
-          <div className="flex items-center gap-4 z-10">
-            {/* Cart Icon Button */}
-            <button
-              onClick={() => setIsCartOpen(true)}
-              className="relative p-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors"
-            >
-              <ShoppingCart className="w-5 h-5" />
-              {getItemCount() > 0 && (
-                <span className="absolute top-0 right-0 inline-flex items-center justify-center w-4 h-4 text-[10px] font-bold text-white bg-red-500 border-2 border-white dark:border-gray-800 rounded-full -mt-1 -mr-1">
-                  {getItemCount()}
-                </span>
+            <div className="flex items-center gap-4 z-10">
+              {/* Cart Icon Button */}
+              <button
+                onClick={() => setIsCartOpen(true)}
+                className="relative p-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors"
+              >
+                <ShoppingCart className="w-5 h-5" />
+                {getItemCount() > 0 && (
+                  <span className="absolute top-0 right-0 inline-flex items-center justify-center w-4 h-4 text-[10px] font-bold text-white bg-red-500 border-2 border-white dark:border-gray-800 rounded-full -mt-1 -mr-1">
+                    {getItemCount()}
+                  </span>
+                )}
+              </button>
+
+              {location.pathname === '/dashboard' && (
+                <NotificationDropdown />
               )}
-            </button>
-
-            {location.pathname === '/dashboard' && (
-              <NotificationDropdown />
-            )}
-          </div>
-        </header>
+            </div>
+          </header>
+        )}
 
         {/* Page Content */}
         <div 
-          className={`flex-1 overflow-y-auto bg-transparent dark:bg-gray-900 ${location.pathname.startsWith('/property/') ? '' : 'p-4 lg:p-8'}`}
+          className={`flex-1 overflow-y-auto bg-transparent dark:bg-gray-900 ${(location.pathname.startsWith('/property/') || suppressHeader) ? '' : 'p-4 lg:p-8'}`}
           style={{ scrollbarGutter: 'stable' }}
         >
           {children}

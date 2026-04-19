@@ -13,85 +13,99 @@ class LandlordDashboardService
 {
     public function getStats(int $landlordId, ?array $assignedPropertyIds, bool $isCaretaker): array
     {
-        // Properties Stats
-        $totalPropertiesQuery = Property::where('landlord_id', $landlordId);
-        if ($assignedPropertyIds) {
-            $totalPropertiesQuery->whereIn('id', $assignedPropertyIds);
-        }
-        $totalProperties = $totalPropertiesQuery->count();
+        // 1. Optimized Properties Stats (Single Query)
+        $propStats = Property::where('landlord_id', $landlordId)
+            ->when($assignedPropertyIds, fn($q) => $q->whereIn('id', $assignedPropertyIds))
+            ->selectRaw('COUNT(*) as total, COUNT(CASE WHEN current_status = ? THEN 1 END) as active', [Property::STATUS_ACTIVE])
+            ->first();
 
-        $activePropertiesQuery = Property::where('landlord_id', $landlordId)->where('current_status', Property::STATUS_ACTIVE);
-        if ($assignedPropertyIds) {
-            $activePropertiesQuery->whereIn('id', $assignedPropertyIds);
-        }
-        $activeProperties = $activePropertiesQuery->count();
-
-        // Rooms Stats
-        $roomsBaseQuery = Room::whereHas('property', function ($query) use ($landlordId, $assignedPropertyIds) {
+        // 2. Optimized Rooms Stats (Single Query)
+        $roomStats = Room::whereHas('property', function ($query) use ($landlordId, $assignedPropertyIds) {
             $query->where('landlord_id', $landlordId);
             if ($assignedPropertyIds) {
                 $query->whereIn('id', $assignedPropertyIds);
             }
-        });
+        })
+        ->selectRaw("
+            COUNT(*) as total,
+            COUNT(CASE WHEN status = 'occupied' THEN 1 END) as occupied,
+            COUNT(CASE WHEN status = 'available' THEN 1 END) as available,
+            COUNT(CASE WHEN status = 'maintenance' THEN 1 END) as maintenance,
+            COUNT(DISTINCT CASE WHEN status = 'occupied' THEN current_tenant_id END) as active_tenants
+        ")
+        ->first();
 
-        $totalRooms = (clone $roomsBaseQuery)->count();
-        $occupiedRooms = (clone $roomsBaseQuery)->where('status', 'occupied')->count();
-        $availableRooms = (clone $roomsBaseQuery)->where('status', 'available')->count();
-        $maintenanceRooms = (clone $roomsBaseQuery)->where('status', 'maintenance')->count();
-
-        // Occupancy Rate
+        $totalRooms = (int)$roomStats->total;
+        $occupiedRooms = (int)$roomStats->occupied;
         $occupancyRate = $totalRooms > 0 ? round(($occupiedRooms / $totalRooms) * 100, 1) : 0;
 
-        // Tenants Stats
-        $activeTenants = (clone $roomsBaseQuery)
-            ->where('status', 'occupied')
-            ->whereNotNull('current_tenant_id')
-            ->distinct('current_tenant_id')
-            ->count('current_tenant_id');
+        // 3. Optimized Bookings Stats (Single Query)
+        $bookingStats = Booking::where('landlord_id', $landlordId)
+            ->when($assignedPropertyIds, fn($q) => $q->whereIn('property_id', $assignedPropertyIds))
+            ->selectRaw("
+                COUNT(CASE WHEN status = 'pending' THEN 1 END) as pending,
+                COUNT(CASE WHEN status = 'confirmed' THEN 1 END) as confirmed
+            ")
+            ->first();
 
-        // Bookings Stats
-        $bookingsBaseQuery = Booking::where('landlord_id', $landlordId);
-        if ($assignedPropertyIds) {
-            $bookingsBaseQuery->whereIn('property_id', $assignedPropertyIds);
-        }
+        // 4. Optimized Maintenance & Addon Stats
+        $pendingMaintenance = \App\Models\MaintenanceRequest::where('landlord_id', $landlordId)
+            ->when($assignedPropertyIds, fn($q) => $q->whereIn('property_id', $assignedPropertyIds))
+            ->where('status', 'pending')
+            ->count();
 
-        $pendingBookings = (clone $bookingsBaseQuery)->where('status', 'pending')->count();
-        $confirmedBookings = (clone $bookingsBaseQuery)->where('status', 'confirmed')->count();
-
-        // Maintenance Stats
-        $maintenanceQuery = \App\Models\MaintenanceRequest::where('landlord_id', $landlordId);
-        if ($assignedPropertyIds) {
-            $maintenanceQuery->whereIn('property_id', $assignedPropertyIds);
-        }
-        $pendingMaintenance = (clone $maintenanceQuery)->where('status', 'pending')->count();
-
-        // Addon Request Stats
-        $addonQuery = DB::table('booking_addons')
+        $pendingAddons = DB::table('booking_addons')
             ->join('addons', 'booking_addons.addon_id', '=', 'addons.id')
             ->join('properties', 'addons.property_id', '=', 'properties.id')
-            ->where('properties.landlord_id', $landlordId);
-        if ($assignedPropertyIds) {
-            $addonQuery->whereIn('addons.property_id', $assignedPropertyIds);
-        }
-        $pendingAddons = $addonQuery->where('booking_addons.status', 'pending')->count();
+            ->where('properties.landlord_id', $landlordId)
+            ->when($assignedPropertyIds, fn($q) => $q->whereIn('addons.property_id', $assignedPropertyIds))
+            ->where('booking_addons.status', 'pending')
+            ->count();
 
         $response = [
-            'properties' => ['total' => $totalProperties, 'active' => $activeProperties],
-            'rooms' => ['total' => $totalRooms, 'occupied' => $occupiedRooms, 'available' => $availableRooms, 'maintenance' => $maintenanceRooms, 'occupancyRate' => $occupancyRate],
-            'tenants' => ['active' => $activeTenants],
-            'bookings' => ['pending' => $pendingBookings, 'confirmed' => $confirmedBookings],
+            'properties' => ['total' => (int)$propStats->total, 'active' => (int)$propStats->active],
+            'rooms' => [
+                'total' => $totalRooms, 
+                'occupied' => $occupiedRooms, 
+                'available' => (int)$roomStats->available, 
+                'maintenance' => (int)$roomStats->maintenance, 
+                'occupancyRate' => $occupancyRate
+            ],
+            'tenants' => ['active' => (int)$roomStats->active_tenants],
+            'bookings' => ['pending' => (int)$bookingStats->pending, 'confirmed' => (int)$bookingStats->confirmed],
             'requests' => ['maintenance' => $pendingMaintenance, 'addons' => $pendingAddons],
         ];
 
-        if (! $isCaretaker) {
-            $monthlyRevenue = Booking::where('landlord_id', $landlordId)->where('status', 'confirmed')->where('payment_status', 'paid')->whereMonth('created_at', now()->month)->whereYear('created_at', now()->year)->sum('monthly_rent');
-            $totalRevenue = Booking::where('landlord_id', $landlordId)->where('status', 'confirmed')->where('payment_status', 'paid')->sum('total_amount');
-            $expectedRevenue = Booking::where('landlord_id', $landlordId)->where('status', 'confirmed')->whereIn('payment_status', ['unpaid', 'partial'])->sum('total_amount');
-            $response['revenue'] = ['monthly' => (float) $monthlyRevenue, 'total' => (float) $totalRevenue, 'expected' => (float) $expectedRevenue];
+        if (!$isCaretaker) {
+            $currentMonthStart = now()->startOfMonth();
+            $currentMonthEnd = now()->endOfMonth();
+
+            // Use indexed range queries instead of whereMonth/whereYear
+            $monthlyRevenue = Booking::where('landlord_id', $landlordId)
+                ->where('status', 'confirmed')
+                ->where('payment_status', 'paid')
+                ->whereBetween('created_at', [$currentMonthStart, $currentMonthEnd])
+                ->sum('monthly_rent');
+
+            // Aggregate total revenue stats in one query if possible
+            $revenueTotals = Booking::where('landlord_id', $landlordId)
+                ->where('status', 'confirmed')
+                ->selectRaw("
+                    SUM(CASE WHEN payment_status = 'paid' THEN total_amount ELSE 0 END) as total,
+                    SUM(CASE WHEN payment_status IN ('unpaid', 'partial') THEN total_amount ELSE 0 END) as expected
+                ")
+                ->first();
+
+            $response['revenue'] = [
+                'monthly' => (float)$monthlyRevenue, 
+                'total' => (float)$revenueTotals->total, 
+                'expected' => (float)$revenueTotals->expected
+            ];
         }
 
         return $response;
     }
+
 
     public function getRecentActivities(int $landlordId, ?array $assignedPropertyIds, bool $isCaretaker, ?int $propertyId, ?int $roomId = null): \Illuminate\Support\Collection
     {
@@ -400,19 +414,27 @@ class LandlordDashboardService
 
     public function getRevenueChart(int $landlordId)
     {
+        $startDate = now()->subMonths(5)->startOfMonth();
+        
+        // Single optimized grouped query instead of a loop
+        $results = Booking::where('landlord_id', $landlordId)
+            ->where('status', 'confirmed')
+            ->where('payment_status', 'paid')
+            ->where('created_at', '>=', $startDate)
+            ->selectRaw('DATE_FORMAT(created_at, "%b") as month, SUM(monthly_rent) as total')
+            ->groupBy('month')
+            ->orderBy('created_at', 'asc')
+            ->pluck('total', 'month')
+            ->toArray();
+
+        // Fill in missing months with zero
         $revenueData = [];
         for ($i = 5; $i >= 0; $i--) {
-            $date = now()->subMonths($i);
-            $monthName = $date->format('M');
-            $monthRevenue = Booking::where('landlord_id', $landlordId)
-                ->where('status', 'confirmed')
-                ->where('payment_status', 'paid')
-                ->whereMonth('created_at', $date->month)
-                ->whereYear('created_at', $date->year)
-                ->sum('monthly_rent');
-            $revenueData[$monthName] = (float) $monthRevenue;
+            $monthName = now()->subMonths($i)->format('M');
+            $revenueData[$monthName] = (float)($results[$monthName] ?? 0);
         }
 
         return $revenueData;
     }
+
 }

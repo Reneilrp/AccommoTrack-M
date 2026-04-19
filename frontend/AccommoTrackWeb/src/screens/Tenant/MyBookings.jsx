@@ -6,7 +6,7 @@ import ImagePlaceholder from '../../components/Shared/ImagePlaceholder';
 import { SkeletonMyBookings, SkeletonFinancials, SkeletonHistory } from '../../components/Shared/Skeleton';
 import ReviewModal from '../../components/Modals/ReviewModal';
 import { useUIState } from "../../contexts/UIStateContext";
-import { showSuccess, showError } from '../../utils/toast';
+import toast from 'react-hot-toast';
 import {
   Home,
   Calendar,
@@ -26,7 +26,6 @@ import {
   ArrowRight,
   Wrench,
   ChevronDown,
-  ChevronRight,
   DoorOpen,
   Banknote,
   CalendarDays,
@@ -35,18 +34,10 @@ import {
   Shuffle,
   HelpCircle,
   MessageSquare,
-  MoreHorizontal,
-  Info,
-  History,
-  ShieldCheck,
-  CheckCircle2,
-  Zap,
-  Droplets,
-  ExternalLink
+  MoreHorizontal
 } from 'lucide-react';
 import ReportModal from '../../components/Modals/ReportModal';
 import MaintenanceRequestModal from '../../components/Modals/MaintenanceRequestModal';
-import UnitHubModal from '../../components/Modals/UnitHubModal';
 import ReservationPolicyNotice from './components/ReservationPolicyNotice';
 
 const MyBookings = () => {
@@ -97,13 +88,13 @@ const MyBookings = () => {
     setExtendingStay(true);
     try {
       await api.post(`/bookings/${payload.booking_id}/extend`, payload);
-      showSuccess('Extension request sent to landlord');
+      toast.success('Extension request sent to landlord');
       invalidateTenantStayCache();
       fetchData();
       setShowExtensionModal(false);
     } catch (err) {
       console.error('Failed to request extension:', err);
-      showError(err.response?.data?.message || 'Failed to request extension');
+      toast.error(err.response?.data?.message || 'Failed to request extension');
     } finally {
       setExtendingStay(false);
     }
@@ -114,7 +105,7 @@ const MyBookings = () => {
     setRequestingTransfer(true);
     try {
       await api.post('/tenant/transfers', payload);
-      showSuccess('Room transfer request sent to landlord');
+      toast.success('Room transfer request sent to landlord');
       invalidateTenantStayCache();
 
       // Update local state to immediately reflect the new request
@@ -127,7 +118,7 @@ const MyBookings = () => {
       setShowTransferModal(false);
     } catch (err) {
       console.error('Failed to request transfer:', err);
-      showError(err.response?.data?.message || 'Failed to request transfer');
+      toast.error(err.response?.data?.message || 'Failed to request transfer');
     } finally {
       setRequestingTransfer(false);
     }
@@ -137,13 +128,13 @@ const MyBookings = () => {
     setRequestingMoveOut(true);
     try {
       await tenantService.requestMoveOut(payload.booking_id, payload.move_out_date, payload.reason || '');
-      showSuccess('Move-out request submitted');
+      toast.success('Move-out request submitted');
       invalidateTenantStayCache();
       fetchData();
       setShowMoveOutModal(false);
     } catch (err) {
       console.error('Failed to request move-out:', err);
-      showError(err.response?.data?.message || 'Failed to request move-out');
+      toast.error(err.response?.data?.message || 'Failed to request move-out');
     } finally {
       setRequestingMoveOut(false);
     }
@@ -155,12 +146,12 @@ const MyBookings = () => {
     setCancellingTransferRequestId(transferRequestId);
     try {
       await api.patch(`/tenant/transfers/${transferRequestId}/cancel`);
-      showSuccess('Transfer request cancelled successfully');
+      toast.success('Transfer request cancelled successfully');
       invalidateTenantStayCache();
       fetchData();
     } catch (err) {
       console.error('Failed to cancel transfer request:', err);
-      showError(err.response?.data?.message || 'Failed to cancel transfer request');
+      toast.error(err.response?.data?.message || 'Failed to cancel transfer request');
     } finally {
       setCancellingTransferRequestId(null);
     }
@@ -177,7 +168,6 @@ const MyBookings = () => {
   // Maintenance Modal State
   const [showMaintenanceModal, setShowMaintenanceModal] = useState(false);
   const [maintenanceBookingId, setMaintenanceBookingId] = useState('');
-  const [showUnitHub, setShowUnitHub] = useState(false);
 
   const loadMoreHistory = async () => {
     if (!history?.pagination || history.pagination.currentPage >= history.pagination.lastPage || historyLoadingMore) {
@@ -195,7 +185,7 @@ const MyBookings = () => {
       // Fix: use the fresh `merged` object, not the stale `history` closure
       updateData('bookings', prev => ({ ...(prev || {}), history: merged }));
     } catch (__err) {
-      showError('Failed to load more history');
+      toast.error('Failed to load more history');
     } finally {
       setHistoryLoadingMore(false);
     }
@@ -374,12 +364,12 @@ const MyBookings = () => {
     setCancelConfirmModal(null);
     try {
       await tenantService.cancelBooking(bookingId, 'Tenant cancelled the booking');
-      showSuccess('Booking cancelled successfully');
+      toast.success('Booking cancelled successfully');
       invalidateTenantStayCache();
       fetchData();
     } catch (err) {
       console.error('Failed to cancel booking:', err);
-      showError(err.response?.data?.message || 'Failed to cancel booking');
+      toast.error(err.response?.data?.message || 'Failed to cancel booking');
     } finally {
       setCancellingBooking(null);
     }
@@ -389,14 +379,13 @@ const MyBookings = () => {
     setRequestingAddon(payload.addon_id || 'custom');
     try {
       await tenantService.requestAddon(payload);
-      showSuccess('Add-on request submitted successfully!');
       // Refresh data
       invalidateTenantStayCache();
       fetchData();
       setShowAddonModal(false);
     } catch (err) {
       console.error('Failed to request addon:', err);
-      showError(err.response?.data?.message || 'Failed to request addon');
+      toast.error(err.response?.data?.message || 'Failed to request addon');
     } finally {
       setRequestingAddon(null);
     }
@@ -406,12 +395,12 @@ const MyBookings = () => {
     try {
       const response = await tenantService.cancelAddonRequest(addonId);
       const message = response?.message || response?.data?.message || 'Add-on request updated';
-      showSuccess(message);
+      toast.success(message);
       invalidateTenantStayCache();
       fetchData();
     } catch (err) {
       console.error('Failed to cancel addon request:', err);
-      showError('Failed to cancel request');
+      toast.error('Failed to cancel request');
     }
   };
 
@@ -498,7 +487,6 @@ const MyBookings = () => {
                 setMaintenanceBookingId(id);
                 setShowMaintenanceModal(true);
               }}
-              onShowUnitHub={() => setShowUnitHub(true)}
               navigate={navigate}
             />
           )}
@@ -618,13 +606,6 @@ const MyBookings = () => {
         preselectedBookingId={maintenanceBookingId}
       />
 
-      {/* Unit Hub Modal */}
-      <UnitHubModal
-        show={showUnitHub}
-        onClose={() => setShowUnitHub(false)}
-        booking={activeStays[selectedStayIndex]?.booking}
-      />
-
       {/* Cancel Booking Confirmation Modal */}
       {cancelConfirmModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[9999] p-4 animate-in fade-in duration-200">
@@ -681,8 +662,7 @@ const MyBookings = () => {
 };
 
 // ==================== Current Stay Tab ====================
-// ==================== Current Stay Tab ====================
-const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBookings = [], pendingCheckIns = [], upcomingBooking = null, onRequestAddon, onCancelAddon, onCancelBooking, onRequestExtension, onRequestTransfer, onRequestMoveOut, pendingTransferBookingIds = [], pendingTransferRequests = [], onCancelTransferRequest, cancellingTransferRequestId = null, monthlyTransferCount = 0, isCancelling, onReview, onReport, onRequestMaintenance, onShowUnitHub, navigate }) => {
+const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBookings = [], pendingCheckIns = [], upcomingBooking = null, onRequestAddon, onCancelAddon, onCancelBooking, onRequestExtension, onRequestTransfer, onRequestMoveOut, pendingTransferBookingIds = [], pendingTransferRequests = [], onCancelTransferRequest, cancellingTransferRequestId = null, monthlyTransferCount = 0, isCancelling, onReview, onReport, onRequestMaintenance, navigate }) => {
   const ALMOST_PAY_TIME_DAYS = 5;
   const OPEN_INVOICE_STATUSES = new Set(['pending', 'partial', 'overdue', 'unpaid']);
   const SETTLED_INVOICE_STATUSES = new Set(['paid', 'settled', 'succeeded', 'verified', 'completed']);
@@ -1272,52 +1252,16 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
                 {/* Main Column */}
                 <div className="lg:col-span-2 space-y-6">
                   {booking.paymentStatus === 'refunded' && (
-                    <div className="bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 p-6 rounded-3xl flex items-start gap-4 animate-pulse">
-                      <ShieldAlert className="w-6 h-6 text-purple-600 dark:text-purple-400 shrink-0 mt-0.5" />
+                    <div className="bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 p-4 rounded-xl flex items-start gap-4 animate-pulse">
+                      <ShieldAlert className="w-5 h-5 text-purple-600 dark:text-purple-400 shrink-0 mt-0.5" />
                       <div>
-                        <p className="text-sm font-black text-purple-900 dark:text-purple-200 uppercase tracking-widest">Payment Action Required</p>
-                        <p className="text-xs text-purple-700 dark:text-purple-400 mt-2 leading-relaxed">
+                        <p className="text-sm font-bold text-purple-900 dark:text-purple-200">Payment Action Required</p>
+                        <p className="text-xs text-purple-700 dark:text-purple-400 mt-2">
                           Your last payment was refunded. Please complete a new payment or contact your Property Manager to maintain your active status.
                         </p>
                       </div>
                     </div>
                   )}
-
-                  {/* Real-time Activity Hub */}
-                  <div className="bg-gray-50 dark:bg-gray-900/40 border border-gray-100 dark:border-gray-800 p-6 rounded-3xl">
-                      <div className="flex justify-between items-center mb-4">
-                          <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.3em]">Building Activity</h4>
-                          <button 
-                            onClick={() => navigate('/maintenance')}
-                            className="text-[10px] font-black text-green-600 dark:text-green-400 uppercase tracking-widest flex items-center gap-1 hover:underline"
-                          >
-                             Live Feed <ChevronRight className="w-2.5 h-2.5" />
-                          </button>
-                      </div>
-                      <div className="space-y-3">
-                          {booking.maintenanceRequests?.length > 0 ? (
-                              booking.maintenanceRequests.slice(0, 1).map(mnt => (
-                                  <div key={mnt.id} className="bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 p-4 rounded-2xl flex items-center justify-between shadow-sm">
-                                      <div className="flex items-center gap-4">
-                                          <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${mnt.status === 'completed' ? 'bg-green-100 text-green-600' : 'bg-amber-100 text-amber-600 animate-pulse'}`}>
-                                              {mnt.status === 'completed' ? <CheckCircle2 className="w-5 h-5" /> : <Wrench className="w-5 h-5" />}
-                                          </div>
-                                          <div>
-                                              <p className="text-xs font-bold text-gray-900 dark:text-white uppercase truncate max-w-[150px]">{mnt.title}</p>
-                                              <p className="text-[10px] text-gray-400 font-medium">Status: <span className="capitalize">{mnt.status.replace('_', ' ')}</span></p>
-                                          </div>
-                                      </div>
-                                      <span className="text-[9px] font-black text-gray-300 uppercase">{new Date(mnt.created_at).toLocaleDateString()}</span>
-                                  </div>
-                              ))
-                          ) : (
-                              <div className="flex items-center gap-3 text-gray-400 italic text-xs py-2 px-4">
-                                  <Info className="w-4 h-4 opacity-50" />
-                                  <span>No recent maintenance reports.</span>
-                              </div>
-                          )}
-                      </div>
-                  </div>
 
                   {/* Move-out Notice Banner */}
                   {(booking.notice_given_at || booking.noticeGivenAt) && (
@@ -1337,7 +1281,7 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
                   {/* Room Details Card */}
                   {/* Room Details Card */}
                   <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-300 dark:border-gray-700 overflow-hidden">
-                    <div className="relative h-64 bg-gray-100 dark:bg-gray-900/50">
+                    <div className="relative h-48 bg-gray-200 dark:bg-gray-700">
                       {getImageUrl(property.image) ? (
                         <img
                           src={getImageUrl(property.image)}
@@ -1345,34 +1289,10 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
                           className="w-full h-full object-cover"
                         />
                       ) : (
-                        <div className="w-full h-full flex items-center justify-center text-gray-200 dark:text-gray-800 font-black text-6xl uppercase tracking-tighter opacity-20">
-                           {property.title}
-                        </div>
+                        <ImagePlaceholder className="w-full h-full" />
                       )}
-                      
-                      {/* Gradient Overlay */}
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent" />
-                      
-                      {/* Top Badges */}
-                      <div className="absolute top-6 left-6 flex gap-2">
-                        <span className="px-3 py-1 bg-green-500/90 backdrop-blur-md text-white text-[10px] font-black uppercase tracking-widest rounded-full shadow-lg">
-                           Active Stay
-                        </span>
-                        {booking.is_overdue && (
-                           <span className="px-3 py-1 bg-red-500/90 backdrop-blur-md text-white text-[10px] font-black uppercase tracking-widest rounded-full shadow-lg animate-pulse">
-                              Payment Overdue
-                           </span>
-                        )}
-                      </div>
-
-                      <div className="absolute top-6 right-6 z-10 flex gap-2">
-                        <button 
-                           onClick={onShowUnitHub}
-                           className="flex items-center gap-2 px-5 py-2.5 bg-white/10 hover:bg-white/20 backdrop-blur-xl border border-white/20 text-white rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all shadow-xl hover:scale-105 active:scale-95"
-                        >
-                           <ShieldCheck className="w-4 h-4" />
-                           Unit Hub
-                        </button>
+                      <div className="absolute top-4 right-4 z-10">
+                        {/* Ellipsis Menu */}
                         <EllipsisMenu
                           booking={booking}
                           property={property}
@@ -1382,20 +1302,13 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
                           navigate={navigate}
                         />
                       </div>
-                      
-                      <div className="absolute inset-x-0 bottom-0 p-8">
-                        <div className="flex items-end justify-between">
-                            <div className="flex-1 min-w-0">
-                                <h2 className="text-4xl font-black text-white uppercase tracking-tight truncate drop-shadow-sm">{property.title}</h2>
-                                <p className="text-white/70 text-sm flex items-center mt-2 font-bold tracking-tight">
-                                    <MapPin className="w-4 h-4 mr-2" />
-                                    {property.address}
-                                </p>
-                            </div>
-                            <div className="bg-white/10 backdrop-blur-md border border-white/20 p-4 rounded-3xl text-right hidden sm:block">
-                                <p className="text-[10px] font-bold text-white/60 uppercase tracking-widest mb-1">Room</p>
-                                <p className="text-3xl font-black text-white leading-none">#{room.roomNumber}</p>
-                            </div>
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent p-6 flex items-end">
+                        <div>
+                          <h2 className="text-2xl font-bold text-white">{property.title}</h2>
+                          <p className="text-white/90 text-sm flex items-center mt-2 font-medium">
+                            <MapPin className="w-4 h-4 mr-2.5" />
+                            {property.address}
+                          </p>
                         </div>
                       </div>
                     </div>
@@ -1536,7 +1449,7 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
                                       onClick={() => {
                                         if (isPendingForThisBooking) return;
                                         if (limitReached) {
-                                          showError(`Transfer limit reached. You can request again in ${daysUntilTransferReset} day${daysUntilTransferReset === 1 ? '' : 's'}.`);
+                                          toast.error(`Transfer limit reached. You can request again in ${daysUntilTransferReset} day${daysUntilTransferReset === 1 ? '' : 's'}.`);
                                           return;
                                         }
                                         onRequestTransfer?.();
@@ -2607,14 +2520,14 @@ const ExtensionModal = ({ booking, room, onClose, onSubmit, loading }) => {
     e.preventDefault();
 
     if (!hasCurrentEndDate) {
-      showError('This stay is open-ended and does not need an extension request.');
+      toast.error('This stay is open-ended and does not need an extension request.');
       return;
     }
 
     const finalEndDate = type === 'monthly' ? nextMonthStr : customDate;
 
     if (!finalEndDate) {
-      showError('Please select an end date');
+      toast.error('Please select an end date');
       return;
     }
 
@@ -2738,7 +2651,7 @@ const MoveOutModal = ({ booking, onClose, onSubmit, loading }) => {
     e.preventDefault();
 
     if (!moveOutDate) {
-      showError('Please select your move-out date.');
+      toast.error('Please select your move-out date.');
       return;
     }
 
@@ -2896,11 +2809,11 @@ const TransferRequestModal = ({ booking, property, onClose, onSubmit, loading })
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!formData.requested_room_id || !formData.reason || !formData.booking_id || !formData.property_id) {
-      showError('Please select a room and provide a reason');
+      toast.error('Please select a room and provide a reason');
       return;
     }
     if (leaseDurationPreference === 'new_lease' && !newEndDate) {
-      showError('Please select a new lease end date');
+      toast.error('Please select a new lease end date');
       return;
     }
 

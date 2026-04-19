@@ -89,12 +89,12 @@ export default function TenantPayments({ user }) {
 
       // Update global cache
       if (paymentsRes.success && statsRes.success) {
-        updateData('wallet', prev => ({ 
-          ...prev, 
-          payments: paymentsRes.data, 
+        updateData('wallet', prev => ({
+          ...prev,
+          payments: paymentsRes.data,
           stats: statsRes.data,
           walletLogs: logsRes.data,
-          walletLogsPagination: logsRes.meta 
+          walletLogsPagination: logsRes.meta
         }));
       }
     } catch (err) {
@@ -112,10 +112,10 @@ export default function TenantPayments({ user }) {
       if (res.success) {
         setWalletLogs(res.data || []);
         setWalletLogsPagination(res.meta || null);
-        updateData('wallet', prev => ({ 
-          ...prev, 
-          walletLogs: res.data, 
-          walletLogsPagination: res.meta 
+        updateData('wallet', prev => ({
+          ...prev,
+          walletLogs: res.data,
+          walletLogsPagination: res.meta
         }));
       }
     } catch (_err) {
@@ -413,49 +413,6 @@ export default function TenantPayments({ user }) {
           </div>
         )}
 
-        {/* Archive vs Active Tabs */}
-        <div className="flex gap-6 mb-4 border-b border-gray-200 dark:border-gray-700">
-          <button
-            onClick={() => updateScreenState('wallet', { archiveFilter: 'active' })}
-            className={`pb-3 px-2 text-sm font-bold transition-all relative ${
-              (archiveFilter || 'active') === "active"
-                ? "text-green-600 dark:text-green-400"
-                : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-            }`}
-          >
-            Active Billing
-            {(archiveFilter || 'active') === "active" && (
-              <span className="absolute bottom-0 left-0 w-full h-[3px] bg-green-600 dark:bg-green-400 rounded-t-full"></span>
-            )}
-          </button>
-          <button
-            onClick={() => updateScreenState('wallet', { archiveFilter: 'archived' })}
-            className={`pb-3 px-2 text-sm font-bold transition-all relative flex items-center gap-2 ${
-              archiveFilter === "archived"
-                ? "text-gray-900 dark:text-white"
-                : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-            }`}
-          >
-            Payment Archive
-            {archiveFilter === "archived" && (
-              <span className="absolute bottom-0 left-0 w-full h-[3px] bg-gray-900 dark:bg-gray-400 rounded-t-full"></span>
-            )}
-          </button>
-          <button
-            onClick={() => updateScreenState('wallet', { archiveFilter: 'wallet' })}
-            className={`pb-3 px-2 text-sm font-bold transition-all relative flex items-center gap-2 ${
-              archiveFilter === "wallet"
-                ? "text-emerald-600 dark:text-emerald-400"
-                : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-            }`}
-          >
-            Wallet History
-            {archiveFilter === "wallet" && (
-              <span className="absolute bottom-0 left-0 w-full h-[3px] bg-emerald-600 dark:bg-emerald-400 rounded-t-full"></span>
-            )}
-          </button>
-        </div>
-
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-300 dark:border-gray-700 p-4 mb-6">
           <div className="flex flex-col lg:flex-row lg:items-center gap-4">
             <div className="relative w-full lg:w-80 shrink-0">
@@ -562,11 +519,10 @@ export default function TenantPayments({ user }) {
                         <td className="px-6 py-4 text-sm text-gray-700 dark:text-gray-300">{log.property?.title || 'System'}</td>
                         <td className="px-6 py-4 text-sm text-gray-700 dark:text-gray-300">{log.description || 'No description'}</td>
                         <td className="px-6 py-4">
-                          <span className={`px-2.5 py-1 text-[10px] font-bold uppercase rounded-md ${
-                            log.type === 'credit' ? 'bg-emerald-100 text-emerald-700' : 
-                            log.type === 'debit' ? 'bg-amber-100 text-amber-700' : 
-                            'bg-blue-100 text-blue-700'
-                          }`}>
+                          <span className={`px-2.5 py-1 text-[10px] font-bold uppercase rounded-md ${log.type === 'credit' ? 'bg-emerald-100 text-emerald-700' :
+                            log.type === 'debit' ? 'bg-amber-100 text-amber-700' :
+                              'bg-blue-100 text-blue-700'
+                            }`}>
                             {log.type}
                           </span>
                         </td>
@@ -589,7 +545,7 @@ export default function TenantPayments({ user }) {
               </table>
               {walletLogsPagination && walletLogsPagination.last_page > 1 && (
                 <div className="flex justify-center p-4 gap-2">
-                  <button 
+                  <button
                     disabled={walletLogsPagination.current_page === 1}
                     onClick={() => fetchLogs(walletLogsPagination.current_page - 1)}
                     className="px-3 py-1 bg-gray-100 dark:bg-gray-700 rounded disabled:opacity-50"
@@ -597,7 +553,7 @@ export default function TenantPayments({ user }) {
                     Prev
                   </button>
                   <span className="px-3 py-1 text-sm text-gray-500">Page {walletLogsPagination.current_page} of {walletLogsPagination.last_page}</span>
-                  <button 
+                  <button
                     disabled={walletLogsPagination.current_page === walletLogsPagination.last_page}
                     onClick={() => fetchLogs(walletLogsPagination.current_page + 1)}
                     className="px-3 py-1 bg-gray-100 dark:bg-gray-700 rounded disabled:opacity-50"
@@ -740,7 +696,7 @@ export default function TenantPayments({ user }) {
                     Payment Details
                   </h3>
                   <p className="text-xs font-bold text-gray-500 dark:text-gray-400 mt-2">
-                      {selectedPayment.propertyName}
+                    {selectedPayment.propertyName}
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
@@ -755,12 +711,12 @@ export default function TenantPayments({ user }) {
                   )}
                   <button
                     onClick={() => {
-                    setShowPaymentModal(false);
-                    setSelectedPayment(null);
-                  }}
-                  className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors"
-                >
-                  <X className="w-5 h-5 text-gray-500" />
+                      setShowPaymentModal(false);
+                      setSelectedPayment(null);
+                    }}
+                    className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors"
+                  >
+                    <X className="w-5 h-5 text-gray-500" />
                   </button>
                 </div>
               </div>

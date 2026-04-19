@@ -771,7 +771,7 @@ export default function RoomDetailsModal({
         }
       }
 
-      const bedNumbersString = bookingMode === "normal" 
+      const bedNumbersString = bookingMode === "normal"
         ? selectedBedNumbers.filter(Boolean).join(',')
         : normalizedOccupants.map(o => o.bed_number).filter(Boolean).join(',');
 
@@ -1169,13 +1169,12 @@ export default function RoomDetailsModal({
                           {resolvedAvailableSlots} {resolvedAvailableSlots === 1 ? 'Bed' : 'Beds'} Available
                         </span>
                       </div>
-                      
+
                       <div className="space-y-2">
                         <div className="h-3 w-full bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden border border-gray-200 dark:border-gray-600">
-                          <div 
-                            className={`h-full transition-all duration-700 rounded-full ${
-                              (resolvedOccupiedCount / resolvedCapacity) > 0.8 ? 'bg-orange-500' : 'bg-green-500'
-                            }`}
+                          <div
+                            className={`h-full transition-all duration-700 rounded-full ${(resolvedOccupiedCount / resolvedCapacity) > 0.8 ? 'bg-orange-500' : 'bg-green-500'
+                              }`}
                             style={{ width: `${(resolvedOccupiedCount / resolvedCapacity) * 100}%` }}
                           />
                         </div>
@@ -1433,9 +1432,15 @@ export default function RoomDetailsModal({
                         Proxy
                       </button>
                     </div>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-                      Normal: 1 booking limit (for yourself). Proxy: 3 bookings limit (for others). Limits are independent per property.
-                    </p>
+                    {bookingMode === 'normal' ? (
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                        Limit: {property?.normal_booking_limit || 1} personal stay per property ({property?.tenant_usage?.normal || 0}/{property?.normal_booking_limit || 1} used)
+                      </p>
+                    ) : (
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                        Limit: {property?.proxy_booking_limit || 3} bookings for other people ({property?.tenant_usage?.proxy || 0}/{property?.proxy_booking_limit || 3} used)
+                      </p>
+                    )}
                   </div>
 
                   {/* Price Card Summary */}
@@ -1475,58 +1480,6 @@ export default function RoomDetailsModal({
 
                   {/* Date Selection */}
                   <div className="space-y-4">
-                    {/* Property Booking Limit Guardrails */}
-                    {isAuthenticated && (
-                      <div className="bg-blue-50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-900/30 p-4 rounded-xl space-y-3">
-                        <div className="flex items-center justify-between">
-                          <h4 className="text-xs font-bold text-blue-800 dark:text-blue-300 uppercase tracking-wider">
-                            Property Booking Limits
-                          </h4>
-                          <Shield className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                        </div>
-                        
-                        <div className="space-y-2">
-                          {/* Normal Limit */}
-                          <div>
-                            <div className="flex justify-between text-[11px] mb-1">
-                              <span className="text-gray-600 dark:text-gray-400 font-medium">Normal (Personal)</span>
-                              <span className="text-blue-700 dark:text-blue-400 font-bold">
-                                {property?.tenant_usage?.normal || 0} / {property?.normal_booking_limit || 1}
-                              </span>
-                            </div>
-                            <div className="h-1.5 w-full bg-blue-200/50 dark:bg-blue-900/30 rounded-full overflow-hidden">
-                              <div 
-                                className="h-full bg-blue-600 rounded-full transition-all duration-500"
-                                style={{ width: `${Math.min(100, ((property?.tenant_usage?.normal || 0) / (property?.normal_booking_limit || 1)) * 100)}%` }}
-                              />
-                            </div>
-                          </div>
-
-                          {/* Proxy Limit */}
-                          <div>
-                            <div className="flex justify-between text-[11px] mb-1">
-                              <span className="text-gray-600 dark:text-gray-400 font-medium">Proxy (For Others)</span>
-                              <span className="text-emerald-700 dark:text-emerald-400 font-bold">
-                                {property?.tenant_usage?.proxy || 0} / {property?.proxy_booking_limit || 3}
-                              </span>
-                            </div>
-                            <div className="h-1.5 w-full bg-emerald-200/50 dark:bg-emerald-900/30 rounded-full overflow-hidden">
-                              <div 
-                                className="h-full bg-emerald-500 rounded-full transition-all duration-500"
-                                style={{ width: `${Math.min(100, ((property?.tenant_usage?.proxy || 0) / (property?.proxy_booking_limit || 3)) * 100)}%` }}
-                              />
-                            </div>
-                          </div>
-                        </div>
-                        
-                        {(property?.tenant_usage?.normal >= property?.normal_booking_limit && bookingMode === 'normal') && (
-                          <div className="pt-1 flex items-start gap-2 text-[10px] text-amber-700 dark:text-amber-400 font-medium">
-                            <AlertTriangle className="w-3 h-3 shrink-0" />
-                            <span>You have reached your personal booking limit for this property.</span>
-                          </div>
-                        )}
-                      </div>
-                    )}
                     {showBedCountSelector && (
                       <div className="space-y-4">
                         <div>
@@ -2052,14 +2005,14 @@ export default function RoomDetailsModal({
                   </div>
 
                   {/* Action Buttons */}
-                      {hasCheckout && !isDailyContract && duration && duration.extraDays > 0 && (
-                        <div className="mt-4 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/30 rounded-xl text-xs text-amber-800 dark:text-amber-400 flex items-start gap-2 animate-in fade-in slide-in-from-top-2">
-                          <AlertTriangle className="w-4 h-4 mt-0.5 flex-shrink-0" />
-                          <p>
-                            <strong>Billing Policy:</strong> Stays with extra days ({duration.extraDays} days) are charged for the full next month.
-                          </p>
-                        </div>
-                      )}
+                  {hasCheckout && !isDailyContract && duration && duration.extraDays > 0 && (
+                    <div className="mt-4 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/30 rounded-xl text-xs text-amber-800 dark:text-amber-400 flex items-start gap-2 animate-in fade-in slide-in-from-top-2">
+                      <AlertTriangle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                      <p>
+                        <strong>Billing Policy:</strong> Stays with extra days ({duration.extraDays} days) are charged for the full next month.
+                      </p>
+                    </div>
+                  )}
 
                   <div className="mt-8 pt-6 border-t border-gray-100 dark:border-gray-700 space-y-4">
                     {isAuthenticated && canBook && (

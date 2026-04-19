@@ -27,10 +27,10 @@ const getStatusMeta = (status) => {
     case 'awaiting verification':
     case 'pending_verification':
     case 'pending_offline':
-      return { 
-        label: 'Awaiting Verify', 
-        icon: Clock, 
-        cls: 'bg-amber-50 text-amber-600 border-amber-200 dark:bg-amber-500/10 dark:text-amber-400/80 dark:border-amber-500/20' 
+      return {
+        label: 'Awaiting Verify',
+        icon: Clock,
+        cls: 'bg-amber-50 text-amber-600 border-amber-200 dark:bg-amber-500/10 dark:text-amber-400/80 dark:border-amber-500/20'
       };
     case 'overdue':
       return { label: 'Overdue', icon: AlertTriangle, cls: 'bg-red-50 text-red-700 border-red-200 dark:bg-red-500/10 dark:text-red-400 dark:border-red-500/20' };
@@ -129,7 +129,7 @@ export default function TenantPaymentLogs({ _user }) {
   const [error, setError] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
-  const [archiveOpen, setArchiveOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState('logs'); // 'logs' or 'archive'
   const [proofModal, setProofModal] = useState({ open: false, payment: null });
 
   const loadData = useCallback(async () => {
@@ -199,38 +199,66 @@ export default function TenantPaymentLogs({ _user }) {
   );
 
   return (
-    <div className="min-h-screen bg-transparent dark:bg-gray-900 font-sans">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-
-        {/* ── Header ── */}
-        <div className="flex items-center justify-between mb-6 gap-4 flex-wrap">
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => navigate('/payments')}
-              className="p-2 rounded-xl border border-gray-200 dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-              aria-label="Back to Payments"
-            >
-              <ArrowLeft className="w-5 h-5" />
-            </button>
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                <FileText className="w-6 h-6 text-green-500" />
-                Payment Logs
-              </h1>
-              <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
-                Complete history of your invoices and payments
-              </p>
-            </div>
-          </div>
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-950 font-sans">
+      {/* ── Custom Sticky Header ── */}
+      <header className="sticky top-0 z-30 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 h-14 md:h-18 flex items-center justify-between px-4 lg:px-8 shadow-sm transition-colors">
+        <div className="flex items-center gap-3">
           <button
-            onClick={loadData}
-            disabled={loading}
-            className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold text-sm transition-colors shadow-md disabled:opacity-50"
+            onClick={() => navigate('/payments')}
+            className="p-2 -ml-2 rounded-full text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+            aria-label="Back to Payments"
           >
-            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
-            Refresh
+            <ArrowLeft className="w-5 h-5" />
           </button>
+          <div className="flex items-center gap-2">
+            <h1 className="text-lg md:text-xl font-bold text-gray-900 dark:text-white truncate">
+              Payment Logs
+            </h1>
+          </div>
         </div>
+
+        <button
+          onClick={loadData}
+          disabled={loading}
+          className="p-2 rounded-full text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-500/10 transition-all disabled:opacity-50"
+          title="Refresh Data"
+        >
+          <RefreshCw className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
+        </button>
+      </header>
+
+      {/* ── Sub-Header: Tabs (The Slider) ── */}
+      <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 p-2 sticky top-14 md:top-18 z-20">
+        <div className="max-w-7xl mx-auto">
+          <div className="flex bg-gray-100 dark:bg-gray-900/50 p-1 rounded-xl relative">
+            {/* Active Tab Background Slider */}
+            <div 
+              className={`absolute top-1 bottom-1 w-[calc(50%-4px)] bg-white dark:bg-gray-700 rounded-lg shadow-sm transition-all duration-300 ease-in-out ${
+                activeTab === 'archive' ? 'translate-x-full' : 'translate-x-0'
+              }`}
+            />
+            
+            <button
+              onClick={() => setActiveTab('logs')}
+              className={`relative z-10 flex-1 py-2 text-sm font-bold transition-colors ${
+                activeTab === 'logs' ? 'text-green-600 dark:text-green-400' : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
+              }`}
+            >
+              Full Payment Log
+            </button>
+            <button
+              onClick={() => setActiveTab('archive')}
+              className={`relative z-10 flex-1 py-2 text-sm font-bold transition-colors ${
+                activeTab === 'archive' ? 'text-green-600 dark:text-green-400' : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
+              }`}
+            >
+              Payment Archive
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div className="max-w-7xl mx-auto px-4 lg:px-8 py-6">
 
         {error && (
           <div className="mb-4 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 rounded-xl text-sm text-red-700 dark:text-red-300">
@@ -239,148 +267,107 @@ export default function TenantPaymentLogs({ _user }) {
           </div>
         )}
 
-        {/* ══════════════════════════════════════════════════════════════════════
-            ARCHIVE SECTION
-        ══════════════════════════════════════════════════════════════════════ */}
-        <div className="mb-6 rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-sm overflow-hidden">
-          <button
-            onClick={() => setArchiveOpen((p) => !p)}
-            className="w-full flex items-center justify-between px-5 py-4 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
-            aria-expanded={archiveOpen}
-          >
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-gray-100 dark:bg-gray-700 flex items-center justify-center">
-                <Archive className="w-5 h-5 text-gray-500 dark:text-gray-300" />
-              </div>
-              <div className="text-left">
-                <p className="font-bold text-gray-800 dark:text-gray-100 text-sm">Payment Archive</p>
-                <p className="text-xs text-gray-500 dark:text-gray-400">
-                  Fully settled invoices older than 30 days
-                  {archivedPayments.length > 0 && ` · ${archivedPayments.length} records`}
-                </p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              {archivedPayments.length > 0 && (
-                <span className="px-2.5 py-0.5 text-xs font-semibold text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-full">
-                  {filteredArchived.length}
-                </span>
-              )}
-              {archiveOpen ? <ChevronUp className="w-5 h-5 text-gray-400" /> : <ChevronDown className="w-5 h-5 text-gray-400" />}
-            </div>
-          </button>
-
-          {archiveOpen && (
-            <div className="border-t border-gray-100 dark:border-gray-700">
-              {loading ? (
-                <div className="flex items-center justify-center py-10 gap-3 text-gray-500">
-                  <Loader2 className="w-5 h-5 animate-spin" /> Loading archive…
-                </div>
-              ) : filteredArchived.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-10 text-gray-400 dark:text-gray-500">
-                  <Archive className="w-10 h-10 mb-3 opacity-40" />
-                  <p className="text-sm font-medium">No archived payments found</p>
-                  <p className="text-xs mt-1">Fully paid invoices older than 30 days will appear here</p>
-                </div>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    {tableHead}
-                    <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
-                      {filteredArchived.map((p) => (
-                        <PaymentRow 
-                          key={p.id} 
-                          payment={p} 
-                          navigate={navigate} 
-                          onViewProof={(payment) => setProofModal({ open: true, payment })}
-                        />
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* ══════════════════════════════════════════════════════════════════════
-            FULL LOG SECTION
-        ══════════════════════════════════════════════════════════════════════ */}
-        <div className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-sm overflow-hidden">
-          <div className="px-5 py-4 border-b border-gray-100 dark:border-gray-700 flex flex-col lg:flex-row lg:items-center gap-4">
-            <div className="flex items-center gap-3 flex-shrink-0">
-              <div className="w-9 h-9 rounded-xl bg-green-50 dark:bg-green-500/10 flex items-center justify-center">
-                <Receipt className="w-5 h-5 text-green-600 dark:text-green-400" />
-              </div>
-              <div>
-                <p className="font-bold text-gray-800 dark:text-gray-100 text-sm">Full Payment Log</p>
-                <p className="text-xs text-gray-500 dark:text-gray-400">{filteredAll.length} of {allPayments.length} records</p>
-              </div>
-            </div>
-
-            <div className="relative flex-1 min-w-0 max-w-sm">
+        {/* ── Search & Filters Container ── */}
+        <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden mb-6">
+          <div className="p-4 space-y-4">
+            {/* Search Bar */}
+            <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search property, room, reference…"
-                className="w-full pl-9 pr-4 py-2 border border-gray-200 dark:border-gray-600 rounded-xl text-sm dark:bg-gray-700 dark:text-white outline-none focus:ring-2 focus:ring-green-500 transition-all"
+                placeholder={activeTab === 'archive' ? "Search archive..." : "Search property, room, reference…"}
+                className="w-full pl-9 pr-10 py-2.5 border border-gray-200 dark:border-gray-700 rounded-xl text-sm dark:bg-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all"
               />
               {searchQuery && (
                 <button
                   onClick={() => setSearchQuery('')}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 text-base"
-                  aria-label="Clear search"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
                 >
-                  ×
+                  <XCircle className="w-4 h-4" />
                 </button>
               )}
             </div>
 
-            <div className="flex gap-1.5 flex-wrap overflow-x-auto pb-0.5 no-scrollbar">
-              {STATUS_FILTERS.map((f) => (
-                <button
-                  key={f.value}
-                  onClick={() => setStatusFilter(f.value)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-colors ${
-                    statusFilter === f.value
-                      ? 'bg-green-600 text-white shadow-sm shadow-green-500/20'
-                      : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
-                  }`}
-                >
-                  {f.label}
-                </button>
-              ))}
-            </div>
+            {/* Status Filters - Only show for Logs tab */}
+            {activeTab === 'logs' && (
+              <div className="flex gap-1.5 overflow-x-auto pb-0.5 no-scrollbar">
+                {STATUS_FILTERS.map((f) => (
+                  <button
+                    key={f.value}
+                    onClick={() => setStatusFilter(f.value)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-colors ${
+                      statusFilter === f.value
+                        ? 'bg-green-600 text-white shadow-sm shadow-green-500/20'
+                        : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
+                    }`}
+                  >
+                    {f.label}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
+        </div>
 
+        {/* ── Main Content Area ── */}
+        <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden min-h-[400px]">
           {loading ? (
-            <div className="flex items-center justify-center py-16 gap-3 text-gray-500">
-              <Loader2 className="w-6 h-6 animate-spin" /> Loading payment logs…
+            <div className="flex flex-col items-center justify-center py-20 gap-3 text-gray-500">
+              <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
+              <p className="text-sm font-medium animate-pulse">Syncing payment history...</p>
             </div>
-          ) : filteredAll.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-16 text-gray-400 dark:text-gray-500">
-              <Receipt className="w-12 h-12 mb-3 opacity-40" />
-              <p className="text-base font-semibold">No payments found</p>
-              <p className="text-sm mt-1">Try adjusting your search or filter</p>
-            </div>
+          ) : activeTab === 'logs' ? (
+            /* Logs View */
+            filteredAll.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-20 text-gray-400 dark:text-gray-500 text-center px-4">
+                <Receipt className="w-16 h-16 mb-4 opacity-20" />
+                <p className="text-base font-semibold text-gray-600 dark:text-gray-300">No payment logs found</p>
+                <p className="text-sm mt-1">Try adjusting your filters or search query</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  {tableHead}
+                  <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
+                    {filteredAll.map((p) => (
+                      <PaymentRow
+                        key={p.id}
+                        payment={p}
+                        navigate={navigate}
+                        onViewProof={(payment) => setProofModal({ open: true, payment })}
+                      />
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                {tableHead}
-                <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
-                  {filteredAll.map((p) => (
-                    <PaymentRow 
-                      key={p.id} 
-                      payment={p} 
-                      navigate={navigate} 
-                      onViewProof={(payment) => setProofModal({ open: true, payment })}
-                    />
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            /* Archive View */
+            filteredArchived.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-20 text-gray-400 dark:text-gray-500 text-center px-4">
+                <Archive className="w-16 h-16 mb-4 opacity-20" />
+                <p className="text-base font-semibold text-gray-600 dark:text-gray-300">Archive is empty</p>
+                <p className="text-sm mt-1">Fully paid invoices older than 30 days will appear here</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  {tableHead}
+                  <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
+                    {filteredArchived.map((p) => (
+                      <PaymentRow
+                        key={p.id}
+                        payment={p}
+                        navigate={navigate}
+                        onViewProof={(payment) => setProofModal({ open: true, payment })}
+                      />
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )
           )}
         </div>
 
@@ -390,7 +377,7 @@ export default function TenantPaymentLogs({ _user }) {
       {/* Proof Modal */}
       {proofModal.open && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-          <div 
+          <div
             className="bg-white dark:bg-gray-800 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200"
             onClick={(e) => e.stopPropagation()}
           >
@@ -401,7 +388,7 @@ export default function TenantPaymentLogs({ _user }) {
                   {proofModal.payment?.referenceNo || 'Transaction Reference'}
                 </p>
               </div>
-              <button 
+              <button
                 onClick={() => setProofModal({ open: false, payment: null })}
                 className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
               >
@@ -409,8 +396,8 @@ export default function TenantPaymentLogs({ _user }) {
               </button>
             </div>
             <div className="p-6 bg-gray-50 dark:bg-gray-900/30 flex items-center justify-center min-h-[300px]">
-              <img 
-                src={proofModal.payment?.proofImage || proofModal.payment?.proof_image || proofModal.payment?.proof_url} 
+              <img
+                src={proofModal.payment?.proofImage || proofModal.payment?.proof_image || proofModal.payment?.proof_url}
                 alt="Proof of Payment"
                 className="max-w-full max-h-[60vh] object-contain rounded-lg shadow-lg"
                 onError={(e) => {
@@ -419,7 +406,7 @@ export default function TenantPaymentLogs({ _user }) {
               />
             </div>
             <div className="px-6 py-4 bg-gray-50 dark:bg-gray-800/80 border-t border-gray-100 dark:border-gray-700 flex justify-end">
-              <button 
+              <button
                 onClick={() => setProofModal({ open: false, payment: null })}
                 className="px-6 py-2 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl text-sm font-bold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
               >

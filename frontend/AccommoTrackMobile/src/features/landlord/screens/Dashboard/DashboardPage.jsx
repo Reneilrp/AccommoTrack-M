@@ -214,6 +214,9 @@ export default function LandlordDashboard({ navigation, user: initialUser, onLog
 
       return response.data || EMPTY_DASHBOARD;
     },
+    staleTime: 5 * 60 * 1000, // 5 minutes fresh time
+    gcTime: 30 * 60 * 1000,   // 30 minutes cache retention
+    refetchOnWindowFocus: false,
     placeholderData: cachedDashboard || undefined,
   });
 
@@ -223,6 +226,7 @@ export default function LandlordDashboard({ navigation, user: initialUser, onLog
       const response = await ProfileService.getVerificationStatus();
       return response.success ? response.data : null;
     },
+    staleTime: 10 * 60 * 1000, // Verification status changes rarely
     enabled: Boolean(user) && !isCaretaker,
   });
 
@@ -239,6 +243,7 @@ export default function LandlordDashboard({ navigation, user: initialUser, onLog
       const count = Number(rawCount);
       return Number.isFinite(count) ? count : 0;
     },
+    staleTime: 30 * 1000, // Check unread count every 30 seconds at most automatically
   });
 
   const pendingTransfersQuery = useQuery({
@@ -253,6 +258,7 @@ export default function LandlordDashboard({ navigation, user: initialUser, onLog
         (item) => String(item.status || '').toLowerCase() === 'pending',
       ).length;
     },
+    staleTime: 60 * 1000, // Transfers count can be slightly stale
   });
 
   const dashboardData = dashboardQuery.data ?? cachedDashboard ?? EMPTY_DASHBOARD;
@@ -595,10 +601,29 @@ export default function LandlordDashboard({ navigation, user: initialUser, onLog
     loadUser();
   }, [user]);
 
-  const refetchDashboard = dashboardQuery.refetch;
-  const refetchVerification = verificationQuery.refetch;
-  const refetchUnreadCount = unreadCountQuery.refetch;
-  const refetchPendingTransfers = pendingTransfersQuery.refetch;
+  const refetchDashboard = useCallback(() => {
+    if (dashboardQuery.isStale || !dashboardQuery.data) {
+      dashboardQuery.refetch();
+    }
+  }, [dashboardQuery.isStale, dashboardQuery.data, dashboardQuery.refetch]);
+
+  const refetchVerification = useCallback(() => {
+    if (verificationQuery.isStale || !verificationQuery.data) {
+      verificationQuery.refetch();
+    }
+  }, [verificationQuery.isStale, verificationQuery.data, verificationQuery.refetch]);
+
+  const refetchUnreadCount = useCallback(() => {
+    if (unreadCountQuery.isStale || !unreadCountQuery.data) {
+      unreadCountQuery.refetch();
+    }
+  }, [unreadCountQuery.isStale, unreadCountQuery.data, unreadCountQuery.refetch]);
+
+  const refetchPendingTransfers = useCallback(() => {
+    if (pendingTransfersQuery.isStale || !pendingTransfersQuery.data) {
+      pendingTransfersQuery.refetch();
+    }
+  }, [pendingTransfersQuery.isStale, pendingTransfersQuery.data, pendingTransfersQuery.refetch]);
 
   const dashboardRefetchers = React.useMemo(
     () => [

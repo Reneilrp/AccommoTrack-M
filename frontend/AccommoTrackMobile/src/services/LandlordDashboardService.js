@@ -19,77 +19,63 @@ const withTimeout = (promise, ms = 15000) => {
 const LandlordDashboardService = {
     async fetchDashboard(options = {}) {
         try {
-            const { includeRevenueChart = true } = options;
-            const revenueChartRequest = includeRevenueChart
-                ? api.get('/landlord/dashboard/revenue-chart')
-                : Promise.resolve({ data: { labels: [], data: [] } });
-
-            const results = await withTimeout(
-                Promise.allSettled([
-                    api.get('/landlord/dashboard/stats'),
-                    api.get('/landlord/dashboard/recent-activities'),
-                    api.get('/landlord/dashboard/upcoming-payments'),
-                    revenueChartRequest,
-                    api.get('/landlord/dashboard/property-performance'),
-                ]),
-                20000 // 20 second timeout for all requests
+            // New optimized approach: fetch all data in a single request bundle
+            const response = await withTimeout(
+                api.get('/landlord/dashboard/bundle'),
+                25000 // Slightly longer timeout for the bundle
             );
 
-            // Extract data from settled promises, use defaults for rejected ones
-            const statsRes = results[0].status === 'fulfilled' ? results[0].value : { data: null };
-            const activitiesRes = results[1].status === 'fulfilled' ? results[1].value : { data: [] };
-            const paymentsRes = results[2].status === 'fulfilled'
-                ? results[2].value
-                : {
+            if (response.data && response.data.success) {
+                return response.data;
+            }
+
+            // Fallback: If bundle fails or is not supported yet (legacy backend), 
+            // the catch block will handle it or we can manually trigger the old flow.
+            throw new Error('Bundle endpoint returned failure status');
+        } catch (error) {
+            console.warn('Dashboard bundle failed, falling back to individual requests:', error.message);
+            
+            // LEGACY FALLBACK: individual requests (to be removed once bundle is verified stable)
+            try {
+                const { includeRevenueChart = true } = options;
+                const revenueChartRequest = includeRevenueChart
+                    ? api.get('/landlord/dashboard/revenue-chart')
+                    : Promise.resolve({ data: { labels: [], data: [] } });
+
+                const results = await withTimeout(
+                    Promise.allSettled([
+                        api.get('/landlord/dashboard/stats'),
+                        api.get('/landlord/dashboard/recent-activities'),
+                        api.get('/landlord/dashboard/upcoming-payments'),
+                        revenueChartRequest,
+                        api.get('/landlord/dashboard/property-performance'),
+                    ]),
+                    20000
+                );
+
+                const statsRes = results[0].status === 'fulfilled' ? results[0].value : { data: null };
+                const activitiesRes = results[1].status === 'fulfilled' ? results[1].value : { data: [] };
+                const paymentsRes = results[2].status === 'fulfilled' ? results[2].value : { data: { upcomingCheckouts: [], unpaidBookings: [], billingHealth: {} } };
+                const chartRes = results[3].status === 'fulfilled' ? results[3].value : { data: { labels: [], data: [] } };
+                const performanceRes = results[4].status === 'fulfilled' ? results[4].value : { data: [] };
+
+                return {
+                    success: true,
                     data: {
-                        upcomingCheckouts: [],
-                        unpaidBookings: [],
-                        vacatingSoon: [],
-                        billingHealth: {
-                            dueForBillingCount: 0,
-                            dueForBilling: [],
-                            overdueInvoicesCount: 0,
-                            overdueInvoicesAmount: 0,
-                            dueSoonInvoicesCount: 0,
-                            dueSoonInvoicesAmount: 0,
-                            overdueInvoices: [],
-                            dueSoonInvoices: [],
-                        },
+                        stats: statsRes.data,
+                        activities: activitiesRes.data || [],
+                        upcomingPayments: paymentsRes.data,
+                        revenueChart: chartRes.data || { labels: [], data: [] },
+                        propertyPerformance: performanceRes.data || [],
                     },
                 };
-            const chartRes = results[3].status === 'fulfilled' ? results[3].value : { data: { labels: [], data: [] } };
-            const performanceRes = results[4].status === 'fulfilled' ? results[4].value : { data: [] };
-
-            return {
-                success: true,
-                data: {
-                    stats: statsRes.data,
-                    activities: activitiesRes.data || [],
-                    upcomingPayments: paymentsRes.data || {
-                        upcomingCheckouts: [],
-                        unpaidBookings: [],
-                        vacatingSoon: [],
-                        billingHealth: {
-                            dueForBillingCount: 0,
-                            dueForBilling: [],
-                            overdueInvoicesCount: 0,
-                            overdueInvoicesAmount: 0,
-                            dueSoonInvoicesCount: 0,
-                            dueSoonInvoicesAmount: 0,
-                            overdueInvoices: [],
-                            dueSoonInvoices: [],
-                        },
-                    },
-                    revenueChart: chartRes.data || { labels: [], data: [] },
-                    propertyPerformance: performanceRes.data || [],
-                },
-            };
-        } catch (error) {
-            console.error('Failed to load dashboard data:', error.response?.data || error.message);
-            return {
-                success: false,
-                error: error.response?.data?.message || error.message || 'Failed to load dashboard data',
-            };
+            } catch (fallbackError) {
+                console.error('Final dashboard fetch failure:', fallbackError);
+                return {
+                    success: false,
+                    error: fallbackError.response?.data?.message || fallbackError.message || 'Failed to load dashboard data',
+                };
+            }
         }
     },
 

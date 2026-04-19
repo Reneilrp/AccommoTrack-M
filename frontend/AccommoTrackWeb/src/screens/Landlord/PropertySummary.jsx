@@ -33,6 +33,8 @@ const FILTER_CONFIG = [
   { key: 'review', label: 'Reviews', icon: Star },
 ];
 
+const DASHBOARD_REQUEST_TIMEOUT_MS = 15000;
+
 const TYPE_META = {
   booking: {
     color: 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800',
@@ -224,19 +226,33 @@ function PropertyDashboard({ propertyId, navigate, onCountsChange }) {
     isOpen: false,
     item: null,
   });
+  const dashboardLoadInFlightRef = useRef(false);
+
+  const withRequestTimeout = useCallback((promise, label = 'request') => {
+    return Promise.race([
+      promise,
+      new Promise((_, reject) => {
+        setTimeout(() => {
+          reject(new Error(`${label} timed out after ${DASHBOARD_REQUEST_TIMEOUT_MS}ms`));
+        }, DASHBOARD_REQUEST_TIMEOUT_MS);
+      }),
+    ]);
+  }, []);
 
 
   const loadDashboard = useCallback(async () => {
+    if (!propertyId || dashboardLoadInFlightRef.current) return;
+    dashboardLoadInFlightRef.current = true;
     setLoading(true);
     try {
       const [bookingsRes, invoicesRes, addonRequestsRes, maintenanceRes, transfersRes, reviewsRes, roomsRes] = await Promise.allSettled([
-        api.get(`/bookings?property_id=${propertyId}&status=pending`),
-        api.get(`/invoices?property_id=${propertyId}&status=overdue`),
-        api.get(`/landlord/properties/${propertyId}/addons/pending`),
-        api.get(`/landlord/maintenance-requests?property_id=${propertyId}&status=pending`),
-        api.get(`/landlord/transfers?property_id=${propertyId}&status=pending`),
-        api.get(`/landlord/reviews?property_id=${propertyId}&limit=3`),
-        api.get(`/rooms/property/${propertyId}`),
+        withRequestTimeout(api.get(`/bookings?property_id=${propertyId}&status=pending`), 'bookings request'),
+        withRequestTimeout(api.get(`/invoices?property_id=${propertyId}&status=overdue`), 'invoices request'),
+        withRequestTimeout(api.get(`/landlord/properties/${propertyId}/addons/pending`), 'addons request'),
+        withRequestTimeout(api.get(`/landlord/maintenance-requests?property_id=${propertyId}&status=pending`), 'maintenance request'),
+        withRequestTimeout(api.get(`/landlord/transfers?property_id=${propertyId}&status=pending`), 'transfers request'),
+        withRequestTimeout(api.get(`/landlord/reviews?property_id=${propertyId}&limit=3`), 'reviews request'),
+        withRequestTimeout(api.get(`/rooms/property/${propertyId}`), 'rooms request'),
       ]);
 
       const get = (res) => {
@@ -284,13 +300,13 @@ function PropertyDashboard({ propertyId, navigate, onCountsChange }) {
       console.error('Dashboard load error', err);
     } finally {
       setLoading(false);
+      dashboardLoadInFlightRef.current = false;
     }
-  }, [propertyId, onCountsChange]);
+  }, [propertyId, onCountsChange, withRequestTimeout]);
 
   useEffect(() => {
-    if (!propertyId) return;
     loadDashboard();
-  }, [propertyId, loadDashboard]);
+  }, [loadDashboard]);
 
   const handleBookingAction = async (bookingId, action, cancellationReason = null) => {
     if (!bookingId) {
@@ -1468,42 +1484,10 @@ export default function PropertySummary({ caretakerPermissions = null }) {
     }
   }, [id, updateData, cacheKey]);
 
-  const loadNotificationCounts = useCallback(async () => {
-    try {
-      const [addonsRes, maintenanceRes, transfersRes, bookingsRes, paymentsRes] = await Promise.allSettled([
-        api.get(`/landlord/properties/${id}/addons/pending`),
-        api.get(`/landlord/maintenance-requests?property_id=${id}&status=pending`),
-        api.get(`/landlord/transfers?property_id=${id}&status=pending`),
-        api.get(`/bookings?property_id=${id}&status=pending`),
-        api.get(`/invoices?property_id=${id}&status=overdue`),
-      ]);
-
-      const getCount = (res) => {
-        if (res.status !== 'fulfilled') return 0;
-        const payload = res.value?.data;
-        if (payload?.pendingRequests) return payload.pendingRequests.length;
-        if (Array.isArray(payload?.data)) return payload.data.length;
-        if (Array.isArray(payload)) return payload.length;
-        return 0;
-      };
-
-      setNotificationCounts({
-        addons: getCount(addonsRes),
-        maintenance: getCount(maintenanceRes),
-        transfers: getCount(transfersRes),
-        bookings: getCount(bookingsRes),
-        payments: getCount(paymentsRes),
-      });
-    } catch (err) {
-      console.error('Failed to load notification counts', err);
-    }
-  }, [id]);
-
   useEffect(() => {
     if (!id) return;
     loadProperty();
-    loadNotificationCounts();
-  }, [id, loadProperty, loadNotificationCounts]);
+  }, [id, loadProperty]);
 
   const goToEdit = () => navigate(`/properties/${id}/edit`);
   const { open, setIsSidebarOpen, collapse } = useSidebar();

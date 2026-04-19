@@ -1238,6 +1238,31 @@ const PropertyService = {
   },
 
   /**
+   * Fetch booking bundle
+   * Matches: GET /api/bookings/bundle
+   */
+  async getBookingBundle() {
+    try {
+      const response = await api.get(`/bookings/bundle`);
+      return {
+        success: true,
+        data: response.data?.data || response.data || null,
+        error: null,
+      };
+    } catch (error) {
+      console.error(
+        "Error fetching booking bundle:",
+        error.response?.data || error.message,
+      );
+      return {
+        success: false,
+        data: null,
+        error: extractErrorMessage(error),
+      };
+    }
+  },
+
+  /**
    * Fetch booking stats
    * Matches: GET /api/bookings/stats
    */

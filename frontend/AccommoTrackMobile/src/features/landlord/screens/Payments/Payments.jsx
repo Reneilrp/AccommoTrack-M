@@ -401,55 +401,28 @@ export default function Payments({ navigation, route }) {
     [],
   );
 
-  const invoicesQuery = useQuery({
-    queryKey: landlordQueryKeys.invoices(),
+  const paymentBundleQuery = useQuery({
+    queryKey: ['landlord', 'paymentBundle', statsRange],
     queryFn: async () => {
-      const response = await PaymentService.getInvoices({
-        exclude_invoice_type: 'subscription',
-        _t: Date.now(),
-      });
-      if (!response.success) {
-        throw new Error(response.error || 'Failed to fetch invoices');
-      }
-
-      let data = response.data;
-      if (data && typeof data === 'object' && !Array.isArray(data)) {
-        data = data.invoices || data.data || [];
-      }
-
-      return Array.isArray(data) ? data : EMPTY_INVOICES;
-    },
-    placeholderData: (previousData) => previousData,
-  });
-
-  const invoices = invoicesQuery.data || EMPTY_INVOICES;
-  const loading = invoicesQuery.isPending && invoices.length === 0;
-  const refetchInvoices = invoicesQuery.refetch;
-
-  const invoiceSummaryQuery = useQuery({
-    queryKey: landlordQueryKeys.invoiceSummary(statsRange),
-    queryFn: async () => {
-      const response = await PaymentService.getInvoiceSummary({
+      const response = await PaymentService.getPaymentBundle({
         range: statsRange === 'month' ? 'month' : 'all',
         exclude_invoice_type: 'subscription',
-        _t: Date.now(),
       });
-
       if (!response.success) {
-        throw new Error(response.error || 'Failed to fetch invoice summary');
+        throw new Error(response.error || 'Failed to fetch payment data');
       }
-
       return response.data || null;
     },
-    placeholderData: (previousData) => previousData,
+    staleTime: 1000 * 60 * 5, // 5 minutes
+    gcTime: 1000 * 60 * 30, // 30 minutes
   });
 
-  const invoiceSummary = invoiceSummaryQuery.data || null;
-  const refetchInvoiceSummary = invoiceSummaryQuery.refetch;
-  const invoiceRefetchers = useMemo(
-    () => [refetchInvoices, refetchInvoiceSummary],
-    [refetchInvoices, refetchInvoiceSummary],
-  );
+  const bundleData = paymentBundleQuery.data || {};
+  const invoices = bundleData.invoices || EMPTY_INVOICES;
+  const invoiceSummary = bundleData.summary || null;
+  const loading = paymentBundleQuery.isPending && !paymentBundleQuery.data;
+  const refetchBundle = paymentBundleQuery.refetch;
+  const invoiceRefetchers = useMemo(() => [refetchBundle], [refetchBundle]);
 
   const openInvoiceModal = useCallback((invoice) => {
     if (!invoice) return;

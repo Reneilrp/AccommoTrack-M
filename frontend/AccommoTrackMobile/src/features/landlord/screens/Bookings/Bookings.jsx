@@ -176,82 +176,32 @@ export default function BookingsScreen({ navigation, route }) {
     return true;
   }, [canCancelBookings]);
 
-  const bookingsQuery = useQuery({
-    queryKey: landlordQueryKeys.bookings(),
+  const bookingBundleQuery = useQuery({
+    queryKey: ['landlord', 'bookingBundle'],
     queryFn: async () => {
-      const response = await PropertyService.getBookings();
+      const response = await PropertyService.getBookingBundle();
       if (!response.success) {
-        throw new Error(response.error || 'Failed to load bookings');
+        throw new Error(response.error || 'Failed to load booking data');
       }
-
-      const list = response.data;
-      if (Array.isArray(list)) return list;
-      if (Array.isArray(list?.data)) return list.data;
-      return EMPTY_BOOKINGS;
+      return response.data;
     },
-    placeholderData: (previousData) => previousData,
+    staleTime: 1000 * 60 * 5, // 5 minutes
+    gcTime: 1000 * 60 * 30, // 30 minutes
   });
 
-  const statsQuery = useQuery({
-    queryKey: landlordQueryKeys.bookingStats(),
-    queryFn: async () => {
-      const response = await PropertyService.getBookingStats();
-      if (!response.success) {
-        throw new Error(response.error || 'Failed to load booking stats');
-      }
+  const bundleData = bookingBundleQuery.data || {};
+  const bookings = bundleData.bookings || EMPTY_BOOKINGS;
+  const stats = bundleData.stats || DEFAULT_STATS;
+  const extensionRequests = bundleData.extension_requests || EMPTY_REQUESTS;
+  const transferRequests = bundleData.transfer_requests || EMPTY_REQUESTS;
 
-      return {
-        total: response.data?.total ?? 0,
-        confirmed: response.data?.confirmed ?? 0,
-        pending: response.data?.pending ?? 0,
-        completed: response.data?.completed ?? 0,
-      };
-    },
-    placeholderData: (previousData) => previousData,
-  });
+  const loading = bookingBundleQuery.isPending && !bookingBundleQuery.data;
+  const loadingExtensions = loading;
+  const loadingTransfers = loading;
+  const error = bookingBundleQuery.error?.message || '';
 
-  const extensionRequestsQuery = useQuery({
-    queryKey: landlordQueryKeys.extensionRequests(),
-    queryFn: async () => {
-      const response = await PropertyService.getExtensionRequests();
-      if (!response.success) {
-        throw new Error(response.error || 'Failed to load extension requests');
-      }
-
-      return Array.isArray(response.data) ? response.data : EMPTY_REQUESTS;
-    },
-    placeholderData: (previousData) => previousData,
-  });
-
-  const transferRequestsQuery = useQuery({
-    queryKey: ['landlord', 'transferRequests'],
-    queryFn: async () => {
-      const response = await PropertyService.getTransferRequests();
-      if (!response.success) {
-        throw new Error(response.error || 'Failed to load transfer requests');
-      }
-      return Array.isArray(response.data) ? response.data : EMPTY_REQUESTS;
-    },
-    placeholderData: (previousData) => previousData,
-  });
-
-  const bookings = bookingsQuery.data || EMPTY_BOOKINGS;
-  const stats = statsQuery.data || DEFAULT_STATS;
-  const extensionRequests = extensionRequestsQuery.data || EMPTY_REQUESTS;
-  const transferRequests = transferRequestsQuery.data || EMPTY_REQUESTS;
-  const loading = bookingsQuery.isPending && bookings.length === 0;
-  const loadingExtensions = extensionRequestsQuery.isPending && extensionRequests.length === 0;
-  const loadingTransfers = transferRequestsQuery.isPending && transferRequests.length === 0;
-  const error = bookingsQuery.error?.message || statsQuery.error?.message || '';
-
-  const refetchBookings = bookingsQuery.refetch;
-  const refetchStats = statsQuery.refetch;
-  const refetchExtensionRequests = extensionRequestsQuery.refetch;
-  const refetchTransferRequests = transferRequestsQuery.refetch;
-  const bookingRefetchers = useMemo(
-    () => [refetchBookings, refetchStats, refetchExtensionRequests, refetchTransferRequests],
-    [refetchBookings, refetchStats, refetchExtensionRequests, refetchTransferRequests],
-  );
+  const refetchBundle = bookingBundleQuery.refetch;
+  const bookingRefetchers = useMemo(() => [refetchBundle], [refetchBundle]);
 
   useLandlordFocusRefetch({ refetchers: bookingRefetchers });
 
@@ -295,12 +245,15 @@ export default function BookingsScreen({ navigation, route }) {
 
   const updateBookingsCache = useCallback(
     (updater) => {
-      queryClient.setQueryData(landlordQueryKeys.bookings(), (current = EMPTY_BOOKINGS) => {
-        const list = Array.isArray(current) ? current : EMPTY_BOOKINGS;
-        return updater(list);
+      queryClient.setQueryData(['landlord', 'bookingBundle'], (current = {}) => {
+        const bookingsList = Array.isArray(current?.bookings) ? current.bookings : EMPTY_BOOKINGS;
+        return {
+          ...current,
+          bookings: updater(bookingsList)
+        };
       });
     },
-    [queryClient],
+    [queryClient, EMPTY_BOOKINGS],
   );
 
   const handleExtensionRequestAction = async (requestId, action) => {
@@ -311,7 +264,7 @@ export default function BookingsScreen({ navigation, route }) {
       const response = await PropertyService.handleExtensionRequest(requestId, { action });
       if (!response.success) throw new Error(response.error || 'Unable to update extension request');
       setActionError('');
-      await refetchLandlordQueries([refetchExtensionRequests]);
+      await refetchLandlordQueries(bookingRefetchers);
       showSuccess('Extension Request', `Request ${action}d successfully.`);
     } catch (err) {
       setActionError(err.message || 'Unable to process extension request');
@@ -477,7 +430,7 @@ export default function BookingsScreen({ navigation, route }) {
       const response = await PropertyService.updateBookingStatus(selectedBooking.id, { status, ...extra });
       if (!response.success) throw new Error(response.error || 'Unable to update status');
       setActionError('');
-      await refetchLandlordQueries([refetchBookings, refetchStats]);
+      await refetchLandlordQueries(bookingRefetchers);
       updateSelectedBooking({ status, ...response.data?.booking });
       if (status === 'cancelled') closeDetailModal();
     } catch (err) {
@@ -502,7 +455,7 @@ export default function BookingsScreen({ navigation, route }) {
       const response = await PropertyService.updateBookingPayment(selectedBooking.id, { payment_status: paymentStatus });
       if (!response.success) throw new Error(response.error || 'Unable to update payment');
       setActionError('');
-      await refetchLandlordQueries([refetchBookings, refetchStats]);
+      await refetchLandlordQueries(bookingRefetchers);
       updateSelectedBooking({ paymentStatus, ...response.data?.booking });
 
       if (response.data?.completion_blocked) {
@@ -559,7 +512,7 @@ export default function BookingsScreen({ navigation, route }) {
       if (!response.success) throw new Error(response.error || 'Unable to finalize checkout');
 
       setActionError('');
-      await refetchLandlordQueries([refetchBookings, refetchStats]);
+      await refetchLandlordQueries(bookingRefetchers);
       closeDetailModal();
 
       showSuccess('Checkout Finalized', response.message || 'Checkout finalized successfully.');
@@ -720,7 +673,7 @@ export default function BookingsScreen({ navigation, route }) {
       const response = await PropertyService.handleTransferRequest(requestId, { action });
       if (!response.success) throw new Error(response.error || 'Unable to update transfer request');
       setActionError('');
-      await refetchLandlordQueries([refetchTransferRequests]);
+      await refetchLandlordQueries(bookingRefetchers);
       showSuccess('Transfer Request', `Request ${action}d successfully.`);
     } catch (err) {
       setActionError(err.message || 'Unable to process transfer request');

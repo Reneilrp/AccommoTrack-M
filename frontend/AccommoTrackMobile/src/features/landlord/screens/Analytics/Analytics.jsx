@@ -131,6 +131,8 @@ export default function Analytics({ navigation }) {
       return Array.isArray(response.data) ? response.data : EMPTY_PROPERTIES;
     },
     placeholderData: (previousData) => previousData,
+    staleTime: 1000 * 60 * 60 * 24, // 24 hours
+    gcTime: 1000 * 60 * 60 * 24 * 7, // 7 days
   });
 
   const properties = propertiesQuery.data || EMPTY_PROPERTIES;
@@ -146,7 +148,6 @@ export default function Analytics({ navigation }) {
       const response = await analyticsService.getDashboardAnalytics({
         timeRange,
         propertyId: effectiveSelectedProperty,
-        _t: Date.now(),
       });
       if (!response.success) {
         throw new Error(response.error || 'Unable to load analytics');
@@ -155,6 +156,8 @@ export default function Analytics({ navigation }) {
       return response.data || null;
     },
     placeholderData: (previousData) => previousData,
+    staleTime: 1000 * 60 * 5, // 5 minutes
+    gcTime: 1000 * 60 * 30, // 30 minutes
   });
   const analytics = analyticsQuery.data || null;
   const loading = analyticsQuery.isPending && !analytics;

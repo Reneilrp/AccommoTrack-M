@@ -14,7 +14,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import { useQuery } from '@tanstack/react-query';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets, SafeAreaView } from 'react-native-safe-area-context';
 
 import BookingService from '../../../../services/BookingService.js';
 import tenantService from '../../../../services/TenantService.js';
@@ -97,9 +97,12 @@ export default function BookingDetails() {
     const { width: viewportWidth } = useWindowDimensions();
     const { theme } = useTheme();
     const styles = React.useMemo(() => getStyles(theme, viewportWidth), [theme, viewportWidth]);
+    const showAlert = Alert.alert;
+    const insets = useSafeAreaInsets();
     const { bookingId } = route.params || {};
 
     const [refreshing, setRefreshing] = useState(false);
+    const [isCanceling, setIsCanceling] = useState(false);
     const [cancelingAddonId, setCancelingAddonId] = useState(null);
 
     const bookingDetailsQuery = useQuery({
@@ -204,7 +207,7 @@ export default function BookingDetails() {
         const reqId = addon?.pivot?.id || addon?.request_id || addon?.id;
         if (!reqId) return;
 
-        Alert.alert('Cancel Add-on', 'Are you sure you want to cancel this add-on request?', [
+        showAlert('Cancel Add-on', 'Are you sure you want to cancel this add-on request?', [
             { text: 'No', style: 'cancel' },
             {
                 text: 'Yes, Cancel',
@@ -219,7 +222,7 @@ export default function BookingDetails() {
                         } else {
                             showError('Error', res.error || 'Failed to cancel');
                         }
-                    } catch (_err) {
+                    } catch (err) {
                         showError('Error', 'An error occurred');
                     } finally {
                         setCancelingAddonId(null);
@@ -229,7 +232,31 @@ export default function BookingDetails() {
         ]);
     };
 
-
+    const handleCancelBooking = () => {
+        showAlert('Cancel Booking', 'Are you sure you want to cancel this booking? This action might be subject to terms and conditions.', [
+            { text: 'No', style: 'cancel' },
+            {
+                text: 'Confirm Cancellation',
+                style: 'destructive',
+                onPress: async () => {
+                    setIsCanceling(true);
+                    try {
+                        const res = await BookingService.cancelBooking(booking.id);
+                        if (res.success) {
+                            showSuccess('Booking cancelled');
+                            await refetchBookingDetails();
+                        } else {
+                            showError('Failed to cancel', res.error);
+                        }
+                    } catch (err) {
+                        showError('Error', 'Failed to cancel booking');
+                    } finally {
+                        setIsCanceling(false);
+                    }
+                }
+            }
+        ]);
+    };
 
     return (
         <View style={styles.fullFlex}>
@@ -504,7 +531,7 @@ export default function BookingDetails() {
                     {(booking.status === 'pending_reservation' || booking.status === 'reserved') ? (
                         <TouchableOpacity
                             onPress={() => {
-                                Alert.alert(
+                                showAlert(
                                     'Report an Issue',
                                     'What issue are you experiencing with this reservation?',
                                     [

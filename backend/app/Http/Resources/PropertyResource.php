@@ -115,19 +115,19 @@ class PropertyResource extends JsonResource
             'is_published' => (bool) $this->is_published,
             'is_available' => (bool) $this->is_available,
             'is_eligible' => (bool) $this->is_eligible,
-            'tenant_usage' => $request->user() ? [
-                'normal' => \App\Models\Booking::where('property_id', $this->id)
+            'tenant_usage' => ($request->user() && $request->user()->role === 'tenant') ? [
+                'normal' => (int) ($this->normal_usage_count ?? \App\Models\Booking::where('property_id', $this->id)
                     ->where('tenant_id', $request->user()->id)
                     ->whereIn('status', ['pending', 'confirmed', 'active'])
                     ->where(function($q) {
                         $q->where('booking_mode', '!=', 'proxy')->orWhereNull('booking_mode');
                     })
-                    ->count(),
-                'proxy' => \App\Models\Booking::where('property_id', $this->id)
+                    ->count()),
+                'proxy' => (int) ($this->proxy_usage_count ?? \App\Models\Booking::where('property_id', $this->id)
                     ->where('tenant_id', $request->user()->id)
                     ->whereIn('status', ['pending', 'confirmed', 'active'])
                     ->where('booking_mode', 'proxy')
-                    ->count(),
+                    ->count()),
             ] : null,
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,

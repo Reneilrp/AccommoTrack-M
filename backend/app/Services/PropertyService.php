@@ -377,6 +377,22 @@ class PropertyService
                 $q->where('is_published', true);
             },
         ])
+            ->when($tenantId, function ($q) use ($tenantId) {
+                $q->withCount([
+                    'bookings as normal_usage_count' => function ($sq) use ($tenantId) {
+                        $sq->where('tenant_id', $tenantId)
+                            ->whereIn('status', ['pending', 'confirmed', 'active'])
+                            ->where(function($ssq) {
+                                $ssq->where('booking_mode', '!=', 'proxy')->orWhereNull('booking_mode');
+                            });
+                    },
+                    'bookings as proxy_usage_count' => function ($sq) use ($tenantId) {
+                        $sq->where('tenant_id', $tenantId)
+                            ->whereIn('status', ['pending', 'confirmed', 'active'])
+                            ->where('booking_mode', 'proxy');
+                    }
+                ]);
+            })
             ->orderBy('created_at', 'desc')
             ->get();
     }

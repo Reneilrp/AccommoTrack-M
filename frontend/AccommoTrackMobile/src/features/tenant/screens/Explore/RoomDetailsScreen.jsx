@@ -1400,10 +1400,10 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
               alignItems: 'center',
               gap: 12
             }}>
-              <Ionicons 
-                name={activeRoom.is_tenant ? "information-circle" : "time"} 
-                size={22} 
-                color={activeRoom.is_tenant ? "#1d4ed8" : "#92400e"} 
+              <Ionicons
+                name={activeRoom.is_tenant ? "information-circle" : "time"}
+                size={22}
+                color={activeRoom.is_tenant ? "#1d4ed8" : "#92400e"}
               />
               <Text style={{
                 flex: 1,
@@ -1412,34 +1412,45 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
                 fontWeight: '600',
                 color: activeRoom.is_tenant ? "#1d4ed8" : "#92400e"
               }}>
-                {activeRoom.is_tenant 
-                  ? "You are already a resident of this room. You can book more beds for others using Proxy mode." 
+                {activeRoom.is_tenant
+                  ? "You are already a resident of this room. You can book more beds for others using Proxy mode."
                   : "You have a pending reservation here. Proxy mode is available for additional beds."
                 }
               </Text>
             </View>
           )}
 
-          {/* Room Details Grid */}
-          <View style={styles.section}>
-            <View style={styles.amenitiesGrid}>
-              <View style={styles.amenityItem}>
-                <Ionicons name="layers-outline" size={18} color="#6b7280" />
-                <Text style={styles.amenityText}>{activeRoom.floor_label || `Floor ${activeRoom.floor}`}</Text>
-              </View>
-              <View style={styles.amenityItem}>
-                <Ionicons name="people-outline" size={18} color="#6b7280" />
-                <Text style={styles.amenityText}>
-                  {activeRoom.occupied || 0} / {activeRoom.capacity} Occupied
-                </Text>
-              </View>
-            </View>
-            {activeRoom.capacity && parseInt(activeRoom.capacity, 10) > 1 && (
-              <Text style={styles.psText}>
-                PS: This room has a capacity of {activeRoom.capacity}. The monthly rent can be divided if you find another tenant (or wait for one); otherwise you'll pay the full room rent.
+          {/* Quick Info Tags (Replaces redundant capacity grid) */}
+          <View style={[styles.section, { flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingBottom: 0 }]}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: theme.colors.backgroundSecondary || '#f1f5f9', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, gap: 6 }}>
+              <Ionicons name="people-outline" size={14} color={theme.colors.textSecondary} />
+              <Text style={{ fontSize: 12, color: theme.colors.textSecondary, fontWeight: '600' }}>
+                {activeRoom.occupied || 0} / {activeRoom.capacity} Occupied
               </Text>
-            )}
+            </View>
+
+            <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: theme.colors.backgroundSecondary || '#f1f5f9', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, gap: 6 }}>
+              <Ionicons name="male-female-outline" size={14} color={theme.colors.textSecondary} />
+              <Text style={{ fontSize: 12, color: theme.colors.textSecondary, fontWeight: '600' }}>
+                {activeRoom.sex_restriction === 'male' ? 'Boys Only' : activeRoom.sex_restriction === 'female' ? 'Girls Only' : 'Mixed'}
+              </Text>
+            </View>
+
+            <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: theme.colors.backgroundSecondary || '#f1f5f9', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, gap: 6 }}>
+              <Ionicons name="layers-outline" size={14} color={theme.colors.textSecondary} />
+              <Text style={{ fontSize: 12, color: theme.colors.textSecondary, fontWeight: '600' }}>
+                {activeRoom.floor_label || `Floor ${activeRoom.floor}`}
+              </Text>
+            </View>
           </View>
+
+          {activeRoom.capacity && parseInt(activeRoom.capacity, 10) > 1 && (
+            <View style={{ paddingHorizontal: 20, paddingTop: 12 }}>
+              <Text style={[styles.psText, { fontSize: 12, color: theme.colors.textTertiary || '#94a3b8' }]}>
+                *Capacity is {activeRoom.capacity}. Rent may be divided if you share with other tenants.
+              </Text>
+            </View>
+          )}
 
           {/* Description */}
           {activeRoom.description && (
@@ -1546,7 +1557,7 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
               contentContainerStyle={styles.modalScrollContent}
             >
               <Text style={styles.modalTitle}>{isCartMode ? 'Add to Book' : 'Book Now'} {activeRoom.room_number}</Text>
-              
+
               {!isDailyContract && (
                 <View style={{ backgroundColor: theme.colors.primary + '15', padding: 8, borderRadius: 8, marginBottom: 12 }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
@@ -1556,7 +1567,7 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
                   <Text style={{ fontSize: 12, color: theme.colors.textSecondary, marginTop: 4 }}>
                     Stays are billed in 30-day blocks. Partial months are charged as full months.
                   </Text>
-                  
+
                   {pricingBreakdown?.remaining_days > 0 && (
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8, backgroundColor: '#FEF3C7', padding: 6, borderRadius: 4 }}>
                       <Ionicons name="alert-circle" size={16} color="#B45309" />
@@ -1635,9 +1646,15 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
                     </Text>
                   </TouchableOpacity>
                 </View>
-                <Text style={styles.summaryNote}>
-                  Normal: 1 booking limit (for yourself). Proxy: 3 bookings limit (for others). Limits are independent per property.
-                </Text>
+                {bookingMode === 'normal' ? (
+                  <Text style={styles.summaryNote}>
+                    Limit: {propertyData?.normal_booking_limit || 1} personal stay per property ({propertyData?.tenant_usage?.normal || 0}/{propertyData?.normal_booking_limit || 1} used)
+                  </Text>
+                ) : (
+                  <Text style={styles.summaryNote}>
+                    Limit: {propertyData?.proxy_booking_limit || 3} bookings for other people ({propertyData?.tenant_usage?.proxy || 0}/{propertyData?.proxy_booking_limit || 3} used)
+                  </Text>
+                )}
               </View>
 
               {supportsContractModeSwitch && (

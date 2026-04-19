@@ -137,45 +137,51 @@ class AnalyticsService
      */
     public function calculateOverviewStats(int $landlordId, ?int $propertyId = null): array
     {
-        $query = Property::where('landlord_id', $landlordId);
+        $propertyQuery = Property::where('landlord_id', $landlordId);
         if ($propertyId) {
-            $query->where('id', $propertyId);
+            $propertyQuery->where('id', $propertyId);
         }
+        $propertyIds = (clone $propertyQuery)->pluck('id');
 
-        $properties = $query->with(['rooms' => function ($q) {
-            $q->withCount('tenants');
-        }])->get();
+        // 1. Combine Room and Occupancy stats into one query
+        $roomStats = Room::whereIn('property_id', $propertyIds)
+            ->selectRaw("
+                COUNT(*) as total,
+                COUNT(CASE WHEN status = 'available' THEN 1 END) as available
+            ")
+            ->first();
 
-        // Fix #1: Use actual room record count, not the configurable 'total_rooms' field
-        $totalRooms = (int) $properties->sum(fn ($p) => $p->rooms->count());
-        $occupiedSlots = (int) $properties->sum(fn ($property) => $property->rooms->sum('tenants_count'));
-        $availableRooms = (int) $properties->sum(fn ($p) => $p->rooms->where('status', 'available')->count());
+        $occupiedSlots = DB::table('room_tenant_assignments')
+            ->join('rooms', 'room_tenant_assignments.room_id', '=', 'rooms.id')
+            ->whereIn('rooms.property_id', $propertyIds)
+            ->where('room_tenant_assignments.status', 'active')
+            ->count();
+
+        $totalRooms = (int)($roomStats->total ?? 0);
+        $availableRooms = (int)($roomStats->available ?? 0);
         $occupancyRate = $totalRooms > 0 ? round(($occupiedSlots / $totalRooms) * 100, 1) : 0;
 
-        // Cash basis: revenue is counted only from paid invoices.
-        $collectedInvoicesQuery = $this->baseCollectedInvoiceQuery($landlordId, $propertyId);
-        $totalRevenueCents = (int) (clone $collectedInvoicesQuery)->sum('amount_cents');
+        // 2. Combine Revenue calculations (Total, Monthly, Previous Month) into one query
+        $now = now();
+        $prevMonth = now()->subMonth();
+        
+        $revenueStats = $this->baseCollectedInvoiceQuery($landlordId, $propertyId)
+            ->selectRaw("
+                SUM(amount_cents) as total_cents,
+                SUM(CASE WHEN paid_at >= '{$now->startOfMonth()}' AND paid_at <= '{$now->endOfMonth()}' THEN amount_cents ELSE 0 END) as monthly_cents,
+                SUM(CASE WHEN paid_at >= '{$prevMonth->startOfMonth()}' AND paid_at <= '{$prevMonth->endOfMonth()}' THEN amount_cents ELSE 0 END) as prev_monthly_cents
+            ")
+            ->first();
 
-        // Calculate Revenue Growth (Current Month vs Previous Month)
-        $monthlyRevenueCents = (int) (clone $collectedInvoicesQuery)
-            ->whereMonth('paid_at', now()->month)
-            ->whereYear('paid_at', now()->year)
-            ->sum('amount_cents');
-
-        $prevMonthRevenueCents = (int) (clone $collectedInvoicesQuery)
-            ->whereMonth('paid_at', now()->subMonth()->month)
-            ->whereYear('paid_at', now()->subMonth()->year)
-            ->sum('amount_cents');
-
-        $monthlyRevenue = $monthlyRevenueCents / 100;
-        $prevMonthRevenue = $prevMonthRevenueCents / 100;
-        $totalRevenue = $totalRevenueCents / 100;
+        $totalRevenue = (float)(($revenueStats->total_cents ?? 0) / 100);
+        $monthlyRevenue = (float)(($revenueStats->monthly_cents ?? 0) / 100);
+        $prevMonthRevenue = (float)(($revenueStats->prev_monthly_cents ?? 0) / 100);
 
         $revenueGrowth = 0;
         if ($prevMonthRevenue > 0) {
             $revenueGrowth = round((($monthlyRevenue - $prevMonthRevenue) / $prevMonthRevenue) * 100, 1);
         } elseif ($monthlyRevenue > 0) {
-            $revenueGrowth = 100; // 100% growth if starting from zero
+            $revenueGrowth = 100;
         }
 
         // Tenant stats
@@ -183,17 +189,17 @@ class AnalyticsService
         $newTenants = $this->countNewTenantsThisMonth($landlordId, $propertyId);
 
         return [
-            'total_properties' => $properties->count(),
+            'total_properties' => $propertyIds->count(),
             'total_rooms' => $totalRooms,
             'occupied_rooms' => $occupiedSlots,
             'available_rooms' => $availableRooms,
             'occupancy_rate' => $occupancyRate,
             'total_revenue' => round($totalRevenue, 2),
             'monthly_revenue' => round($monthlyRevenue, 2),
-            'revenue_growth_rate' => $revenueGrowth, // NEW
+            'revenue_growth_rate' => $revenueGrowth,
             'active_tenants' => $activeTenants,
             'new_tenants_this_month' => $newTenants,
-            'revpar' => $totalRooms > 0 ? round($monthlyRevenue / $totalRooms, 2) : 0, // NEW
+            'revpar' => $totalRooms > 0 ? round($monthlyRevenue / $totalRooms, 2) : 0,
         ];
     }
 
@@ -246,19 +252,26 @@ class AnalyticsService
             }
         }
 
+        // 2. Combine multiple Revenue sums (Monthly, Total, Period) into one query
+        $now = now();
+        $revenueStats = $this->baseCollectedInvoiceQuery($landlordId, $propertyId)
+            ->selectRaw("
+                SUM(amount_cents) as total_cents,
+                SUM(CASE WHEN paid_at >= '{$now->startOfMonth()}' AND paid_at <= '{$now->endOfMonth()}' THEN amount_cents ELSE 0 END) as monthly_cents,
+                SUM(CASE WHEN paid_at >= '{$dateRange['start']}' AND paid_at <= '{$dateRange['end']}' THEN amount_cents ELSE 0 END) as period_cents
+            ")
+            ->first();
+
+        $totalRevenue = (float)(($revenueStats->total_cents ?? 0) / 100);
+        $actualMonthly = (float)(($revenueStats->monthly_cents ?? 0) / 100);
+        $totalPeriodRevenue = (float)(($revenueStats->period_cents ?? 0) / 100);
+
         // Expected (potential) vs actual collected revenue for current month.
         $expectedMonthly = $this->calculatePotentialRevenue($landlordId, $propertyId);
-        $actualMonthlyCents = (int) (clone $this->baseCollectedInvoiceQuery($landlordId, $propertyId))
-            ->whereMonth('paid_at', now()->month)
-            ->whereYear('paid_at', now()->year)
-            ->sum('amount_cents');
-        $actualMonthly = $actualMonthlyCents / 100;
 
         $collectionRate = $expectedMonthly > 0
             ? round(($actualMonthly / $expectedMonthly) * 100, 1)
             : 0;
-
-        $totalRevenue = ((int) (clone $this->baseCollectedInvoiceQuery($landlordId, $propertyId))->sum('amount_cents')) / 100;
 
         // Income Breakdown: Rent vs Add-ons
         $addonRevenue = DB::table('booking_addons')
@@ -272,8 +285,6 @@ class AnalyticsService
                 }
             })
             ->sum(DB::raw('quantity * price_at_booking'));
-
-        $totalPeriodRevenue = ((int) (clone $collectedInRangeQuery)->sum('amount_cents')) / 100;
 
         $rentRevenue = max(0, $totalPeriodRevenue - $addonRevenue);
 
@@ -312,18 +323,22 @@ class AnalyticsService
      */
     public function calculateOccupancyAnalytics(int $landlordId, ?int $propertyId = null): array
     {
-        $roomsQuery = Room::forLandlord($landlordId);
+        $roomQuery = DB::table('rooms')
+            ->join('properties', 'rooms.property_id', '=', 'properties.id')
+            ->where('properties.landlord_id', $landlordId);
 
         if ($propertyId) {
-            $roomsQuery->where('property_id', $propertyId);
+            $roomQuery->where('rooms.property_id', $propertyId);
         }
 
-        $totalSlots = (int) (clone $roomsQuery)->sum('capacity');
-        $availableRooms = (int) (clone $roomsQuery)->where('status', 'available')->count();
-        $maintenanceRooms = (int) (clone $roomsQuery)->where('status', 'maintenance')->count();
+        $propertyIds = (clone $roomQuery)->select('rooms.property_id');
+
+        $totalSlots = (int) (clone $roomQuery)->sum('capacity');
+        $availableRooms = (int) (clone $roomQuery)->where('rooms.status', 'available')->count();
+        $maintenanceRooms = (int) (clone $roomQuery)->where('rooms.status', 'maintenance')->count();
 
         $occupiedSlots = (int) DB::table('room_tenant_assignments')
-            ->whereIn('room_id', (clone $roomsQuery)->select('id'))
+            ->whereIn('room_id', (clone $roomQuery)->select('rooms.id'))
             ->where('status', 'active')
             ->count();
 
@@ -341,11 +356,20 @@ class AnalyticsService
      */
     public function calculateRoomTypeAnalytics(int $landlordId, ?int $propertyId = null): array
     {
-        $query = Room::forLandlord($landlordId);
-
-        if ($propertyId) {
-            $query->where('property_id', $propertyId);
-        }
+        $stats = DB::table('rooms')
+            ->join('properties', 'rooms.property_id', '=', 'properties.id')
+            ->where('properties.landlord_id', $landlordId)
+            ->when($propertyId, function ($q) use ($propertyId) {
+                $q->where('rooms.property_id', $propertyId);
+            })
+            ->select(
+                'rooms.room_type',
+                DB::raw('COUNT(*) as count'),
+                DB::raw('SUM(rooms.capacity) as total_slots'),
+                DB::raw('AVG(rooms.monthly_rate) as avg_rate')
+            )
+            ->groupBy('rooms.room_type')
+            ->get();
 
         $occupiedByType = DB::table('room_tenant_assignments')
             ->join('rooms', 'room_tenant_assignments.room_id', '=', 'rooms.id')
@@ -359,16 +383,7 @@ class AnalyticsService
             ->groupBy('rooms.room_type')
             ->pluck('occupied_slots', 'rooms.room_type');
 
-        return $query
-            ->select(
-                'room_type',
-                DB::raw('COUNT(*) as count'),
-                DB::raw('SUM(capacity) as total_slots'),
-                DB::raw('AVG(monthly_rate) as avg_rate')
-            )
-            ->groupBy('room_type')
-            ->get()
-            ->map(function ($item) use ($occupiedByType) {
+        return $stats->map(function ($item) use ($occupiedByType) {
                 $occupiedSlots = (int) ($occupiedByType[$item->room_type] ?? 0);
 
                 return [

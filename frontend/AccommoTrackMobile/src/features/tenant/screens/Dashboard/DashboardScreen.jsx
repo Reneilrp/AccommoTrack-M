@@ -53,13 +53,35 @@ const formatDate = (value) => {
 
 const safeArray = (value) => (Array.isArray(value) ? value : []);
 
+const normalizeStayPayload = (payload) => {
+  if (!payload || typeof payload !== 'object') {
+    return {};
+  }
+
+  if (payload.data && typeof payload.data === 'object' && !Array.isArray(payload.data)) {
+    return normalizeStayPayload(payload.data);
+  }
+
+  return payload;
+};
+
 const resolveStays = (stayData) => {
-  const direct = safeArray(stayData?.stays);
+  const direct = safeArray(stayData?.stays || stayData?.activeStays || stayData?.active_stays);
   if (direct.length > 0) {
     return direct;
   }
 
-  return safeArray(stayData?.data?.stays);
+  return safeArray(stayData?.data?.stays || stayData?.data?.activeStays || stayData?.data?.active_stays);
+};
+
+const resolvePendingCheckIns = (stayData) => {
+  const normalized = normalizeStayPayload(stayData);
+  return safeArray(normalized.pendingCheckIns || normalized.pending_check_ins);
+};
+
+const resolveUpcomingBooking = (stayData) => {
+  const normalized = normalizeStayPayload(stayData);
+  return normalized.upcomingBooking || normalized.upcoming_booking || null;
 };
 
 const getNumeric = (...values) => {
@@ -239,12 +261,14 @@ const DashboardScreen = () => {
   });
 
   const loading = currentStayQuery.isLoading || statsQuery.isLoading;
-  const stayData = currentStayQuery.data || {};
+  const stayData = normalizeStayPayload(currentStayQuery.data || {});
   const stats = statsQuery.data || {};
   const activities = safeArray(activitiesQuery.data).slice(0, 5);
   const upcoming = upcomingQuery.data || {};
 
   const stays = resolveStays(stayData);
+  const pendingCheckIns = resolvePendingCheckIns(stayData);
+  const upcomingBooking = resolveUpcomingBooking(stayData);
   const totalDaysStayed = stays.reduce(
     (sum, stay) => sum + getNumeric(stay?.booking?.daysStayed, stay?.booking?.days_stayed),
     0,
@@ -629,60 +653,60 @@ const DashboardScreen = () => {
         }
       >
 
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Dashboard Overview</Text>
-              <Text style={styles.sectionHint}>Tap a card to view table details</Text>
-            </View>
-
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.statsGrid}
-            >
-              {renderStatCard({
-                key: 'rooms',
-                icon: 'bed-outline',
-                title: 'Active Rooms',
-                value: String(activeRooms.length),
-                subtitle: activeRooms.length ? activeRooms[0].propertyTitle : 'No active stays',
-                bgColor: theme.colors.primaryLight,
-                iconColor: theme.colors.primary,
-              })}
-              {renderStatCard({
-                key: 'days',
-                icon: 'calendar-outline',
-                title: 'Days Stayed',
-                value: String(totalDaysStayed),
-                subtitle: totalDaysStayed > 0 ? 'Across all stays' : 'No stay days yet',
-                bgColor: theme.colors.infoLight,
-                iconColor: theme.colors.info,
-              })}
-              {renderStatCard({
-                key: 'rent',
-                icon: 'cash-outline',
-                title: 'Monthly Rent',
-                value: formatCurrency(monthlyRentTotal),
-                subtitle: activeRooms.length ? `${activeRooms.length} room(s) total` : 'No active rent',
-                bgColor: theme.colors.purpleLight,
-                iconColor: theme.colors.purple,
-              })}
-              {renderStatCard({
-                key: 'balance',
-                icon: 'wallet-outline',
-                title: hasOverdueInvoices ? 'Balance Due' : 'Status',
-                value: hasOverdueInvoices ? formatCurrency(balanceDue) : (balanceDue > 0 ? formatCurrency(balanceDue) : 'Fully Paid'),
-                subtitle: hasOverdueInvoices ? 'Overdue detected' : 'Current billing state',
-                bgColor: hasOverdueInvoices ? theme.colors.errorLight : theme.colors.warningLight,
-                iconColor: hasOverdueInvoices ? theme.colors.error : theme.colors.warning,
-              })}
-            </ScrollView>
-
-            {renderPanel('rooms')}
-            {renderPanel('days')}
-            {renderPanel('rent')}
-            {renderPanel('balance')}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Dashboard Overview</Text>
+            <Text style={styles.sectionHint}>Tap a card to view table details</Text>
           </View>
+
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.statsGrid}
+          >
+            {renderStatCard({
+              key: 'rooms',
+              icon: 'bed-outline',
+              title: 'Active Rooms',
+              value: String(activeRooms.length),
+              subtitle: activeRooms.length ? activeRooms[0].propertyTitle : 'No active stays',
+              bgColor: theme.colors.primaryLight,
+              iconColor: theme.colors.primary,
+            })}
+            {renderStatCard({
+              key: 'days',
+              icon: 'calendar-outline',
+              title: 'Days Stayed',
+              value: String(totalDaysStayed),
+              subtitle: totalDaysStayed > 0 ? 'Across all stays' : 'No stay days yet',
+              bgColor: theme.colors.infoLight,
+              iconColor: theme.colors.info,
+            })}
+            {renderStatCard({
+              key: 'rent',
+              icon: 'cash-outline',
+              title: 'Monthly Rent',
+              value: formatCurrency(monthlyRentTotal),
+              subtitle: activeRooms.length ? `${activeRooms.length} room(s) total` : 'No active rent',
+              bgColor: theme.colors.purpleLight,
+              iconColor: theme.colors.purple,
+            })}
+            {renderStatCard({
+              key: 'balance',
+              icon: 'wallet-outline',
+              title: hasOverdueInvoices ? 'Balance Due' : 'Status',
+              value: hasOverdueInvoices ? formatCurrency(balanceDue) : (balanceDue > 0 ? formatCurrency(balanceDue) : 'Fully Paid'),
+              subtitle: hasOverdueInvoices ? 'Overdue detected' : 'Current billing state',
+              bgColor: hasOverdueInvoices ? theme.colors.errorLight : theme.colors.warningLight,
+              iconColor: hasOverdueInvoices ? theme.colors.error : theme.colors.warning,
+            })}
+          </ScrollView>
+
+          {renderPanel('rooms')}
+          {renderPanel('days')}
+          {renderPanel('rent')}
+          {renderPanel('balance')}
+        </View>
 
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
@@ -702,7 +726,7 @@ const DashboardScreen = () => {
             </View>
           ) : null}
 
-          {safeArray(stayData?.pendingCheckIns).map((pending) => (
+          {pendingCheckIns.map((pending) => (
             <View
               key={`pending-${pending.id}`}
               style={[
@@ -730,13 +754,13 @@ const DashboardScreen = () => {
             </View>
           ))}
 
-          {stayData?.upcomingBooking ? (
+          {upcomingBooking ? (
             <View style={[styles.alertCard, { backgroundColor: theme.colors.infoLight, borderColor: theme.colors.info }]}>
               <Ionicons name="calendar" size={18} color={theme.colors.info} />
               <View style={styles.alertBody}>
                 <Text style={styles.alertTitle}>Upcoming booking</Text>
                 <Text style={styles.alertText}>
-                  {stayData.upcomingBooking.property} • Starts {formatDate(stayData.upcomingBooking.startDate)}
+                  {upcomingBooking.property} • Starts {formatDate(upcomingBooking.startDate)}
                 </Text>
               </View>
               <TouchableOpacity onPress={() => navigation.navigate('MyBookings')}>
@@ -745,7 +769,7 @@ const DashboardScreen = () => {
             </View>
           ) : null}
 
-          {!hasOverdueInvoices && safeArray(stayData?.pendingCheckIns).length === 0 && !stayData?.upcomingBooking ? (
+          {!hasOverdueInvoices && pendingCheckIns.length === 0 && !upcomingBooking ? (
             <View style={styles.emptyCard}>
               <Text style={styles.emptyCardText}>No alerts right now.</Text>
             </View>

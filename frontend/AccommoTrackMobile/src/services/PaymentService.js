@@ -279,6 +279,30 @@ class PaymentService {
   }
 
   /**
+   * LANDLORD: Get payment bundle (invoices + summary)
+   */
+  async getPaymentBundle(params = {}) {
+    try {
+      const response = await api.get(`/invoices/bundle`, { params });
+      return {
+        success: true,
+        data: response.data?.data || response.data || null,
+        error: null,
+      };
+    } catch (error) {
+      console.error(
+        "Error fetching payment bundle:",
+        error.response?.data || error.message,
+      );
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || error.message || "Failed to fetch bundle",
+      };
+    }
+  }
+
+  /**
    * LANDLORD: Get summarized invoice totals/counts for dashboard cards
    */
   async getInvoiceSummary(params = {}) {

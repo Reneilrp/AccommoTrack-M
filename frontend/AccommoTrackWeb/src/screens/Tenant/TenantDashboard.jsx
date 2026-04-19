@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { SkeletonCurrentStay, SkeletonStatCard } from '../../components/Shared/Skeleton';
 import { useUIState } from '../../contexts/UIStateContext';
 import {
-  Home, Calendar, Wallet, AlertCircle, MessageSquare,
+  Home, Calendar, AlertCircle, MessageSquare,
   Activity, CreditCard, ChevronRight, Bell, CalendarClock,
   CheckCircle2, AlertTriangle, ArrowRight, Zap, Droplets, Wifi
 } from 'lucide-react';
@@ -12,6 +12,21 @@ import systemToggleService from '../../services/systemToggleService';
 
 const ROOM_COLORS = ['#22c55e', '#60a5fa', '#a78bfa', '#fbbf24', '#f87171'];
 const DEFAULT_TOGGLES = systemToggleService.getDefaults();
+
+const unwrapTenantPayload = (response) => {
+  if (response && typeof response === 'object' && Object.prototype.hasOwnProperty.call(response, 'success')) {
+    return response.data ?? null;
+  }
+
+  return response ?? null;
+};
+
+const resolveDashboardActivities = (payload) => {
+  if (Array.isArray(payload)) return payload;
+  if (Array.isArray(payload?.activities)) return payload.activities;
+  if (Array.isArray(payload?.data?.activities)) return payload.data.activities;
+  return [];
+};
 
 // ═════════════════════════════════════════════════════════════════════════════
 // MAIN COMPONENT
@@ -49,23 +64,29 @@ const TenantDashboard = ({ user }) => {
         tenantService.getPaymentBreakdown(3)
       ]);
 
-      setStayData(currentStay);
-      setStats(dashboardStats);
-      setActivities(Array.isArray(activityRes.activities) ? activityRes.activities.slice(0, 5) : []);
+      const stayPayload = unwrapTenantPayload(currentStay) || {};
+      const statsPayload = unwrapTenantPayload(dashboardStats) || {};
+      const activityPayload = unwrapTenantPayload(activityRes);
+      const activityItems = resolveDashboardActivities(activityPayload).slice(0, 5);
+      const breakdownPayload = unwrapTenantPayload(paymentBreakdown) || {};
+
+      setStayData(stayPayload);
+      setStats(statsPayload);
+      setActivities(activityItems);
 
       // Use API payment breakdown data
-      const breakdownData = paymentBreakdown?.data?.upcoming_months || paymentBreakdown?.upcoming_months || [];
+      const breakdownData = breakdownPayload?.upcoming_months || breakdownPayload?.data?.upcoming_months || [];
       setUpcomingSchedule(Array.isArray(breakdownData) ? breakdownData.slice(0, 3) : []);
 
       updateData('dashboard', {
-        stayData: currentStay,
-        stats: dashboardStats,
-        activities: activityRes.activities,
+        stayData: stayPayload,
+        stats: statsPayload,
+        activities: activityItems,
         upcomingSchedule: breakdownData
       });
 
       // Sync global wallet balance
-      const newWalletBalance = Number(dashboardStats?.payments?.walletBalance || 0);
+      const newWalletBalance = Number(statsPayload?.payments?.walletBalance || statsPayload?.payments?.wallet_balance || 0);
       updateScreenState('wallet', { balance: newWalletBalance });
     } catch (error) {
       console.error('Failed to load dashboard data', error);
@@ -110,7 +131,7 @@ const TenantDashboard = ({ user }) => {
     if (!user?.id || !window.Echo) return;
 
     const channel = window.Echo.private(`tenant.${user.id}`);
-    
+
     channel.listen('InvoiceUpdated', (e) => {
       console.log('[Dashboard] Invoice updated event received:', e);
       fetchDashboardData();
@@ -149,8 +170,29 @@ const TenantDashboard = ({ user }) => {
   };
 
   // ── Derived Data ──
-  const hasActiveStays = stayData?.stays && stayData.stays.length > 0;
-  const stays = hasActiveStays ? stayData.stays : [];
+  const stays = Array.isArray(stayData?.stays)
+    ? stayData.stays
+    : Array.isArray(stayData?.data?.stays)
+      ? stayData.data.stays
+      : [];
+  const hasActiveStays = stays.length > 0;
+
+  const pendingCheckIns = Array.isArray(stayData?.pendingCheckIns)
+    ? stayData.pendingCheckIns
+    : Array.isArray(stayData?.pending_check_ins)
+      ? stayData.pending_check_ins
+      : Array.isArray(stayData?.data?.pendingCheckIns)
+        ? stayData.data.pendingCheckIns
+        : Array.isArray(stayData?.data?.pending_check_ins)
+          ? stayData.data.pending_check_ins
+          : [];
+
+  const upcomingBooking = stayData?.upcomingBooking
+    || stayData?.upcoming_booking
+    || stayData?.data?.upcomingBooking
+    || stayData?.data?.upcoming_booking
+    || null;
+  const hasBookingAlerts = pendingCheckIns.length > 0 || Boolean(upcomingBooking);
 
   const totalActiveRooms = stays.length;
   const totalDaysStayed = stays.reduce((sum, s) => sum + (s.booking?.daysStayed || s.booking?.days_stayed || 0), 0);
@@ -253,8 +295,8 @@ const TenantDashboard = ({ user }) => {
   if (loading) {
     return (
       <div className="space-y-6 font-sans">
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-          {[...Array(5)].map((_, i) => <SkeletonStatCard key={i} />)}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          {[...Array(4)].map((_, i) => <SkeletonStatCard key={i} />)}
         </div>
         <SkeletonCurrentStay />
       </div>
@@ -262,7 +304,7 @@ const TenantDashboard = ({ user }) => {
   }
 
   // ── Zero State ──
-  if (!hasActiveStays) {
+  if (!hasActiveStays && !hasBookingAlerts) {
     return (
       <div className="space-y-6 font-sans max-w-5xl mx-auto pb-10">
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -319,9 +361,6 @@ const TenantDashboard = ({ user }) => {
     },
     {
       key: 'rent', icon: Zap, value: formatCurrency(totalMonthlySummary), label: 'Monthly Base', color: 'purple',
-    },
-    {
-      key: 'wallet', icon: Wallet, value: formatCurrency(walletBalance), label: 'Wallet Credits', color: 'emerald',
     },
     {
       key: 'status',
@@ -453,7 +492,7 @@ const TenantDashboard = ({ user }) => {
       )}
 
       {/* ── Pending Check-In Alert (Overdue for move-in) ── */}
-      {stayData?.pendingCheckIns && stayData.pendingCheckIns.length > 0 && stayData.pendingCheckIns
+      {pendingCheckIns.length > 0 && pendingCheckIns
         .filter(pending => !dismissedNotifications.pendingCheckIns.includes(pending.id))
         .map(pending => (
           <div key={pending.id} className={pending.status === 'confirmed'
@@ -504,16 +543,16 @@ const TenantDashboard = ({ user }) => {
         ))}
 
       {/* ── Upcoming Booking Alert ── */}
-      {!dismissedNotifications.upcomingBooking && stayData?.upcomingBooking && (
+      {!dismissedNotifications.upcomingBooking && upcomingBooking && (
         <div className="bg-blue-50 dark:bg-gradient-to-r dark:from-blue-500/15 dark:to-[#1e2332] border border-blue-200 dark:border-blue-500/30 rounded-[16px] p-6 flex items-center justify-between gap-4">
           <div className="flex items-center gap-4">
             <div className="bg-blue-100 dark:bg-blue-500/20 p-4 rounded-full flex-shrink-0">
               <CalendarClock className="w-6 h-6 text-blue-600 dark:text-blue-400" />
             </div>
             <div>
-              <h2 className="text-[16px] font-bold text-blue-900 dark:text-blue-100">Upcoming Stay at {stayData.upcomingBooking.property}</h2>
+              <h2 className="text-[16px] font-bold text-blue-900 dark:text-blue-100">Upcoming Stay at {upcomingBooking.property}</h2>
               <p className="text-[14px] text-blue-700 dark:text-blue-200/80 mt-0.5">
-                Begins on <span className="font-semibold">{formatDate(stayData.upcomingBooking.startDate)}</span>
+                Begins on <span className="font-semibold">{formatDate(upcomingBooking.startDate)}</span>
               </p>
             </div>
           </div>
@@ -536,7 +575,7 @@ const TenantDashboard = ({ user }) => {
       )}
 
       {/* ── Stat Cards Grid (Read Only) ── */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 mt-[-10px]">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mt-[-10px]">
         {statCards.map((card) => {
           const cm = colorMap[card.color];
           const isClickable = true;
@@ -624,8 +663,8 @@ const TenantDashboard = ({ user }) => {
                       <td className="py-4 text-[14px] text-gray-500 dark:text-slate-400">{row.moveInLabel}</td>
                       <td className="py-4 text-right">
                         <span className={`inline-block px-3 py-1 rounded-full text-[11px] font-semibold border ${row.status === 'overdue'
-                            ? 'bg-red-50 text-red-600 border-red-200 dark:bg-red-500/15 dark:text-red-400 dark:border-red-500/25'
-                            : 'bg-green-50 text-green-700 border-green-200 dark:bg-green-500/10 dark:text-green-400 dark:border-green-500/20'
+                          ? 'bg-red-50 text-red-600 border-red-200 dark:bg-red-500/15 dark:text-red-400 dark:border-red-500/25'
+                          : 'bg-green-50 text-green-700 border-green-200 dark:bg-green-500/10 dark:text-green-400 dark:border-green-500/20'
                           }`}>
                           {row.status === 'overdue' ? 'Overdue' : 'Active'}
                         </span>
@@ -763,8 +802,8 @@ const TenantDashboard = ({ user }) => {
                       </td>
                       <td className="py-4 text-center">
                         <span className={`inline-block px-3 py-1 rounded-full text-[11px] font-semibold border ${row.requiresAdvance
-                            ? 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/20'
-                            : 'bg-slate-50 text-slate-600 border-slate-200 dark:bg-slate-500/10 dark:text-slate-300 dark:border-slate-500/20'
+                          ? 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/20'
+                          : 'bg-slate-50 text-slate-600 border-slate-200 dark:bg-slate-500/10 dark:text-slate-300 dark:border-slate-500/20'
                           }`}>
                           {row.requiresAdvance ? 'Yes' : 'No'}
                         </span>
@@ -846,10 +885,10 @@ const TenantDashboard = ({ user }) => {
                       </td>
                       <td className="py-4 text-right">
                         <span className={`inline-block px-3 py-1 rounded-full text-[11px] font-semibold border ${row.status === 'overdue'
-                            ? 'bg-red-50 text-red-600 border-red-200 dark:bg-red-500/15 dark:text-red-400 dark:border-red-500/25'
-                            : row.status === 'partial'
-                              ? 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/20'
-                              : 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/20'
+                          ? 'bg-red-50 text-red-600 border-red-200 dark:bg-red-500/15 dark:text-red-400 dark:border-red-500/25'
+                          : row.status === 'partial'
+                            ? 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/20'
+                            : 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/20'
                           }`}>
                           {row.status === 'partial' ? 'Pending' : row.status.charAt(0).toUpperCase() + row.status.slice(1)}
                         </span>
@@ -896,7 +935,7 @@ const TenantDashboard = ({ user }) => {
       )}
 
       {/* ── Bottom Row: Activity, Schedule & Simplified Payment Summary ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-8">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-8 items-start">
 
         {/* Recent Activity */}
         <div className="bg-white dark:bg-[#1e2332] border border-gray-200 dark:border-[#2a3045] rounded-[16px] overflow-hidden flex flex-col lg:col-span-1">
@@ -948,7 +987,7 @@ const TenantDashboard = ({ user }) => {
             <h3 className="text-[16px] font-bold text-gray-900 dark:text-slate-100">Payment Schedule</h3>
             <p className="text-[13px] text-gray-500 dark:text-slate-500 mt-0.5">Estimated lease dues</p>
           </div>
-          <div className="px-6 py-6 flex-1 flex flex-col justify-center">
+          <div className="px-6 py-6 flex-1 flex flex-col">
             {upcomingSchedule.length > 0 ? (
               <div className="space-y-0 relative">
                 {upcomingSchedule.map((schedule, idx) => {
@@ -990,7 +1029,7 @@ const TenantDashboard = ({ user }) => {
             <h3 className="text-[16px] font-bold text-gray-900 dark:text-slate-100">Current Payment Cycle</h3>
             <p className="text-[13px] text-gray-500 dark:text-slate-500 mt-0.5">{new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</p>
           </div>
-          <div className="px-6 py-6 flex-1 flex flex-col justify-center">
+          <div className="px-6 py-6 flex-1 flex flex-col">
 
             <div className="space-y-4 mb-6">
               <div className="flex justify-between items-center">

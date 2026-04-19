@@ -69,6 +69,7 @@ class LandlordBookingController extends Controller
             $this->ensureCaretakerCan($context, 'can_view_bookings');
 
             $query = Booking::with(['property', 'tenant', 'landlord', 'room', 'occupants'])
+                ->withExists('review')
                 ->withCount('occupants')
                 ->forLandlord($context['landlord_id']);
 
@@ -609,6 +610,79 @@ class LandlordBookingController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'message' => 'Failed to fetch stats',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Get booking bundle (bookings, stats, extensions, transfers)
+     */
+    public function getBookingBundle(Request $request)
+    {
+        try {
+            $context = $this->resolveLandlordContext($request);
+            $this->ensureCaretakerCan($context, 'can_view_bookings');
+            $landlordId = $context['landlord_id'];
+
+            $assignedPropertyIds = null;
+            if ($context['is_caretaker'] && $context['assignment']) {
+                $assignedPropertyIds = $context['assignment']->getAssignedPropertyIds();
+            }
+
+            // 1. Bookings
+            $bookingsQuery = Booking::with(['property', 'tenant.tenantProfile', 'landlord', 'room', 'occupants'])
+                ->withExists('review')
+                ->withCount('occupants')
+                ->forLandlord($landlordId);
+
+            if ($assignedPropertyIds) {
+                $bookingsQuery->whereIn('property_id', $assignedPropertyIds);
+            }
+
+            $bookings = $bookingsQuery->orderBy('created_at', 'desc')->get();
+
+            // 2. Stats
+            $stats = $this->bookingService->getStats(
+                $landlordId,
+                $assignedPropertyIds
+            );
+
+            // 3. Extensions
+            $extensions = \App\Models\ExtensionRequest::where('landlord_id', $landlordId)
+                ->with(['tenant', 'booking.room.property'])
+                ->orderBy('created_at', 'desc')
+                ->get();
+
+            // 4. Transfers
+            $transfersQuery = \App\Models\TransferRequest::where('landlord_id', $landlordId)
+                ->with(['tenant', 'currentRoom', 'requestedRoom.property'])
+                ->orderBy('created_at', 'desc');
+
+            if ($assignedPropertyIds) {
+                $transfersQuery->where(function ($q) use ($assignedPropertyIds) {
+                    $q->whereHas('requestedRoom', function ($roomQuery) use ($assignedPropertyIds) {
+                        $roomQuery->whereIn('property_id', $assignedPropertyIds);
+                    })->orWhereHas('currentRoom', function ($roomQuery) use ($assignedPropertyIds) {
+                        $roomQuery->whereIn('property_id', $assignedPropertyIds);
+                    });
+                });
+            }
+            $transfers = $transfersQuery->get();
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'bookings' => BookingResource::collection($bookings)->resolve(),
+                    'stats' => $stats,
+                    'extension_requests' => $extensions,
+                    'transfer_requests' => $transfers,
+                ],
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch booking bundle',
                 'error' => $e->getMessage(),
             ], 500);
         }

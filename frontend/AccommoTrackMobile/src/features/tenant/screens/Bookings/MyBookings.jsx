@@ -11,7 +11,6 @@ import PropertyService from '../../../../services/PropertyService.js';
 import { BASE_URL as API_BASE_URL } from '../../../../config/index.js';
 import { useTheme } from '../../../../contexts/ThemeContext.jsx';
 import { useUIState } from '../../../../contexts/UIStateContext.jsx';
-import { showSuccess, showError } from '../../../../utils/toast.js';
 import { BookingCardSkeleton } from '../../../../components/Skeletons/index.jsx';
 import {
   tenantQueryKeys,
@@ -19,7 +18,6 @@ import {
   useTenantRefreshHandler,
 } from '../../hooks/useTenantQueryHelpers.js';
 import ReservationPolicyNotice from './components/ReservationPolicyNotice.jsx';
-import UnitHubModal from './components/UnitHubModal.jsx';
 
 const TABS = [
   { id: 'current', label: 'My Stay', icon: 'home-outline' },
@@ -161,8 +159,6 @@ export default function MyBookings() {
 
   const [showCancelBookingModal, setShowCancelBookingModal] = useState(false);
   const [cancelBookingContext, setCancelBookingContext] = useState(null);
-  const [showUnitHub, setShowUnitHub] = useState(false);
-  const [unitHubContext, setUnitHubContext] = useState(null);
 
   // Auto-fetch financial preview whenever the selected transfer room changes
   React.useEffect(() => {
@@ -339,7 +335,7 @@ export default function MyBookings() {
       duration: 300,
       useNativeDriver: false,
     }).start();
-  }, [viewMode, slideAnim]);
+  }, [viewMode]);
 
   const getImageUrl = (imagePath) => {
     if (!imagePath) return { uri: 'https://via.placeholder.com/800x400?text=No+Image' };
@@ -608,9 +604,9 @@ export default function MyBookings() {
     return defaultDate;
   };
 
-  const padDatePart = React.useCallback((value) => String(value).padStart(2, '0'), []);
-  
-  const formatIsoDate = React.useCallback((dateValue) => {
+  const padDatePart = (value) => String(value).padStart(2, '0');
+
+  const formatIsoDate = (dateValue) => {
     if (!dateValue) return '';
     const dateObj = dateValue instanceof Date ? dateValue : new Date(dateValue);
     if (Number.isNaN(dateObj.getTime())) return '';
@@ -618,14 +614,14 @@ export default function MyBookings() {
     const month = padDatePart(dateObj.getMonth() + 1);
     const day = padDatePart(dateObj.getDate());
     return `${year}-${month}-${day}`;
-  }, [padDatePart]);
+  };
 
-  const formatSlashDate = React.useCallback((dateValue) => {
+  const formatSlashDate = (dateValue) => {
     const isoDate = formatIsoDate(dateValue);
     return isoDate ? isoDate.replace(/-/g, '/') : '';
-  }, [formatIsoDate]);
+  };
 
-  const formatLongDate = React.useCallback((dateValue) => {
+  const formatLongDate = (dateValue) => {
     if (!dateValue) return 'Open-ended (not yet set)';
     const dateObj = dateValue instanceof Date ? dateValue : new Date(dateValue);
     if (Number.isNaN(dateObj.getTime())) return 'Open-ended (not yet set)';
@@ -634,7 +630,7 @@ export default function MyBookings() {
       day: 'numeric',
       year: 'numeric',
     });
-  }, []);
+  };
 
   useEffect(() => {
     if (process.env.NODE_ENV === 'test' || process.env.JEST_WORKER_ID) {
@@ -684,7 +680,7 @@ export default function MyBookings() {
     };
 
     maybeSendExtensionReminder();
-  }, [stayData?.stays, formatIsoDate]);
+  }, [stayData?.stays]);
 
   const getPropertySwitchOptions = () => {
     return viewMode === 'active'
@@ -805,12 +801,12 @@ export default function MyBookings() {
     const result = await TenantService.requestAddon(payload);
 
     if (result.success) {
-      showSuccess('Request Submitted', 'Your add-on request was sent to the landlord for review.');
+      showAlert('Request Submitted', 'Your add-on request was sent to the landlord for review.');
       closeAddonModal();
       invalidateData(BUCKET);
       await refetchMyBookingsBundle();
     } else {
-      showError('Unable to Submit', result.error || 'Failed to request add-on.');
+      showAlert('Unable to Submit', result.error || 'Failed to request add-on.');
       setAddonRequestingId(null);
       setSubmittingCustomAddon(false);
     }
@@ -977,11 +973,11 @@ export default function MyBookings() {
     });
 
     if (result.success) {
-      showSuccess('Thanks!', 'Your review has been submitted.');
+      showAlert('Thanks!', 'Your review has been submitted.');
       closeReviewModal();
       await refetchMyBookingsBundle();
     } else {
-      showError('Error', result.error || 'Failed to submit review.');
+      showAlert('Error', result.error || 'Failed to submit review.');
       setSubmittingReview(false);
     }
   };
@@ -1047,17 +1043,17 @@ export default function MyBookings() {
 
   const submitReportModal = async () => {
     if (!reportContext?.property?.id) {
-      showError('Unavailable', 'Report details are incomplete.');
+      showAlert('Unavailable', 'Report details are incomplete.');
       return;
     }
 
     if (!reportReason) {
-      showError('Selection Required', 'Please select a reason for your report.');
+      showAlert('Selection Required', 'Please select a reason for your report.');
       return;
     }
 
     if (reportDescription.trim().length < 10) {
-      showError('More Detail Needed', 'Please provide a description of at least 10 characters.');
+      showAlert('More Detail Needed', 'Please provide a description of at least 10 characters.');
       return;
     }
 
@@ -1071,22 +1067,22 @@ export default function MyBookings() {
     });
 
     if (result.success) {
-      showSuccess('Report Submitted', 'Thank you. Admins will review this report shortly.');
+      showAlert('Report Submitted', 'Thank you. Admins will review this report shortly.');
       closeReportModal();
     } else {
-      showError('Error', result.error || 'Failed to submit report.');
+      showAlert('Error', result.error || 'Failed to submit report.');
       setSubmittingReport(false);
     }
   };
 
   const submitMoveOutModal = async () => {
     if (!moveOutContext?.booking?.id) {
-      showError('Unavailable', 'Move-out details are incomplete.');
+      showAlert('Unavailable', 'Move-out details are incomplete.');
       return;
     }
 
     if (!moveOutDate || Number.isNaN(moveOutDate.getTime())) {
-      showError('Date Required', 'Please select your planned move-out date.');
+      showAlert('Date Required', 'Please select your planned move-out date.');
       return;
     }
 
@@ -1094,7 +1090,7 @@ export default function MyBookings() {
     const plannedDate = new Date(moveOutDate);
     plannedDate.setHours(0, 0, 0, 0);
     if (plannedDate < today) {
-      showError('Invalid Date', 'Move-out date must be today or later.');
+      showAlert('Invalid Date', 'Move-out date must be today or later.');
       return;
     }
 
@@ -1108,11 +1104,11 @@ export default function MyBookings() {
       });
 
       if (result.success) {
-        showSuccess('Move-out Requested', 'Your move-out notice was sent to your landlord.');
+        showAlert('Move-out Requested', 'Your move-out notice was sent to your landlord.');
         closeMoveOutModal();
         await refetchMyBookingsBundle();
       } else {
-        showError('Request Failed', result.error || 'Failed to request move-out notice.');
+        showAlert('Request Failed', result.error || 'Failed to request move-out notice.');
         setSubmittingMoveOut(false);
       }
     };
@@ -1148,11 +1144,11 @@ export default function MyBookings() {
     });
 
     if (result.success) {
-      showSuccess('Cancelled', 'Your booking request has been cancelled.');
+      showAlert('Cancelled', 'Your booking request has been cancelled.');
       closeCancelBookingModal();
       await refetchMyBookingsBundle();
     } else {
-      showError('Unable to Cancel', result.error || 'Failed to cancel booking request.');
+      showAlert('Unable to Cancel', result.error || 'Failed to cancel booking request.');
     }
 
     setCancellingBookingId(null);
@@ -1184,10 +1180,10 @@ export default function MyBookings() {
       });
 
       if (result.success) {
-        showSuccess('Extension Requested', 'Your extension request was sent to your landlord.');
+        showAlert('Extension Requested', 'Your extension request was sent to your landlord.');
         await refetchMyBookingsBundle();
       } else {
-        showError('Request Failed', result.error || 'Failed to request extension.');
+        showAlert('Request Failed', result.error || 'Failed to request extension.');
       }
       setSubmittingExtension(false);
     };
@@ -1298,11 +1294,11 @@ export default function MyBookings() {
     const result = await TenantService.requestTransfer(transferPayload);
 
     if (result.success) {
-      showSuccess('Transfer Requested', 'Your transfer request was sent to your landlord.');
+      showAlert('Transfer Requested', 'Your transfer request was sent to your landlord.');
       closeTransferModal();
       await refetchMyBookingsBundle();
     } else {
-      showError('Request Failed', result.error || 'Failed to request transfer.');
+      showAlert('Request Failed', result.error || 'Failed to request transfer.');
     }
     setSubmittingTransfer(false);
   };
@@ -1314,10 +1310,10 @@ export default function MyBookings() {
     const result = await TenantService.cancelTransferRequest(transferRequestId);
 
     if (result.success) {
-      showSuccess('Cancelled', result.message || 'Transfer request cancelled successfully.');
+      showAlert('Cancelled', result.message || 'Transfer request cancelled successfully.');
       await refetchMyBookingsBundle();
     } else {
-      showError('Unable to Cancel', result.error || 'Failed to cancel transfer request.');
+      showAlert('Unable to Cancel', result.error || 'Failed to cancel transfer request.');
     }
 
     setCancellingTransferRequestId(null);
@@ -1373,19 +1369,6 @@ export default function MyBookings() {
     }
   };
 
-  const handleMessageStaff = async (staffId) => {
-    if (!staffId) return;
-    setShowUnitHub(false);
-    
-    // Navigate to Chat screen with recipientId
-    navigation.navigate('Messages', {
-      screen: 'ChatRoom',
-      params: {
-        recipientId: staffId,
-      }
-    });
-  };
-
   const getStatusColor = (status) => {
     const s = String(status || '').toLowerCase();
     const isDark = theme.isDark;
@@ -1414,7 +1397,7 @@ export default function MyBookings() {
   // ==================== Sub-components for Tabs ====================
 
   // ==================== Ellipsis Menu Component ====================
-  const EllipsisMenu = ({ booking, property, room, reviewAlreadySubmitted, onReview, onMaintenance, onReport, onShowHub, theme }) => {
+  const EllipsisMenu = ({ booking, property, room, reviewAlreadySubmitted, onReview, onMaintenance, onReport, theme }) => {
     const [menuVisible, setMenuVisible] = useState(false);
 
     return (
@@ -1451,26 +1434,6 @@ export default function MyBookings() {
             onPress={() => setMenuVisible(!menuVisible)}
           >
             <Ionicons name="ellipsis-horizontal" size={20} color="#FFFFFF" />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={{
-              backgroundColor: 'rgba(0, 0, 0, 0.6)',
-              borderRadius: 20,
-              width: 36,
-              height: 36,
-              alignItems: 'center',
-              justifyContent: 'center',
-              shadowColor: '#000',
-              shadowOffset: { width: 0, height: 2 },
-              shadowOpacity: 0.25,
-              shadowRadius: 3.84,
-              elevation: 5,
-              marginTop: 8,
-            }}
-            onPress={onShowHub}
-          >
-            <Ionicons name="apps-outline" size={20} color="#FFFFFF" />
           </TouchableOpacity>
 
           {menuVisible && (
@@ -1993,10 +1956,6 @@ export default function MyBookings() {
                   onReview={() => openReviewModal({ booking, property })}
                   onMaintenance={() => openMaintenanceModal({ booking, property, room })}
                   onReport={() => openReportModal({ booking, property })}
-                  onShowHub={() => {
-                    setUnitHubContext({ booking, property, room });
-                    setShowUnitHub(true);
-                  }}
                   theme={theme}
                 />
               </View>
@@ -4326,15 +4285,6 @@ export default function MyBookings() {
           </View>
         </View>
       </Modal>
-
-      {showUnitHub && (
-        <UnitHubModal 
-          visible={showUnitHub}
-          onClose={() => setShowUnitHub(false)}
-          booking={unitHubContext}
-          onMessageStaff={handleMessageStaff}
-        />
-      )}
     </View>
   );
 }

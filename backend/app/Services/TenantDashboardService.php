@@ -12,67 +12,70 @@ class TenantDashboardService
 {
     public function getStats(int $tenantId): array
     {
-        $activeBookings = Booking::where('tenant_id', $tenantId)->whereIn('status', ['pending', 'confirmed'])->count();
-        $confirmedBookings = Booking::where('tenant_id', $tenantId)->where('status', 'confirmed')->count();
-        $pendingBookings = Booking::where('tenant_id', $tenantId)->where('status', 'pending')->count();
+        // 1. Optimized Booking Stats (Single Query)
+        $bookingStats = Booking::where('tenant_id', $tenantId)
+            ->selectRaw("
+                COUNT(CASE WHEN status IN ('pending', 'confirmed') THEN 1 END) as active,
+                COUNT(CASE WHEN status = 'confirmed' THEN 1 END) as confirmed,
+                COUNT(CASE WHEN status = 'pending' THEN 1 END) as pending
+            ")
+            ->first();
 
-        // $bookingStats = Booking::where('tenant_id', $tenantId)
-        //     ->whereIn('status', ['pending', 'confirmed'])
-        //     ->selectRaw("status, count(*) as count")
-        //     ->groupBy('status')
-        //     ->pluck('count', 'status');
+        // 2. Optimized Invoice Stats & Sums (Single Query)
+        $now = now();
+        $invoiceStats = Invoice::where('tenant_id', $tenantId)
+            ->selectRaw("
+                SUM(CASE WHEN status IN ('pending', 'partial', 'overdue') AND MONTH(due_date) = ? AND YEAR(due_date) = ? THEN amount_cents ELSE 0 END) as monthly_due_cents,
+                SUM(CASE WHEN status IN ('pending', 'partial', 'overdue') THEN amount_cents ELSE 0 END) as total_due_cents,
+                COUNT(CASE WHEN status = 'pending' THEN 1 END) as count_pending,
+                COUNT(CASE WHEN status = 'partial' THEN 1 END) as count_partial,
+                COUNT(CASE WHEN status = 'overdue' THEN 1 END) as count_overdue,
+                COUNT(CASE WHEN status = 'paid' THEN 1 END) as count_paid,
+                EXISTS(SELECT 1 FROM invoices as sub WHERE sub.tenant_id = ? AND sub.status = 'overdue') as has_overdue
+            ", [$now->month, $now->year, $tenantId])
+            ->first();
 
-        // $pendingBookings = $bookingStats['pending'] ?? 0;
-        // $confirmedBookings = $this->getBookingConfirmed($bookingStats) ? $bookingStats['confirmed'] ?? 0 : 0;
-        // $activeBookings = $pendingBookings + $confirmedBookings;
-
-        $monthlyDueCents = Invoice::where('tenant_id', $tenantId)->whereIn('status', ['pending', 'partial', 'overdue'])->whereMonth('due_date', now()->month)->whereYear('due_date', now()->year)->sum('amount_cents');
-        $totalDueCents = Invoice::where('tenant_id', $tenantId)->whereIn('status', ['pending', 'partial', 'overdue'])->sum('amount_cents');
-
-        // Calculate net total paid (Amount - Refunded) from all successful transactions
-        // We only sum positive transactions to avoid double-counting the negative refund records
+        // 3. Paid Amount Calculation
         $totalPaidCents = PaymentTransaction::where('tenant_id', $tenantId)
             ->where('amount_cents', '>', 0)
             ->whereIn('status', ['succeeded', 'paid', 'partially_refunded', 'refunded'])
-            ->selectRaw('SUM(amount_cents - refunded_amount_cents) as net_cents')
+            ->selectRaw('SUM(amount_cents - COALESCE(refunded_amount_cents, 0)) as net_cents')
             ->value('net_cents') ?? 0;
 
+        // 4. Latest unpaid invoice
         $latestUnpaidInvoice = Invoice::where('tenant_id', $tenantId)
             ->whereIn('status', ['pending', 'partial', 'overdue'])
             ->orderBy('due_date', 'asc')
             ->first();
 
-        $hasOverdueInvoices = Invoice::where('tenant_id', $tenantId)->where('status', 'overdue')->exists();
-
         $unreadNotifications = User::find($tenantId)->unreadNotifications()->count();
-
         $walletBalanceCents = \App\Models\TenantCredit::getBalance($tenantId);
 
-        $bookings = [
-            'active' => $activeBookings,
-            'confirmed' => $confirmedBookings,
-            'pending' => $pendingBookings,
-        ];
-        $payments = [
-            'monthlyDue' => (float) ($monthlyDueCents / 100),
-            'totalDue' => (float) ($totalDueCents / 100),
-            'totalPaid' => (float) ($totalPaidCents / 100),
-            'walletBalance' => (float) ($walletBalanceCents / 100),
-            'pendingAmount' => (float) ($totalDueCents / 100),
-            'latestUnpaidInvoiceId' => $latestUnpaidInvoice ? $latestUnpaidInvoice->id : null,
-            'hasOverdueInvoices' => $hasOverdueInvoices,
-            'invoice_breakdown' => [
-                'pending' => Invoice::where('tenant_id', $tenantId)->where('status', 'pending')->count(),
-                'partial' => Invoice::where('tenant_id', $tenantId)->where('status', 'partial')->count(),
-                'overdue' => Invoice::where('tenant_id', $tenantId)->where('status', 'overdue')->count(),
-                'paid' => Invoice::where('tenant_id', $tenantId)->where('status', 'paid')->count(),
+        return [
+            'bookings' => [
+                'active' => (int)($bookingStats->active ?? 0),
+                'confirmed' => (int)($bookingStats->confirmed ?? 0),
+                'pending' => (int)($bookingStats->pending ?? 0),
+            ],
+            'payments' => [
+                'monthlyDue' => (float) (($invoiceStats->monthly_due_cents ?? 0) / 100),
+                'totalDue' => (float) (($invoiceStats->total_due_cents ?? 0) / 100),
+                'totalPaid' => (float) ($totalPaidCents / 100),
+                'walletBalance' => (float) ($walletBalanceCents / 100),
+                'pendingAmount' => (float) (($invoiceStats->total_due_cents ?? 0) / 100),
+                'latestUnpaidInvoiceId' => $latestUnpaidInvoice ? $latestUnpaidInvoice->id : null,
+                'hasOverdueInvoices' => (bool) ($invoiceStats->has_overdue ?? false),
+                'invoice_breakdown' => [
+                    'pending' => (int) ($invoiceStats->count_pending ?? 0),
+                    'partial' => (int) ($invoiceStats->count_partial ?? 0),
+                    'overdue' => (int) ($invoiceStats->count_overdue ?? 0),
+                    'paid' => (int) ($invoiceStats->count_paid ?? 0),
+                ],
+            ],
+            'notifications' => [
+                'unread' => $unreadNotifications,
             ],
         ];
-        $notifications = [
-            'unread' => $unreadNotifications,
-        ];
-
-        return compact('bookings', 'payments', 'notifications');
     }
     // private function getBookingConfirmed($bookings){
     //     return  $bookings['status'] === 'confirmed';
@@ -110,12 +113,12 @@ class TenantDashboardService
     public function getActiveStays(int $tenantId)
     {
         return Booking::where(function ($query) {
-            // Bookings that are confirmed, completed, or partial-completed
-            $query->whereIn('status', ['confirmed', 'completed', 'partial-completed'])
+            // Bookings that are currently active for dashboard stay context
+            $query->whereIn('status', ['confirmed', 'active', 'completed', 'partial-completed'])
                   // Lease hasn't ended OR it's past end_date but still 'confirmed' (overdue)
                 ->where(function ($q) {
                     $q->where('end_date', '>=', now()->startOfDay())
-                        ->orWhere('status', 'confirmed');
+                        ->orWhereIn('status', ['confirmed', 'active']);
                 });
         })
             ->where(function ($query) use ($tenantId) {
@@ -148,8 +151,13 @@ class TenantDashboardService
 
     public function getUpcomingBooking(int $tenantId): ?Booking
     {
-        return Booking::where('tenant_id', $tenantId)
-            ->where('status', 'confirmed')
+        return Booking::where(function ($query) use ($tenantId) {
+            $query->where('tenant_id', $tenantId)
+                ->orWhereHas('occupants', function ($occupantQuery) use ($tenantId) {
+                    $occupantQuery->where('user_id', $tenantId);
+                });
+        })
+            ->whereIn('status', ['pending', 'pending_reservation', 'reserved', 'confirmed'])
             // Use startOfDay() so that a booking starting today is still shown as "upcoming"
             // until the landlord actually moves the tenant into the room.
             ->where('start_date', '>=', now()->startOfDay())
@@ -160,8 +168,13 @@ class TenantDashboardService
 
     public function getPendingCheckInBookings(int $tenantId)
     {
-        return Booking::where('tenant_id', $tenantId)
-            ->whereIn('status', ['pending', 'confirmed'])
+        return Booking::where(function ($query) use ($tenantId) {
+            $query->where('tenant_id', $tenantId)
+                ->orWhereHas('occupants', function ($occupantQuery) use ($tenantId) {
+                    $occupantQuery->where('user_id', $tenantId);
+                });
+        })
+            ->whereIn('status', ['pending', 'pending_reservation', 'reserved', 'confirmed'])
             // Use startOfDay() so bookings whose start_date is today are caught
             ->where('start_date', '<=', now()->endOfDay())
             // Not assigned to room yet
@@ -352,7 +365,7 @@ class TenantDashboardService
             ->where(function ($query) {
                 // Currently confirmed and active bookings
                 $query->where(function ($q) {
-                    $q->where('status', 'confirmed');
+                    $q->whereIn('status', ['confirmed', 'active']);
                     // No end date restriction here for confirmed stays to show overdue ones
                 })
                 // OR recently completed bookings (last 30 days)

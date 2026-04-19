@@ -125,6 +125,8 @@ export default function MyPropertiesScreen({ navigation }) {
       return Array.isArray(response.data) ? response.data : EMPTY_PROPERTIES;
     },
     placeholderData: (previousData) => previousData,
+    staleTime: 1000 * 60 * 5, // 5 minutes
+    gcTime: 1000 * 60 * 30, // 30 minutes
   });
 
   const properties = propertiesQuery.data || EMPTY_PROPERTIES;

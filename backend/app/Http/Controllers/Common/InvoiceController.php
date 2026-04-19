@@ -186,60 +186,37 @@ class InvoiceController extends Controller
             $query->whereRaw("{$dateExpression} <= ?", [$periodTo->toDateString()]);
         }
 
-        $invoices = $query->get([
-            'id',
-            'status',
-            'amount_cents',
-            'total_cents',
-            'due_date',
-        ]);
+        // Optimization: Use SQL aggregation instead of PHP loops
+        // Logic sync: match frontend (Payments.jsx) and resolveSummaryStatus
+        $now = now()->toDateTimeString();
+        $stats = (clone $query)
+            ->selectRaw("
+                COUNT(*) as total_invoices,
+                SUM(COALESCE(total_cents, amount_cents, 0)) as total_invoiced_cents,
+                COUNT(CASE WHEN status = 'paid' THEN 1 END) as paid_count,
+                COUNT(CASE WHEN status = 'pending_verification' THEN 1 END) as pending_verification_count,
+                COUNT(CASE 
+                    WHEN status = 'overdue' THEN 1 
+                    WHEN status IN ('pending', 'unpaid', 'partial') AND due_date < '{$now}' THEN 1
+                    ELSE NULL 
+                END) as overdue_count,
+                COUNT(CASE 
+                    WHEN status IN ('pending', 'unpaid', 'partial') AND (due_date IS NULL OR due_date >= '{$now}') THEN 1 
+                    ELSE NULL 
+                END) as pending_count,
+                COUNT(CASE WHEN status = 'refunded' THEN 1 END) as refunded_count,
+                COUNT(CASE WHEN status IN ('cancelled', 'voided') THEN 1 END) as cancelled_count
+            ")
+            ->first();
 
-        $invoiceIds = $invoices->pluck('id')->values()->all();
+        // Calculate paid cents using a subquery/sum to ensure accuracy with partial payments
+        $totalPaidCents = PaymentTransaction::query()
+            ->whereIn('invoice_id', (clone $query)->select('id'))
+            ->whereIn('status', ['succeeded', 'paid', 'partially_refunded'])
+            ->sum(DB::raw('COALESCE(amount_cents, 0) - COALESCE(refunded_amount_cents, 0)'));
 
-        $paidByInvoice = [];
-        if (! empty($invoiceIds)) {
-            $paidByInvoice = PaymentTransaction::query()
-                ->whereIn('invoice_id', $invoiceIds)
-                ->whereIn('status', ['succeeded', 'paid', 'partially_refunded'])
-                ->selectRaw('invoice_id, COALESCE(SUM(amount_cents - refunded_amount_cents), 0) as paid_cents')
-                ->groupBy('invoice_id')
-                ->pluck('paid_cents', 'invoice_id')
-                ->all();
-        }
-
-        $totalPaidCents = 0;
-        $totalBalanceCents = 0;
-        $paidCount = 0;
-        $pendingCount = 0;
-        $overdueCount = 0;
-        $pendingVerificationCount = 0;
-        $refundedCount = 0;
-        $cancelledCount = 0;
-
-        foreach ($invoices as $invoice) {
-            $status = $this->resolveSummaryStatus($invoice);
-
-            $invoiceTotalCents = (int) ($invoice->total_cents ?? $invoice->amount_cents ?? 0);
-            $invoicePaidCents = max(0, (int) ($paidByInvoice[$invoice->id] ?? 0));
-            $invoiceBalanceCents = max(0, $invoiceTotalCents - $invoicePaidCents);
-
-            $totalPaidCents += $invoicePaidCents;
-            $totalBalanceCents += $invoiceBalanceCents;
-
-            if ($status === 'paid') {
-                $paidCount++;
-            } elseif ($status === 'pending_verification') {
-                $pendingVerificationCount++;
-            } elseif (in_array($status, ['pending', 'unpaid', 'partial'], true)) {
-                $pendingCount++;
-            } elseif ($status === 'overdue') {
-                $overdueCount++;
-            } elseif ($status === 'refunded') {
-                $refundedCount++;
-            } elseif ($status === 'cancelled') {
-                $cancelledCount++;
-            }
-        }
+        $totalInvoicedCents = (int) ($stats->total_invoiced_cents ?? 0);
+        $totalBalanceCents = max(0, $totalInvoicedCents - (int) $totalPaidCents);
 
         return response()->json([
             'success' => true,
@@ -251,20 +228,80 @@ class InvoiceController extends Controller
                 ],
                 'totals' => [
                     'total_paid' => round($totalPaidCents / 100, 2),
-                    'total_paid_cents' => $totalPaidCents,
+                    'total_paid_cents' => (int) $totalPaidCents,
                     'total_balance' => round($totalBalanceCents / 100, 2),
-                    'total_balance_cents' => $totalBalanceCents,
-                    'paid_count' => $paidCount,
-                    'pending_count' => $pendingCount,
-                    'overdue_count' => $overdueCount,
-                    'pending_verification_count' => $pendingVerificationCount,
-                    'refunded_count' => $refundedCount,
-                    'cancelled_count' => $cancelledCount,
-                    'total_invoices' => $invoices->count(),
+                    'total_balance_cents' => (int) $totalBalanceCents,
+                    'paid_count' => (int) $stats->paid_count,
+                    'pending_count' => (int) $stats->pending_count,
+                    'overdue_count' => (int) $stats->overdue_count,
+                    'pending_verification_count' => (int) $stats->pending_verification_count,
+                    'refunded_count' => (int) $stats->refunded_count,
+                    'cancelled_count' => (int) $stats->cancelled_count,
+                    'total_invoices' => (int) $stats->total_invoices,
                 ],
             ],
             'message' => '',
         ]);
+    }
+
+    /**
+     * Get payment bundle (invoices + summary)
+     */
+    public function getPaymentBundle(Request $request)
+    {
+        try {
+            $context = $this->resolveLandlordContext($request);
+            $this->ensureCaretakerCan($context, 'can_manage_payments');
+            $landlordId = $context['landlord_id'];
+
+            $allowedPropertyIds = null;
+            if ($context['is_caretaker']) {
+                $allowedPropertyIds = $context['assignment']->getAssignedPropertyIds();
+            }
+
+            // 1. Fetch Invoices
+            $query = Invoice::query()->where('landlord_id', $landlordId);
+
+            if ($allowedPropertyIds) {
+                $query->whereIn('property_id', $allowedPropertyIds);
+            }
+
+            if ($request->has('exclude_invoice_type')) {
+                $excludedTypes = collect(explode(',', (string) $request->query('exclude_invoice_type')))
+                    ->map(fn ($type) => trim($type))
+                    ->filter()
+                    ->values();
+
+                if ($excludedTypes->isNotEmpty()) {
+                    $query->where(function ($excludeQuery) use ($excludedTypes) {
+                        $excludeQuery->whereNull('invoice_type')
+                            ->orWhereNotIn('invoice_type', $excludedTypes->all());
+                    });
+                }
+            }
+
+            $invoices = $query->with(['transactions', 'booking.room', 'property', 'tenant'])
+                ->orderBy('created_at', 'desc')
+                ->get();
+
+            // 2. Fetch Summary using the existing summary logic
+            $summaryResponse = $this->summary($request);
+            $summaryData = $summaryResponse->getData()->data ?? null;
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'invoices' => $invoices,
+                    'summary' => $summaryData,
+                ],
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch payment bundle',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
     }
 
     /**
