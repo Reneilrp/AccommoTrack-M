@@ -245,17 +245,25 @@ const PropertyCarousel = ({ property, onOpenDetails }) => {
           .map(normalizeRoom)
           .filter((room) => {
             const rawStatus = (room.display_status || room.status || 'available').toLowerCase();
-            const effectiveStatus = (typeof room.is_available === 'boolean' && !room.is_available && rawStatus === 'available') ? 'reserved' : rawStatus;
+            const availableSlots = Number(room.available_slots ?? room.availableSlots);
+            
+            // Priority 1: Maintenance
+            if (rawStatus === 'maintenance' || room.status === 'maintenance') return false;
 
-            const parsedCapacity = Number(room.raw_capacity ?? room.capacity);
-            const parsedAvailableSlots = Number(room.available_slots ?? room.availableSlots);
-            const parsedOccupied = Number(room.occupied_count ?? room.occupied);
-            const isFullyOccupied = Number.isFinite(parsedCapacity) && parsedCapacity > 0 && (
-              (Number.isFinite(parsedAvailableSlots) && parsedAvailableSlots <= 0)
-              || (Number.isFinite(parsedOccupied) && parsedOccupied >= parsedCapacity)
-              || (room.status === 'occupied' && room.is_available === false) // Explicitly occupied and not available
-            );
-            return effectiveStatus !== 'occupied' && !isFullyOccupied && room.status !== 'maintenance'; // Also exclude maintenance rooms
+            // Priority 2: Use available_slots if it's a valid number
+            let effectiveStatus = rawStatus;
+            if (Number.isFinite(availableSlots)) {
+              effectiveStatus = availableSlots > 0 ? 'available' : rawStatus;
+            }
+
+            // Priority 3: Fallback to is_available boolean
+            if (effectiveStatus === 'available' && room.is_available === false) {
+              effectiveStatus = 'reserved';
+            }
+
+            const isFullyOccupied = effectiveStatus === 'occupied' || (Number.isFinite(availableSlots) && availableSlots <= 0 && rawStatus === 'occupied');
+            
+            return effectiveStatus !== 'occupied' && !isFullyOccupied;
           })
           .sort((a, b) => {
             const aStatus = (a.display_status || a.status || 'available').toString().toLowerCase();
@@ -274,32 +282,24 @@ const PropertyCarousel = ({ property, onOpenDetails }) => {
               room.sexRestriction,
               property?.property_type,
             );
-            const rawDisplayStatus = (room.display_status || room.status || 'available').toString().toLowerCase();
-            const displayStatus = (typeof room.is_available === 'boolean' && !room.is_available && rawDisplayStatus === 'available')
-              ? 'reserved'
-              : rawDisplayStatus;
-            const parsedCapacity = Number(room.raw_capacity ?? room.capacity);
-            const parsedAvailableSlots = Number(room.available_slots ?? room.availableSlots);
-            const parsedOccupied = Number(room.occupied_count ?? room.occupied);
-            const isFullyOccupied = Number.isFinite(parsedCapacity) && parsedCapacity > 0 && (
-              (Number.isFinite(parsedAvailableSlots) && parsedAvailableSlots <= 0)
-              || (Number.isFinite(parsedOccupied) && parsedOccupied >= parsedCapacity)
-            );
-            const effectiveDisplayStatus = displayStatus === 'occupied' && !isFullyOccupied
-              ? 'available'
-              : displayStatus;
-            const isOccupied = effectiveDisplayStatus === 'occupied';
-            const hasAdjustedDisplayStatus = effectiveDisplayStatus !== displayStatus;
+            const rawStatus = (room.display_status || room.status || 'available').toString().toLowerCase();
+            const availableSlots = Number(room.available_slots ?? room.availableSlots);
+            const isMaintenance = rawStatus === 'maintenance' || room.status === 'maintenance';
+            
+            let effectiveDisplayStatus = rawStatus;
+            if (isMaintenance) {
+              effectiveDisplayStatus = 'maintenance';
+            } else if (Number.isFinite(availableSlots) && availableSlots > 0) {
+              effectiveDisplayStatus = 'available';
+            } else if (room.is_available === false && rawStatus === 'available') {
+              effectiveDisplayStatus = 'reserved';
+            }
+
             const statusBadgeText = room.reserved_by_me
               ? 'Reserved by you (Pending)'
-              : (hasAdjustedDisplayStatus
-                ? effectiveDisplayStatus
-                : (room.display_status_label || effectiveDisplayStatus || '')
-              ).toString().charAt(0).toUpperCase() +
-                (hasAdjustedDisplayStatus
-                  ? effectiveDisplayStatus
-                  : (room.display_status_label || effectiveDisplayStatus || '')
-                ).toString().slice(1);
+              : (room.display_status_label || effectiveDisplayStatus || '').toString().charAt(0).toUpperCase() +
+                (room.display_status_label || effectiveDisplayStatus || '').toString().slice(1);
+
             const statusBadgeClassName = room.reserved_by_me
               ? 'bg-amber-50 text-amber-800 border border-amber-100'
               : effectiveDisplayStatus === 'occupied'

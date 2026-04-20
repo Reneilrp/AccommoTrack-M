@@ -48,10 +48,15 @@ export default function RoomCard({ room, className = '', onEdit, onClick, onStat
   if (normalizedStatus === 'maintenance') {
     effectiveStatus = 'maintenance';
   } else if (normalizedAvailableSlots > 0) {
-    // With remaining slots, room should never be shown as fully occupied.
-    effectiveStatus = normalizedDisplayStatus === 'reserved' ? 'reserved' : 'available';
+    // Rule: As long as there are remaining physical slots, show as available.
+    // Logic: availableAfterPending (backend) > 0 implies display_status is 'available'.
+    effectiveStatus = 'available';
+  } else if (normalizedDisplayStatus === 'reserved') {
+    // All slots are taken (either occupied or pending), and at least one is pending.
+    effectiveStatus = 'reserved';
   } else {
-    effectiveStatus = normalizedDisplayStatus === 'reserved' ? 'reserved' : 'occupied';
+    // All slots are taken by confirmed tenants.
+    effectiveStatus = 'occupied';
   }
 
   const selectValue = effectiveStatus === 'reserved'

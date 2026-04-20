@@ -261,8 +261,18 @@ class RoomResource extends JsonResource
         }
 
         $capacity = max(1, (int) ($this->capacity ?? 1));
-        $occupiedCount = (int) $this->occupied;
+        $occupiedCount = (int) ($this->occupied_count ?? $this->occupied ?? 0);
+        $pendingBeds = (int) ($this->pending_beds ?? 0);
+        $availableAfterPending = max(0, $capacity - ($occupiedCount + $pendingBeds));
 
-        return $occupiedCount >= $capacity ? 'occupied' : 'available';
+        if ($pendingBeds > 0 && $availableAfterPending === 0) {
+            return 'reserved';
+        }
+
+        if ($occupiedCount >= $capacity) {
+            return 'occupied';
+        }
+
+        return 'available';
     }
 }

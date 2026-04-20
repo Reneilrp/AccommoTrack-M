@@ -67,15 +67,19 @@ export default function RoomListScreen({ route }) {
       }
 
       return result.data.rooms.map((room) => {
-        const rawStatus = (room.display_status || room.status || 'unknown')
+        const rawStatus = (room.display_status || room.status || 'available')
           .toString()
           .toLowerCase();
-        const normalizedStatus =
-          typeof room.is_available === 'boolean' &&
-          !room.is_available &&
-          rawStatus === 'available'
-            ? 'reserved'
-            : rawStatus;
+        const availableSlots = Number(room.available_slots ?? room.availableSlots);
+        
+        let normalizedStatus = rawStatus;
+        if (rawStatus === 'maintenance' || room.status === 'maintenance') {
+          normalizedStatus = 'maintenance';
+        } else if (Number.isFinite(availableSlots) && availableSlots > 0) {
+          normalizedStatus = 'available';
+        } else if (room.is_available === false && rawStatus === 'available') {
+          normalizedStatus = 'reserved';
+        }
 
         return {
           ...room,

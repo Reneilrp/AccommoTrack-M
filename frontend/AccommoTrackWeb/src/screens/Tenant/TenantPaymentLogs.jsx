@@ -7,7 +7,7 @@ import {
 import { paymentService } from '../../services/paymentService';
 import { invoiceService } from '../../services/invoiceService';
 import systemToggleService from '../../services/systemToggleService';
-import { showSuccess, showError, showLoading } from '../../utils/toast';
+import { showSuccess, showError, showLoading, dismissToast } from '../../utils/toast';
 
 const DEFAULT_TOGGLES = systemToggleService.getDefaults();
 
@@ -269,6 +269,8 @@ export default function TenantPaymentLogs({ _user }) {
     try {
       showLoading('Updating archive status...');
       const res = await paymentService.archiveInvoice(invoiceId);
+      dismissToast(); // Remove loading toast
+
       if (res.success) {
         showSuccess(res.data?.message || 'Archive status updated successfully');
         setShowPaymentModal(false);
@@ -278,6 +280,7 @@ export default function TenantPaymentLogs({ _user }) {
         showError(res.error || 'Failed to update archive status');
       }
     } catch (err) {
+      dismissToast();
       console.error('Archive error:', err);
       showError('An unexpected error occurred while archiving.');
     }

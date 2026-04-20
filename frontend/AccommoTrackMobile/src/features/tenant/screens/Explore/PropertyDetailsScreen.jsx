@@ -57,11 +57,19 @@ const transformPropertyDetailsPayload = (rawData) => {
 
   const rooms = (rawData.rooms || [])
     .map((room) => {
-      const isPhysicallyAvailable = (room.is_physically_available ?? Number(room.available_slots ?? 0) > 0) && room.status !== 'maintenance';
-      const rawStatus = (room.display_status || room.status || "unknown").toString().toLowerCase();
+      const availableSlots = Number(room.available_slots ?? 0);
+      const isPhysicallyAvailable = (room.is_physically_available ?? availableSlots > 0) && room.status !== 'maintenance';
+      const rawStatus = (room.display_status || room.status || "available").toString().toLowerCase();
 
-      // Override status to 'occupied' if it's supposed to be available but has no slots
-      const resolvedStatus = (rawStatus === 'available' && !isPhysicallyAvailable) ? 'occupied' : rawStatus;
+      // Priority rule: if slots are left, it is available
+      let resolvedStatus = rawStatus;
+      if (rawStatus === 'maintenance') {
+        resolvedStatus = 'maintenance';
+      } else if (availableSlots > 0) {
+        resolvedStatus = 'available';
+      } else if ((room.is_available === false || !isPhysicallyAvailable) && rawStatus === 'available') {
+        resolvedStatus = 'reserved';
+      }
 
       return {
         ...room,

@@ -475,11 +475,23 @@ export default function PropertyDetails({ propertyId, onBack }) {
                 room.sex_restriction,
                 property?.property_type,
               );
-              const displayStatus = (room.display_status || room.status || "available").toString().toLowerCase();
+              const rawStatus = (room.display_status || room.status || "available").toString().toLowerCase();
+              const availableSlots = Number(room.available_slots ?? room.availableSlots);
+              
+              let displayStatus = rawStatus;
+              if (rawStatus === 'maintenance') {
+                displayStatus = 'maintenance';
+              } else if (Number.isFinite(availableSlots) && availableSlots > 0) {
+                // Priority rule: if slots are left, it is available
+                displayStatus = 'available';
+              } else if ((room.is_available === false || room.is_booking_locked) && rawStatus === 'available') {
+                // If it was supposed to be available but is locked or has no slots, it is reserved
+                displayStatus = 'reserved';
+              }
 
               const isPhysicallyAvailable = room.is_physically_available ?? (
                 displayStatus === "available"
-                && Number(room.available_slots ?? 1) > 0
+                && (Number.isFinite(availableSlots) ? availableSlots > 0 : true)
                 && !room.is_booking_locked
               );
 
