@@ -210,7 +210,7 @@ export default function Payments() {
   const [showMergedRefundModal, setShowMergedRefundModal] = useState(false);
   const [mergedRefundPreview, setMergedRefundPreview] = useState(null);
   const [showExportModal, setShowExportModal] = useState(false);
-  const [invoiceDrilldownApplied, setInvoiceDrilldownApplied] = useState(false);
+  const [, setInvoiceDrilldownApplied] = useState(false);
   const [proofLightboxUrl, setProofLightboxUrl] = useState(null);
   const [recordData, setRecordData] = useState({
     amount: "",
@@ -244,19 +244,23 @@ export default function Payments() {
     const params = new URLSearchParams(location.search || "");
     const invoiceId = params.get("invoiceId");
 
-    if (!invoiceId || invoiceDrilldownApplied || invoices.length === 0) {
+    if (!invoiceId || invoices.length === 0) {
       return;
     }
 
-    const targetInvoice = invoices.find((invoice) => String(invoice.id) === String(invoiceId));
-    if (!targetInvoice) {
-      return;
-    }
+    setInvoiceDrilldownApplied((prevApplied) => {
+      if (prevApplied) return true; // already applied
 
-    setInvoiceDrilldownApplied(true);
-    setSelectedInvoice(targetInvoice);
-    setShowInvoiceModal(true);
-  }, [location.search, invoices, invoiceDrilldownApplied]);
+      const targetInvoice = invoices.find((invoice) => String(invoice.id) === String(invoiceId));
+      if (targetInvoice) {
+        setSelectedInvoice(targetInvoice);
+        setShowInvoiceModal(true);
+        return true;
+      }
+      
+      return false;
+    });
+  }, [location.search, invoices]);
 
   useEffect(() => {
     if (selectedInvoice) {
@@ -571,7 +575,7 @@ export default function Payments() {
     } finally {
       setLoading(false);
     }
-  }, [archiveFilter, getPaymentError, loadBookingDetails, loadSummary, statsRange, updateData]);
+  }, [archiveFilter, getPaymentError, loadBookingDetails, loadSummary, statsRange, updateData, bookingsMap, uiState.data?.landlord_payments]);
 
   useEffect(() => {
     // Auto-collapse sidebar when entering payments for wider table area.

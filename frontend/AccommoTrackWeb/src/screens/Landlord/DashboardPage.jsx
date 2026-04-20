@@ -48,6 +48,11 @@ export default function DashboardPage({ user }) {
   const initialLoadRef = React.useRef(!cachedData);
 
   const fetchVerificationStatus = React.useCallback(async () => {
+    if (isCaretaker) {
+      setVerificationStatus(null);
+      return;
+    }
+
     try {
       const res = await api.get('/landlord/my-verification');
       setVerificationStatus(res.data);
@@ -56,7 +61,7 @@ export default function DashboardPage({ user }) {
         setVerificationStatus({ status: 'not_submitted' });
       }
     }
-  }, []);
+  }, [isCaretaker]);
 
   const fetchDashboardData = React.useCallback(async () => {
     try {
@@ -97,8 +102,11 @@ export default function DashboardPage({ user }) {
 
   useEffect(() => {
     fetchDashboardData();
+  }, [fetchDashboardData]);
+
+  useEffect(() => {
     fetchVerificationStatus();
-  }, [fetchDashboardData, fetchVerificationStatus]);
+  }, [fetchVerificationStatus]);
 
   const getActivityIcon = (type) => {
     switch (type) {
@@ -287,7 +295,9 @@ export default function DashboardPage({ user }) {
     }
   };
 
-  const verificationBanner = verificationStatus ? getVerificationBannerConfig(verificationStatus.status) : null;
+  const verificationBanner = !isCaretaker && verificationStatus
+    ? getVerificationBannerConfig(verificationStatus.status)
+    : null;
 
   if (loading) {
     return (

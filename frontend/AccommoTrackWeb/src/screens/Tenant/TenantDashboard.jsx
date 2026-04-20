@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useTenantDashboardBundle } from '../../hooks/useTenantQueries';
 import { useNavigate } from 'react-router-dom';
 import { SkeletonCurrentStay, SkeletonStatCard } from '../../components/Shared/Skeleton';
@@ -28,8 +28,8 @@ const TenantDashboard = ({ user }) => {
   const cachedData = uiState.data.dashboard;
   const stayData = dashboardData?.stay || cachedData?.stayData || null;
   const stats = dashboardData?.stats || cachedData?.stats || null;
-  const activities = dashboardData?.activities || cachedData?.activities || [];
-  const upcomingSchedule = dashboardData?.breakdown?.upcoming_months || cachedData?.upcomingSchedule || [];
+  const activities = useMemo(() => dashboardData?.activities || cachedData?.activities || [], [dashboardData?.activities, cachedData?.activities]);
+  const upcomingSchedule = useMemo(() => dashboardData?.breakdown?.upcoming_months || cachedData?.upcomingSchedule || [], [dashboardData?.breakdown?.upcoming_months, cachedData?.upcomingSchedule]);
 
   const loading = queryLoading && !cachedData;
 
@@ -109,12 +109,12 @@ const TenantDashboard = ({ user }) => {
   }, [user?.id, refetch]);
 
   // ── Helpers ──
-  const formatCurrency = (amount) => {
+  const formatCurrency = useCallback((amount) => {
     const val = Number(amount);
     return new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' }).format(isNaN(val) ? 0 : val);
-  };
+  }, []);
 
-  const formatDate = (dateString) => {
+  const formatDate = useCallback((dateString) => {
     if (!dateString) return '—';
     const date = new Date(dateString);
     const now = new Date();
@@ -127,7 +127,7 @@ const TenantDashboard = ({ user }) => {
     if (diffHours < 24) return `${diffHours} hours ago`;
     if (diffDays < 7) return `${diffDays} days ago`;
     return date.toLocaleDateString();
-  };
+  }, []);
 
   const formatFloorLabel = (floor) => {
     if (!floor || Number.isNaN(Number(floor))) return '—';
@@ -143,14 +143,14 @@ const TenantDashboard = ({ user }) => {
   };
 
   // ── Derived Data ──
-  const stays = Array.isArray(stayData?.stays)
+  const stays = useMemo(() => (Array.isArray(stayData?.stays)
     ? stayData.stays
     : Array.isArray(stayData?.data?.stays)
       ? stayData.data.stays
-      : [];
+      : []), [stayData]);
   const hasActiveStays = stays.length > 0;
 
-  const pendingCheckIns = Array.isArray(stayData?.pendingCheckIns)
+  const pendingCheckIns = useMemo(() => (Array.isArray(stayData?.pendingCheckIns)
     ? stayData.pendingCheckIns
     : Array.isArray(stayData?.pending_check_ins)
       ? stayData.pending_check_ins
@@ -158,7 +158,7 @@ const TenantDashboard = ({ user }) => {
         ? stayData.data.pendingCheckIns
         : Array.isArray(stayData?.data?.pending_check_ins)
           ? stayData.data.pending_check_ins
-          : [];
+          : []), [stayData]);
 
   const upcomingBooking = stayData?.upcomingBooking
     || stayData?.upcoming_booking
@@ -227,7 +227,7 @@ const TenantDashboard = ({ user }) => {
   const totalAddOns = roomBreakdownRows.reduce((sum, row) => sum + row.addOns, 0);
   const totalGrandRent = roomBreakdownRows.reduce((sum, row) => sum + row.grandTotal, 0);
 
-  const balanceBreakdownRows = React.useMemo(() => {
+  const balanceBreakdownRows = useMemo(() => {
     // Primary source: comprehensive list from stats
     const statsUnpaid = Array.isArray(stats?.payments?.unpaidInvoices) ? stats.payments.unpaidInvoices : [];
 
@@ -306,9 +306,9 @@ const TenantDashboard = ({ user }) => {
         }
         return a.sortDueDate - b.sortDueDate;
       });
-  }, [stays, stats]);
+  }, [stays, stats, formatDate]);
 
-  const activeAlerts = React.useMemo(() => {
+  const activeAlerts = useMemo(() => {
     const alerts = [];
 
     // 1. Overdue Balance

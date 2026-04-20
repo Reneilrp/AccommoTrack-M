@@ -148,14 +148,16 @@ export const useMessaging = (user, accessRole = 'landlord') => {
   const markConversationAsRead = useCallback(async (conversationId) => {
     try {
       await api.post(`/messages/${conversationId}/read`);
-      setConversations(prev => 
+      setConversations(prev =>
         prev.map(c => c.id === conversationId ? { ...c, unread_count: 0 } : c)
+      );
+      setMessages(prev => 
+        prev.map(msg => !msg.is_mine && !msg.is_read ? { ...msg, is_read: true } : msg)
       );
     } catch (err) {
       console.error('Failed to mark conversation as read:', err);
     }
   }, []);
-
   const handleSendMessage = async () => {
     if (readOnlyGuard()) return;
     if (!messageText.trim() && !selectedImage && !selectedFile) return;

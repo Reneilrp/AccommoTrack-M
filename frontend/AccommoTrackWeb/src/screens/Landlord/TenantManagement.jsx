@@ -193,17 +193,17 @@ export default function TenantManagement() {
         updateData('accessible_properties', data);
         cacheManager.set('accessible_properties', data);
 
-        if (!selectedPropertyId && data && data.length) {
-          setSelectedPropertyId(data[0].id);
+        if (data && data.length) {
+          setSelectedPropertyId(prev => prev || data[0].id);
         }
       } catch (err) {
         console.error(err);
       } finally {
-        if (!selectedPropertyId) setLoading(false);
+        setLoading(false);
       }
     };
     load();
-  }, [selectedPropertyId, updateData]);
+  }, [updateData, cachedProps]);
 
   const loadTenants = useCallback(async () => {
     if (!selectedPropertyId) return;
@@ -235,7 +235,7 @@ export default function TenantManagement() {
     } finally {
       setLoading(false);
     }
-  }, [selectedPropertyId, updateData, getTenantActionError]);
+  }, [selectedPropertyId, updateData, getTenantActionError, uiState.data]);
 
   useEffect(() => {
     if (!selectedPropertyId) return;

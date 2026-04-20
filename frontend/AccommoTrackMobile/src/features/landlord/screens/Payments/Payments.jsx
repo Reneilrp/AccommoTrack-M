@@ -506,20 +506,25 @@ export default function Payments({ navigation, route }) {
   ]);
 
   useEffect(() => {
-    if (!pendingFocusInvoiceId || invoices.length === 0) return;
+    if (invoices.length === 0) return;
 
-    const targetInvoice = invoices.find((invoice) => String(invoice.id) === String(pendingFocusInvoiceId));
-    if (!targetInvoice) return;
+    setPendingFocusInvoiceId((prevId) => {
+      if (!prevId) return prevId;
 
-    openInvoiceModal(targetInvoice);
-    setPendingFocusInvoiceId(null);
+      const targetInvoice = invoices.find((invoice) => String(invoice.id) === String(prevId));
+      if (!targetInvoice) return prevId;
 
-    if (typeof navigation?.setParams === 'function') {
-      navigation.setParams({
-        focusInvoiceId: undefined,
-      });
-    }
-  }, [invoices, pendingFocusInvoiceId, openInvoiceModal, navigation]);
+      openInvoiceModal(targetInvoice);
+
+      if (typeof navigation?.setParams === 'function') {
+        navigation.setParams({
+          focusInvoiceId: undefined,
+        });
+      }
+
+      return null;
+    });
+  }, [invoices, openInvoiceModal, navigation]);
 
   useEffect(() => {
     if (showModal) return;

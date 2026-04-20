@@ -13,6 +13,7 @@ import {
   AlertTriangle,
 } from "lucide-react";
 import { showSuccess, showError, showLoading } from "../../utils/toast";
+import { getAgeInYears } from "../../utils/dateUtils";
 import api from "../../utils/api";
 import ImagePlaceholder from "../Shared/ImagePlaceholder";
 import ImageCarousel from "../Shared/ImageCarousel";
@@ -175,17 +176,6 @@ export default function RoomDetailsModal({
 
     parsed.setHours(0, 0, 0, 0);
     return parsed;
-  };
-
-  const getAgeInYears = (dateOfBirth, referenceDate = new Date()) => {
-    const dob = new Date(dateOfBirth);
-    const ref = new Date(referenceDate);
-    let age = ref.getFullYear() - dob.getFullYear();
-    const monthDiff = ref.getMonth() - dob.getMonth();
-    if (monthDiff < 0 || (monthDiff === 0 && ref.getDate() < dob.getDate())) {
-      age -= 1;
-    }
-    return age;
   };
 
   const toDateInputValue = (dateValue) => {
@@ -487,20 +477,24 @@ export default function RoomDetailsModal({
   }, [bookingMode, occupantLimit, requiredProxyGender]);
 
   useEffect(() => {
-    if (bedCount > maxBookableBeds) {
-      setBedCount(maxBookableBeds);
-    }
-  }, [bedCount, maxBookableBeds]);
+    setBedCount((prev) => {
+      if (prev > maxBookableBeds) return maxBookableBeds;
+      return prev;
+    });
+  }, [maxBookableBeds]);
 
   useEffect(() => {
     // Auto-select bed number if only one is available and user is booking exactly one bed
     if (bookingMode === "normal" && room.available_bed_numbers?.length === 1 && bedCount === 1) {
       const singleBed = String(room.available_bed_numbers[0]);
-      if (selectedBedNumbers[0] !== singleBed) {
-        setSelectedBedNumbers([singleBed]);
-      }
+      setSelectedBedNumbers((prev) => {
+        if (prev.length !== 1 || prev[0] !== singleBed) {
+          return [singleBed];
+        }
+        return prev;
+      });
     }
-  }, [room.available_bed_numbers, bedCount, bookingMode, selectedBedNumbers]);
+  }, [room.available_bed_numbers, bedCount, bookingMode]);
 
   useEffect(() => {
     if (isDailyContract) {

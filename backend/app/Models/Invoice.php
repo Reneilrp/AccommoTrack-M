@@ -26,6 +26,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property array<array-key, mixed>|null $metadata
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property-read \App\Models\User|null $landlord
  * @property-read \App\Models\Property|null $property
  * @property-read \App\Models\User|null $tenant
  * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\PaymentTransaction> $transactions
@@ -106,6 +107,11 @@ class Invoice extends Model
     public function property()
     {
         return $this->belongsTo(Property::class, 'property_id');
+    }
+
+    public function landlord()
+    {
+        return $this->belongsTo(User::class, 'landlord_id');
     }
 
     public function booking()

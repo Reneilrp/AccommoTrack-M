@@ -62,12 +62,12 @@
 
                         <div>
                             <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Property</p>
-                            <p class="text-slate-800 font-semibold">{{ $invoice->property->name ?? 'AccommoTrack Partner' }}</p>
+                            <p class="text-slate-800 font-semibold">{{ $invoice->property?->title ?? $invoice->property?->name ?? 'AccommoTrack Partner' }}</p>
                         </div>
 
                         <div>
                             <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Total Amount</p>
-                            <p class="text-2xl font-extrabold text-slate-900 tracking-tighter">₱{{ number_format($invoice->amount_cents / 100, 2) }}</p>
+                            <p class="text-2xl font-extrabold text-slate-900 tracking-tighter">₱{{ number_format(($invoice->total_cents ?? $invoice->amount_cents) / 100, 2) }}</p>
                         </div>
                     </div>
                 </div>

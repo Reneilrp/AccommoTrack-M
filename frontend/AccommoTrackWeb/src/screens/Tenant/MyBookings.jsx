@@ -657,17 +657,20 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
     const overduePendingCheckInsCount = (pendingCheckIns || []).filter(pc => pc.isOverdue || pc.daysOverdue > 0).length;
     const overdueCount = ((stays || []).length - nonOverdueStaysCount) + ((pendingBookings || []).length - nonOverduePendingBookingsCount) + overduePendingCheckInsCount;
 
-    if (viewMode === 'active' && nonOverdueStaysCount === 0) {
-      if (nonOverduePendingCount > 0) setViewMode('pending');
-      else if (overdueCount > 0) setViewMode('overdue');
-    } else if (viewMode === 'pending' && nonOverduePendingCount === 0) {
-      if (nonOverdueStaysCount > 0) setViewMode('active');
-      else if (overdueCount > 0) setViewMode('overdue');
-    } else if (viewMode === 'overdue' && overdueCount === 0) {
-      if (nonOverdueStaysCount > 0) setViewMode('active');
-      else if (nonOverduePendingCount > 0) setViewMode('pending');
-    }
-  }, [stays, pendingBookings, pendingCheckIns, viewMode]);
+    setViewMode(prevMode => {
+      if (prevMode === 'active' && nonOverdueStaysCount === 0) {
+        if (nonOverduePendingCount > 0) return 'pending';
+        if (overdueCount > 0) return 'overdue';
+      } else if (prevMode === 'pending' && nonOverduePendingCount === 0) {
+        if (nonOverdueStaysCount > 0) return 'active';
+        if (overdueCount > 0) return 'overdue';
+      } else if (prevMode === 'overdue' && overdueCount === 0) {
+        if (nonOverdueStaysCount > 0) return 'active';
+        if (nonOverduePendingCount > 0) return 'pending';
+      }
+      return prevMode; // no change needed
+    });
+  }, [stays, pendingBookings, pendingCheckIns]);
 
   const showActiveView = viewMode === 'active' || viewMode === 'overdue';
   const showPendingView = viewMode === 'pending' || viewMode === 'overdue';

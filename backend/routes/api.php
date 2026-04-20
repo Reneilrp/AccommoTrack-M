@@ -94,6 +94,9 @@ Route::middleware([EdgeCacheMiddleware::class])->group(function () {
 
 Route::post('/payments/webhook/paymongo', [PaymongoWebhookController::class, 'handle']);
 
+// Public receipt endpoint: controller validates either signed URL or authenticated ownership/access.
+Route::get('/invoices/{id}/receipt', [InvoiceController::class, 'receipt'])->name('invoices.receipt');
+
 Route::get('/rooms/{id}/details', [PropertyController::class, 'getRoomDetails']);
 Route::get('/rooms/{room}/payment-options', [RoomController::class, 'getPaymentOptions']);
 Route::get('/rooms/{id}/pricing', [RoomController::class, 'pricing']);
@@ -378,7 +381,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/invoices', [InvoiceController::class, 'index']);
     Route::get('/invoices/bundle', [InvoiceController::class, 'getPaymentBundle']);
     Route::get('/invoices/summary', [InvoiceController::class, 'summary']);
-    Route::get('/invoices/{id}/receipt', [InvoiceController::class, 'receipt'])->name('invoices.receipt');
     Route::post('/invoices', [InvoiceController::class, 'store']);
     Route::get('/invoices/{id}', [InvoiceController::class, 'show']);
     Route::post('/invoices/{id}/charge', [InvoiceController::class, 'charge']);

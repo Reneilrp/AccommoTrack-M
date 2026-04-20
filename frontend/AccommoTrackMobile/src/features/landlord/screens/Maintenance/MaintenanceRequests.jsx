@@ -165,15 +165,21 @@ export default function MaintenanceRequests({ route }) {
 
   useEffect(() => {
     const focusId = route?.params?.focusRequestId;
-    if (focusId && !drilldownApplied && requests.length > 0) {
-      const target = requests.find(r => String(r.id) === String(focusId));
-      if (target) {
-        setDrilldownApplied(true);
-        setSelectedRequest(target);
-        setDetailsVisible(true);
-      }
+    if (focusId && requests.length > 0) {
+      setDrilldownApplied((prevApplied) => {
+        if (prevApplied) return true; // already applied
+
+        const target = requests.find(r => String(r.id) === String(focusId));
+        if (target) {
+          setSelectedRequest(target);
+          setDetailsVisible(true);
+          return true;
+        }
+
+        return false;
+      });
     }
-  }, [route?.params?.focusRequestId, requests, drilldownApplied]);
+  }, [route?.params?.focusRequestId, requests]);
 
   const handleUpdateStatus = async (id, newStatus) => {
     try {

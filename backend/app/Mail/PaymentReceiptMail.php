@@ -2,6 +2,7 @@
 
 namespace App\Mail;
 
+use App\Models\Invoice;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
@@ -17,9 +18,14 @@ class PaymentReceiptMail extends Mailable
     /**
      * Create a new message instance.
      */
-    public function __construct($invoice)
+    public function __construct(Invoice $invoice)
     {
-        $this->invoice = $invoice;
+        $this->invoice = $invoice->loadMissing([
+            'tenant',
+            'landlord',
+            'property.landlord',
+            'booking.tenant',
+        ]);
     }
 
     /**
@@ -28,7 +34,7 @@ class PaymentReceiptMail extends Mailable
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: 'Payment Receipt: '.$this->invoice->receipt_reference,
+            subject: 'Payment Receipt: '.($this->invoice->receipt_reference ?? $this->invoice->reference),
         );
     }
 

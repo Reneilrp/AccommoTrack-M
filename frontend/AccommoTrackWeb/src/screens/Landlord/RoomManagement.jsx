@@ -316,8 +316,8 @@ export default function RoomManagement() {
         cacheManager.set('accessible_properties', data);
 
         // If we don't have a property selected yet, pick the first one
-        if (!selectedPropertyId && data.length > 0) {
-          setSelectedPropertyId(data[0].id);
+        if (data.length > 0) {
+          setSelectedPropertyId(prev => prev || data[0].id);
         }
       } catch (__err) {
         setError('Failed to load properties');
@@ -327,7 +327,7 @@ export default function RoomManagement() {
     };
 
     loadInitialData();
-  }, [selectedPropertyId, updateData]);
+  }, [updateData, cachedProps]);
 
   const handleOpenRoomDetails = useCallback((room) => {
     // Ensure room object has tenants loaded as array for RoomDetails
@@ -344,18 +344,22 @@ export default function RoomManagement() {
     const params = new URLSearchParams(location.search || '');
     const roomId = params.get('roomId');
 
-    if (!roomId || drilldownApplied || rooms.length === 0) {
+    if (!roomId || rooms.length === 0) {
       return;
     }
 
-    const targetRoom = rooms.find((room) => String(room.id) === String(roomId));
-    if (!targetRoom) {
-      return;
-    }
+    setDrilldownApplied((prevApplied) => {
+      if (prevApplied) return true; // already applied
 
-    setDrilldownApplied(true);
-    handleOpenRoomDetails(targetRoom);
-  }, [location.search, rooms, drilldownApplied, handleOpenRoomDetails]);
+      const targetRoom = rooms.find((room) => String(room.id) === String(roomId));
+      if (targetRoom) {
+        handleOpenRoomDetails(targetRoom);
+        return true;
+      }
+      
+      return false;
+    });
+  }, [location.search, rooms, handleOpenRoomDetails]);
 
   // Get rooms
   const fetchRooms = useCallback(async () => {
@@ -394,7 +398,7 @@ export default function RoomManagement() {
     } finally {
       setLoadingRooms(false);
     }
-  }, [selectedPropertyId, uiState.data?.accessible_properties, location.search, drilldownApplied, handleOpenRoomDetails, updateData]);
+  }, [selectedPropertyId, uiState.data, location.search, drilldownApplied, handleOpenRoomDetails, updateData]);
 
   // Load rooms and stats when property changes
   useEffect(() => {

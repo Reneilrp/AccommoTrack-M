@@ -515,16 +515,15 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
       return;
     }
 
-    if (selectedBedNumbers.length > 0) {
-      return;
-    }
-
     if (singleAvailableBedNumber === null || singleAvailableBedNumber === undefined) {
       return;
     }
 
-    setSelectedBedNumbers([singleAvailableBedNumber]);
-  }, [bookingMode, roomPricingModel, selectedBedNumbers, singleAvailableBedNumber]);
+    setSelectedBedNumbers((prev) => {
+      if (prev.length > 0) return prev;
+      return [singleAvailableBedNumber];
+    });
+  }, [bookingMode, roomPricingModel, singleAvailableBedNumber]);
 
   const pricingStartDate = bookingData.start_date
     ? bookingData.start_date.toISOString().split('T')[0]

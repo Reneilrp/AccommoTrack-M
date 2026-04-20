@@ -362,10 +362,13 @@ export default function TenantsScreen({ navigation, route }) {
   }, [searchQuery, filter, selectedPropertyId]);
 
   useEffect(() => {
-    if (!selectedPropertyId && properties.length > 0) {
-      setSelectedPropertyId(normalizeId(properties[0].id));
+    if (properties.length > 0) {
+      setSelectedPropertyId((prev) => {
+        if (!prev) return normalizeId(properties[0].id);
+        return prev;
+      });
     }
-  }, [selectedPropertyId, properties]);
+  }, [properties]);
 
   const getTenantActionError = (errorOrMessage, fallbackMessage) =>
     normalizeActionError(errorOrMessage, fallbackMessage);

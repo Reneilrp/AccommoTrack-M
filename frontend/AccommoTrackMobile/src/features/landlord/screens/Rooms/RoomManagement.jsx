@@ -534,21 +534,22 @@ export default function RoomManagementScreen({ navigation, route }) {
   useEffect(() => {
     if (properties.length === 0) return;
 
-    if (!selectedPropertyId) {
-      setSelectedPropertyId(
-        normalizeId(preselectedPropertyId ?? properties[0].id),
-      );
-      return;
-    }
+    setSelectedPropertyId((prevId) => {
+      if (!prevId) {
+        return normalizeId(preselectedPropertyId ?? properties[0].id);
+      }
 
-    const hasSelectedProperty = properties.some(
-      (property) =>
-        normalizeId(property.id) === normalizeId(selectedPropertyId),
-    );
-    if (!hasSelectedProperty) {
-      setSelectedPropertyId(normalizeId(properties[0].id));
-    }
-  }, [preselectedPropertyId, properties, selectedPropertyId]);
+      const hasSelectedProperty = properties.some(
+        (property) => normalizeId(property.id) === normalizeId(prevId),
+      );
+      
+      if (!hasSelectedProperty) {
+        return normalizeId(properties[0].id);
+      }
+
+      return prevId;
+    });
+  }, [preselectedPropertyId, properties]);
 
   const handleSelectTenant = async (tenantId) => {
     if (!assignTargetRoom) return;

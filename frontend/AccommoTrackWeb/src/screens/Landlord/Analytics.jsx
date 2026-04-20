@@ -141,7 +141,7 @@ export default function Analytics() {
     } finally {
       setLoading(false);
     }
-  }, [didAutoResetProperty, properties, selectedProperty, timeRange, updateData]);
+  }, [didAutoResetProperty, properties, selectedProperty, timeRange, updateData, uiState.data?.landlord_analytics]);
 
   const handleRefresh = () => {
     // Clear all analytics caches for fresh data

@@ -83,7 +83,7 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
   const [loadingExtensions, setLoadingExtensions] = useState(false);
   const [transferRequests, setTransferRequests] = useState([]);
   const [loadingTransfers, setLoadingTransfers] = useState(false);
-  const [drilldownApplied, setDrilldownApplied] = useState(false);
+  const [, setDrilldownApplied] = useState(false);
   const [depositSettlementHistory, setDepositSettlementHistory] = useState([]);
   const [loadingDepositSettlementHistory, setLoadingDepositSettlementHistory] = useState(false);
   const [submittingDepositSettlement, setSubmittingDepositSettlement] = useState(false);
@@ -212,7 +212,7 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
       if (err.response?.status === 404 || err.response?.status === 204) setBookings([]);
       else setError(err.response?.data?.message || 'Failed to fetch bookings');
     } finally { setLoading(false); }
-  }, [updateData]);
+  }, [updateData, uiState.data?.landlord_bookings]);
 
   const fetchStats = useCallback(async () => {
     try {
@@ -580,18 +580,22 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
     const params = new URLSearchParams(location.search || '');
     const bookingId = params.get('bookingId');
 
-    if (!bookingId || drilldownApplied || bookings.length === 0) {
+    if (!bookingId || bookings.length === 0) {
       return;
     }
 
-    const targetBooking = bookings.find((booking) => String(booking.id) === String(bookingId));
-    if (!targetBooking) {
-      return;
-    }
+    setDrilldownApplied((prevApplied) => {
+      if (prevApplied) return true; // already applied
 
-    setDrilldownApplied(true);
-    handleOpenDetailModal(targetBooking);
-  }, [location.search, bookings, drilldownApplied, handleOpenDetailModal]);
+      const targetBooking = bookings.find((booking) => String(booking.id) === String(bookingId));
+      if (targetBooking) {
+        handleOpenDetailModal(targetBooking);
+        return true;
+      }
+      
+      return false;
+    });
+  }, [location.search, bookings, handleOpenDetailModal]);
 
   const handleDepositSettlementInput = (field, value) => {
     setDepositSettlementForm((prev) => ({

@@ -210,6 +210,12 @@ export default function ChatScreen({ navigation, route }) {
 
     const markAsReadMutation = useMutation({
         mutationFn: (conversationId) => MessageService.api.post(`/messages/${conversationId}/read`),
+        onMutate: async () => {
+            queryClient.setQueryData(messagesQueryKey, (old) => {
+                const messages = old || [];
+                return messages.map(m => !m.is_mine && !m.is_read ? { ...m, is_read: true } : m);
+            });
+        },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: tenantQueryKeys.messagesConversations() });
         }

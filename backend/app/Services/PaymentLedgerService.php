@@ -2,9 +2,12 @@
 
 namespace App\Services;
 
+use App\Mail\PaymentReceiptMail;
 use App\Models\Invoice;
 use App\Services\Subscription\SubscriptionCheckoutService;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 
 class PaymentLedgerService
 {
@@ -43,25 +46,65 @@ class PaymentLedgerService
             try {
                 $this->subscriptionCheckoutService->activateCheckoutSubscriptionFromPaidInvoice($invoice, $actorUserId);
             } catch (\Throwable $subscriptionError) {
-                \Illuminate\Support\Facades\Log::warning('Failed to auto-activate subscription after invoice recompute', [
+                Log::warning('Failed to auto-activate subscription after invoice recompute', [
                     'invoice_id' => $invoice->id,
                     'error' => $subscriptionError->getMessage(),
                 ]);
             }
 
             // Dispatch Receipt Email if not sent
-            if (! $invoice->receipt_sent_at && $invoice->tenant) {
-                try {
-                    \Illuminate\Support\Facades\Mail::to($invoice->tenant->email)->send(new \App\Mail\PaymentReceiptMail($invoice));
-                    $invoice->receipt_sent_at = now();
-                    $invoice->save();
-                } catch (\Throwable $e) {
-                    \Illuminate\Support\Facades\Log::error('Failed to send Payment Receipt Email', ['error' => $e->getMessage()]);
-                }
+            if (! $invoice->receipt_sent_at) {
+                $this->dispatchReceiptEmail($invoice);
             }
         }
 
         return $invoice;
+    }
+
+    private function dispatchReceiptEmail(Invoice $invoice): void
+    {
+        $invoice->loadMissing([
+            'tenant',
+            'landlord',
+            'property.landlord',
+            'booking.tenant',
+        ]);
+
+        if (! $invoice->tenant && $invoice->booking?->tenant) {
+            $invoice->setRelation('tenant', $invoice->booking->tenant);
+        }
+
+        if (! $invoice->landlord && $invoice->property?->landlord) {
+            $invoice->setRelation('landlord', $invoice->property->landlord);
+        }
+
+        $recipientEmail = $this->resolveReceiptRecipientEmail($invoice);
+        if (! $recipientEmail) {
+            Log::warning('Skipped Payment Receipt Email: no tenant email available', [
+                'invoice_id' => $invoice->id,
+            ]);
+
+            return;
+        }
+
+        try {
+            Mail::to($recipientEmail)->send(new PaymentReceiptMail($invoice));
+            $invoice->receipt_sent_at = now();
+            $invoice->save();
+        } catch (\Throwable $e) {
+            Log::error('Failed to send Payment Receipt Email', [
+                'invoice_id' => $invoice->id,
+                'recipient_email' => $recipientEmail,
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    private function resolveReceiptRecipientEmail(Invoice $invoice): ?string
+    {
+        $email = trim((string) ($invoice->tenant?->email ?? $invoice->booking?->tenant?->email ?? ''));
+
+        return filter_var($email, FILTER_VALIDATE_EMAIL) ? $email : null;
     }
 
     public function recomputeInvoiceAndBookingStatusById(?int $invoiceId, ?int $actorUserId = null): ?Invoice

@@ -196,15 +196,17 @@ export default function AddBooking({ navigation }) {
 
   useEffect(() => {
     if (!selectedRoom || selectedRoomBillingPolicy !== 'daily') return;
-    if (formData.checkOut) return;
 
-    const nextDay = new Date(formData.checkIn);
-    nextDay.setDate(nextDay.getDate() + 1);
-    setFormData((prev) => ({
-      ...prev,
-      checkOut: nextDay,
-    }));
-  }, [selectedRoom, selectedRoomBillingPolicy, formData.checkIn, formData.checkOut]);
+    setFormData((prev) => {
+      if (prev.checkOut) return prev;
+      const nextDay = new Date(prev.checkIn);
+      nextDay.setDate(nextDay.getDate() + 1);
+      return {
+        ...prev,
+        checkOut: nextDay,
+      };
+    });
+  }, [selectedRoom, selectedRoomBillingPolicy]);
 
   useEffect(() => {
     if (!guestSearch || guestSearch.trim().length < 2 || selectedGuest) {

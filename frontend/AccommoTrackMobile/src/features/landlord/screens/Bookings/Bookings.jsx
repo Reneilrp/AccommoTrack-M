@@ -358,23 +358,28 @@ export default function BookingsScreen({ navigation, route }) {
   }, [updateBookingsCache]);
 
   useEffect(() => {
-    if (!pendingFocusBookingId || bookings.length === 0) return;
+    if (bookings.length === 0) return;
 
-    const targetBooking = bookings.find((booking) => String(booking.id) === String(pendingFocusBookingId));
-    if (!targetBooking) return;
+    setPendingFocusBookingId((prevId) => {
+      if (!prevId) return prevId;
 
-    setSelectedBooking(targetBooking);
-    setDetailVisible(true);
-    resetSettlementState();
-    fetchSettlementHistory(targetBooking.id, false);
-    setPendingFocusBookingId(null);
+      const targetBooking = bookings.find((booking) => String(booking.id) === String(prevId));
+      if (!targetBooking) return prevId;
 
-    if (typeof navigation?.setParams === 'function') {
-      navigation.setParams({
-        focusBookingId: undefined,
-      });
-    }
-  }, [bookings, pendingFocusBookingId, navigation, fetchSettlementHistory]);
+      setSelectedBooking(targetBooking);
+      setDetailVisible(true);
+      resetSettlementState();
+      fetchSettlementHistory(targetBooking.id, false);
+
+      if (typeof navigation?.setParams === 'function') {
+        navigation.setParams({
+          focusBookingId: undefined,
+        });
+      }
+
+      return null;
+    });
+  }, [bookings, navigation, fetchSettlementHistory]);
 
   const openDetailModal = (booking) => {
     setSelectedBooking(booking);

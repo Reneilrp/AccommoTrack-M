@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { MoreVertical, Image as ImageIcon, Send, MessageCircle, Loader2, AlertTriangle, X, RotateCcw, Reply, Pencil, Trash2, CheckCheck, Paperclip, FileText, Download } from 'lucide-react';
 import api from '../../../utils/api';
 import { showSuccess, showError } from '../../../utils/toast';
+import { getAgeInYears } from '../../../utils/dateUtils';
 
 const ChatArea = ({
   selectedChat,
@@ -69,23 +70,6 @@ const ChatArea = ({
       }));
   }, [messages]);
 
-  const getAge = (dateOfBirth) => {
-    if (!dateOfBirth) return null;
-
-    const dob = new Date(dateOfBirth);
-    if (Number.isNaN(dob.getTime())) return null;
-
-    const now = new Date();
-    let age = now.getFullYear() - dob.getFullYear();
-    const monthDelta = now.getMonth() - dob.getMonth();
-
-    if (monthDelta < 0 || (monthDelta === 0 && now.getDate() < dob.getDate())) {
-      age -= 1;
-    }
-
-    return age >= 0 ? age : null;
-  };
-
   const formatPreferences = (preferences) => {
     if (!preferences) return [];
     if (Array.isArray(preferences)) {
@@ -116,7 +100,8 @@ const ChatArea = ({
   };
 
   const userPreferences = formatPreferences(otherUser?.preferences);
-  const userAge = getAge(otherUser?.date_of_birth);
+  const userAge = getAgeInYears(otherUser?.date_of_birth);
+  const ageDisplay = userAge !== null && userAge >= 0 ? userAge : null;
 
   if (!selectedChat) {
     return (
@@ -561,7 +546,7 @@ const ChatArea = ({
                     <div className="flex items-start justify-between gap-3">
                       <span className="text-gray-500 dark:text-gray-400">Age</span>
                       <span className="text-right font-semibold text-gray-900 dark:text-white">
-                        {userAge !== null ? `${userAge} years old` : 'Not provided'}
+                        {ageDisplay !== null ? `${ageDisplay} years old` : 'Not provided'}
                       </span>
                     </div>
 

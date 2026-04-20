@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+import { parseIsoDateOnly, getAgeInYears } from "../../utils/dateUtils";
 import {
   ChevronLeft,
   AlertCircle,
@@ -1049,19 +1050,9 @@ function AuthScreen({ isRegister = false, onLogin = () => { } }) {
     }
 
     if (formData.date_of_birth) {
-      const dobParts = formData.date_of_birth.split("-").map(Number);
-      const dob =
-        dobParts.length === 3
-          ? new Date(dobParts[0], dobParts[1] - 1, dobParts[2])
-          : new Date(NaN);
+      const dob = parseIsoDateOnly(formData.date_of_birth);
 
-      if (
-        Number.isNaN(dob.getTime()) ||
-        dobParts[1] < 1 ||
-        dobParts[1] > 12 ||
-        dobParts[2] < 1 ||
-        dobParts[2] > 31
-      ) {
+      if (!dob) {
         errors.date_of_birth = "Please provide a valid date of birth";
       } else {
         const today = new Date(
@@ -1074,17 +1065,10 @@ function AuthScreen({ isRegister = false, onLogin = () => { } }) {
           errors.date_of_birth = "Date of birth cannot be in the future";
         }
 
-        let age = today.getFullYear() - dob.getFullYear();
-        const monthDiff = today.getMonth() - dob.getMonth();
-        if (
-          monthDiff < 0 ||
-          (monthDiff === 0 && today.getDate() < dob.getDate())
-        ) {
-          age -= 1;
-        }
-
         const minAge = formData.role === "landlord" ? 21 : 18;
-        if (!errors.date_of_birth && age < minAge) {
+        const age = getAgeInYears(formData.date_of_birth, today);
+
+        if (!errors.date_of_birth && age !== null && age < minAge) {
           errors.date_of_birth = `You must be at least ${minAge} years old`;
         }
       }

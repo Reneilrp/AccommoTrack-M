@@ -189,17 +189,25 @@ export default function TransferRequests() {
 
   useEffect(() => {
     if (filteredRequests.length === 0) {
-      setSelectedRequestId(null);
-      setNotes('');
+      setSelectedRequestId((prevId) => {
+        if (prevId !== null) {
+          setNotes('');
+          return null;
+        }
+        return prevId;
+      });
       return;
     }
 
-    const stillExists = filteredRequests.some((item) => item.id === selectedRequestId);
-    if (!stillExists) {
-      setSelectedRequestId(filteredRequests[0].id);
-      setNotes(filteredRequests[0].landlord_notes || '');
-    }
-  }, [filteredRequests, selectedRequestId]);
+    setSelectedRequestId((prevId) => {
+      const stillExists = filteredRequests.some((item) => item.id === prevId);
+      if (!stillExists) {
+        setNotes(filteredRequests[0].landlord_notes || '');
+        return filteredRequests[0].id;
+      }
+      return prevId;
+    });
+  }, [filteredRequests]);
 
   const handleAction = async (transferId, action) => {
     try {
