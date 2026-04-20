@@ -72,6 +72,7 @@ class CartService
             'payment_plan' => $data['payment_plan'] ?? 'monthly',
             'price_snapshot' => $priceSnapshot,
             'occupants' => $data['occupants'] ?? null,
+            'addons' => $data['addons'] ?? null,
             'notes' => $data['notes'] ?? null,
         ]);
 
@@ -202,6 +203,7 @@ class CartService
                     'contract_mode' => $item->contract_mode,
                     'payment_plan' => $item->payment_plan,
                     'occupants' => $item->occupants,
+                    'addons' => $item->addons,
                     'notes' => $item->notes,
                     'booking_mode' => $item->isProxyBooking() ? 'proxy' : 'normal',
                 ];

@@ -610,5 +610,65 @@ proxyGenderPicker: {
     borderWidth: 1, 
     borderColor: theme.colors.border
   },
+  
+  // Addons Styles
+  addonItem: {
+    backgroundColor: theme.colors.background,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  addonItemActive: {
+    borderColor: theme.colors.primary,
+    backgroundColor: theme.colors.primary + '08', // Subtle primary tint
+  },
+  addonName: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: theme.colors.text,
+  },
+  addonNameActive: {
+    color: theme.colors.primary,
+  },
+  addonDescription: {
+    fontSize: 13,
+    color: theme.colors.textSecondary,
+    marginTop: 4,
+    lineHeight: 18,
+  },
+  addonPrice: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: theme.colors.text,
+  },
+  addonPriceActive: {
+    color: theme.colors.primary,
+  },
+  addonPriceType: {
+    fontSize: 11,
+    color: theme.colors.textTertiary,
+    textTransform: 'capitalize',
+  },
+  addonCheckbox: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: theme.colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 12,
+  },
+  addonCheckboxActive: {
+    backgroundColor: theme.colors.primary,
+    borderColor: theme.colors.primary,
+  },
   });
 };

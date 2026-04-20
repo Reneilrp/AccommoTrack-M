@@ -327,7 +327,7 @@ export default function RoomManagement() {
     };
 
     loadInitialData();
-  }, [cachedProps, selectedPropertyId, updateData]);
+  }, [selectedPropertyId, updateData]);
 
   const handleOpenRoomDetails = useCallback((room) => {
     // Ensure room object has tenants loaded as array for RoomDetails
@@ -394,7 +394,7 @@ export default function RoomManagement() {
     } finally {
       setLoadingRooms(false);
     }
-  }, [selectedPropertyId, uiState.data, location.search, drilldownApplied, handleOpenRoomDetails, updateData]);
+  }, [selectedPropertyId, uiState.data?.accessible_properties, location.search, drilldownApplied, handleOpenRoomDetails, updateData]);
 
   // Load rooms and stats when property changes
   useEffect(() => {

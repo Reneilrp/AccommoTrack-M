@@ -129,6 +129,14 @@ class PropertyResource extends JsonResource
                     ->where('booking_mode', 'proxy')
                     ->count()),
             ] : null,
+            'addons' => $this->whenLoaded('addons', fn () => $this->addons->map(fn ($addon) => [
+                'id' => $addon->id,
+                'name' => $addon->name,
+                'price' => (float) $addon->price,
+                'price_type' => $addon->price_type,
+                'addon_type' => $addon->addon_type,
+                'description' => $addon->description,
+            ])),
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,
         ];

@@ -102,6 +102,8 @@ class CartController extends Controller
             'occupants.*.sex' => 'required_with:occupants|in:male,female',
             'occupants.*.bed_number' => 'nullable|integer',
             'notes' => 'nullable|string|max:500',
+            'addons' => 'nullable|array',
+            'addons.*' => 'exists:addons,id',
         ]);
 
         if ($validator->fails()) {

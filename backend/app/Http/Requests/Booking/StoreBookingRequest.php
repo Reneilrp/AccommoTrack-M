@@ -137,6 +137,8 @@ class StoreBookingRequest extends FormRequest
             $rules['occupants.*.relationship_to_booker'] = 'required_with:occupants|string|max:64';
             $rules['occupants.*.phone'] = 'nullable|string|max:32';
             $rules['occupants.*.email'] = 'nullable|email|max:255';
+            $rules['addons'] = 'nullable|array';
+            $rules['addons.*'] = 'exists:addons,id';
 
         } else {
             // Cart checkout mapping
@@ -147,6 +149,8 @@ class StoreBookingRequest extends FormRequest
             $rules['items.*.end_date'] = 'nullable|date|after:items.*.start_date';
             $rules['items.*.move_in_date'] = 'nullable|date|after_or_equal:items.*.start_date';
             $rules['items.*.contract_mode'] = ['nullable', 'string', 'in:daily,monthly'];
+            $rules['items.*.addons'] = 'nullable|array';
+            $rules['items.*.addons.*'] = 'exists:addons,id';
 
             // Occupants for Cart
             $rules['items.*.occupants'] = 'required_if:booking_mode,proxy|array|min:1';

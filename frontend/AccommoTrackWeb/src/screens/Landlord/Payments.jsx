@@ -452,7 +452,7 @@ export default function Payments() {
         console.error("Failed to load invoice summary", err);
       }
     }
-  }, [statsRange, updateData, uiState.data?.landlord_payments]);
+  }, [statsRange, updateData]);
 
   useEffect(() => {
     loadSummary(statsRange, true);
@@ -571,7 +571,7 @@ export default function Payments() {
     } finally {
       setLoading(false);
     }
-  }, [archiveFilter, bookingsMap, cachedData, getPaymentError, loadBookingDetails, loadSummary, statsRange, uiState.data?.landlord_payments, updateData]);
+  }, [archiveFilter, bookingsMap, cachedData, getPaymentError, loadBookingDetails, loadSummary, statsRange, updateData]);
 
   useEffect(() => {
     // Auto-collapse sidebar when entering payments for wider table area.

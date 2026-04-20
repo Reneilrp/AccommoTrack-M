@@ -454,6 +454,20 @@ class BookingService
                 $booking->occupants()->createMany($occupantsPayload);
             }
 
+            // ATTACH ADDONS IF PROVIDED
+            if (! empty($data['addons'])) {
+                foreach ($data['addons'] as $addonId) {
+                    $addon = \App\Models\Addon::find($addonId);
+                    if ($addon) {
+                        $booking->addons()->attach($addonId, [
+                            'status' => 'pending',
+                            'quantity' => 1,
+                            'price_at_booking' => $addon->price,
+                        ]);
+                    }
+                }
+            }
+
             // GENERATE RESERVATION FEE INVOICE IF REQUIRED
             if ($requiresReservationFee && empty($data['skip_reservation_invoice'])) {
                 $reference = 'RES-'.date('Ymd').'-'.strtoupper(Str::random(6));

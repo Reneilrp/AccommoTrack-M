@@ -18,6 +18,7 @@ class CartItem extends Model
         'price_snapshot',
         'occupants',
         'notes',
+        'addons',
     ];
 
     protected $casts = [
@@ -25,7 +26,10 @@ class CartItem extends Model
         'end_date' => 'date',
         'price_snapshot' => 'decimal:2',
         'occupants' => 'array',
+        'addons' => 'array',
     ];
+
+    protected $appends = ['addons_details'];
 
     /**
      * Cart item belongs to a cart
@@ -57,5 +61,19 @@ class CartItem extends Model
     public function isProxyBooking()
     {
         return $this->getOccupantCount() > 0;
+    }
+
+    /**
+     * Get addons details
+     */
+    public function getAddonsDetailsAttribute()
+    {
+        if (empty($this->addons)) {
+            return [];
+        }
+
+        return \App\Models\Addon::whereIn('id', $this->addons)
+            ->select('id', 'name', 'price', 'price_type')
+            ->get();
     }
 }

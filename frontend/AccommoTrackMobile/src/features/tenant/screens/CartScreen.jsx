@@ -8,6 +8,7 @@ import {
   RefreshControl,
   Alert,
   DeviceEventEmitter,
+  Linking,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
@@ -103,16 +104,35 @@ export default function CartScreen() {
 
     if (result.success) {
       DeviceEventEmitter.emit('accommo:cart-updated');
-      Alert.alert(
-        'Success',
-        'Your bookings have been created successfully!',
-        [
-          {
-            text: 'View Bookings',
-            onPress: () => navigation.navigate('MyBookings'),
-          },
-        ]
-      );
+      
+      const resInvoice = result.data?.reservation_invoice;
+      const checkoutUrl = resInvoice?.checkout_url;
+
+      if (checkoutUrl) {
+        Alert.alert(
+          'Bookings Created',
+          'Your bookings have been created. Proceed to payment to confirm your reservations?',
+          [
+            { 
+              text: 'Pay Now', 
+              onPress: async () => {
+                await Linking.openURL(checkoutUrl);
+                navigation.navigate('MyBookings');
+              }
+            },
+            {
+              text: 'Later',
+              onPress: () => navigation.navigate('MyBookings')
+            }
+          ]
+        );
+      } else {
+        Alert.alert(
+          'Success',
+          'Your bookings have been created successfully!',
+          [{ text: 'View Bookings', onPress: () => navigation.navigate('MyBookings') }]
+        );
+      }
       setCart(null);
     } else {
       showError('Checkout Failed', result.error || 'Failed to complete checkout');
@@ -144,7 +164,11 @@ export default function CartScreen() {
   };
 
   const getTotalPrice = () => {
-    return cart?.items?.reduce((sum, item) => sum + parseFloat(item.price_snapshot || 0), 0) || 0;
+    return cart?.items?.reduce((sum, item) => {
+      const roomTotal = parseFloat(item.price_snapshot || 0);
+      const addonsTotal = (item.addons_details || []).reduce((aSum, a) => aSum + parseFloat(a.price || 0), 0);
+      return sum + roomTotal + addonsTotal;
+    }, 0) || 0;
   };
 
   const getTotalBeds = () => {
@@ -264,9 +288,35 @@ export default function CartScreen() {
                     </Text>
                   </View>
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                    <Text style={{ fontSize: 12, color: theme.colors.textSecondary }}>Price</Text>
-                    <Text style={{ fontSize: 14, fontWeight: '700', color: theme.colors.primary }}>
+                    <Text style={{ fontSize: 12, color: theme.colors.textSecondary }}>Room Price</Text>
+                    <Text style={{ fontSize: 12, fontWeight: '600', color: theme.colors.text }}>
                       {formatCurrency(item.price_snapshot)}
+                    </Text>
+                  </View>
+
+                  {item.addons_details && item.addons_details.length > 0 && (
+                    <View style={{ marginTop: 4, padding: 8, backgroundColor: theme.colors.backgroundSecondary, borderRadius: 6 }}>
+                      <Text style={{ fontSize: 11, fontWeight: '700', color: theme.colors.textSecondary, marginBottom: 4 }}>
+                        ADDONS
+                      </Text>
+                      {item.addons_details.map((addon) => (
+                        <View key={addon.id} style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 2 }}>
+                          <Text style={{ fontSize: 11, color: theme.colors.textSecondary }}>• {addon.name}</Text>
+                          <Text style={{ fontSize: 11, fontWeight: '600', color: theme.colors.text }}>
+                            {formatCurrency(addon.price)}
+                          </Text>
+                        </View>
+                      ))}
+                    </View>
+                  )}
+
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', borderTopWidth: 1, borderTopColor: theme.colors.border, paddingTop: 8, marginTop: 4 }}>
+                    <Text style={{ fontSize: 13, fontWeight: '700', color: theme.colors.text }}>Item Total</Text>
+                    <Text style={{ fontSize: 15, fontWeight: '700', color: theme.colors.primary }}>
+                      {formatCurrency(
+                        parseFloat(item.price_snapshot || 0) + 
+                        (item.addons_details || []).reduce((sum, a) => sum + parseFloat(a.price || 0), 0)
+                      )}
                     </Text>
                   </View>
                 </View>

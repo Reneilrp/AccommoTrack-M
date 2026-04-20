@@ -133,6 +133,7 @@ class PropertyController extends Controller
                         $q->withAggregates()->with($roomEagerLoads);
                     },
                     'images', 'landlord:id,first_name,last_name,email,phone,payment_methods_settings',
+                    'addons',
                     'reviews' => function ($q) {
                         $q->where('is_published', true);
                     },

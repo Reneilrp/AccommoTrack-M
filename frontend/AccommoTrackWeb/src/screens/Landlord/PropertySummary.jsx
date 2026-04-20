@@ -1450,7 +1450,7 @@ export default function PropertySummary({ caretakerPermissions = null }) {
       setProperty(cached.property);
       setLoading(false);
     }
-  }, [getCachedData, property, cacheKey, uiState.data]);
+  }, [getCachedData, property, cacheKey]);
 
   useEffect(() => {
     if (property?.images) {

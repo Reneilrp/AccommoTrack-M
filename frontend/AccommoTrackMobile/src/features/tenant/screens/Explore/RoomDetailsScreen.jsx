@@ -101,6 +101,7 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
   const [propertyData, setPropertyData] = useState(property || null);
   const [roomData, setRoomData] = useState(room || null);
   const [receiptImage, setReceiptImage] = useState(null);
+  const [selectedAddons, setSelectedAddons] = useState([]);
 
   const { data: profileResult } = useQuery({
     queryKey: tenantQueryKeys.profilePage(),
@@ -248,6 +249,14 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
   const [activeProxyDobPickerIndex, setActiveProxyDobPickerIndex] = useState(null);
   const [proxySexModalVisible, setProxySexModalVisible] = useState(false);
   const [activeProxySexIndex, setActiveProxySexIndex] = useState(null);
+  
+  const toggleAddon = (addonId) => {
+    setSelectedAddons(prev => 
+      prev.includes(addonId) 
+        ? prev.filter(id => id !== addonId) 
+        : [...prev, addonId]
+    );
+  };
 
   // Prefer the freshest room object (roomData updated on refresh), fallback to route param
   const activeRoom = roomData || room;
@@ -543,6 +552,10 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
       ? promoDiscountedTotal
       : Number(totalPrice || 0)
   );
+  
+  const selectedAddonsTotal = (propertyData?.addons || [])
+    .filter(addon => selectedAddons.includes(addon.id))
+    .reduce((sum, addon) => sum + (Number(addon.price) || 0), 0);
 
   useEffect(() => {
     if (!roomPaymentOptionsQuery.error) return;
@@ -1071,7 +1084,8 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
           payment_plan: isDailyContract ? 'full' : bookingData.payment_plan,
           bed_count: bookingMode === 'proxy' ? Math.max(1, normalizedOccupants.length) : 1,
           notes: bookingData.notes || '',
-          occupants: occupantsPayload
+          occupants: occupantsPayload,
+          addons: selectedAddons,
         };
 
         const result = await CartService.addToCart(payload);
@@ -1107,6 +1121,12 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
       data.append('payment_method', bookingData.payment_method || 'cash');
       data.append('payment_plan', isDailyContract ? 'full' : bookingData.payment_plan);
       if (bookingData.notes) data.append('notes', bookingData.notes);
+      
+      if (selectedAddons && selectedAddons.length > 0) {
+        selectedAddons.forEach((addonId, index) => {
+          data.append(`addons[${index}]`, String(addonId));
+        });
+      }
 
       if (bookingMode === 'proxy') {
         const inferredBedCount = Math.max(1, normalizedOccupants.length);
@@ -1943,6 +1963,51 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
                 </View>
               )}
 
+              {/* Addons Selection */}
+              {propertyData?.addons && propertyData.addons.length > 0 && (
+                <View style={styles.inputContainer}>
+                  <Text style={styles.inputLabel}>Available Addons</Text>
+                  <Text style={styles.summaryNote}>Select any additional services you'd like to include.</Text>
+                  <View style={{ marginTop: 10 }}>
+                    {propertyData.addons.map((addon) => {
+                      const isSelected = selectedAddons.includes(addon.id);
+                      return (
+                        <TouchableOpacity
+                          key={addon.id}
+                          style={[
+                            styles.addonItem,
+                            isSelected && styles.addonItemActive
+                          ]}
+                          onPress={() => toggleAddon(addon.id)}
+                        >
+                          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                            <View style={{ flex: 1 }}>
+                              <Text style={[styles.addonName, isSelected && styles.addonNameActive]}>
+                                {addon.name}
+                              </Text>
+                              {addon.description && (
+                                <Text style={styles.addonDescription}>{addon.description}</Text>
+                              )}
+                            </View>
+                            <View style={{ alignItems: 'flex-end', marginRight: 10 }}>
+                              <Text style={[styles.addonPrice, isSelected && styles.addonPriceActive]}>
+                                ₱{Number(addon.price).toLocaleString()}
+                              </Text>
+                              <Text style={styles.addonPriceType}>
+                                {addon.price_type === 'monthly' ? 'per month' : 'one-time'}
+                              </Text>
+                            </View>
+                            <View style={[styles.addonCheckbox, isSelected && styles.addonCheckboxActive]}>
+                              {isSelected && <Ionicons name="checkmark" size={16} color="#fff" />}
+                            </View>
+                          </View>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                </View>
+              )}
+
               {/* Payment Method Selection */}
               <View style={styles.inputContainer}>
                 <Text style={styles.inputLabel}>Payment Method <Text style={{ color: '#ef4444' }}>*</Text></Text>
@@ -2059,6 +2124,15 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
                     </View>
                   )}
 
+                  {selectedAddons && selectedAddons.length > 0 && (
+                    <View style={styles.summaryRow}>
+                      <Text style={styles.summaryLabel}>Addons Total</Text>
+                      <Text style={styles.summaryValue}>
+                        ₱{selectedAddonsTotal.toLocaleString()}
+                      </Text>
+                    </View>
+                  )}
+                  
                   {isReservationRequired && (
                     <View style={styles.summaryRow}>
                       <Text style={styles.summaryLabel}>Reservation Fee</Text>
@@ -2081,7 +2155,10 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
                     <Text style={styles.summaryLabelBold}>Total Amount</Text>
                     <Text style={styles.summaryValueBold}>
                       {isPricingLoading ? '...' : `₱${( // Use selectedPlanTotal which already accounts for promo
-                        (Number(selectedPlanTotal) || 0) + (activeRoom.requires_advance ? Number(activeRoom.monthly_rate) : 0) + (isReservationRequired ? reservationFeeAmount : 0)
+                        (Number(selectedPlanTotal) || 0) + 
+                        (activeRoom.requires_advance ? Number(activeRoom.monthly_rate) : 0) + 
+                        (isReservationRequired ? reservationFeeAmount : 0) +
+                        selectedAddonsTotal
                       ).toLocaleString()}`}
                     </Text>
                   </View>
