@@ -5,7 +5,7 @@ import { showSuccess, showError } from '../../utils/toast';
 import { useCart } from '../../contexts/CartContext';
 import { getImageUrl } from '../../utils/api';
 
-export default function CartDrawer({ isOpen, onClose }) {
+export default function CartDrawer({ isOpen, onClose, onEditItem }) {
   const {
     cart,
     loading,

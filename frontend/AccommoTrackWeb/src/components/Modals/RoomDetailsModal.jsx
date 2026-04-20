@@ -31,12 +31,10 @@ export default function RoomDetailsModal({
   initialView,
   onBookingSuccess,
   bookingService,
-  isEditing = false,
-  cartItem = null,
 }) {
   const PROXY_MINIMUM_AGE = 18;
   const navigate = useNavigate();
-  const { addToCart, addItem, updateItem } = useCart();
+  const { addToCart, addItem } = useCart();
   const [viewMode, setViewMode] = useState(initialView || "details"); // 'details' | 'booking'
   const [isCartMode, setIsCartMode] = useState(false);
   const [bedCount, setBedCount] = useState(1);
@@ -395,21 +393,6 @@ export default function RoomDetailsModal({
 
   // Initialize dates
   useEffect(() => {
-    if (isEditing && cartItem) {
-      setStartDate(cartItem.start_date || new Date().toISOString().split("T")[0]);
-      setEndDate(cartItem.end_date || "");
-      setBedCount(cartItem.bed_count || 1);
-      setNotes(cartItem.notes || "");
-      setPaymentPlan(cartItem.payment_plan || "monthly");
-      setContractMode(cartItem.contract_mode || "monthly");
-      setBookingMode(cartItem.occupants?.length > 0 ? "proxy" : "normal");
-      setProxyOccupants(cartItem.occupants || []);
-      setSelectedBedNumbers(cartItem.bed_numbers ? (typeof cartItem.bed_numbers === 'string' ? cartItem.bed_numbers.split(',') : cartItem.bed_numbers) : []);
-      setIsCartMode(true);
-      setViewMode("booking");
-      return;
-    }
-
     const today = new Date();
 
     setStartDate(today.toISOString().split("T")[0]);
@@ -422,7 +405,7 @@ export default function RoomDetailsModal({
     } else {
       setEndDate("");
     }
-  }, [isDailyContract, isEditing, cartItem]);
+  }, [isDailyContract]);
 
   // Fetch pricing whenever dates change
   useEffect(() => {
@@ -829,20 +812,15 @@ export default function RoomDetailsModal({
           payload.bed_number = selectedBedNumbers[0];
         }
 
-        let result;
-        if (isEditing && cartItem?.id) {
-          result = await updateItem(cartItem.id, payload);
-        } else {
-          result = await addItem(payload);
-        }
+        const result = await addItem(payload);
 
         if (result.success) {
-          showSuccess(isEditing ? "Selection updated successfully!" : "Room added to your book!");
+          showSuccess("Room added to your book!");
           if (onBookingSuccess) onBookingSuccess(result.data);
           onClose();
         } else {
           const validationMessage = formatApiValidationMessage(result.details || result.errors);
-          showError(validationMessage || result.error || (isEditing ? "Failed to update item" : "Failed to add to book"));
+          showError(validationMessage || result.error || "Failed to add to book");
         }
         setIsSubmitting(false);
         return;

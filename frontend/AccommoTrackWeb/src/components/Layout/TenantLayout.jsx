@@ -25,6 +25,7 @@ import {
   ShoppingCart
 } from 'lucide-react';
 import RoomDetailsModal from '../Modals/RoomDetailsModal';
+import EditCartItemModal from '../Modals/EditCartItemModal';
 
 export default function TenantLayout({ user, onLogout, children }) {
   const { isSidebarOpen, setIsSidebarOpen, asideRef } = useSidebar();
@@ -314,17 +315,13 @@ export default function TenantLayout({ user, onLogout, children }) {
       />
 
       {isEditModalOpen && (
-        <RoomDetailsModal
-          room={editingItem?.room}
-          property={editingItem?.room?.property}
+        <EditCartItemModal
+          item={editingItem}
           isOpen={isEditModalOpen}
           onClose={() => {
             setIsEditModalOpen(false);
             setEditingItem(null);
           }}
-          isAuthenticated={!!user}
-          isEditing={true}
-          cartItem={editingItem}
         />
       )}
     </div>

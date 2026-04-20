@@ -649,7 +649,22 @@ export const rootApi = axios.create({
   },
 });
 
+
 rootApi.interceptors.response.use(
   (response) => ensureJsonApiResponse(response),
   (error) => Promise.reject(error),
 );
+
+/**
+ * Format API validation errors into a human-readable string
+ * @param {Object} errors - The errors object from API response
+ * @returns {string} Formatted error message
+ */
+export const formatApiValidationMessage = (errors) => {
+  if (!errors) return "";
+  if (typeof errors === "string") return errors;
+
+  return Object.values(errors)
+    .flat()
+    .join(". ");
+};

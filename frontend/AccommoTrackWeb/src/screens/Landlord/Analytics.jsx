@@ -336,7 +336,6 @@ export default function Analytics() {
       ['Available Rooms', analytics.overview.available_rooms],
       ['Active Tenants', analytics.overview.active_tenants],
       ['New Tenants (Current Period)', analytics.overview.new_tenants_this_month],
-      ['Average Stay Duration', `${analytics.tenants.average_stay_months} months`],
       [''],
       ['=== REVENUE TREND ANALYSIS ==='],
       ['Period/Month', 'Revenue Amount', 'Growth Status'],
@@ -789,16 +788,6 @@ export default function Analytics() {
                   title="New Tenants"
                   meta="Arrived this month"
                   value={(analytics.overview?.new_tenants_this_month || 0).toLocaleString()}
-                />
-
-                {/* Card 6: Avg Stay */}
-                <MetricCard
-                  Icon={RotateCcw}
-                  iconBgClass="bg-orange-100"
-                  iconColorClass="text-orange-600"
-                  title="Avg Retention"
-                  meta="Average months stay"
-                  value={`${analytics.tenants?.average_stay_months || 0}mo`}
                 />
               </div>
 

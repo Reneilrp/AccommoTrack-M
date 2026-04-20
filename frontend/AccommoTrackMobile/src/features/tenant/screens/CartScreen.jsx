@@ -200,7 +200,10 @@ export default function CartScreen() {
   if (!cart || !cart.items || cart.items.length === 0) {
     return (
       <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
-        <View style={{ padding: 16, borderBottomWidth: 1, borderBottomColor: theme.colors.border }}>
+        <View style={{ padding: 16, borderBottomWidth: 1, borderBottomColor: theme.colors.border, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+          <TouchableOpacity onPress={() => navigation.goBack()}>
+            <Ionicons name="arrow-back" size={24} color={theme.colors.text} />
+          </TouchableOpacity>
           <Text style={{ fontSize: 20, fontWeight: 'bold', color: theme.colors.text }}>Add to Book</Text>
         </View>
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 32 }}>
@@ -231,8 +234,11 @@ export default function CartScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
       {/* Header */}
-      <View style={{ padding: 16, borderBottomWidth: 1, borderBottomColor: theme.colors.border }}>
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+      <View style={{ padding: 16, borderBottomWidth: 1, borderBottomColor: theme.colors.border, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+        <TouchableOpacity onPress={() => navigation.goBack()}>
+          <Ionicons name="arrow-back" size={24} color={theme.colors.text} />
+        </TouchableOpacity>
+        <View style={{ flex: 1, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
           <Text style={{ fontSize: 20, fontWeight: 'bold', color: theme.colors.text }}>
             Add to Book ({cart.items.length})
           </Text>

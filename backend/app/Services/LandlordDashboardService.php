@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\DB;
 
 class LandlordDashboardService
 {
-    public function getStats(int $landlordId, ?array $assignedPropertyIds, bool $isCaretaker): array
+    public function getStats(int $landlordId, ?array $assignedPropertyIds, bool $isCaretaker, ?\App\Models\CaretakerAssignment $assignment = null): array
     {
         // 1. Optimized Properties Stats (Single Query)
         $propStats = Property::where('landlord_id', $landlordId)
@@ -76,7 +76,7 @@ class LandlordDashboardService
             'requests' => ['maintenance' => $pendingMaintenance, 'addons' => $pendingAddons],
         ];
 
-        if (!$isCaretaker) {
+        if (!$isCaretaker || ($assignment && $assignment->can_view_analytics)) {
             $currentMonthStart = now()->startOfMonth();
             $currentMonthEnd = now()->endOfMonth();
 
@@ -206,10 +206,12 @@ class LandlordDashboardService
                 });
             } elseif ($propertyId) {
                 $invoiceQuery->where('property_id', $propertyId);
+            } elseif ($assignedPropertyIds) {
+                $invoiceQuery->whereIn('property_id', $assignedPropertyIds);
             }
             $activities = $activities->merge($invoiceQuery->limit(10)->get());
 
-            $paymentsQuery = \App\Models\PaymentTransaction::whereHas('invoice', function ($q) use ($landlordId, $propertyId, $roomId) {
+            $paymentsQuery = \App\Models\PaymentTransaction::whereHas('invoice', function ($q) use ($landlordId, $propertyId, $roomId, $assignedPropertyIds) {
                 $q->where('landlord_id', $landlordId);
                 if ($roomId) {
                     $q->whereHas('booking', function ($bq) use ($roomId) {
@@ -217,6 +219,8 @@ class LandlordDashboardService
                     });
                 } elseif ($propertyId) {
                     $q->where('property_id', $propertyId);
+                } elseif ($assignedPropertyIds) {
+                    $q->whereIn('property_id', $assignedPropertyIds);
                 }
             })->with(['invoice.booking.room', 'tenant'])->orderBy('created_at', 'desc');
             $activities = $activities->merge($paymentsQuery->limit(15)->get());
@@ -231,6 +235,8 @@ class LandlordDashboardService
                 });
             } elseif ($propertyId) {
                 $maintenanceQuery->where('property_id', $propertyId);
+            } elseif ($assignedPropertyIds) {
+                $maintenanceQuery->whereIn('property_id', $assignedPropertyIds);
             }
             $activities = $activities->merge($maintenanceQuery->limit(10)->get());
         }
@@ -355,11 +361,17 @@ class LandlordDashboardService
 
         // 1. Invoices & Payments (Landlord or Caretaker with can_manage_payments)
         if (!$isCaretaker || ($assignment && ($assignment->can_manage_payments || $assignment->can_record_payments))) {
-            $unpaidBookings = Booking::where('landlord_id', $landlordId)
+            $unpaidBookingsQuery = Booking::where('landlord_id', $landlordId)
                 ->where('status', 'confirmed')
                 ->whereIn('payment_status', ['unpaid', 'partial'])
                 ->with(['tenant', 'property', 'room'])
-                ->orderBy('start_date', 'asc')->get();
+                ->orderBy('start_date', 'asc');
+
+            if ($assignedPropertyIds) {
+                $unpaidBookingsQuery->whereIn('property_id', $assignedPropertyIds);
+            }
+
+            $unpaidBookings = $unpaidBookingsQuery->get();
 
             $overdueInvoicesQuery = Invoice::where('landlord_id', $landlordId)
                 ->whereIn('status', ['pending', 'overdue'])

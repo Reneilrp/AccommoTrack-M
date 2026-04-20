@@ -109,7 +109,8 @@ export default function TenantLayout({ onLogout, isGuest = false, onAuthRequired
     'MyReviews',
     'PaymentDetail',
     'PaymentHistory',
-    'Notifications'
+    'Notifications',
+    'Cart'
   ]);
   
   // Also respect explicit route param hideLayout=true

@@ -30,7 +30,12 @@ class LandlordDashboardController extends Controller
             
             return \Illuminate\Support\Facades\Cache::remember($cacheKey, 60, function() use ($request, $context, $isCaretaker, $assignedPropertyIds) {
                 // Run all heavy data fetching in one bundled request
-                $stats = $this->dashboardService->getStats($context['landlord_id'], $assignedPropertyIds, $isCaretaker);
+                $stats = $this->dashboardService->getStats(
+                    $context['landlord_id'],
+                    $assignedPropertyIds,
+                    $isCaretaker,
+                    $context['assignment'] ?? null
+                );
                 
                 // Re-use logic from individual methods to maintain consistency
                 $activities = $this->getRecentActivitiesInternal($request, $context);
@@ -80,7 +85,8 @@ class LandlordDashboardController extends Controller
             $stats = $this->dashboardService->getStats(
                 $context['landlord_id'],
                 $assignedPropertyIds,
-                $context['is_caretaker']
+                $context['is_caretaker'],
+                $context['assignment'] ?? null
             );
 
             return response()->json($stats, 200);

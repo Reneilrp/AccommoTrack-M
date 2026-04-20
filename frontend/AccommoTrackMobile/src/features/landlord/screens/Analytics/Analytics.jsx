@@ -563,7 +563,6 @@ export default function Analytics({ navigation }) {
           <MetricCard 
             label="New Tenants" 
             value={overview.new_tenants_this_month} 
-            subValue={`${tenants.average_stay_months} mo avg stay`}
             tag="This Month"
             icon="person-add-outline" color="#9333EA" bgColor="#F3E8FF"
             styles={styles}
