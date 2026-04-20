@@ -41,6 +41,7 @@ const TransactionItem = ({ item, theme }) => {
           color: theme.colors.textSecondary 
         }}>
           {date} • {item.property?.title || 'System'}
+          {item.invoice?.invoice_number ? ` • Inv #${item.invoice.invoice_number}` : ''}
         </Text>
       </View>
 
@@ -99,45 +100,8 @@ export default function MyWallet() {
         </View>
       ) : (
         <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 40 }}>
-          {/* Balance Card */}
-          <View style={{ padding: 20 }}>
-            <View style={{
-              backgroundColor: '#10B981', 
-              borderRadius: 24,
-              padding: 28,
-              width: '100%',
-              shadowColor: "#059669", 
-              shadowOffset: { width: 0, height: 8 },
-              shadowOpacity: 0.4,
-              shadowRadius: 10,
-              elevation: 8,
-            }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 20 }}>
-                <View style={{ 
-                  backgroundColor: 'rgba(255,255,255,0.2)', 
-                  padding: 8, 
-                  borderRadius: 12,
-                  marginRight: 12
-                }}>
-                  <Ionicons name="wallet-outline" size={20} color="white" />
-                </View>
-                <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 16, letterSpacing: 0.5 }}>AVAILABLE CREDITS</Text>
-              </View>
-              <Text style={{ color: 'white', fontWeight: '900', fontSize: 42, letterSpacing: -1 }}>
-                ₱{balance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-              </Text>
-              <View style={{ 
-                marginTop: 20, 
-                paddingTop: 20, 
-                borderTopWidth: 1, 
-                borderTopColor: 'rgba(255,255,255,0.15)' 
-              }}>
-                <Text style={{ color: '#D1FAE5', fontSize: 13, lineHeight: 18, fontWeight: '500' }}>
-                  Use this balance to discount your next payment. Credits are automatically applied upon checkout.
-                </Text>
-              </View>
-            </View>
-          </View>
+          {/* Header Spacer */}
+          <View style={{ height: 20 }} />
 
           {/* History Section */}
           <View style={{ paddingHorizontal: 20, marginTop: 10 }}>

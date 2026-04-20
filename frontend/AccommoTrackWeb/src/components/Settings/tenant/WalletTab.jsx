@@ -147,6 +147,12 @@ const WalletTab = () => {
                             <span className="text-gray-700 dark:text-gray-300 font-bold">{log.room.room_number}</span>
                           </div>
                         )}
+                        {log.invoice?.invoice_number && (
+                          <div className="flex items-center gap-1.5 text-xs text-brand-600 dark:text-brand-400 font-bold border-l border-gray-200 dark:border-gray-700 pl-3">
+                            <span className="uppercase tracking-tight opacity-70">Inv #:</span>
+                            <span>{log.invoice.invoice_number}</span>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>

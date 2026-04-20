@@ -1233,20 +1233,28 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
                 </div>
               );
             }
-            const { booking, room, property, landlord, addons = { active: [], pending: [], available: [], monthlyTotal: 0 } } = data;
+            const booking = data?.booking || {};
+            const room = data?.room || {};
+            const property = data?.property || {};
+            const landlord = data?.landlord || {};
+            const addons = data?.addons || { active: [], pending: [], available: [], monthlyTotal: 0 };
+
             const addonMonthlyTotal = Number(addons?.monthlyTotal ?? addons?.monthly_total ?? 0);
-            const effectivePaymentStatus = booking.is_overdue || booking.isOverdue ? 'overdue' : booking.paymentStatus;
+            const effectivePaymentStatus = (booking?.is_overdue || booking?.isOverdue) ? 'overdue' : (booking?.paymentStatus || 'unknown');
             const hasCheckoutDate = Boolean(booking?.endDate || booking?.end_date);
             const isMonthlyBilling = String(booking?.billing_policy || booking?.billingPolicy || 'monthly').toLowerCase() === 'monthly';
+            
             const invoiceList = Array.isArray(data?.financials?.invoices)
               ? data.financials.invoices
               : Array.isArray(booking?.financials?.invoices)
                 ? booking.financials.invoices
                 : [];
+            
             const shouldUsePaymentCountdown = isMonthlyBilling && !hasCheckoutDate;
             const paymentCountdown = shouldUsePaymentCountdown
               ? resolveMonthlyPaymentCountdown(booking, invoiceList)
               : null;
+            
             const resolvedBedCount = Math.max(1, toWholeNumber(booking?.bed_count ?? booking?.bedCount, 1));
             const resolvedOccupantCount = Math.max(
               1,
@@ -1327,11 +1335,11 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
                     </div>
                     <div className="p-6">
                       <div className={`grid grid-cols-2 ${isProxyBooking ? 'md:grid-cols-5' : 'md:grid-cols-4'} gap-4`}>
-                        <StatCard label="Room" value={room.roomNumber} icon={DoorOpen} />
+                        <StatCard label="Room" value={room?.roomNumber || room?.room_number || '—'} icon={DoorOpen} />
                         {isProxyBooking && <StatCard label={occupancyLabel} value={occupancyValue} icon={Users} />}
                         <StatCard
-                          label={booking.billing_policy === 'daily' ? 'Daily Rent' : 'Monthly Rent'}
-                          value={`₱${(booking.unit_price || booking.monthlyRent || 0).toLocaleString()}`}
+                          label={booking?.billing_policy === 'daily' ? 'Daily Rent' : 'Monthly Rent'}
+                          value={`₱${(booking?.unit_price || booking?.monthlyRent || 0).toLocaleString()}`}
                           icon={Banknote}
                         />
                         {(() => {
@@ -1373,7 +1381,7 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
                         })()}
                         <StatCard
                           label="Status"
-                          value={booking.is_overdue || booking.isOverdue ? 'Overdue' : booking.paymentStatus}
+                          value={(booking?.is_overdue || booking?.isOverdue) ? 'Overdue' : (booking?.paymentStatus || 'Active')}
                           tone="status"
                           statusKey={effectivePaymentStatus}
                           icon={CreditCard}
@@ -1405,40 +1413,40 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
                         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                           <p className="text-sm text-gray-500 dark:text-gray-400 flex items-center gap-2">
                             <span className="font-bold dark:text-gray-300">Lease:</span>
-                            {formatDate(booking.startDate)} to {booking.endDate ? formatDate(booking.endDate) : 'Open-ended'}
+                            {formatDate(booking?.startDate)} to {booking?.endDate ? formatDate(booking.endDate) : 'Open-ended'}
                             <span className="bg-gray-100 dark:bg-gray-700 px-2 py-2 rounded text-[10px] font-bold uppercase ml-2">
-                              {booking.totalMonths} {Number(booking.totalMonths) === 1 ? 'month' : 'months'}
+                              {booking?.totalMonths || 0} {Number(booking?.totalMonths || 0) === 1 ? 'month' : 'months'}
                             </span>
                           </p>
 
                           <div className="flex flex-col items-start md:items-end gap-2">
                             <div className="flex items-center gap-2 flex-wrap">
                               {/* Extend Stay button — only if expiring within 30 days */}
-                              {(() => {
-                                const contractMode = String(booking.contract_mode || booking.contractMode || '').toLowerCase();
-                                const isOpenEndedMonthly = contractMode === 'monthly' && !booking.endDate;
-                                if (isOpenEndedMonthly || !booking.endDate) return null;
-                                const end = new Date(booking.endDate);
-                                const today = new Date();
-                                const daysLeft = Math.ceil((end - today) / (1000 * 60 * 60 * 24));
-                                if (daysLeft > 30) return null;
-                                return (
-                                  <button
-                                    onClick={onRequestExtension}
-                                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-bold shadow-md shadow-blue-500/20 transition-all active:scale-95"
-                                  >
-                                    <CalendarDays className="w-4 h-4" />
-                                    Extend Stay
-                                  </button>
-                                );
-                              })()}
+                                {(() => {
+                                  const contractMode = String(booking?.contract_mode || booking?.contractMode || '').toLowerCase();
+                                  const isOpenEndedMonthly = contractMode === 'monthly' && !booking?.endDate;
+                                  if (isOpenEndedMonthly || !booking?.endDate) return null;
+                                  const end = new Date(booking.endDate);
+                                  const today = new Date();
+                                  const daysLeft = Math.ceil((end - today) / (1000 * 60 * 60 * 24));
+                                  if (daysLeft > 30) return null;
+                                  return (
+                                    <button
+                                      onClick={onRequestExtension}
+                                      className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-bold shadow-md shadow-blue-500/20 transition-all active:scale-95"
+                                    >
+                                      <CalendarDays className="w-4 h-4" />
+                                      Extend Stay
+                                    </button>
+                                  );
+                                })()}
 
                               {/* Transfer button */}
                               {(() => {
-                                const isPendingForThisBooking = pendingTransferBookingIds.includes(booking.id);
-                                const pendingRequestForThisBooking = pendingTransferRequests.find(
-                                  (request) => Number(request.booking_id) === Number(booking.id),
-                                );
+                                  const isPendingForThisBooking = booking?.id ? pendingTransferBookingIds.includes(booking.id) : false;
+                                  const pendingRequestForThisBooking = booking?.id ? pendingTransferRequests.find(
+                                    (request) => Number(request.booking_id) === Number(booking.id),
+                                  ) : null;
                                 const limitReached = monthlyTransferCount >= 2;
                                 const now = new Date();
                                 const nextMonthStart = new Date(now.getFullYear(), now.getMonth() + 1, 1);
@@ -1630,22 +1638,18 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
                       </div>
                     </div>
                     <div className="space-y-4">
-                      {landlord?.email && (
-                        <a href={`mailto:${landlord.email}`} className="flex items-center gap-4 text-sm text-gray-600 dark:text-gray-300 hover:text-green-600 dark:hover:text-green-400 transition-colors">
-                          <div className="w-8 h-8 bg-gray-50 dark:bg-gray-700 rounded-lg flex items-center justify-center">
-                            <Mail className="w-4 h-4" />
+                        <a href={`mailto:${landlord?.email || ''}`} className="flex items-center gap-4 text-sm text-gray-600 dark:text-gray-300 hover:text-green-600 dark:hover:text-green-400 transition-colors">
+                          <div className="w-10 h-10 rounded-xl bg-gray-100 dark:bg-gray-700 flex items-center justify-center text-gray-500 dark:text-gray-400 shrink-0">
+                            <Mail className="w-5 h-5" />
                           </div>
-                          {landlord.email}
+                          {landlord?.email || 'N/A'}
                         </a>
-                      )}
-                      {landlord?.phone && (
-                        <a href={`tel:${landlord.phone}`} className="flex items-center gap-4 text-sm text-gray-600 dark:text-gray-300 hover:text-green-600 dark:hover:text-green-400 transition-colors">
-                          <div className="w-8 h-8 bg-gray-50 dark:bg-gray-700 rounded-lg flex items-center justify-center">
-                            <Phone className="w-4 h-4" />
+                        <a href={`tel:${landlord?.phone || ''}`} className="flex items-center gap-4 text-sm text-gray-600 dark:text-gray-300 hover:text-green-600 dark:hover:text-green-400 transition-colors">
+                          <div className="w-10 h-10 rounded-xl bg-gray-100 dark:bg-gray-700 flex items-center justify-center text-gray-500 dark:text-gray-400 shrink-0">
+                            <Phone className="w-5 h-5" />
                           </div>
-                          {landlord.phone}
+                          {landlord?.phone || 'N/A'}
                         </a>
-                      )}
                       <button
                         onClick={() => navigate('/messages', {
                           state: {
@@ -1853,6 +1857,7 @@ const FinancialsTab = ({ stays = [], selectedIndex = 0, onSelectStay, navigate }
             <table className="w-full">
               <thead>
                 <tr className="bg-gray-50 dark:bg-gray-900/50 border-b border-gray-300 dark:border-gray-700">
+                  <th className="text-left py-4 px-6 text-xs font-semibold text-gray-500 uppercase tracking-wider">ID</th>
                   <th className="text-left py-4 px-6 text-xs font-semibold text-gray-500 uppercase tracking-wider">Date</th>
                   <th className="text-left py-4 px-6 text-xs font-semibold text-gray-500 uppercase tracking-wider">Amount</th>
                   <th className="text-left py-4 px-6 text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
@@ -1861,7 +1866,12 @@ const FinancialsTab = ({ stays = [], selectedIndex = 0, onSelectStay, navigate }
               <tbody className="divide-y divide-gray-300 dark:divide-gray-700">
                 {recentTransactions.map((tx) => (
                   <tr key={tx.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-                    <td className="py-4 px-6 text-sm font-medium text-gray-600 dark:text-gray-400">{tx.date}</td>
+                    <td className="py-4 px-6 text-sm font-bold text-gray-900 dark:text-white whitespace-nowrap">
+                      #{invoices.find(inv => inv.id === tx.invoiceRef)?.invoice_number || tx.invoiceRef}
+                    </td>
+                    <td className="py-4 px-6 text-sm font-medium text-gray-600 dark:text-gray-400">
+                      {new Date(tx.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                    </td>
                     <td className="py-4 px-6 text-sm font-bold text-gray-900 dark:text-white">₱{(tx.amount || 0).toLocaleString()}</td>
                     <td className="py-4 px-6">
                       <span className={`px-2 py-2 rounded-md text-[10px] font-bold uppercase ${['succeeded', 'paid', 'completed', 'approved', 'verified'].includes(tx.normalizedStatus)

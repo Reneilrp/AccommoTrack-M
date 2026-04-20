@@ -103,6 +103,7 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
   const [receiptImage, setReceiptImage] = useState(null);
   const [agreedToRules, setAgreedToRules] = useState(false);
   const [selectedAddons, setSelectedAddons] = useState([]);
+  const [selectedBedNumbers, setSelectedBedNumbers] = useState([]);
 
   const { data: profileResult } = useQuery({
     queryKey: tenantQueryKeys.profilePage(),
@@ -256,6 +257,14 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
       prev.includes(addonId) 
         ? prev.filter(id => id !== addonId) 
         : [...prev, addonId]
+    );
+  };
+
+  const toggleBedNumber = (bedNum) => {
+    setSelectedBedNumbers(prev => 
+      prev.includes(bedNum) 
+        ? prev.filter(b => b !== bedNum) 
+        : [...prev, bedNum]
     );
   };
 
@@ -754,6 +763,7 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
     setProxyOccupants([createEmptyOccupant(requiredProxyGender)]);
     setActiveProxyDobPickerIndex(null);
     setReceiptImage(null);
+    setSelectedBedNumbers([]);
 
     setBookingModalVisible(true);
   };
@@ -1050,6 +1060,14 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
         }
       }
 
+      if (bookingMode === 'normal') {
+        const finalBedCount = activeRoom.pricing_model === 'per_bed' ? selectedBedNumbers.length : 1;
+        if (activeRoom.pricing_model === 'per_bed' && finalBedCount === 0) {
+          showError('Selection Required', 'Please select at least one bed to proceed.');
+          return;
+        }
+      }
+
       setIsSubmitting(true);
 
       const payload = {
@@ -1063,6 +1081,11 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
         notes: bookingData.notes || '',
         agreed_to_rules: true,
       };
+
+      if (bookingMode === 'normal' && activeRoom.pricing_model === 'per_bed' && selectedBedNumbers.length > 0) {
+        payload.bed_numbers = selectedBedNumbers.join(',');
+        payload.bed_count = selectedBedNumbers.length;
+      }
 
       if (selectedAddons && selectedAddons.length > 0) {
         payload.addons = selectedAddons;
@@ -1649,6 +1672,40 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
                   </Text>
                 )}
               </View>
+
+              {activeRoom.pricing_model === 'per_bed' && bookingMode === 'normal' && (
+                <View style={styles.inputContainer}>
+                  <Text style={styles.inputLabel}>Select Bed(s)</Text>
+                  <Text style={styles.summaryNote}>Available beds in this room. Capacity: {activeRoom.capacity}</Text>
+                  <View style={styles.bedGrid}>
+                    {(activeRoom.available_bed_numbers || []).map((bedNum) => {
+                      const isSelected = selectedBedNumbers.includes(bedNum);
+                      return (
+                        <TouchableOpacity
+                          key={`bed-${bedNum}`}
+                          style={[
+                            styles.bedItem,
+                            isSelected && styles.bedItemActive
+                          ]}
+                          onPress={() => toggleBedNumber(bedNum)}
+                        >
+                          <Text style={[
+                            styles.bedItemText,
+                            isSelected && styles.bedItemTextActive
+                          ]}>
+                            Bed {bedNum}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                    {(!activeRoom.available_bed_numbers || activeRoom.available_bed_numbers.length === 0) && (
+                      <Text style={[styles.summaryNote, { color: theme.colors.error }]}>
+                        No specific beds available for selection.
+                      </Text>
+                    )}
+                  </View>
+                </View>
+              )}
 
               {supportsContractModeSwitch && (
                 <View style={styles.inputContainer}>

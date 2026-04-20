@@ -1120,6 +1120,7 @@ class InvoiceController extends Controller
                 'tenant_id' => $tenantId,
                 'property_id' => $propertyId,
                 'room_id' => $invoice->booking?->room_id,
+                'invoice_id' => $invoice->id,
                 'amount_cents' => $validated['amount_cents'],
                 'type' => 'debit',
                 'description' => 'Applied to invoice #'.$invoice->id,

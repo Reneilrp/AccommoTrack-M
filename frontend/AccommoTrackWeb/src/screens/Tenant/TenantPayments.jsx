@@ -6,7 +6,7 @@ import api from '../../utils/api';
 import { SkeletonWallet, SkeletonTableRow } from '../../components/Shared/Skeleton';
 import { useUIState } from "../../contexts/UIStateContext";
 import { showSuccess, showError, showLoading } from '../../utils/toast';
-import { CircleDollarSign, ClipboardCheck, Calendar, Search, RefreshCw, Loader2, Receipt, X, FileText } from 'lucide-react';
+import { CircleDollarSign, ClipboardCheck, Calendar, Search, RefreshCw, Loader2, Receipt, X, FileText, AlertCircle } from 'lucide-react';
 import createEcho from '../../utils/echo';
 import systemToggleService from '../../services/systemToggleService';
 
@@ -321,10 +321,10 @@ export default function TenantPayments({ user }) {
     const q = (searchQuery || '').trim().toLowerCase();
     const filtered = statusFiltered.filter((payment) => {
       if (!q) return true;
-      const prop = (payment.propertyName || '').toString().toLowerCase();
-      const ref = (payment.referenceNo || '').toString().toLowerCase();
-      const method = (payment.method || '').toString().toLowerCase();
-      const room = (payment.roomNumber || (payment.room && payment.room.roomNumber) || '').toString().toLowerCase();
+      const prop = (payment?.propertyName || '').toString().toLowerCase();
+      const ref = (payment?.referenceNo || '').toString().toLowerCase();
+      const method = (payment?.method || '').toString().toLowerCase();
+      const room = (payment?.roomNumber || (payment?.room && payment?.room?.roomNumber) || '').toString().toLowerCase();
       return prop.includes(q) || ref.includes(q) || method.includes(q) || room.includes(q);
     });
 
@@ -355,23 +355,28 @@ export default function TenantPayments({ user }) {
             <div className="relative overflow-hidden bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-300 dark:border-gray-700">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs font-bold text-gray-500 dark:text-gray-500 uppercase tracking-wider mb-2">Wallet Balance</p>
-                  <p className="text-2xl font-bold text-emerald-600 mt-2">
-                    {paymentService.formatAmount(uiState.wallet?.balance || 0)}
+                  <p className="text-xs font-bold text-gray-500 dark:text-gray-500 uppercase tracking-wider mb-2">Unpaid Balance</p>
+                  <p className="text-2xl font-bold text-red-600 mt-2">
+                    {paymentService.formatAmount(stats?.pendingAmount || 0)}
                   </p>
                 </div>
-                <div className="w-10 h-10 bg-emerald-50 dark:bg-emerald-900/20 rounded-lg flex items-center justify-center">
-                  <RefreshCw className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+                <div className="w-10 h-10 bg-red-50 dark:bg-red-900/20 rounded-lg flex items-center justify-center">
+                  <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400" />
                 </div>
               </div>
             </div>
+
 
             <div className="relative overflow-hidden bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-300 dark:border-gray-700">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-xs font-bold text-gray-500 dark:text-gray-500 uppercase tracking-wider mb-2">Next Due Date</p>
                   <p className="text-sm md:text-lg font-bold text-orange-600 mt-2 truncate">
-                    {stats?.nextDueDate || 'No unpaid balance'}
+                    {(() => {
+                      if (!stats?.nextDueDate) return 'No unpaid balance';
+                      const d = new Date(stats.nextDueDate);
+                      return isNaN(d) ? 'Invalid Date' : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+                    })()}
                   </p>
                 </div>
                 <div className="w-10 h-10 bg-orange-50 dark:bg-orange-900/20 rounded-lg flex items-center justify-center">
@@ -517,7 +522,22 @@ export default function TenantPayments({ user }) {
                           {new Date(log.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                         </td>
                         <td className="px-6 py-4 text-sm text-gray-700 dark:text-gray-300">{log.property?.title || 'System'}</td>
-                        <td className="px-6 py-4 text-sm text-gray-700 dark:text-gray-300">{log.description || 'No description'}</td>
+                        <td className="px-6 py-4 text-sm text-gray-700 dark:text-gray-300">
+                          <div className="flex flex-col">
+                            <span className="font-semibold">{log.description || 'No description'}</span>
+                            <div className="flex items-center gap-1.5 mt-0.5 text-[10px] text-gray-500 font-bold uppercase">
+                              {log.room?.room_number && (
+                                <>
+                                  <span>Room {log.room.room_number}</span>
+                                  {log.invoice?.invoice_number && <span>•</span>}
+                                </>
+                              )}
+                              {log.invoice?.invoice_number && (
+                                <span>#Inv {log.invoice.invoice_number}</span>
+                              )}
+                            </div>
+                          </div>
+                        </td>
                         <td className="px-6 py-4">
                           <span className={`px-2.5 py-1 text-[10px] font-bold uppercase rounded-md ${log.type === 'credit' ? 'bg-emerald-100 text-emerald-700' :
                             log.type === 'debit' ? 'bg-amber-100 text-amber-700' :
@@ -569,6 +589,7 @@ export default function TenantPayments({ user }) {
                 <table className="w-full">
                   <thead className="bg-gray-50 dark:bg-gray-700/50">
                     <tr>
+                      <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">ID</th>
                       <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Property</th>
                       <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Room</th>
                       <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Amount</th>
@@ -583,6 +604,9 @@ export default function TenantPayments({ user }) {
                     {Array.isArray(filteredPayments) && filteredPayments.length > 0 ? (
                       filteredPayments.map((payment) => (
                         <tr key={payment.id} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                          <td className="px-6 py-4 text-sm font-bold text-gray-900 dark:text-white whitespace-nowrap">
+                            #{payment.invoiceNumber || payment.id}
+                          </td>
                           <td className="px-6 py-4 text-sm text-gray-700 dark:text-gray-300">{payment.propertyName}</td>
                           <td className="px-6 py-4 text-sm text-gray-700 dark:text-gray-300">
                             {payment.roomNumber || (payment.room && payment.room.roomNumber) || 'N/A'}
@@ -693,7 +717,7 @@ export default function TenantPayments({ user }) {
               <div className="p-6 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center bg-white dark:bg-gray-800 sticky top-0 z-10">
                 <div>
                   <h3 className="text-xl font-bold dark:text-white text-gray-900 uppercase tracking-tight">
-                    Payment Details
+                    Payment #{selectedPayment.invoiceNumber || selectedPayment.invoiceNo || selectedPayment.id}
                   </h3>
                   <p className="text-xs font-bold text-gray-500 dark:text-gray-400 mt-2">
                     {selectedPayment.propertyName}

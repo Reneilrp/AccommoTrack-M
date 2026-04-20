@@ -259,9 +259,9 @@ export default function CartScreen() {
             >
               <Image
                 source={getImageUrl(
-                  item.room?.property?.image_url || 
                   item.room?.property?.image || 
-                  (item.room?.images && item.room.images.length > 0 ? item.room.images[0].image_url : null)
+                  item.room?.property?.image_url || 
+                  (item.room?.images && item.room.images.length > 0 ? item.room.images[0] : null)
                 )}
                 style={{ width: '100%', height: 150 }}
                 resizeMode="cover"
@@ -277,7 +277,11 @@ export default function CartScreen() {
                 <View style={{ marginTop: 12, gap: 8 }}>
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                     <Text style={{ fontSize: 12, color: theme.colors.textSecondary }}>Beds</Text>
-                    <Text style={{ fontSize: 12, fontWeight: '600', color: theme.colors.text }}>{item.bed_count}</Text>
+                    <Text style={{ fontSize: 12, fontWeight: '600', color: theme.colors.text }}>
+                      {item.bed_numbers 
+                        ? item.bed_numbers.split(',').map(n => `Bed ${n}`).join(', ') 
+                        : item.bed_count}
+                    </Text>
                   </View>
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                     <Text style={{ fontSize: 12, color: theme.colors.textSecondary }}>Check-in</Text>

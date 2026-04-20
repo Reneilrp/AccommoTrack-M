@@ -360,11 +360,13 @@ class TenantDashboardController extends Controller
                     'invoices' => $booking->invoices->map(function ($invoice) {
                         return [
                             'id' => $invoice->id,
+                            'invoice_number' => $invoice->invoice_number,
                             'amount' => (float) ($invoice->total_cents ?? $invoice->amount_cents) / 100,
                             'status' => $invoice->status,
                             'description' => $invoice->description,
-                            'date' => $invoice->issued_at ? $invoice->issued_at->format('M d, Y') : $invoice->created_at->format('M d, Y'),
-                            'dueDate' => $invoice->due_date ? $invoice->due_date->format('M d, Y') : null,
+                            'date' => $invoice->issued_at ?: $invoice->created_at,
+                            'due_date' => $invoice->due_date,
+                            'dueDate' => $invoice->due_date,
                             'metadata' => $invoice->metadata,
                             'transactions' => $invoice->transactions->map(fn($tx) => [
                                 'id' => $tx->id, 'amount' => (float) $tx->amount_cents / 100,

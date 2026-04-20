@@ -670,5 +670,35 @@ proxyGenderPicker: {
     backgroundColor: theme.colors.primary,
     borderColor: theme.colors.primary,
   },
+  
+  // Bed Selection
+  bedGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 10,
+  },
+  bedItem: {
+    width: '22.5%',
+    aspectRatio: 1,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: theme.colors.background,
+  },
+  bedItemActive: {
+    backgroundColor: theme.colors.primary,
+    borderColor: theme.colors.primary,
+  },
+  bedItemText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: theme.colors.text,
+  },
+  bedItemTextActive: {
+    color: '#fff',
+  },
   });
 };

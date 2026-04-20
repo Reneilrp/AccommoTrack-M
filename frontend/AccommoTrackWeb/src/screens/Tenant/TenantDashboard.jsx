@@ -149,8 +149,10 @@ const TenantDashboard = ({ user }) => {
   }, [user?.id, fetchDashboardData]);
 
   // ── Helpers ──
-  const formatCurrency = (amount) =>
-    new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' }).format(amount || 0);
+  const formatCurrency = (amount) => {
+    const val = Number(amount);
+    return new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' }).format(isNaN(val) ? 0 : val);
+  };
 
   const formatDate = (dateStr) => {
     if (!dateStr) return '—';
@@ -422,7 +424,7 @@ const TenantDashboard = ({ user }) => {
     const alerts = [];
 
     // 1. Overdue Balance
-    if (!dismissedNotifications.overdueBalance && stats?.payments?.hasOverdueInvoices && unpaidBalance > 0) {
+    if (!dismissedNotifications.overdueBalance && stats?.payments?.hasOverdueInvoices && Number(unpaidBalance) > 0) {
       alerts.push({
         id: 'overdue-balance',
         priority: 'high',
@@ -435,8 +437,8 @@ const TenantDashboard = ({ user }) => {
       });
     }
 
-    // 2. Balance Due
-    if (!dismissedNotifications.balanceDue && unpaidBalance > 0 && !stats?.payments?.hasOverdueInvoices) {
+    // 2. Balance Due (Not yet overdue)
+    if (!dismissedNotifications.balanceDue && Number(unpaidBalance) > 0 && !stats?.payments?.hasOverdueInvoices) {
       alerts.push({
         id: 'balance-due',
         priority: 'normal',
@@ -449,38 +451,39 @@ const TenantDashboard = ({ user }) => {
       });
     }
 
-    // 3. Pending Check-Ins
-    if (pendingCheckIns.length > 0) {
-      pendingCheckIns
-        .filter(pending => !dismissedNotifications.pendingCheckIns.includes(pending.id))
-        .forEach(pending => {
-          alerts.push({
-            id: `pending-checkin-${pending.id}`,
-            priority: pending.status === 'confirmed' ? 'high' : 'normal',
-            type: 'booking',
-            title: pending.status === 'confirmed' ? 'Action Required: Check-in Overdue' : 'Stay Starting: Approval Pending',
-            message: pending.status === 'confirmed'
-              ? `Your stay at ${pending.property} was scheduled to start on ${formatDate(pending.startDate)}. Please contact your landlord.`
-              : `Your booking for ${pending.property} was set to start on ${formatDate(pending.startDate)}, but it's still awaiting landlord approval.`,
-            actionText: 'View Booking',
-            target: '/bookings',
-            originalType: 'pendingCheckIns',
-            originalId: pending.id
-          });
+    // 3. Pending Check-ins (Today or Overdue)
+    const safeCheckIns = Array.isArray(pendingCheckIns) ? pendingCheckIns : [];
+    safeCheckIns.forEach(pending => {
+      const isOverdue = Boolean(pending?.isOverdue || (Number(pending?.daysOverdue) > 0));
+      const hasAction = !dismissedNotifications[`pending-checkin-${pending.id}`];
+      
+      if (hasAction) {
+        alerts.push({
+          id: `pending-checkin-${pending.id}`,
+          type: 'booking',
+          priority: isOverdue ? 'high' : 'medium',
+          title: pending.status === 'confirmed' ? 'Action Required: Check-in Overdue' : 'Stay Starting: Approval Pending',
+          message: isOverdue 
+            ? `Your check-in for ${pending.property || 'your stay'} was scheduled for ${formatDate(pending.startDate)}. Please contact the landlord.`
+            : `Your check-in for ${pending.property || 'your stay'} is scheduled for today.`,
+          actionText: 'View Booking',
+          target: '/bookings',
+          originalType: 'pendingCheckIn'
         });
-    }
+      }
+    });
 
-    // 4. Upcoming Bookings
-    if (!dismissedNotifications.upcomingBooking && upcomingBooking) {
+    // 4. Upcoming Booking (Not yet today)
+    if (upcomingBooking && !dismissedNotifications.upcomingStay) {
       alerts.push({
-        id: 'upcoming-booking',
-        priority: 'low',
+        id: 'upcoming-stay',
         type: 'booking',
-        title: `Upcoming Stay at ${upcomingBooking.property}`,
-        message: `Begins on ${formatDate(upcomingBooking.startDate)}`,
+        priority: 'low',
+        title: 'Upcoming Stay Confirmed',
+        message: `Stay at ${upcomingBooking.property || 'property'} begins on ${formatDate(upcomingBooking.startDate)}`,
         actionText: 'View',
         target: '/bookings',
-        originalType: 'upcomingBooking'
+        originalType: 'upcomingStay'
       });
     }
 

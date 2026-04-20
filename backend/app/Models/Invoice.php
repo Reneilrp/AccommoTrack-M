@@ -68,8 +68,20 @@ class Invoice extends Model
         'amount_cents', 'currency', 'status', 'due_date', 'issued_at', 'paid_at', 'metadata',
         'subtotal_cents', 'tax_cents', 'total_cents', 'tax_percent',
         'invoice_type', 'billing_period_start', 'billing_period_end', 'billing_period_key',
-        'receipt_reference', 'receipt_sent_at',
+        'receipt_reference', 'receipt_sent_at', 'invoice_number',
     ];
+
+    protected static function boot()
+    {
+        parent::boot();
+        static::creating(function ($model) {
+            if (!$model->invoice_number && $model->property_id) {
+                // Find the max invoice_number for this property
+                $max = static::where('property_id', $model->property_id)->max('invoice_number');
+                $model->invoice_number = ($max ?? 0) + 1;
+            }
+        });
+    }
 
     protected $casts = [
         'metadata' => 'array',

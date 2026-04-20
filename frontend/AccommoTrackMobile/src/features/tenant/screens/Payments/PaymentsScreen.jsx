@@ -732,6 +732,12 @@ export default function PaymentsScreen() {
                       <Text style={{ color: theme.colors.text, fontSize: 13 }}>{selectedPayment.method}</Text>
                     </View>
                   )}
+                  {(selectedPayment.roomNumber || selectedPayment.room_number) && (
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                      <Text style={{ color: theme.colors.textSecondary, fontSize: 12 }}>Room</Text>
+                      <Text style={{ color: theme.colors.text, fontSize: 13 }}>{selectedPayment.roomNumber || selectedPayment.room_number}</Text>
+                    </View>
+                  )}
                 </View>
 
                 {!tenantPaymentsTempDisabled && isPayable(selectedPayment) && (

@@ -57,14 +57,17 @@ class TenantPaymentController extends Controller
                         'id' => $invoice->id,
                         'invoiceId' => $invoice->id,
                         'invoice_id' => $invoice->id,
+                        'invoiceNo' => $invoice->invoice_number,
+                        'invoiceNumber' => $invoice->invoice_number,
                         'bookingId' => $invoice->booking_id,
                         'booking_id' => $invoice->booking_id,
                         'propertyName' => $propertyName,
                         'roomNumber' => $roomNumber,
                         'amount' => (float) $totalCents / 100,
                         'remainingBalance' => (float) $remainingCents / 100,
-                        'date' => $invoice->issued_at ? $invoice->issued_at->format('M d, Y') : $invoice->created_at->format('M d, Y'),
-                        'dueDate' => $invoice->due_date ? $invoice->due_date->format('M d, Y') : '—',
+                        'date' => $invoice->issued_at ?: $invoice->created_at,
+                        'due_date' => $invoice->due_date,
+                        'dueDate' => $invoice->due_date,
                         'status' => match ($invoice->status) {
                             'pending_verification' => 'Awaiting Verification',
                             'paid' => 'Paid',
@@ -83,7 +86,7 @@ class TenantPaymentController extends Controller
                                 'amount' => (float) $tx->amount_cents / 100,
                                 'status' => $tx->status,
                                 'method' => $tx->method,
-                                'date' => $tx->created_at->format('M d, Y H:i'),
+                                'date' => $tx->created_at,
                             ];
                         }),
                     ];
@@ -149,7 +152,7 @@ class TenantPaymentController extends Controller
             return response()->json([
                 'totalPaidThisMonth' => (float) $totalPaidThisMonthCents / 100,
                 'paidCount' => $paidCount,
-                'nextDueDate' => $nextDueInvoice ? $nextDueInvoice->due_date->format('M d') : 'None',
+                'nextDueDate' => $nextDueInvoice ? $nextDueInvoice->due_date->toIso8601String() : null,
                 'pendingAmount' => (float) $pendingAmountCents / 100,
                 'totalCredits' => (float) $totalCreditsCents / 100,
             ], 200);
@@ -278,6 +281,9 @@ class TenantPaymentController extends Controller
                 },
                 'room' => function ($q) {
                     $q->select('id', 'room_number');
+                },
+                'invoice' => function ($q) {
+                    $q->select('id', 'invoice_number', 'reference');
                 }
             ])
                 ->where('tenant_id', $tenantId)
