@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, Modal, TouchableOpacity, StyleSheet, TouchableWithoutFeedback, Alert } from 'react-native';
+import { View, Text, Modal, TouchableOpacity, StyleSheet, TouchableWithoutFeedback, Alert, Linking } from 'react-native';
 import { useTheme } from '../contexts/ThemeContext';
 import { Ionicons } from '@expo/vector-icons';
 import { downloadAndInstallUpdate } from '../services/AppUpdateService.js';
@@ -34,6 +34,33 @@ const ForceUpdateModal = ({ visible, downloadUrl, latestVersion, required = fals
         Alert.alert(
           'Continue update',
           'We opened your browser/download manager for the APK. If install is blocked, allow "Install unknown apps" in Android settings and try again.',
+        );
+      }
+
+      if (result?.requiresManualFallback) {
+        const fallbackUrl = result?.resolvedUrl || downloadUrl;
+        Alert.alert(
+          'Install needs manual fallback',
+          `${result?.fallbackReason || 'Android could not open the installer.'} We kept the update inside the app. You can retry now, or open the APK in your browser/download manager.`,
+          [
+            {
+              text: 'Retry in app',
+              style: 'cancel',
+            },
+            {
+              text: 'Open Browser',
+              onPress: () => {
+                if (!fallbackUrl) return;
+
+                Linking.openURL(fallbackUrl).catch(() => {
+                  Alert.alert(
+                    'Unable to open browser',
+                    'Please open the APK link manually from settings.',
+                  );
+                });
+              },
+            },
+          ],
         );
       }
     } catch (error) {

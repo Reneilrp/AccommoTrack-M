@@ -147,7 +147,11 @@ const toActionableInstallError = (error) => {
   return base;
 };
 
-export const downloadAndInstallUpdate = async ({ downloadUrl, onProgress } = {}) => {
+export const downloadAndInstallUpdate = async ({
+  downloadUrl,
+  onProgress,
+  allowBrowserFallback = false,
+} = {}) => {
   const resolvedUrl = resolveAppDownloadUrl(downloadUrl);
   if (!resolvedUrl) {
     throw new Error('Download URL is missing.');
@@ -192,9 +196,11 @@ export const downloadAndInstallUpdate = async ({ downloadUrl, onProgress } = {})
     };
   } catch (error) {
     // Some Android ROM policies block in-app APK installation intents.
-    // First offer to open Unknown Apps Settings, then fall back to browser.
+    // Keep install flow in-app by default; browser fallback is opt-in.
     const installHelp = toActionableInstallError(error);
-    const openedInstallSettings = await openUnknownAppsSettings();
+    const openedInstallSettings = isLikelyInstallPermissionIssue(error)
+      ? await openUnknownAppsSettings()
+      : false;
 
     if (openedInstallSettings) {
       return {
@@ -205,16 +211,26 @@ export const downloadAndInstallUpdate = async ({ downloadUrl, onProgress } = {})
       };
     }
 
-    try {
-      await Linking.openURL(resolvedUrl);
-      return {
-        openedExternally: true,
-        openedInstallSettings: false,
-        resolvedUrl,
-        fallbackReason: installHelp,
-      };
-    } catch {
-      throw new Error(`${installHelp} Browser fallback also failed.`);
+    if (allowBrowserFallback) {
+      try {
+        await Linking.openURL(resolvedUrl);
+        return {
+          openedExternally: true,
+          openedInstallSettings: false,
+          resolvedUrl,
+          fallbackReason: installHelp,
+        };
+      } catch {
+        throw new Error(`${installHelp} Browser fallback also failed.`);
+      }
     }
+
+    return {
+      openedExternally: false,
+      openedInstallSettings: false,
+      requiresManualFallback: true,
+      resolvedUrl,
+      fallbackReason: installHelp,
+    };
   }
 };

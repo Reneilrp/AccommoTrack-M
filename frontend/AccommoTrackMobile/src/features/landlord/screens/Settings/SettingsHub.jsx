@@ -1,6 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
+  Alert,
   ActivityIndicator,
+  Linking,
   Modal,
   Pressable,
   ScrollView,
@@ -706,6 +708,33 @@ export default function SettingsScreen({ navigation, onLogout }) {
                   showError(
                     'Continue update',
                     'Opened browser/download manager for APK. If install is blocked, allow "Install unknown apps" in Android settings.',
+                  );
+                }
+
+                if (result?.requiresManualFallback) {
+                  const fallbackUrl = result?.resolvedUrl || downloadUrl;
+                  Alert.alert(
+                    'Install needs manual fallback',
+                    `${result?.fallbackReason || 'Android could not open installer.'} We kept update flow in-app by default. You can retry now, or open the APK in browser/download manager.`,
+                    [
+                      {
+                        text: 'Retry in app',
+                        style: 'cancel',
+                      },
+                      {
+                        text: 'Open Browser',
+                        onPress: () => {
+                          if (!fallbackUrl) return;
+
+                          Linking.openURL(fallbackUrl).catch(() => {
+                            showError(
+                              'Open browser failed',
+                              'Could not open browser. Please open the APK URL manually.',
+                            );
+                          });
+                        },
+                      },
+                    ],
                   );
                 }
               } catch (error) {
