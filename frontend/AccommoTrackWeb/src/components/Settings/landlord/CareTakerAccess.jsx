@@ -52,8 +52,8 @@ function StepBar({ step }) {
           <div className="flex items-center gap-2">
             <div
               className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-300 ${step >= s.num
-                  ? 'bg-emerald-600 text-white shadow-md shadow-emerald-200 dark:shadow-none'
-                  : 'bg-gray-100 dark:bg-gray-700 text-gray-400'
+                ? 'bg-emerald-600 text-white shadow-md shadow-emerald-200 dark:shadow-none'
+                : 'bg-gray-100 dark:bg-gray-700 text-gray-400'
                 }`}
             >
               {step > s.num ? <CheckCircle2 className="w-4 h-4" /> : s.num}
@@ -620,9 +620,10 @@ export default function CareTakerAccess({
   const isModalOpen = modalMode !== 'closed';
 
   const renderPermissionSection = () => {
-    const activeGroup = MODULE_GROUPS[activeModuleTab];
-    const groupFields = CARETAKER_PERMISSION_FIELDS.filter((f) => activeGroup.keys.includes(f.key));
-    const allGroupOn = groupFields.every((f) => !!activePermissions[f.key]);
+    const activeGroup = MODULE_GROUPS[activeModuleTab] || null;
+    const activeGroupKeys = Array.isArray(activeGroup?.keys) ? activeGroup.keys : [];
+    const groupFields = CARETAKER_PERMISSION_FIELDS.filter((f) => activeGroupKeys.includes(f.key));
+    const allGroupOn = groupFields.length > 0 && groupFields.every((f) => !!activePermissions[f.key]);
 
     // Global Select All states
     const allKeys = CARETAKER_PERMISSION_FIELDS.map((f) => f.key);
@@ -674,8 +675,8 @@ export default function CareTakerAccess({
                       type="button"
                       onClick={() => setActiveModuleTab(idx)}
                       className={`w-full group flex items-center justify-between px-3 py-2.5 rounded-xl transition-all ${isActive
-                          ? 'bg-emerald-600 text-white font-bold'
-                          : 'hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400'
+                        ? 'bg-emerald-600 text-white font-bold'
+                        : 'hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400'
                         }`}
                     >
                       <div className="flex items-center gap-2.5">
@@ -696,8 +697,8 @@ export default function CareTakerAccess({
                   type="button"
                   onClick={() => setActiveModuleTab(MODULE_GROUPS.length)}
                   className={`w-full group flex items-center justify-between px-3 py-2.5 rounded-xl transition-all ${activeModuleTab === MODULE_GROUPS.length
-                      ? 'bg-emerald-600 text-white font-bold'
-                      : 'hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400'
+                    ? 'bg-emerald-600 text-white font-bold'
+                    : 'hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400'
                     }`}
                 >
                   <div className="flex items-center gap-2.5">
@@ -758,16 +759,16 @@ export default function CareTakerAccess({
                 modalMode === 'create' ? safeSelectedIds : editFormData.property_ids,
                 modalMode === 'create'
                   ? (id) =>
-                      setSelectedPropertyIds((prev) =>
-                        prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
-                      )
+                    setSelectedPropertyIds((prev) =>
+                      prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
+                    )
                   : (id) =>
-                      setEditFormData((prev) => ({
-                        ...prev,
-                        property_ids: prev.property_ids.includes(id)
-                          ? prev.property_ids.filter((i) => i !== id)
-                          : [...prev.property_ids, id],
-                      }))
+                    setEditFormData((prev) => ({
+                      ...prev,
+                      property_ids: prev.property_ids.includes(id)
+                        ? prev.property_ids.filter((i) => i !== id)
+                        : [...prev.property_ids, id],
+                    }))
               )}
             </div>
           ) : (
@@ -791,76 +792,76 @@ export default function CareTakerAccess({
               </div>
 
               <div className="space-y-1 flex-1">
-            {groupFields.map((field) => {
-              const isChecked = !!activePermissions[field.key];
-              const isSensitive = isLandlordLevelPermission(field.key);
-              return (
-                <label
-                  key={field.key}
-                  className={`group flex items-center justify-between p-3 rounded-xl transition-all cursor-pointer ${isChecked ? 'bg-emerald-50/30 dark:bg-emerald-900/5' : 'hover:bg-gray-50 dark:hover:bg-gray-900/20'
-                    }`}
-                >
-                  <div className="flex items-center gap-3.5 flex-1 min-w-0">
-                    <div className={`p-2 rounded-lg transition-colors ${isChecked ? 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600' : 'bg-gray-100 dark:bg-gray-800 text-gray-400'
-                      }`}>
-                      {React.cloneElement(field.icon, { className: 'w-4 h-4' })}
-                    </div>
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2">
-                        <p className={`text-xs font-bold truncate ${isChecked ? 'text-gray-900 dark:text-white' : 'text-gray-500 dark:text-gray-400'}`}>
-                          {field.label}
-                        </p>
-                        {isSensitive && (
-                          <div className="w-1.5 h-1.5 rounded-full bg-amber-500" title="Sensitive Permission" />
-                        )}
+                {groupFields.map((field) => {
+                  const isChecked = !!activePermissions[field.key];
+                  const isSensitive = isLandlordLevelPermission(field.key);
+                  return (
+                    <label
+                      key={field.key}
+                      className={`group flex items-center justify-between p-3 rounded-xl transition-all cursor-pointer ${isChecked ? 'bg-emerald-50/30 dark:bg-emerald-900/5' : 'hover:bg-gray-50 dark:hover:bg-gray-900/20'
+                        }`}
+                    >
+                      <div className="flex items-center gap-3.5 flex-1 min-w-0">
+                        <div className={`p-2 rounded-lg transition-colors ${isChecked ? 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600' : 'bg-gray-100 dark:bg-gray-800 text-gray-400'
+                          }`}>
+                          {React.cloneElement(field.icon, { className: 'w-4 h-4' })}
+                        </div>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2">
+                            <p className={`text-xs font-bold truncate ${isChecked ? 'text-gray-900 dark:text-white' : 'text-gray-500 dark:text-gray-400'}`}>
+                              {field.label}
+                            </p>
+                            {isSensitive && (
+                              <div className="w-1.5 h-1.5 rounded-full bg-amber-500" title="Sensitive Permission" />
+                            )}
+                          </div>
+                          <p className="text-[10px] text-gray-400 dark:text-gray-500 truncate mt-0.5 pr-4">
+                            {field.description}
+                          </p>
+                        </div>
                       </div>
-                      <p className="text-[10px] text-gray-400 dark:text-gray-500 truncate mt-0.5 pr-4">
-                        {field.description}
-                      </p>
-                    </div>
-                  </div>
-                  <div className={`w-10 h-5 rounded-full p-1 transition-colors ${isChecked ? 'bg-emerald-600' : 'bg-gray-200 dark:bg-gray-700'
-                    }`}>
-                    <div className={`w-3 h-3 bg-white rounded-full shadow-sm transition-transform duration-200 ${isChecked ? 'translate-x-5' : 'translate-x-0'
-                      }`} />
-                  </div>
-                  <input
-                    type="checkbox"
-                    checked={isChecked}
-                    onChange={() => handleSinglePermissionToggle(field.key)}
-                    className="hidden"
-                  />
-                </label>
-              );
-            })}
-          </div>
+                      <div className={`w-10 h-5 rounded-full p-1 transition-colors ${isChecked ? 'bg-emerald-600' : 'bg-gray-200 dark:bg-gray-700'
+                        }`}>
+                        <div className={`w-3 h-3 bg-white rounded-full shadow-sm transition-transform duration-200 ${isChecked ? 'translate-x-5' : 'translate-x-0'
+                          }`} />
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={isChecked}
+                        onChange={() => handleSinglePermissionToggle(field.key)}
+                        className="hidden"
+                      />
+                    </label>
+                  );
+                })}
+              </div>
 
-          {/* Selection notice */}
-          <div className="mt-5 p-3 bg-gray-50 dark:bg-gray-900/20 rounded-xl border border-gray-100 dark:border-gray-700/50 flex items-center gap-2">
-            <AlertCircle className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
-            <p className="text-[9px] text-gray-500 dark:text-gray-400 font-medium italic">
-              Permissions are tailored based on the active module.
-            </p>
-          </div>
-
-          {/* Sensitive Grant Notice */}
-          {activeModuleTab !== MODULE_GROUPS.length && (() => {
-            const sensitiveInGroup = groupFields.filter((f) => isLandlordLevelPermission(f.key));
-            const sensitiveActive = sensitiveInGroup.some((f) => !!activePermissions[f.key]);
-            if (!sensitiveActive) return null;
-            return (
-              <div className="mt-6 p-4 bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800/40 rounded-2xl flex items-center gap-4 animate-in fade-in slide-in-from-bottom-2">
-                <div className="p-2 bg-amber-100 dark:bg-amber-900/30 rounded-xl">
-                  <AlertCircle className="w-5 h-5 text-amber-600" />
-                </div>
-                <p className="text-[11px] font-bold text-amber-800 dark:text-amber-300 leading-snug">
-                  Warning: You have granted landlord-level permissions within this module. This caretaker will have high-level control over property operations.
+              {/* Selection notice */}
+              <div className="mt-5 p-3 bg-gray-50 dark:bg-gray-900/20 rounded-xl border border-gray-100 dark:border-gray-700/50 flex items-center gap-2">
+                <AlertCircle className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                <p className="text-[9px] text-gray-500 dark:text-gray-400 font-medium italic">
+                  Permissions are tailored based on the active module.
                 </p>
               </div>
-            );
-          })()}
-          </>
-        )}
+
+              {/* Sensitive Grant Notice */}
+              {activeModuleTab !== MODULE_GROUPS.length && (() => {
+                const sensitiveInGroup = groupFields.filter((f) => isLandlordLevelPermission(f.key));
+                const sensitiveActive = sensitiveInGroup.some((f) => !!activePermissions[f.key]);
+                if (!sensitiveActive) return null;
+                return (
+                  <div className="mt-6 p-4 bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800/40 rounded-2xl flex items-center gap-4 animate-in fade-in slide-in-from-bottom-2">
+                    <div className="p-2 bg-amber-100 dark:bg-amber-900/30 rounded-xl">
+                      <AlertCircle className="w-5 h-5 text-amber-600" />
+                    </div>
+                    <p className="text-[11px] font-bold text-amber-800 dark:text-amber-300 leading-snug">
+                      Warning: You have granted landlord-level permissions within this module. This caretaker will have high-level control over property operations.
+                    </p>
+                  </div>
+                );
+              })()}
+            </>
+          )}
         </div>
       </div>
     );
@@ -885,8 +886,8 @@ export default function CareTakerAccess({
                 type="button"
                 onClick={() => onToggle(property.id)}
                 className={`flex items-center gap-2 px-3 py-1.5 rounded-full border text-[11px] font-bold transition-all ${selected
-                    ? 'bg-emerald-600 border-emerald-600 text-white shadow-sm'
-                    : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:border-emerald-300'
+                  ? 'bg-emerald-600 border-emerald-600 text-white shadow-sm'
+                  : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:border-emerald-300'
                   }`}
               >
                 <div className={`p-0.5 rounded-full ${selected ? 'bg-white/20' : 'bg-gray-100 dark:bg-gray-700'}`}>
@@ -1126,6 +1127,41 @@ export default function CareTakerAccess({
 
                 {(modalMode === 'create' ? createStep === 2 : true) && (
                   <div className="animate-in fade-in slide-in-from-bottom-4 duration-700">
+                    {modalMode === 'create' && createStep === 2 && (
+                      <section className="space-y-4 mb-6">
+                        <div className="flex items-center gap-2 px-1">
+                          <div className="p-2 bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 rounded-lg">
+                            <User className="w-4 h-4" />
+                          </div>
+                          <h3 className="text-[11px] font-extrabold text-gray-700 dark:text-gray-300 uppercase tracking-widest">
+                            Caretaker Personal Information
+                          </h3>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 p-1">
+                          {[
+                            { label: 'First Name', value: safeForm.first_name || 'N/A' },
+                            { label: 'Middle Name', value: safeForm.middle_name || 'N/A' },
+                            { label: 'Last Name', value: safeForm.last_name || 'N/A' },
+                            { label: 'Email Address', value: safeForm.email || 'N/A' },
+                            { label: 'Phone Number', value: safeForm.phone || 'N/A' },
+                            { label: 'Date of Birth', value: safeForm.date_of_birth || 'N/A' },
+                          ].map(({ label, value }) => (
+                            <div
+                              key={label}
+                              className="px-4 py-3 bg-gray-50 dark:bg-gray-900/20 border border-gray-100 dark:border-gray-700/50 rounded-xl"
+                            >
+                              <p className="text-[9px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest">
+                                {label}
+                              </p>
+                              <p className="text-[12px] font-bold text-gray-800 dark:text-gray-200 mt-1 truncate">
+                                {value}
+                              </p>
+                            </div>
+                          ))}
+                        </div>
+                      </section>
+                    )}
                     {renderPermissionSection()}
                   </div>
                 )}
@@ -1242,7 +1278,7 @@ export default function CareTakerAccess({
                     {safeCaretakers.map((c) => {
                       const activeCount = countActivePermissions(c.permissions || {});
                       const matchedRole = identifyRole(c.permissions || {});
-                      
+
                       return (
                         <tr key={c.id} className="group hover:bg-gray-50/50 dark:hover:bg-gray-800/20 transition-colors">
                           <td className="px-6 py-5">
@@ -1260,11 +1296,10 @@ export default function CareTakerAccess({
                           </td>
                           <td className="px-6 py-5">
                             <div className="flex flex-col items-start gap-1">
-                              <span className={`px-2 py-0.5 rounded-lg text-[9px] font-black uppercase tracking-widest border ${
-                                matchedRole 
-                                  ? 'bg-emerald-50 dark:bg-emerald-900/10 border-emerald-100 dark:border-emerald-800 text-emerald-600 dark:text-emerald-400' 
-                                  : 'bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400'
-                              }`}>
+                              <span className={`px-2 py-0.5 rounded-lg text-[9px] font-black uppercase tracking-widest border ${matchedRole
+                                ? 'bg-emerald-50 dark:bg-emerald-900/10 border-emerald-100 dark:border-emerald-800 text-emerald-600 dark:text-emerald-400'
+                                : 'bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400'
+                                }`}>
                                 {getRoleLabel(c.permissions || {}, c.custom_role_name)}
                               </span>
                               <span className="text-[10px] text-gray-400 font-medium tracking-tight">
@@ -1310,9 +1345,9 @@ export default function CareTakerAccess({
 
       {/* ── Caretaker Details Modal ─────────────────────── */}
       {selectedCaretaker && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100000] p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden animate-in zoom-in-95 duration-200">
-            <div className="p-8 space-y-8">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100000] p-4 overflow-y-auto">
+          <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-2xl w-[70%] max-w-none overflow-hidden animate-in zoom-in-95 duration-200 max-h-[92vh] flex flex-col">
+            <div className="p-8 space-y-8 overflow-y-auto custom-scrollbar">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-0 bg-gray-50/50 dark:bg-gray-900/10 rounded-[2rem] border border-gray-100 dark:border-gray-700 overflow-hidden">
                 <div className="flex flex-col items-center justify-center p-8 bg-white dark:bg-gray-800 border-r border-gray-100 dark:border-gray-700">
                   <div className="relative">
@@ -1359,88 +1394,87 @@ export default function CareTakerAccess({
                 </div>
               </div>
 
-                <div className="space-y-4">
-                  <div className="flex items-center gap-2 px-1">
-                    <Building2 className="w-3.5 h-3.5 text-gray-400" />
-                    <h3 className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Managed Properties</h3>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    {Array.isArray(selectedCaretaker.assigned_properties) &&
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 px-1">
+                  <Building2 className="w-3.5 h-3.5 text-gray-400" />
+                  <h3 className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Managed Properties</h3>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {Array.isArray(selectedCaretaker.assigned_properties) &&
                     selectedCaretaker.assigned_properties.length > 0 ? (
-                      selectedCaretaker.assigned_properties.map((p) => (
-                        <div
-                          key={p.id}
-                          className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-full text-[11px] font-bold text-gray-700 dark:text-gray-300 shadow-sm"
-                        >
-                          <Building2 className="w-3 h-3 text-gray-400" />
-                          {p.name || p.title}
-                        </div>
-                      ))
-                    ) : (
-                      <p className="text-[11px] text-amber-600 font-bold italic px-1">No properties assigned.</p>
-                    )}
-                  </div>
+                    selectedCaretaker.assigned_properties.map((p) => (
+                      <div
+                        key={p.id}
+                        className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-full text-[11px] font-bold text-gray-700 dark:text-gray-300 shadow-sm"
+                      >
+                        <Building2 className="w-3 h-3 text-gray-400" />
+                        {p.name || p.title}
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-[11px] text-amber-600 font-bold italic px-1">No properties assigned.</p>
+                  )}
                 </div>
-
-                <div className="space-y-4">
-                  <div className="flex items-center gap-2 px-1">
-                    <Shield className="w-3.5 h-3.5 text-gray-400" />
-                    <h3 className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Access Permissions</h3>
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-                    {CARETAKER_PERMISSION_FIELDS.map((field) => {
-                      const val = !!(selectedCaretaker.permissions || {})[field.key];
-                      return (
-                        <div
-                          key={field.key}
-                          className={`flex items-center justify-between p-3 rounded-xl border transition-all ${
-                            val
-                              ? 'bg-emerald-50/40 dark:bg-emerald-900/10 border-emerald-100 dark:border-emerald-800 text-emerald-700 dark:text-emerald-400'
-                              : 'bg-white dark:bg-gray-800 border-gray-100 dark:border-gray-700 text-gray-400'
-                          }`}
-                        >
-                          <div className="flex items-center gap-3">
-                            <div className="p-1.5 rounded-lg bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-700">
-                              {React.cloneElement(field.icon, { className: 'w-3 h-3' })}
-                            </div>
-                            <span className="text-[11px] font-bold">{field.label}</span>
-                          </div>
-                          {val ? <Check className="w-3 h-3" /> : <XCircle className="w-3 h-3 opacity-20" />}
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-6 border-t border-gray-50 dark:border-gray-700/50">
-                  {[
-                    { label: 'Message', icon: <Mail className="w-4 h-4" />, onClick: () => handleMessageCaretaker(selectedCaretaker), cls: 'border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800' },
-                    { label: 'Reset Key', icon: <Key className="w-4 h-4" />, onClick: () => handleResetPassword(selectedCaretaker), cls: 'border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800' },
-                    { label: 'Edit Access', icon: <KeyRound className="w-4 h-4" />, onClick: () => handleEditClick(selectedCaretaker), cls: 'border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800' },
-                    { label: 'Revoke Access', icon: <Trash2 className="w-4 h-4" />, onClick: () => setRevocationModal({ show: true, caretaker: selectedCaretaker, reason: '' }), cls: 'border border-gray-200 dark:border-gray-700 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/10' },
-                  ].map(({ label, icon, onClick, cls }) => (
-                    <button
-                      key={label}
-                      onClick={onClick}
-                      className={`py-3 px-1 rounded-xl font-bold transition-all flex items-center justify-center gap-2 ${cls}`}
-                    >
-                      {icon}
-                      <span className="text-[9px] uppercase tracking-widest">{label}</span>
-                    </button>
-                  ))}
-                </div>
-                
-                <button
-                  onClick={() => setSelectedCaretaker(null)}
-                  className="w-full py-4 mt-4 bg-gray-900 dark:bg-green-600 text-white font-bold rounded-2xl hover:bg-black dark:hover:bg-green-700 transition-all shadow-lg flex items-center justify-center gap-2"
-                >
-                  <XCircle className="w-4 h-4" />
-                  <span className="text-[10px] uppercase tracking-widest">Close Overview</span>
-                </button>
               </div>
+
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 px-1">
+                  <Shield className="w-3.5 h-3.5 text-gray-400" />
+                  <h3 className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Access Permissions</h3>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                  {CARETAKER_PERMISSION_FIELDS.map((field) => {
+                    const val = !!(selectedCaretaker.permissions || {})[field.key];
+                    return (
+                      <div
+                        key={field.key}
+                        className={`flex items-center justify-between p-3 rounded-xl border transition-all ${val
+                          ? 'bg-emerald-50/40 dark:bg-emerald-900/10 border-emerald-100 dark:border-emerald-800 text-emerald-700 dark:text-emerald-400'
+                          : 'bg-white dark:bg-gray-800 border-gray-100 dark:border-gray-700 text-gray-400'
+                          }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="p-1.5 rounded-lg bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-700">
+                            {React.cloneElement(field.icon, { className: 'w-3 h-3' })}
+                          </div>
+                          <span className="text-[11px] font-bold">{field.label}</span>
+                        </div>
+                        {val ? <Check className="w-3 h-3" /> : <XCircle className="w-3 h-3 opacity-20" />}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-6 border-t border-gray-50 dark:border-gray-700/50">
+                {[
+                  { label: 'Message', icon: <Mail className="w-4 h-4" />, onClick: () => handleMessageCaretaker(selectedCaretaker), cls: 'border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800' },
+                  { label: 'Reset Key', icon: <Key className="w-4 h-4" />, onClick: () => handleResetPassword(selectedCaretaker), cls: 'border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800' },
+                  { label: 'Edit Access', icon: <KeyRound className="w-4 h-4" />, onClick: () => handleEditClick(selectedCaretaker), cls: 'border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800' },
+                  { label: 'Revoke Access', icon: <Trash2 className="w-4 h-4" />, onClick: () => setRevocationModal({ show: true, caretaker: selectedCaretaker, reason: '' }), cls: 'border border-gray-200 dark:border-gray-700 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/10' },
+                ].map(({ label, icon, onClick, cls }) => (
+                  <button
+                    key={label}
+                    onClick={onClick}
+                    className={`py-3 px-1 rounded-xl font-bold transition-all flex items-center justify-center gap-2 ${cls}`}
+                  >
+                    {icon}
+                    <span className="text-[9px] uppercase tracking-widest">{label}</span>
+                  </button>
+                ))}
+              </div>
+
+              <button
+                onClick={() => setSelectedCaretaker(null)}
+                className="w-full py-4 mt-4 bg-gray-900 dark:bg-green-600 text-white font-bold rounded-2xl hover:bg-black dark:hover:bg-green-700 transition-all shadow-lg flex items-center justify-center gap-2"
+              >
+                <XCircle className="w-4 h-4" />
+                <span className="text-[10px] uppercase tracking-widest">Close Overview</span>
+              </button>
             </div>
           </div>
-        )}
+        </div>
+      )}
       {/* ── Revocation Modal ─────────────────────────────────────────────── */}
       {revocationModal.show && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100000] p-4">
@@ -1454,169 +1488,169 @@ export default function CareTakerAccess({
                 <p className="text-sm text-gray-500 dark:text-gray-400">
                   Are you sure you want to remove{' '}
                   <span className="font-bold text-gray-900 dark:text-white">
-                {revocationModal.caretaker?.caretaker?.first_name}
-              </span>
-              ? This action is permanent.
-            </p>
-          </div>
-          <div className="space-y-2">
-            <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider ml-2">
-              Reason for Revocation
-            </label>
-            <textarea
-              value={revocationModal.reason}
-              onChange={(e) => setRevocationModal({ ...revocationModal, reason: e.target.value })}
-              placeholder="e.g. End of contract, Security concerns..."
-              className="w-full px-4 py-4 border border-gray-200 dark:border-gray-700 rounded-2xl bg-white dark:bg-gray-700 text-sm focus:ring-2 focus:ring-red-500 transition-all min-h-[100px]"
-            />
-          </div>
-          <div className="grid grid-cols-2 gap-4 pt-2">
-            <button
-              onClick={() => setRevocationModal({ show: false, caretaker: null, reason: '' })}
-              className="py-4 px-4 rounded-2xl border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 font-bold hover:bg-gray-50 dark:hover:bg-gray-700 transition-all"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={handleRevokeConfirm}
-              className="py-4 px-4 rounded-2xl bg-red-600 text-white font-bold hover:bg-red-700 transition-all shadow-lg shadow-red-200 dark:shadow-none"
-            >
-              Confirm
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-{/* ── Security / Permission Alert Modal ───────────────────────────── */ }
-{
-  permissionPrompt.open && (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100001] p-4">
-      <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden animate-in zoom-in-95 duration-200">
-        <div className="p-8 text-center space-y-4">
-          <div className="w-20 h-20 bg-amber-100 dark:bg-amber-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
-            <AlertCircle className="w-10 h-10 text-amber-600 dark:text-amber-400" />
-          </div>
-          <h3 className="text-2xl font-bold text-gray-900 dark:text-white">
-            {permissionPrompt.isBulk ? 'Bulk Access Grant' : 'Landlord-Level Access'}
-          </h3>
-          <p className="text-sm text-gray-500 dark:text-gray-400">
-            {permissionPrompt.isBulk
-              ? 'You are enabling multiple sensitive features. This grants this caretaker elevated control over bookings, payments, and system settings. Are you sure?'
-              : (
-                <>
-                  Enabling <span className="font-bold text-gray-900 dark:text-white">{promptedPermissionLabel}</span> grants elevated landlord-level permissions.
-                  <br />
-                  {promptedPermissionMessage}
-                </>
-              )}
-          </p>
-          <div className="grid grid-cols-2 gap-4 pt-4">
-            <button
-              onClick={closePermissionPrompt}
-              className="py-4 px-4 rounded-2xl border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 font-bold hover:bg-gray-50 dark:hover:bg-gray-700 transition-all"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={confirmPermissionGrant}
-              className="py-4 px-4 rounded-2xl bg-amber-600 text-white font-bold hover:bg-amber-700 transition-all shadow-lg shadow-amber-200 dark:shadow-none"
-            >
-              Grant Access
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-{/* ── Password Reset Modal ─────────────────────────────────────────── */ }
-{
-  passwordResetModal.show && (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100000] p-4">
-      <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden animate-in zoom-in-95 duration-200">
-        <div className="p-8 space-y-6">
-          <div className="text-center space-y-2">
-            <div className="w-16 h-16 bg-amber-100 dark:bg-amber-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
-              <KeyRound className="w-8 h-8 text-amber-600 dark:text-amber-400" />
-            </div>
-            <h3 className="text-xl font-bold text-gray-900 dark:text-white">Reset Password</h3>
-            <p className="text-sm text-gray-500 dark:text-gray-400">
-              Generate a new temporary password for{' '}
-              <span className="font-bold text-gray-900 dark:text-white">
-                {passwordResetModal.caretaker?.caretaker?.first_name}
-              </span>
-              ?
-            </p>
-          </div>
-
-          {passwordResetModal.tempPassword ? (
-            <div className="p-4 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-100 dark:border-emerald-800 rounded-2xl animate-in slide-in-from-bottom-2 duration-300">
-              <p className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-widest text-center mb-2">
-                New Temporary Password
-              </p>
-              <div className="bg-white dark:bg-gray-800 py-4 px-4 rounded-xl border-2 border-emerald-200 dark:border-emerald-700 flex items-center justify-between group">
-                <span className="text-xl font-mono font-bold text-gray-900 dark:text-white tracking-widest">
-                  {passwordResetModal.tempPassword}
-                </span>
+                    {revocationModal.caretaker?.caretaker?.first_name}
+                  </span>
+                  ? This action is permanent.
+                </p>
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider ml-2">
+                  Reason for Revocation
+                </label>
+                <textarea
+                  value={revocationModal.reason}
+                  onChange={(e) => setRevocationModal({ ...revocationModal, reason: e.target.value })}
+                  placeholder="e.g. End of contract, Security concerns..."
+                  className="w-full px-4 py-4 border border-gray-200 dark:border-gray-700 rounded-2xl bg-white dark:bg-gray-700 text-sm focus:ring-2 focus:ring-red-500 transition-all min-h-[100px]"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4 pt-2">
                 <button
-                  onClick={() => {
-                    navigator.clipboard.writeText(passwordResetModal.tempPassword);
-                    showSuccess('Copied to clipboard');
-                  }}
-                  className="p-2 hover:bg-emerald-50 dark:hover:bg-emerald-900 rounded-lg transition-colors"
+                  onClick={() => setRevocationModal({ show: false, caretaker: null, reason: '' })}
+                  className="py-4 px-4 rounded-2xl border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 font-bold hover:bg-gray-50 dark:hover:bg-gray-700 transition-all"
                 >
-                  <Plus className="w-4 h-4 rotate-45" />
+                  Cancel
+                </button>
+                <button
+                  onClick={handleRevokeConfirm}
+                  className="py-4 px-4 rounded-2xl bg-red-600 text-white font-bold hover:bg-red-700 transition-all shadow-lg shadow-red-200 dark:shadow-none"
+                >
+                  Confirm
                 </button>
               </div>
-              <p className="text-[10px] text-emerald-600 dark:text-emerald-500 text-center mt-4 leading-relaxed">
-                Please share this password with the caretaker. They should change it after logging in.
-              </p>
             </div>
-          ) : (
-            <div className="grid grid-cols-2 gap-4 pt-2">
-              <button
-                onClick={() =>
-                  setPasswordResetModal({ show: false, caretaker: null, loading: false, tempPassword: '' })
-                }
-                className="py-4 px-4 rounded-2xl border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 font-bold hover:bg-gray-50 dark:hover:bg-gray-700 transition-all"
-                disabled={passwordResetModal.loading}
-              >
-                Cancel
-              </button>
-              <button
-                onClick={confirmResetPassword}
-                className="py-4 px-4 rounded-2xl bg-amber-600 text-white font-bold hover:bg-amber-700 transition-all shadow-lg shadow-amber-200 dark:shadow-none flex items-center justify-center gap-2"
-                disabled={passwordResetModal.loading}
-              >
-                {passwordResetModal.loading ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <Key className="w-4 h-4" />
-                )}
-                Confirm
-              </button>
-            </div>
-          )}
-
-          {passwordResetModal.tempPassword && (
-            <button
-              onClick={() =>
-                setPasswordResetModal({ show: false, caretaker: null, loading: false, tempPassword: '' })
-              }
-              className="w-full py-4 bg-gray-900 dark:bg-green-600 text-white font-bold rounded-2xl hover:bg-black dark:hover:bg-green-700 transition-all"
-            >
-              Done
-            </button>
-          )}
+          </div>
         </div>
-      </div>
-    </div>
-  )
-}
+      )
+      }
+
+      {/* ── Security / Permission Alert Modal ───────────────────────────── */}
+      {
+        permissionPrompt.open && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100001] p-4">
+            <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden animate-in zoom-in-95 duration-200">
+              <div className="p-8 text-center space-y-4">
+                <div className="w-20 h-20 bg-amber-100 dark:bg-amber-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <AlertCircle className="w-10 h-10 text-amber-600 dark:text-amber-400" />
+                </div>
+                <h3 className="text-2xl font-bold text-gray-900 dark:text-white">
+                  {permissionPrompt.isBulk ? 'Bulk Access Grant' : 'Landlord-Level Access'}
+                </h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  {permissionPrompt.isBulk
+                    ? 'You are enabling multiple sensitive features. This grants this caretaker elevated control over bookings, payments, and system settings. Are you sure?'
+                    : (
+                      <>
+                        Enabling <span className="font-bold text-gray-900 dark:text-white">{promptedPermissionLabel}</span> grants elevated landlord-level permissions.
+                        <br />
+                        {promptedPermissionMessage}
+                      </>
+                    )}
+                </p>
+                <div className="grid grid-cols-2 gap-4 pt-4">
+                  <button
+                    onClick={closePermissionPrompt}
+                    className="py-4 px-4 rounded-2xl border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 font-bold hover:bg-gray-50 dark:hover:bg-gray-700 transition-all"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={confirmPermissionGrant}
+                    className="py-4 px-4 rounded-2xl bg-amber-600 text-white font-bold hover:bg-amber-700 transition-all shadow-lg shadow-amber-200 dark:shadow-none"
+                  >
+                    Grant Access
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )
+      }
+
+      {/* ── Password Reset Modal ─────────────────────────────────────────── */}
+      {
+        passwordResetModal.show && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100000] p-4">
+            <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden animate-in zoom-in-95 duration-200">
+              <div className="p-8 space-y-6">
+                <div className="text-center space-y-2">
+                  <div className="w-16 h-16 bg-amber-100 dark:bg-amber-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <KeyRound className="w-8 h-8 text-amber-600 dark:text-amber-400" />
+                  </div>
+                  <h3 className="text-xl font-bold text-gray-900 dark:text-white">Reset Password</h3>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    Generate a new temporary password for{' '}
+                    <span className="font-bold text-gray-900 dark:text-white">
+                      {passwordResetModal.caretaker?.caretaker?.first_name}
+                    </span>
+                    ?
+                  </p>
+                </div>
+
+                {passwordResetModal.tempPassword ? (
+                  <div className="p-4 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-100 dark:border-emerald-800 rounded-2xl animate-in slide-in-from-bottom-2 duration-300">
+                    <p className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-widest text-center mb-2">
+                      New Temporary Password
+                    </p>
+                    <div className="bg-white dark:bg-gray-800 py-4 px-4 rounded-xl border-2 border-emerald-200 dark:border-emerald-700 flex items-center justify-between group">
+                      <span className="text-xl font-mono font-bold text-gray-900 dark:text-white tracking-widest">
+                        {passwordResetModal.tempPassword}
+                      </span>
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText(passwordResetModal.tempPassword);
+                          showSuccess('Copied to clipboard');
+                        }}
+                        className="p-2 hover:bg-emerald-50 dark:hover:bg-emerald-900 rounded-lg transition-colors"
+                      >
+                        <Plus className="w-4 h-4 rotate-45" />
+                      </button>
+                    </div>
+                    <p className="text-[10px] text-emerald-600 dark:text-emerald-500 text-center mt-4 leading-relaxed">
+                      Please share this password with the caretaker. They should change it after logging in.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 gap-4 pt-2">
+                    <button
+                      onClick={() =>
+                        setPasswordResetModal({ show: false, caretaker: null, loading: false, tempPassword: '' })
+                      }
+                      className="py-4 px-4 rounded-2xl border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 font-bold hover:bg-gray-50 dark:hover:bg-gray-700 transition-all"
+                      disabled={passwordResetModal.loading}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={confirmResetPassword}
+                      className="py-4 px-4 rounded-2xl bg-amber-600 text-white font-bold hover:bg-amber-700 transition-all shadow-lg shadow-amber-200 dark:shadow-none flex items-center justify-center gap-2"
+                      disabled={passwordResetModal.loading}
+                    >
+                      {passwordResetModal.loading ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <Key className="w-4 h-4" />
+                      )}
+                      Confirm
+                    </button>
+                  </div>
+                )}
+
+                {passwordResetModal.tempPassword && (
+                  <button
+                    onClick={() =>
+                      setPasswordResetModal({ show: false, caretaker: null, loading: false, tempPassword: '' })
+                    }
+                    className="w-full py-4 bg-gray-900 dark:bg-green-600 text-white font-bold rounded-2xl hover:bg-black dark:hover:bg-green-700 transition-all"
+                  >
+                    Done
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        )
+      }
     </>
   );
 }

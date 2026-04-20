@@ -1,5 +1,12 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
+import { 
+  useTenantStayBundle, 
+  useTenantHistory, 
+  useTenantTransfers,
+  tenantQueryKeys 
+} from '../../hooks/useTenantQueries';
 import { tenantService } from '../../services/tenantService';
 import api, { getImageUrl } from '../../utils/api';
 import ImagePlaceholder from '../../components/Shared/ImagePlaceholder';
@@ -42,26 +49,59 @@ import ReservationPolicyNotice from './components/ReservationPolicyNotice';
 
 const MyBookings = () => {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { uiState, updateScreenState, updateData, invalidateData } = useUIState();
   const activeTab = uiState.bookings?.activeTab || 'current';
 
-  // Use cached data for instant mount
+  // --- Queries ---
+  const stayBundleQuery = useTenantStayBundle();
+  const transferQuery = useTenantTransfers();
+  const [historyPage, setHistoryPage] = useState(1);
+  const historyQuery = useTenantHistory(historyPage);
+
+  const { data: bundleData, isLoading: bundleLoading, refetch: refetchBundle } = stayBundleQuery;
+  const { data: transfersData, isLoading: transfersLoading, refetch: refetchTransfers } = transferQuery;
+  const { data: historyData, isLoading: historyLoading, isFetching: historyFetching } = historyQuery;
+
+  // Use cached data for instant mount fallback (optional, queries are usually fast enough)
   const cachedData = uiState.data?.bookings;
 
-  const [activeStays, setActiveStays] = useState(cachedData?.activeStays || []);
+  // --- Derived Data ---
+  const activeStays = bundleData?.stays || cachedData?.activeStays || [];
+  const pendingBookings = useMemo(() => {
+    const list = bundleData?.bookingsList || cachedData?.pendingBookings || [];
+    const pendingCheckInIds = new Set((bundleData?.pendingCheckIns || []).map(pc => pc.id));
+    const pendingStatuses = new Set(['pending', 'pending_reservation', 'reserved', 'booked', 'payment_pending']);
+    return list.filter((b) =>
+      pendingStatuses.has(String(b?.status || '').toLowerCase()) &&
+      !pendingCheckInIds.has(b.id)
+    );
+  }, [bundleData, cachedData]);
+
+  const pendingCheckIns = bundleData?.pendingCheckIns || cachedData?.pendingCheckIns || [];
+  const upcomingBooking = bundleData?.upcomingBooking || cachedData?.upcomingBooking || null;
+
+  const [history, setHistory] = useState({ bookings: [], pagination: null });
+
+  // Handle history data merging (for "load more")
+  useEffect(() => {
+    if (historyData) {
+      if (historyPage === 1) {
+        setHistory(historyData);
+      } else {
+        setHistory(prev => ({
+          bookings: [...prev.bookings, ...historyData.bookings],
+          pagination: historyData.pagination
+        }));
+      }
+    }
+  }, [historyData, historyPage]);
+
   const [selectedStayIndex, setSelectedStayIndex] = useState(0);
-  const [pendingBookings, setPendingBookings] = useState(cachedData?.pendingBookings || []);
-  const [pendingCheckIns, setPendingCheckIns] = useState(cachedData?.pendingCheckIns || []);
-  const [upcomingBooking, setUpcomingBooking] = useState(cachedData?.upcomingBooking || null);
-  const [history, setHistory] = useState(cachedData?.history || { bookings: [], pagination: null });
-  const [historyLoadingMore, setHistoryLoadingMore] = useState(false);
 
-  const fetchedLiveRef = React.useRef(!!cachedData);
-  const fetchedHistoryRef = React.useRef(!!(cachedData && cachedData.history));
+  const loading = (bundleLoading || transfersLoading) && !cachedData;
+  const error = stayBundleQuery.error?.message || null;
 
-  // Only show initial loader if we have NO cached data at all
-  const [loading, setLoading] = useState(!cachedData);
-  const [error, setError] = useState(null);
   const [showAddonModal, setShowAddonModal] = useState(false);
   const [showExtensionModal, setShowExtensionModal] = useState(false);
   const [showTransferWarning, setShowTransferWarning] = useState(false);
@@ -72,16 +112,43 @@ const MyBookings = () => {
   const [requestingTransfer, setRequestingTransfer] = useState(false);
   const [requestingMoveOut, setRequestingMoveOut] = useState(false);
   const [cancellingBooking, setCancellingBooking] = useState(null);
-  const [pendingTransferBookingIds, setPendingTransferBookingIds] = useState([]);
-  const [pendingTransferRequests, setPendingTransferRequests] = useState([]);
   const [cancellingTransferRequestId, setCancellingTransferRequestId] = useState(null);
-  const [monthlyTransferCount, setMonthlyTransferCount] = useState(0);
-  // cancelConfirm stores the bookingId pending user confirmation (null = none)
   const [cancelConfirmModal, setCancelConfirmModal] = useState(null);
 
   const invalidateTenantStayCache = useCallback(() => {
-    invalidateData(['dashboard', 'bookings']);
-  }, [invalidateData]);
+    queryClient.invalidateQueries({ queryKey: tenantQueryKeys.dashboardBundle() });
+    queryClient.invalidateQueries({ queryKey: ['tenantStayBundle'] });
+    queryClient.invalidateQueries({ queryKey: tenantQueryKeys.transfers() });
+  }, [queryClient]);
+
+  const fetchData = useCallback(async () => {
+    await Promise.all([refetchBundle(), refetchTransfers()]);
+  }, [refetchBundle, refetchTransfers]);
+
+  const pendingTransferBookingIds = useMemo(() => {
+    return (transfersData || [])
+      .filter(t => ['pending', 'approved'].includes(String(t.status || '').toLowerCase()))
+      .map(t => t.booking_id);
+  }, [transfersData]);
+
+  const pendingTransferRequests = useMemo(() => {
+    return (transfersData || []).filter(
+      (t) => String(t.status || '').toLowerCase() === 'pending',
+    );
+  }, [transfersData]);
+
+  const monthlyTransferCount = useMemo(() => {
+    const list = transfersData || [];
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    return list.filter(t => {
+      const dateStr = t.created_at || t.date;
+      if (!dateStr) return false;
+      const createdAt = new Date(dateStr);
+      const status = String(t.status || '').toLowerCase();
+      return createdAt >= startOfMonth && ['pending', 'approved'].includes(status);
+    }).length;
+  }, [transfersData]);
 
   // Handle Extension Request
   const handleRequestExtension = async (payload) => {
@@ -107,12 +174,6 @@ const MyBookings = () => {
       await api.post('/tenant/transfers', payload);
       toast.success('Room transfer request sent to landlord');
       invalidateTenantStayCache();
-
-      // Update local state to immediately reflect the new request
-      if (payload.booking_id) {
-        setPendingTransferBookingIds(prev => [...prev, payload.booking_id]);
-      }
-      setMonthlyTransferCount(prev => prev + 1);
 
       fetchData();
       setShowTransferModal(false);
@@ -169,155 +230,11 @@ const MyBookings = () => {
   const [showMaintenanceModal, setShowMaintenanceModal] = useState(false);
   const [maintenanceBookingId, setMaintenanceBookingId] = useState('');
 
-  const loadMoreHistory = async () => {
-    if (!history?.pagination || history.pagination.currentPage >= history.pagination.lastPage || historyLoadingMore) {
-      return;
+  const loadMoreHistory = useCallback(() => {
+    if (history?.pagination && history.pagination.currentPage < history.pagination.lastPage && !historyFetching) {
+      setHistoryPage(prev => prev + 1);
     }
-    setHistoryLoadingMore(true);
-    try {
-      const nextPage = history.pagination.currentPage + 1;
-      const data = await tenantService.getHistory(nextPage);
-      const merged = {
-        bookings: [...(history.bookings || []), ...data.bookings],
-        pagination: data.pagination
-      };
-      setHistory(merged);
-      // Fix: use the fresh `merged` object, not the stale `history` closure
-      updateData('bookings', prev => ({ ...(prev || {}), history: merged }));
-    } catch (__err) {
-      toast.error('Failed to load more history');
-    } finally {
-      setHistoryLoadingMore(false);
-    }
-  };
-
-  const fetchData = useCallback(async () => {
-    // Only set loading true if we don't have data for the current tab already
-    const hasDataForTab = activeTab === 'history' ? fetchedHistoryRef.current : fetchedLiveRef.current;
-    if (!hasDataForTab) setLoading(true);
-
-    setError(null);
-    try {
-      if (activeTab === 'current' || activeTab === 'financials') {
-        const response = await tenantService.getCurrentStay();
-        const stays = response?.stays || response?.data?.stays || [];
-        const pendingCheckInsData = response?.pendingCheckIns || response?.data?.pendingCheckIns || [];
-        const upcoming =
-          response?.upcomingBooking ||
-          response?.upcoming_booking ||
-          response?.data?.upcomingBooking ||
-          response?.data?.upcoming_booking ||
-          null;
-
-        setActiveStays(stays);
-        setPendingCheckIns(pendingCheckInsData);
-        setUpcomingBooking(upcoming);
-
-        // Also fetch tenant bookings to detect pending bookings
-        let pending = [];
-        try {
-          const bookingsResp = await tenantService.getBookings();
-          const bookingsList =
-            bookingsResp?.bookings ||
-            bookingsResp?.data?.bookings ||
-            bookingsResp?.data ||
-            bookingsResp ||
-            [];
-          const pendingStatuses = new Set(['pending', 'pending_reservation', 'reserved', 'booked']);
-          const pendingCheckInIds = new Set(pendingCheckInsData.map(pc => pc.id));
-          pending = Array.isArray(bookingsList)
-            ? bookingsList.filter((b) =>
-              pendingStatuses.has(String(b?.status || '').toLowerCase()) &&
-              !pendingCheckInIds.has(b.id)
-            )
-            : [];
-          setPendingBookings(pending);
-        } catch (e) {
-          console.warn('Failed to fetch tenant bookings for pending detection', e);
-        }
-
-        // Load transfers
-        try {
-          const transfersResp = await api.get('/tenant/transfers');
-          const transfersList = transfersResp?.data?.data || transfersResp?.data?.transfers || transfersResp?.data || [];
-          const list = Array.isArray(transfersList) ? transfersList : [];
-
-          // Identify bookings with active transfer requests
-          const pendingIds = list
-            .filter(t => ['pending', 'approved'].includes(String(t.status || '').toLowerCase()))
-            .map(t => t.booking_id);
-          setPendingTransferBookingIds(pendingIds);
-
-          const pendingRequests = list.filter(
-            (t) => String(t.status || '').toLowerCase() === 'pending',
-          );
-          setPendingTransferRequests(pendingRequests);
-
-          // Calculate transfers this month (limit of 2)
-          const now = new Date();
-          const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-          const thisMonthCount = list.filter(t => {
-            const dateStr = t.created_at || t.date;
-            if (!dateStr) return false;
-            const createdAt = new Date(dateStr);
-            const status = String(t.status || '').toLowerCase();
-            return createdAt >= startOfMonth && ['pending', 'approved'].includes(status);
-          }).length;
-          setMonthlyTransferCount(thisMonthCount);
-        } catch (e) {
-          console.warn('Failed to load transfers', e);
-        }
-
-        fetchedLiveRef.current = true;
-
-        // Update cache
-        updateData('bookings', prev => ({
-          ...(prev || {}),
-          activeStays: stays,
-          pendingBookings: pending,
-          pendingCheckIns: pendingCheckInsData,
-          upcomingBooking: upcoming
-        }));
-
-      } else if (activeTab === 'history') {
-        const data = await tenantService.getHistory();
-        setHistory(data);
-        fetchedHistoryRef.current = true;
-
-        // Update cache
-        updateData('bookings', prev => ({ ...(prev || {}), history: data }));
-      }
-    } catch (err) {
-      const serverMessage = err?.response?.data?.message || err?.message || 'Failed to load data.';
-      setError(serverMessage);
-      console.error('MyBookings fetchData error:', err?.response?.data || err);
-    } finally {
-      setLoading(false);
-    }
-  }, [activeTab, updateData]);
-
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
-
-  useEffect(() => {
-    if (!Array.isArray(activeStays) || activeStays.length === 0) {
-      if (selectedStayIndex !== 0) {
-        setSelectedStayIndex(0);
-      }
-      return;
-    }
-
-    if (selectedStayIndex < 0) {
-      setSelectedStayIndex(0);
-      return;
-    }
-
-    const lastIndex = activeStays.length - 1;
-    if (selectedStayIndex > lastIndex) {
-      setSelectedStayIndex(lastIndex);
-    }
-  }, [activeStays, selectedStayIndex]);
+  }, [history, historyFetching]);
 
   useEffect(() => {
     const handleFocusRefresh = () => {

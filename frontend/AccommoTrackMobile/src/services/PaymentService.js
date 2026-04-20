@@ -380,9 +380,15 @@ class PaymentService {
         "Error recording payment:",
         error.response?.data || error.message,
       );
+      if (error?.response) {
+        return {
+          success: false,
+          error,
+        };
+      }
       return {
         success: false,
-        error: error.response?.data?.message || "Failed to record payment",
+        error: error.message || "Failed to record payment",
       };
     }
   }

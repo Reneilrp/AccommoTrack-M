@@ -55,11 +55,13 @@ class MessageResource extends JsonResource
                 'first_name' => $this->sender->first_name,
                 'last_name' => $this->sender->last_name,
                 'role' => $this->sender->role,
+                'profile_image' => $this->sender->profile_image,
             ]),
             'actual_sender' => $this->whenLoaded('actualSender', fn () => [
                 'id' => $this->actualSender->id,
                 'first_name' => $this->actualSender->first_name,
                 'last_name' => $this->actualSender->last_name,
+                'profile_image' => $this->actualSender->profile_image,
             ]),
             'histories' => $this->whenLoaded('histories', fn () => $this->histories->map(fn ($h) => [
                 'message' => $h->old_message,

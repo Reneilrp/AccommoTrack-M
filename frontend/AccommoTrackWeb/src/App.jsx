@@ -30,6 +30,7 @@ function App() {
     const bootstrapAuth = async () => {
       const token = localStorage.getItem("authToken");
       const userData = localStorage.getItem("userData");
+      let cachedUser = null;
       let hasHydratedCachedUser = false;
       const publicRoutes = new Set([
         "/",
@@ -58,8 +59,9 @@ function App() {
 
       if (userData) {
         try {
+          cachedUser = JSON.parse(userData);
           if (isActive) {
-            setUser(JSON.parse(userData));
+            setUser(cachedUser);
             setIsLoading(false);
           }
           hasHydratedCachedUser = true;
@@ -82,9 +84,33 @@ function App() {
           headers: { "X-Skip-Auth-Redirect": "1" },
         });
         const me = res?.data?.user || res?.data;
+        const hasCaretakerPermissions =
+          me?.caretaker_permissions &&
+          typeof me.caretaker_permissions === "object" &&
+          Object.keys(me.caretaker_permissions).length > 0;
+
+        const shouldHydrateFromCache =
+          me?.role === "caretaker" &&
+          !hasCaretakerPermissions &&
+          cachedUser?.role === "caretaker" &&
+          cachedUser?.caretaker_permissions &&
+          typeof cachedUser.caretaker_permissions === "object";
+
+        const normalizedMe = shouldHydrateFromCache
+          ? {
+            ...me,
+            caretaker_permissions: cachedUser.caretaker_permissions,
+            assigned_property_ids: Array.isArray(me?.assigned_property_ids)
+              ? me.assigned_property_ids
+              : (Array.isArray(cachedUser?.assigned_property_ids)
+                ? cachedUser.assigned_property_ids
+                : []),
+          }
+          : me;
+
         if (me && isActive) {
-          setUser(me);
-          localStorage.setItem("userData", JSON.stringify(me));
+          setUser(normalizedMe);
+          localStorage.setItem("userData", JSON.stringify(normalizedMe));
         }
       } catch (error) {
         const status = error?.response?.status;

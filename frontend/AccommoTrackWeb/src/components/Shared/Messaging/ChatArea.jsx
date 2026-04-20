@@ -15,7 +15,6 @@ const ChatArea = ({
   handleUnsend,
   getInitials,
   formatTime,
-  currentUserId,
   normalizedRole,
   messagesEndRef,
   imagePreview,
@@ -36,7 +35,7 @@ const ChatArea = ({
   const textareaRef = useRef(null);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [viewingHistory, setViewingHistory] = useState(null);
-  
+
   // Auto-focus textarea when replying or editing
   React.useEffect(() => {
     if (replyingTo || editingMessage) {
@@ -168,18 +167,19 @@ const ChatArea = ({
       <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-white dark:bg-gray-900 scrollbar-hide">
         {messages.length === 0 ? (
           <div className="h-full flex flex-col items-center justify-center text-gray-500 dark:text-gray-500 opacity-60">
-             <MessageCircle className="w-12 h-12 mb-2" />
-             <p className="text-sm font-bold">No messages yet. Say hello!</p>
+            <MessageCircle className="w-12 h-12 mb-2" />
+            <p className="text-sm font-bold">No messages yet. Say hello!</p>
           </div>
         ) : (
           messages.map((msg, idx) => {
             // Using standardized fields from MessageResource
             const isMine = msg.is_mine;
-            const actualSenderId = msg.actual_sender_id;
-            const isCaretakerMessage = msg.sender_role === 'caretaker';
-            const isLandlordMessage = msg.sender_role === 'landlord';
-            const isSentByCurrentCaretaker = isCaretakerMessage && actualSenderId && String(actualSenderId) === String(currentUserId);
-            
+            const incomingSender = !isMine
+              ? (msg.actual_sender || msg.sender || selectedChat?.other_user || null)
+              : null;
+            const incomingAvatarUrl = incomingSender?.profile_image || null;
+            const incomingInitials = getInitials(incomingSender || selectedChat?.other_user);
+
             const ts = msg.created_at || new Date().toISOString();
             const isUnsent = Boolean(msg.is_unsent);
             const isEdited = Boolean(msg.is_edited);
@@ -187,25 +187,29 @@ const ChatArea = ({
             const isImageOnly = msg.image_url && !msg.message && !replyTo && !msg.file_url;
 
             const canEdit = isMine && !isUnsent && !caretakerMessagingRestricted && (new Date() - new Date(ts)) < 30 * 60 * 1000;
-            
+
             return (
               <div
                 key={msg.id || idx}
                 className={`flex w-full ${isMine ? 'justify-end' : 'justify-start'} animate-in fade-in slide-in-from-bottom-1 duration-300 group/msg`}
               >
-                <div className={`flex flex-col ${isMine ? 'items-end' : 'items-start'} max-w-[85%] sm:max-w-xs lg:max-w-md`}> 
-                  {/* Role Indicator */}
-                  {isLandlordView && (isLandlordMessage || isCaretakerMessage) && (
-                    <p className="text-[10px] mb-2 text-gray-500 dark:text-gray-400 font-bold uppercase tracking-wider">
-                      {isLandlordMessage ? (
-                        isMine ? 'You (Landlord)' : 'Landlord'
+                <div className="flex items-start gap-2">
+                  {!isMine && (
+                    <div className="w-8 h-8 mt-0.5 rounded-full bg-green-100 dark:bg-green-900/30 overflow-hidden border border-gray-200 dark:border-gray-700 flex-shrink-0">
+                      {incomingAvatarUrl ? (
+                        <img
+                          src={incomingAvatarUrl}
+                          alt={`${incomingSender?.first_name || 'User'} avatar`}
+                          className="w-full h-full object-cover"
+                        />
                       ) : (
-                        isSentByCurrentCaretaker
-                          ? 'You (Caretaker)'
-                          : `via ${msg.actual_sender?.first_name || ''} ${msg.actual_sender?.last_name || ''} (Caretaker)`.trim()
+                        <span className="w-full h-full flex items-center justify-center text-[11px] font-semibold text-green-600 dark:text-green-400 uppercase">
+                          {incomingInitials}
+                        </span>
                       )}
-                    </p>
+                    </div>
                   )}
+                  <div className={`flex flex-col ${isMine ? 'items-end' : 'items-start'} max-w-[85%] sm:max-w-xs lg:max-w-md`}>
                     <div className="flex items-center gap-1 max-w-full">
                       {canEdit && (
                         <div className="opacity-0 group-hover/msg:opacity-100 flex items-center bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-full shadow-sm border border-gray-200 dark:border-gray-700 transition-all">
@@ -233,30 +237,17 @@ const ChatArea = ({
                           </button>
                         </div>
                       )}
-                      {!isMine && !isUnsent && !caretakerMessagingRestricted && (
-                        <div className="opacity-0 group-hover/msg:opacity-100 flex items-center bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-full shadow-sm border border-gray-200 dark:border-gray-700 transition-all">
-                          <button
-                            onClick={() => setReplyingTo(msg)}
-                            className="p-1.5 hover:text-blue-500 transition-colors"
-                            title="Reply"
-                          >
-                            <Reply className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      )}
-                      
                       <div
-                        className={`w-auto rounded-2xl ${
-                          isUnsent
-                            ? 'px-4 py-2 bg-gray-100 dark:bg-gray-800/50 text-gray-500 dark:text-gray-500 border border-dashed border-gray-300 dark:border-gray-700 italic'
-                            : isMine
-                              ? isImageOnly 
-                                ? 'p-0 bg-transparent shadow-none' 
-                                : 'px-4 py-2 bg-green-600 dark:bg-green-700 text-white rounded-tr-none shadow-sm'
-                              : isImageOnly 
-                                ? 'p-0 bg-transparent shadow-none' 
-                                : 'px-4 py-2 bg-white dark:bg-gray-800 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-700 rounded-tl-none shadow-sm'
-                        }`}
+                        className={`w-auto rounded-2xl ${isUnsent
+                          ? 'px-4 py-2 bg-gray-100 dark:bg-gray-800/50 text-gray-500 dark:text-gray-500 border border-dashed border-gray-300 dark:border-gray-700 italic'
+                          : isMine
+                            ? isImageOnly
+                              ? 'p-0 bg-transparent shadow-none'
+                              : 'px-4 py-2 bg-green-600 dark:bg-green-700 text-white rounded-tr-none shadow-sm'
+                            : isImageOnly
+                              ? 'p-0 bg-transparent shadow-none'
+                              : 'px-4 py-2 bg-white dark:bg-gray-800 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-700 rounded-tl-none shadow-sm'
+                          }`}
                       >
                         {replyTo && !isUnsent && (
                           <div className={`mb-2 p-2 rounded-lg text-xs border-l-4 ${isMine ? 'bg-green-700/50 border-green-300 text-green-50' : 'bg-gray-100 dark:bg-gray-700 border-green-500 text-gray-600 dark:text-gray-300'}`}>
@@ -270,21 +261,20 @@ const ChatArea = ({
                           <>
                             {msg.image_url && (
                               <div className="mb-2 max-w-full">
-                                <img 
-                                  src={msg.image_url} 
-                                  alt="Attachment" 
+                                <img
+                                  src={msg.image_url}
+                                  alt="Attachment"
                                   className="rounded-lg max-h-60 object-cover cursor-pointer hover:opacity-90 transition-opacity"
                                   onClick={() => window.open(msg.image_url, '_blank')}
                                 />
                               </div>
                             )}
                             {msg.file_url && (
-                              <div 
-                                className={`mb-2 p-3 rounded-xl border flex items-center gap-3 cursor-pointer hover:opacity-90 transition-opacity min-w-[200px] ${
-                                  isMine 
-                                    ? 'bg-green-700/30 border-green-500 text-white' 
-                                    : 'bg-gray-50 dark:bg-gray-800/50 border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white'
-                                }`}
+                              <div
+                                className={`mb-2 p-3 rounded-xl border flex items-center gap-3 cursor-pointer hover:opacity-90 transition-opacity min-w-[200px] ${isMine
+                                  ? 'bg-green-700/30 border-green-500 text-white'
+                                  : 'bg-gray-50 dark:bg-gray-800/50 border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white'
+                                  }`}
                                 onClick={() => window.open(msg.file_url, '_blank')}
                               >
                                 <div className={`p-2 rounded-lg ${isMine ? 'bg-green-500' : 'bg-blue-500'} text-white`}>
@@ -305,7 +295,7 @@ const ChatArea = ({
                               <div className="flex items-end gap-2 flex-wrap">
                                 <p className="text-sm whitespace-pre-wrap break-words flex-1">{msg.message}</p>
                                 {isEdited && (
-                                  <button 
+                                  <button
                                     onClick={() => setViewingHistory(msg)}
                                     className={`text-[9px] uppercase font-bold tracking-tighter opacity-70 hover:opacity-100 transition-opacity underline cursor-pointer ${isMine ? 'text-green-100' : 'text-gray-400'}`}
                                   >
@@ -317,14 +307,27 @@ const ChatArea = ({
                           </>
                         )}
                       </div>
+
+                      {!isMine && !isUnsent && !caretakerMessagingRestricted && (
+                        <div className="opacity-0 group-hover/msg:opacity-100 flex items-center bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-full shadow-sm border border-gray-200 dark:border-gray-700 transition-all">
+                          <button
+                            onClick={() => setReplyingTo(msg)}
+                            className="p-1.5 hover:text-blue-500 transition-colors"
+                            title="Reply"
+                          >
+                            <Reply className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      )}
                     </div>
 
-                  <p className="text-[10px] mt-2 text-gray-500 dark:text-gray-500 px-2 flex items-center justify-end gap-1">
-                    {formatTime(ts)}
-                    {isMine && !isUnsent && (
-                      <CheckCheck className={`w-3.5 h-3.5 ${msg.is_read ? 'text-blue-500' : 'text-gray-400'}`} />
-                    )}
-                  </p>
+                    <p className={`text-[10px] mt-2 text-gray-500 dark:text-gray-500 px-2 flex items-center gap-1 ${isMine ? 'justify-end' : 'justify-start'}`}>
+                      {formatTime(ts)}
+                      {isMine && !isUnsent && (
+                        <CheckCheck className={`w-3.5 h-3.5 ${msg.is_read ? 'text-blue-500' : 'text-gray-400'}`} />
+                      )}
+                    </p>
+                  </div>
                 </div>
               </div>
             );
@@ -347,7 +350,7 @@ const ChatArea = ({
           <div className="mb-4 relative inline-block">
             <div className="relative rounded-xl overflow-hidden border-2 border-green-500 shadow-lg animate-in zoom-in duration-200">
               <img src={imagePreview} alt="Preview" className="h-32 w-auto object-cover" />
-              <button 
+              <button
                 onClick={removeSelectedImage}
                 className="absolute top-1 right-1 bg-black/50 hover:bg-black/70 text-white p-2.5 rounded-full backdrop-blur-sm transition-colors"
               >
@@ -368,7 +371,7 @@ const ChatArea = ({
                 <p className="text-sm font-bold text-gray-900 dark:text-white truncate">{selectedFile.name}</p>
                 <p className="text-[10px] text-gray-500 capitalize">{selectedFile.name.split('.').pop()} Document</p>
               </div>
-              <button 
+              <button
                 onClick={removeSelectedFile}
                 className="ml-2 hover:bg-gray-100 dark:hover:bg-gray-700 p-1.5 rounded-full transition-colors"
                 title="Remove file"
@@ -399,11 +402,11 @@ const ChatArea = ({
               <p className="text-[10px] font-bold text-green-700 dark:text-green-400 uppercase tracking-wider">Editing Message</p>
               <p className="text-xs text-gray-600 dark:text-gray-400 truncate italic">{editingMessage.message}</p>
             </div>
-            <button 
+            <button
               onClick={() => {
                 setEditingMessage(null);
                 setMessageText('');
-              }} 
+              }}
               className="p-1 hover:bg-green-100 dark:hover:bg-green-900/40 rounded-full transition-colors ml-2"
             >
               <X className="w-4 h-4 text-green-600" />
@@ -412,31 +415,31 @@ const ChatArea = ({
         )}
 
         <div className="flex gap-2 items-center">
-          <input 
-            type="file" 
+          <input
+            type="file"
             ref={imageInputRef}
             onChange={(e) => handleImageSelect(e.target.files[0])}
             accept="image/*"
             className="hidden"
           />
-          <input 
-            type="file" 
+          <input
+            type="file"
             ref={docInputRef}
             onChange={(e) => handleFileSelect(e.target.files[0])}
             accept=".pdf,.docx"
             className="hidden"
           />
-          <button 
+          <button
             onClick={() => imageInputRef.current?.click()}
-            className="p-2.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors text-gray-500 dark:text-gray-400 flex-shrink-0" 
+            className="p-2.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors text-gray-500 dark:text-gray-400 flex-shrink-0"
             disabled={!canSendMessages}
             title="Attach photo"
           >
             <ImageIcon className="w-6 h-6" />
           </button>
-          <button 
+          <button
             onClick={() => docInputRef.current?.click()}
-            className="p-2.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors text-gray-500 dark:text-gray-400 flex-shrink-0" 
+            className="p-2.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors text-gray-500 dark:text-gray-400 flex-shrink-0"
             disabled={!canSendMessages}
             title="Attach document"
           >
@@ -475,19 +478,20 @@ const ChatArea = ({
         </div>
       </div>
 
-      {isDetailsOpen && (
-        <button
-          type="button"
-          onClick={() => setIsDetailsOpen(false)}
-          className="absolute inset-0 z-20 bg-black/30 backdrop-blur-[1px] lg:hidden"
-          aria-label="Close details panel"
-        />
-      )}
+      {
+        isDetailsOpen && (
+          <button
+            type="button"
+            onClick={() => setIsDetailsOpen(false)}
+            className="absolute inset-0 z-20 bg-black/30 backdrop-blur-[1px] lg:hidden"
+            aria-label="Close details panel"
+          />
+        )
+      }
 
       <aside
-        className={`absolute top-0 right-0 z-30 h-full w-full sm:w-[360px] bg-white dark:bg-gray-800 border-l border-gray-200 dark:border-gray-700 shadow-2xl transition-transform duration-300 ${
-          isDetailsOpen ? 'translate-x-0' : 'translate-x-full'
-        }`}
+        className={`absolute top-0 right-0 z-30 h-full w-full sm:w-[360px] bg-white dark:bg-gray-800 border-l border-gray-200 dark:border-gray-700 shadow-2xl transition-transform duration-300 ${isDetailsOpen ? 'translate-x-0' : 'translate-x-full'
+          }`}
       >
         <div className="h-full flex flex-col">
           <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200 dark:border-gray-700">
@@ -602,51 +606,53 @@ const ChatArea = ({
       </aside>
 
       {/* Message History Modal */}
-      {viewingHistory && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white dark:bg-gray-800 rounded-2xl w-full max-w-md overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200">
-            <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
-              <div>
-                <h3 className="font-bold text-gray-900 dark:text-white">Message History</h3>
-                <p className="text-[10px] text-gray-500 uppercase tracking-widest font-bold">Previous versions</p>
+      {
+        viewingHistory && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
+            <div className="bg-white dark:bg-gray-800 rounded-2xl w-full max-w-md overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200">
+              <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+                <div>
+                  <h3 className="font-bold text-gray-900 dark:text-white">Message History</h3>
+                  <p className="text-[10px] text-gray-500 uppercase tracking-widest font-bold">Previous versions</p>
+                </div>
+                <button
+                  onClick={() => setViewingHistory(null)}
+                  className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors"
+                >
+                  <X className="w-5 h-5 text-gray-500" />
+                </button>
               </div>
-              <button 
-                onClick={() => setViewingHistory(null)}
-                className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors"
-              >
-                <X className="w-5 h-5 text-gray-500" />
-              </button>
-            </div>
-            <div className="p-4 max-h-[60vh] overflow-y-auto space-y-4">
-              <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded-xl border border-green-100 dark:border-green-800/30">
-                <p className="text-[10px] font-bold text-green-600 dark:text-green-400 uppercase mb-1">Current Version</p>
-                <p className="text-sm text-gray-900 dark:text-white">{viewingHistory.message}</p>
+              <div className="p-4 max-h-[60vh] overflow-y-auto space-y-4">
+                <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded-xl border border-green-100 dark:border-green-800/30">
+                  <p className="text-[10px] font-bold text-green-600 dark:text-green-400 uppercase mb-1">Current Version</p>
+                  <p className="text-sm text-gray-900 dark:text-white">{viewingHistory.message}</p>
+                </div>
+
+                {viewingHistory.histories?.length > 0 ? (
+                  viewingHistory.histories.slice().reverse().map((history, i) => (
+                    <div key={i} className="p-3 bg-gray-50 dark:bg-gray-700/50 rounded-xl border border-gray-200 dark:border-gray-700">
+                      <p className="text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">
+                        {formatTime(history.created_at)}
+                      </p>
+                      <p className="text-sm text-gray-700 dark:text-gray-300">{history.message}</p>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-center py-8 text-gray-500 text-sm">No history available.</p>
+                )}
               </div>
-              
-              {viewingHistory.histories?.length > 0 ? (
-                viewingHistory.histories.slice().reverse().map((history, i) => (
-                  <div key={i} className="p-3 bg-gray-50 dark:bg-gray-700/50 rounded-xl border border-gray-200 dark:border-gray-700">
-                    <p className="text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">
-                      {formatTime(history.created_at)}
-                    </p>
-                    <p className="text-sm text-gray-700 dark:text-gray-300">{history.message}</p>
-                  </div>
-                ))
-              ) : (
-                <p className="text-center py-8 text-gray-500 text-sm">No history available.</p>
-              )}
-            </div>
-            <div className="p-4 bg-gray-50 dark:bg-gray-900/40 border-t border-gray-200 dark:border-gray-700 flex justify-end">
-              <button 
-                onClick={() => setViewingHistory(null)}
-                className="px-6 py-2 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-xl text-sm font-bold shadow-md active:scale-95 transition-all"
-              >
-                Close
-              </button>
+              <div className="p-4 bg-gray-50 dark:bg-gray-900/40 border-t border-gray-200 dark:border-gray-700 flex justify-end">
+                <button
+                  onClick={() => setViewingHistory(null)}
+                  className="px-6 py-2 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-xl text-sm font-bold shadow-md active:scale-95 transition-all"
+                >
+                  Close
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )
+      }
     </div>
   );
 };
@@ -667,7 +673,7 @@ const CaretakerAssignmentSection = ({ conversationId, initialCaretakerId }) => {
         if (res.data?.success) {
           setCaretakers(res.data.data.map(c => c.caretaker));
         }
-      } catch (_err) { 
+      } catch (_err) {
         // Fail silently or handle error
       }
     };

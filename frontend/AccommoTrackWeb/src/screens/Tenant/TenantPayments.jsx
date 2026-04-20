@@ -1,5 +1,12 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
+import { 
+  useTenantPayments, 
+  useTenantPaymentStats, 
+  useTenantWalletLogs,
+  tenantQueryKeys 
+} from '../../hooks/useTenantQueries';
 import { paymentService } from '../../services/paymentService';
 import { invoiceService } from '../../services/invoiceService';
 import api from '../../utils/api';
@@ -25,6 +32,7 @@ const formatDate = (date) => {
 
 export default function TenantPayments({ user }) {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { uiState, updateScreenState, updateData } = useUIState();
   const { statusFilter, archiveFilter, timeRange, searchQuery } = uiState.wallet || {
     searchQuery: "",
@@ -33,115 +41,43 @@ export default function TenantPayments({ user }) {
     timeRange: "m"
   };
 
-  // Use cached data for instant mount
-  const cachedData = uiState.data?.wallet;
+  // --- Queries ---
+  const paymentsQuery = useTenantPayments('all', archiveFilter || 'active');
+  const statsQuery = useTenantPaymentStats();
+  const [walletLogsPage, setWalletLogsPage] = useState(1);
+  const walletLogsQuery = useTenantWalletLogs(walletLogsPage);
 
-  const [payments, setPayments] = useState(cachedData?.payments || []);
-  const [stats, setStats] = useState(cachedData?.stats || null);
-  const [loading, setLoading] = useState(!cachedData);
-  const [walletLogs, setWalletLogs] = useState(cachedData?.walletLogs || []);
-  const [walletLogsLoading, setWalletLogsLoading] = useState(false);
-  const [walletLogsPagination, setWalletLogsPagination] = useState(cachedData?.walletLogsPagination || null);
-  const [error, setError] = useState(null);
+  const { data: payments = [], isLoading: paymentsLoading, refetch: refetchPayments } = paymentsQuery;
+  const { data: stats = null, isLoading: statsLoading, refetch: refetchStats } = statsQuery;
+  const { data: walletLogsBundle = { data: [], meta: null }, isLoading: walletLogsLoading, refetch: refetchLogs } = walletLogsQuery;
+  
+  const walletLogs = walletLogsBundle.data;
+  const walletLogsPagination = walletLogsBundle.meta;
+
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [tenantPaymentsTempDisabled, setTenantPaymentsTempDisabled] = useState(DEFAULT_TOGGLES.tenantPaymentsDisabled);
   const [processingPaymentKey, setProcessingPaymentKey] = useState(null);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [selectedPayment, setSelectedPayment] = useState(null);
-  const initialLoadRef = useRef(!cachedData);
-  const hadCachedDataOnMountRef = useRef(Boolean(cachedData));
-  const didInitialFetchRef = useRef(false);
+
+  const cachedData = uiState.data?.wallet;
+  const loading = (paymentsLoading || statsLoading) && !cachedData;
+  const error = paymentsQuery.error?.message || statsQuery.error?.message || null;
 
   const loadData = useCallback(async () => {
-    // Only set loading if we have NO data
-    if (initialLoadRef.current && !hadCachedDataOnMountRef.current) setLoading(true);
-    initialLoadRef.current = false;
-    setError(null);
+    await Promise.all([refetchPayments(), refetchStats(), refetchLogs()]);
+  }, [refetchPayments, refetchStats, refetchLogs]);
 
-    try {
-      const searchParams = new URLSearchParams(window.location.search);
-      if (searchParams.get('payment_refresh') === 'true' && !tenantPaymentsTempDisabled) {
-        // Find any pending/unpaid invoices and trigger a background refresh
-        const toastId = showLoading('Updating payment status...');
-        const listRes = await paymentService.getPayments('all', archiveFilter || 'active');
-        if (listRes.success && Array.isArray(listRes.data)) {
-          const pending = listRes.data.filter(p => ['pending', 'unpaid', 'partial'].includes(p.status?.toLowerCase()));
-          await Promise.all(pending.map(p => api.post(`/tenant/invoices/${p.id}/paymongo-refresh`)));
-          showSuccess('Payment statuses updated', toastId);
-        }
-        // Remove the parameter to stop the loop
-        navigate('/payments', { replace: true });
-      }
-
-      const [paymentsRes, statsRes, logsRes] = await Promise.all([
-        paymentService.getPayments('all', archiveFilter || 'active'),
-        paymentService.getStats(),
-        paymentService.getWalletLogs(1)
-      ]);
-
-      if (paymentsRes.success) {
-        setPayments(paymentsRes.data || []);
-      } else {
-        setError(paymentsRes.error);
-      }
-
-      if (statsRes.success) {
-        setStats(statsRes.data);
-        // Sync global balance if available
-        if (statsRes.data?.walletBalance !== undefined) {
-          updateScreenState('wallet', { balance: Number(statsRes.data.walletBalance) });
-        }
-      }
-
-      if (logsRes.success) {
-        setWalletLogs(logsRes.data || []);
-        setWalletLogsPagination(logsRes.meta || null);
-      }
-
-      // Update global cache
-      if (paymentsRes.success && statsRes.success) {
-        updateData('wallet', prev => ({
-          ...prev,
-          payments: paymentsRes.data,
-          stats: statsRes.data,
-          walletLogs: logsRes.data,
-          walletLogsPagination: logsRes.meta
-        }));
-      }
-    } catch (err) {
-      setError('An unexpected error occurred');
-      console.error('Wallet load error:', err);
-    } finally {
-      setLoading(false);
+  // Sync wallet balance to UI state if needed
+  useEffect(() => {
+    if (stats?.walletBalance !== undefined) {
+      updateScreenState('wallet', { balance: Number(stats.walletBalance) });
     }
-  }, [updateData, navigate, tenantPaymentsTempDisabled, archiveFilter, updateScreenState]);
+  }, [stats?.walletBalance, updateScreenState]);
 
   const fetchLogs = useCallback(async (page = 1) => {
-    setWalletLogsLoading(true);
-    try {
-      const res = await paymentService.getWalletLogs(page);
-      if (res.success) {
-        setWalletLogs(res.data || []);
-        setWalletLogsPagination(res.meta || null);
-        updateData('wallet', prev => ({
-          ...prev,
-          walletLogs: res.data,
-          walletLogsPagination: res.meta
-        }));
-      }
-    } catch (_err) {
-      console.error('Failed to fetch logs:', _err);
-      showError('Failed to load transaction history.');
-    } finally {
-      setWalletLogsLoading(false);
-    }
-  }, [updateData]);
-
-  useEffect(() => {
-    if (didInitialFetchRef.current) return;
-    didInitialFetchRef.current = true;
-    loadData();
-  }, [loadData]);
+    setWalletLogsPage(page);
+  }, []);
 
   useEffect(() => {
     let mounted = true;
@@ -154,6 +90,23 @@ export default function TenantPayments({ user }) {
       mounted = false;
     };
   }, []);
+
+  useEffect(() => {
+    const searchParams = new URLSearchParams(window.location.search);
+    if (searchParams.get('payment_refresh') === 'true' && !tenantPaymentsTempDisabled) {
+      (async () => {
+        const toastId = showLoading('Updating payment status...');
+        const listRes = await paymentService.getPayments('all', archiveFilter || 'active');
+        if (listRes.success && Array.isArray(listRes.data)) {
+          const pending = listRes.data.filter(p => ['pending', 'unpaid', 'partial'].includes(p.status?.toLowerCase()));
+          await Promise.all(pending.map(p => api.post(`/tenant/invoices/${p.id}/paymongo-refresh`)));
+          showSuccess('Payment statuses updated', toastId);
+        }
+        navigate('/payments', { replace: true });
+        loadData();
+      })();
+    }
+  }, [tenantPaymentsTempDisabled, archiveFilter, loadData, navigate]);
 
   // Real-time updates
   useEffect(() => {

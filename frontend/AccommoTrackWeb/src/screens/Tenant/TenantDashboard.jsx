@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { useTenantDashboardBundle } from '../../hooks/useTenantQueries';
 import { tenantService } from '../../services/tenantService';
 import { useNavigate } from 'react-router-dom';
 import { SkeletonCurrentStay, SkeletonStatCard } from '../../components/Shared/Skeleton';
@@ -36,13 +37,18 @@ const TenantDashboard = ({ user }) => {
   const navigate = useNavigate();
   const { uiState, updateData, updateScreenState } = useUIState();
 
+  const dashboardQuery = useTenantDashboardBundle();
+  const { data: dashboardData, isLoading: queryLoading, refetch } = dashboardQuery;
+
+  // Derived data with fallback to cached UI state during initial load
   const cachedData = uiState.data.dashboard;
-  const walletBalance = uiState.wallet.balance || 0;
-  const [loading, setLoading] = useState(!cachedData);
-  const [stayData, setStayData] = useState(cachedData?.stayData || null);
-  const [stats, setStats] = useState(cachedData?.stats || null);
-  const [activities, setActivities] = useState(cachedData?.activities || []);
-  const [upcomingSchedule, setUpcomingSchedule] = useState(cachedData?.upcomingSchedule || []);
+  const stayData = dashboardData?.stay || cachedData?.stayData || null;
+  const stats = dashboardData?.stats || cachedData?.stats || null;
+  const activities = dashboardData?.activities || cachedData?.activities || [];
+  const upcomingSchedule = dashboardData?.breakdown?.upcoming_months || cachedData?.upcomingSchedule || [];
+
+  const loading = queryLoading && !cachedData;
+
   const [openSummaryPanel, setOpenSummaryPanel] = useState(null);
   const [dismissedNotifications, setDismissedNotifications] = useState({
     overdueBalance: false,
@@ -51,52 +57,22 @@ const TenantDashboard = ({ user }) => {
     upcomingBooking: false,
   });
   const [tenantPaymentsTempDisabled, setTenantPaymentsTempDisabled] = useState(DEFAULT_TOGGLES.tenantPaymentsDisabled);
-  const initialLoadRef = React.useRef(!cachedData);
 
-  const fetchDashboardData = useCallback(async () => {
-    try {
-      if (initialLoadRef.current) setLoading(true);
-      initialLoadRef.current = false;
-
-      const [currentStay, dashboardStats, activityRes, paymentBreakdown] = await Promise.all([
-        tenantService.getCurrentStay(),
-        tenantService.getDashboardStats(),
-        tenantService.getActivities(),
-        tenantService.getPaymentBreakdown(3)
-      ]);
-
-      const stayPayload = unwrapTenantPayload(currentStay) || {};
-      const statsPayload = unwrapTenantPayload(dashboardStats) || {};
-      const activityPayload = unwrapTenantPayload(activityRes);
-      const activityItems = resolveDashboardActivities(activityPayload).slice(0, 5);
-      const breakdownPayload = unwrapTenantPayload(paymentBreakdown) || {};
-
-      setStayData(stayPayload);
-      setStats(statsPayload);
-      setActivities(activityItems);
-
-      // Use API payment breakdown data
-      const breakdownData = breakdownPayload?.upcoming_months || breakdownPayload?.data?.upcoming_months || [];
-      setUpcomingSchedule(Array.isArray(breakdownData) ? breakdownData.slice(0, 3) : []);
-
-      updateData('dashboard', {
-        stayData: stayPayload,
-        stats: statsPayload,
-        activities: activityItems,
-        upcomingSchedule: breakdownData
-      });
-
-      // Sync global wallet balance
-      const newWalletBalance = Number(statsPayload?.payments?.walletBalance || statsPayload?.payments?.wallet_balance || 0);
+  // Sync global wallet balance when stats change
+  useEffect(() => {
+    if (stats) {
+      const newWalletBalance = Number(stats?.payments?.walletBalance || stats?.payments?.wallet_balance || 0);
       updateScreenState('wallet', { balance: newWalletBalance });
-    } catch (error) {
-      console.error('Failed to load dashboard data', error);
-    } finally {
-      setLoading(false);
+      
+      // Update the UIStateContext bucket for other components that might still consume it
+      updateData('dashboard', {
+        stayData,
+        stats,
+        activities,
+        upcomingSchedule
+      });
     }
-  }, [updateData, updateScreenState]);
-
-  useEffect(() => { fetchDashboardData(); }, [fetchDashboardData]);
+  }, [stats, stayData, activities, upcomingSchedule, updateScreenState, updateData]);
 
   useEffect(() => {
     let mounted = true;
@@ -110,14 +86,14 @@ const TenantDashboard = ({ user }) => {
   }, []);
 
   useEffect(() => {
-    const handleFocusRefresh = () => fetchDashboardData();
-    const handleVisibilityRefresh = () => { if (document.visibilityState === 'visible') fetchDashboardData(); };
-    const handleNotificationRefresh = () => fetchDashboardData();
+    const handleFocusRefresh = () => refetch();
+    const handleVisibilityRefresh = () => { if (document.visibilityState === 'visible') refetch(); };
+    const handleNotificationRefresh = () => refetch();
 
     window.addEventListener('focus', handleFocusRefresh);
     document.addEventListener('visibilitychange', handleVisibilityRefresh);
     window.addEventListener('accommo:tenant-data-refresh', handleNotificationRefresh);
-    const interval = setInterval(fetchDashboardData, 30000);
+    const interval = setInterval(refetch, 30000);
 
     return () => {
       window.removeEventListener('focus', handleFocusRefresh);
@@ -125,7 +101,7 @@ const TenantDashboard = ({ user }) => {
       window.removeEventListener('accommo:tenant-data-refresh', handleNotificationRefresh);
       clearInterval(interval);
     };
-  }, [fetchDashboardData]);
+  }, [refetch]);
 
   // ── Real-time Listeners (Pusher/Echo) ──
   useEffect(() => {
@@ -135,18 +111,18 @@ const TenantDashboard = ({ user }) => {
 
     channel.listen('InvoiceUpdated', (e) => {
       console.log('[Dashboard] Invoice updated event received:', e);
-      fetchDashboardData();
+      refetch();
     });
 
     channel.listen('PaymentVerified', (e) => {
       console.log('[Dashboard] Payment verified event received:', e);
-      fetchDashboardData();
+      refetch();
     });
 
     return () => {
       window.Echo.leave(`tenant.${user.id}`);
     };
-  }, [user?.id, fetchDashboardData]);
+  }, [user?.id, refetch]);
 
   // ── Helpers ──
   const formatCurrency = (amount) => {

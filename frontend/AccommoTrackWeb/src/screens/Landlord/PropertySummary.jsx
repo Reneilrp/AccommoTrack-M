@@ -142,6 +142,72 @@ function stripSuggestedPriceText(value) {
   return cleaned.replace(/\|\s*$/, '').trim();
 }
 
+function firstNonEmptyValue(candidates) {
+  for (const candidate of candidates) {
+    if (candidate === null || candidate === undefined) continue;
+    if (typeof candidate === 'string') {
+      const trimmed = candidate.trim();
+      if (trimmed) return trimmed;
+      continue;
+    }
+    if (typeof candidate === 'number' && Number.isFinite(candidate)) {
+      return String(candidate);
+    }
+  }
+  return null;
+}
+
+function resolveRoomNumber(record, fallback = '—') {
+  const roomNumber = firstNonEmptyValue([
+    record?.roomNumber,
+    record?.room_number,
+    record?.room_no,
+    record?.room_name,
+    record?.room?.room_number,
+    record?.room?.roomNumber,
+    record?.room?.number,
+    record?.room?.name,
+    record?.booking?.roomNumber,
+    record?.booking?.room_number,
+    record?.booking?.room_name,
+    record?.booking?.room?.room_number,
+    record?.booking?.room?.roomNumber,
+    record?.booking?.room?.number,
+    record?.booking?.room?.name,
+    record?.current_room?.room_number,
+    record?.currentRoom?.room_number,
+    record?.currentRoom?.roomNumber,
+    record?.requested_room?.room_number,
+    record?.requestedRoom?.room_number,
+    record?.requestedRoom?.roomNumber,
+  ]);
+
+  return roomNumber || fallback;
+}
+
+function resolveTransferRoomNumber(record, side = 'from') {
+  const fromCandidates = [
+    record?.from_room?.room_number,
+    record?.fromRoom?.room_number,
+    record?.fromRoom?.roomNumber,
+    record?.from_room_name,
+    record?.current_room?.room_number,
+    record?.currentRoom?.room_number,
+    record?.currentRoom?.roomNumber,
+  ];
+  const toCandidates = [
+    record?.to_room?.room_number,
+    record?.toRoom?.room_number,
+    record?.toRoom?.roomNumber,
+    record?.to_room_name,
+    record?.requested_room?.room_number,
+    record?.requestedRoom?.room_number,
+    record?.requestedRoom?.roomNumber,
+  ];
+
+  return firstNonEmptyValue(side === 'from' ? fromCandidates : toCandidates) || '—';
+}
+
 function StatCard({ label, value, sub, icon: Icon, accent = 'blue', onClick }) {
   const accents = {
     red: 'border-t-red-500 bg-red-50 dark:bg-red-900/10',
@@ -364,7 +430,7 @@ function PropertyDashboard({ propertyId, navigate, onCountsChange }) {
 
   const openTransferApprovalModal = async (rawItem) => {
     const tenantName = readName(rawItem.tenant, rawItem.tenant_name || 'Tenant');
-    const roomChange = `Room ${rawItem.from_room?.room_number || rawItem.from_room_name || '—'} → ${rawItem.to_room?.room_number || rawItem.to_room_name || '—'}`;
+    const roomChange = `Room ${resolveTransferRoomNumber(rawItem, 'from')} → ${resolveTransferRoomNumber(rawItem, 'to')}`;
 
     setTransferApprovalModal(prev => ({
       ...prev,
@@ -656,7 +722,7 @@ function PropertyDashboard({ propertyId, navigate, onCountsChange }) {
       id: b.id,
       type: 'booking',
       tenant: readName(b.tenant, b.tenant_name || 'Tenant'),
-      room: b.room?.room_number || b.room_number || 'Room —',
+      room: resolveRoomNumber(b),
       date: b.start_date || b.created_at,
       status: 'Pending',
       amount: null,
@@ -667,7 +733,7 @@ function PropertyDashboard({ propertyId, navigate, onCountsChange }) {
       id: inv.id,
       type: 'payment',
       tenant: readName(inv.tenant, inv.tenant_name || 'Tenant'),
-      room: inv.room?.room_number || inv.room_number || 'Room —',
+      room: resolveRoomNumber(inv),
       date: inv.due_date || inv.created_at,
       status: 'Overdue',
       amount: normalizeAmount(inv.amount ?? inv.total_amount),
@@ -678,7 +744,7 @@ function PropertyDashboard({ propertyId, navigate, onCountsChange }) {
       id: m.id,
       type: 'maintenance',
       tenant: readName(m.tenant, m.tenant_name || 'Tenant'),
-      room: m.room?.room_number || m.room_number || 'Room —',
+      room: resolveRoomNumber(m),
       date: m.created_at || m.updated_at,
       status: m.status || 'Open',
       amount: null,
@@ -690,7 +756,7 @@ function PropertyDashboard({ propertyId, navigate, onCountsChange }) {
       id: t.id,
       type: 'transfer',
       tenant: readName(t.tenant, t.tenant_name || 'Tenant'),
-      room: `Room ${t.from_room?.room_number || t.from_room_name || '—'} → ${t.to_room?.room_number || t.to_room_name || '—'}`,
+      room: `Room ${resolveTransferRoomNumber(t, 'from')} → ${resolveTransferRoomNumber(t, 'to')}`,
       date: t.created_at || t.updated_at,
       status: t.status || 'Pending',
       amount: null,
@@ -707,7 +773,7 @@ function PropertyDashboard({ propertyId, navigate, onCountsChange }) {
         addonId: req.addonId,
         type: 'addon',
         tenant: readName(req.tenant, 'Tenant'),
-        room: `Room ${req.roomNumber || '—'}`,
+        room: `Room ${resolveRoomNumber(req)}`,
         date: req.requestedAt || req.requested_at || req.createdAt || req.created_at,
         status: req.status || 'Pending',
         amount: normalizeAmount(req.suggestedPrice ?? req.suggested_price ?? parsedSuggestedPrice ?? req.price ?? req.amount),
@@ -720,7 +786,7 @@ function PropertyDashboard({ propertyId, navigate, onCountsChange }) {
       id: r.id,
       type: 'review',
       tenant: readName(r.tenant, r.reviewer_name || 'Tenant'),
-      room: r.room?.room_number || r.room_name || 'Room —',
+      room: resolveRoomNumber(r),
       date: r.created_at || r.updated_at,
       status: `${Math.round(Number(r.rating) || 0)} stars`,
       amount: null,

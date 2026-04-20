@@ -89,13 +89,6 @@ const normalizeGenderValue = (value, fallback = "male") => {
   return fallback;
 };
 
-const normalizeFloorValue = (value, fallback = "1", maxFloor = 15) => {
-  const floor = parseInt(String(value ?? "").trim(), 10);
-  if (!Number.isFinite(floor) || floor < 1) return fallback;
-  if (floor > maxFloor) return String(maxFloor);
-  return String(floor);
-};
-
 const normalizeId = (value) => {
   if (value === null || value === undefined) return null;
   const parsed = Number(value);
@@ -116,6 +109,32 @@ const buildFloors = (count = 1) =>
     value: String(i + 1),
     label: `${i + 1}${getOrdinalSuffix(i + 1)} Floor`,
   }));
+
+const parseManagedFloors = (value) => {
+  const floors = String(value ?? "")
+    .split(",")
+    .map((part) => Number.parseInt(part.trim(), 10))
+    .filter((floor) => Number.isFinite(floor) && floor > 0);
+
+  return Array.from(new Set(floors)).sort((a, b) => a - b);
+};
+
+const buildManagedFloorOptions = (floors = []) =>
+  floors.map((floor) => ({
+    value: String(floor),
+    label: `${floor}${getOrdinalSuffix(floor)} Floor`,
+  }));
+
+const resolveFloorOptionValue = (value, floorOptions, fallback = "1") => {
+  const parsed = Number.parseInt(String(value ?? "").trim(), 10);
+  const normalized = Number.isFinite(parsed) && parsed > 0 ? String(parsed) : null;
+
+  if (normalized && floorOptions.some((option) => option.value === normalized)) {
+    return normalized;
+  }
+
+  return floorOptions[0]?.value || fallback;
+};
 
 const parseList = (value) => {
   if (!value) return [];
@@ -194,7 +213,7 @@ export default function RoomManagementScreen({ navigation, route }) {
         if (userString) {
           setUser(JSON.parse(userString));
         }
-      } catch (_error) {}
+      } catch (_error) { }
     };
     loadUser();
   }, []);
@@ -444,13 +463,22 @@ export default function RoomManagementScreen({ navigation, route }) {
     return normalizeRoomTypeValue(formData.roomType, fallback);
   }, [formData.roomType, roomTypes]);
 
-  const propertyFloorCount = useMemo(() => {
+  const managedFloorList = useMemo(
+    () => parseManagedFloors(selectedProperty?.floor_level),
+    [selectedProperty?.floor_level],
+  );
+
+  const floorOptions = useMemo(() => {
+    if (managedFloorList.length > 0) {
+      return buildManagedFloorOptions(managedFloorList);
+    }
+
     const parsedTotalFloors = Number.parseInt(
       String(selectedProperty?.total_floors ?? "").trim(),
       10,
     );
     if (Number.isFinite(parsedTotalFloors) && parsedTotalFloors > 0) {
-      return parsedTotalFloors;
+      return buildFloors(parsedTotalFloors);
     }
 
     const parsedFloorLevel = Number.parseInt(
@@ -458,16 +486,11 @@ export default function RoomManagementScreen({ navigation, route }) {
       10,
     );
     if (Number.isFinite(parsedFloorLevel) && parsedFloorLevel > 0) {
-      return parsedFloorLevel;
+      return buildFloors(parsedFloorLevel);
     }
 
-    return 1;
-  }, [selectedProperty?.floor_level, selectedProperty?.total_floors]);
-
-  const floorOptions = useMemo(
-    () => buildFloors(propertyFloorCount),
-    [propertyFloorCount],
-  );
+    return buildFloors(1);
+  }, [managedFloorList, selectedProperty?.floor_level, selectedProperty?.total_floors]);
 
   const propertyAmenities = useMemo(
     () =>
@@ -588,15 +611,11 @@ export default function RoomManagementScreen({ navigation, route }) {
   }, [formData.roomType, roomTypes, handleInputChange]);
 
   useEffect(() => {
-    const normalizedFloor = normalizeFloorValue(
-      formData.floor,
-      "1",
-      propertyFloorCount,
-    );
-    if (normalizedFloor !== formData.floor) {
+    const normalizedFloor = resolveFloorOptionValue(formData.floor, floorOptions);
+    if (normalizedFloor !== String(formData.floor ?? "").trim()) {
       handleInputChange("floor", normalizedFloor);
     }
-  }, [formData.floor, propertyFloorCount, handleInputChange]);
+  }, [formData.floor, floorOptions, handleInputChange]);
 
   useEffect(() => {
     const fallbackGender =
@@ -712,7 +731,7 @@ export default function RoomManagementScreen({ navigation, route }) {
       roomNumber: "",
       roomType: initialRT,
       sexRestriction: propertySex !== "mixed" ? propertySex : isApartment ? "mixed" : "male",
-      floor: normalizeFloorValue("1", "1", propertyFloorCount),
+      floor: resolveFloorOptionValue(null, floorOptions),
       monthlyRate: "",
       dailyRate: "",
       billingPolicy: "monthly",
@@ -765,7 +784,7 @@ export default function RoomManagementScreen({ navigation, route }) {
       roomNumber: room.room_number || "",
       roomType: room.room_type || "single",
       sexRestriction: room.sex_restriction || (propertySex !== "mixed" ? propertySex : isApartment ? "mixed" : "male"),
-      floor: normalizeFloorValue(room.floor, "1", propertyFloorCount),
+      floor: resolveFloorOptionValue(room.floor, floorOptions),
       monthlyRate: String(room.monthly_rate || ""),
       dailyRate: String(room.daily_rate || ""),
       billingPolicy: room.billing_policy || "monthly",
@@ -1564,7 +1583,7 @@ export default function RoomManagementScreen({ navigation, route }) {
           </View>
         </View>
       </Modal>
- 
+
       {/* Proxy Occupant Conversion Modal */}
       <Modal
         visible={convertModalVisible}

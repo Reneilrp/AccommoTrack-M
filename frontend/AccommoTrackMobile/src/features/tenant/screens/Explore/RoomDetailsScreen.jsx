@@ -251,21 +251,25 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
   const [activeProxyDobPickerIndex, setActiveProxyDobPickerIndex] = useState(null);
   const [proxySexModalVisible, setProxySexModalVisible] = useState(false);
   const [activeProxySexIndex, setActiveProxySexIndex] = useState(null);
-  
+
   const toggleAddon = (addonId) => {
-    setSelectedAddons(prev => 
-      prev.includes(addonId) 
-        ? prev.filter(id => id !== addonId) 
+    setSelectedAddons(prev =>
+      prev.includes(addonId)
+        ? prev.filter(id => id !== addonId)
         : [...prev, addonId]
     );
   };
 
   const toggleBedNumber = (bedNum) => {
-    setSelectedBedNumbers(prev => 
-      prev.includes(bedNum) 
-        ? prev.filter(b => b !== bedNum) 
-        : [...prev, bedNum]
-    );
+    if (bookingMode === 'normal') {
+      setSelectedBedNumbers(prev => prev.includes(bedNum) ? [] : [bedNum]);
+    } else {
+      setSelectedBedNumbers(prev =>
+        prev.includes(bedNum)
+          ? prev.filter(b => b !== bedNum)
+          : [...prev, bedNum]
+      );
+    }
   };
 
   // Prefer the freshest room object (roomData updated on refresh), fallback to route param
@@ -420,6 +424,30 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
   const roomPricingModel = String(activeRoom?.pricing_model || 'full_room').toLowerCase();
   const roomSexRestriction = normalizeRoomRestriction(activeRoom?.sex_restriction);
   const requiredProxyGender = roomSexRestriction !== 'mixed' ? roomSexRestriction : '';
+  const availableBedNumbers = React.useMemo(() => {
+    if (!Array.isArray(activeRoom?.available_bed_numbers)) return [];
+    return activeRoom.available_bed_numbers.filter(
+      (bedNum) => bedNum !== null && bedNum !== undefined && String(bedNum).trim() !== '',
+    );
+  }, [activeRoom?.available_bed_numbers]);
+  const singleAvailableBedNumber = availableBedNumbers.length === 1
+    ? availableBedNumbers[0]
+    : null;
+  const effectiveSelectedBedNumbers = React.useMemo(() => {
+    if (bookingMode !== 'normal' || roomPricingModel !== 'per_bed') {
+      return selectedBedNumbers;
+    }
+
+    if (selectedBedNumbers.length > 0) {
+      return selectedBedNumbers;
+    }
+
+    if (singleAvailableBedNumber === null || singleAvailableBedNumber === undefined) {
+      return [];
+    }
+
+    return [singleAvailableBedNumber];
+  }, [bookingMode, roomPricingModel, selectedBedNumbers, singleAvailableBedNumber]);
   const occupantLimit = Math.max(1, Number(activeRoom?.available_slots ?? activeRoom?.capacity ?? 1));
   const supportsContractModeSwitch = roomBillingPolicy === 'monthly_with_daily';
   const isDailyContract = roomBillingPolicy === 'daily' || (supportsContractModeSwitch && bookingData.contract_mode === 'daily');
@@ -427,15 +455,15 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
   useEffect(() => {
     if (isEditing && cartItem) {
       console.log('✏️ Edit mode detected for cart item:', cartItem.id);
-      
+
       // 1. Initialize booking mode
       const isProxy = cartItem.occupants && cartItem.occupants.length > 0;
       setBookingMode(isProxy ? 'proxy' : 'normal');
-      
+
       // 2. Initialize booking data
       const startDate = new Date(cartItem.start_date);
       const endDate = cartItem.end_date ? new Date(cartItem.end_date) : null;
-      
+
       setBookingData({
         start_date: startDate,
         end_date: endDate,
@@ -444,24 +472,24 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
         payment_method: cartItem.payment_method || 'cash',
         payment_plan: cartItem.payment_plan || 'monthly',
       });
-      
+
       // 3. Initialize addons
       setSelectedAddons(cartItem.addons || []);
-      
+
       // 4. Initialize bed numbers
-      const bedNums = cartItem.bed_numbers 
+      const bedNums = cartItem.bed_numbers
         ? (typeof cartItem.bed_numbers === 'string' ? cartItem.bed_numbers.split(',') : cartItem.bed_numbers)
         : [];
       setSelectedBedNumbers(bedNums);
-      
+
       // 5. Initialize proxy occupants
       if (isProxy) {
         setProxyOccupants(cartItem.occupants);
       }
-      
+
       // 6. Set flags
       setIsCartMode(true);
-      
+
       // 7. Auto-open modal
       setBookingModalVisible(true);
     }
@@ -481,6 +509,22 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
       setActiveProxyDobPickerIndex(null);
     }
   }, [bookingMode]);
+
+  useEffect(() => {
+    if (bookingMode !== 'normal' || roomPricingModel !== 'per_bed') {
+      return;
+    }
+
+    if (selectedBedNumbers.length > 0) {
+      return;
+    }
+
+    if (singleAvailableBedNumber === null || singleAvailableBedNumber === undefined) {
+      return;
+    }
+
+    setSelectedBedNumbers([singleAvailableBedNumber]);
+  }, [bookingMode, roomPricingModel, selectedBedNumbers, singleAvailableBedNumber]);
 
   const pricingStartDate = bookingData.start_date
     ? bookingData.start_date.toISOString().split('T')[0]
@@ -605,7 +649,7 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
       ? promoDiscountedTotal
       : Number(totalPrice || 0)
   );
-  
+
   const selectedAddonsTotal = (propertyData?.addons || [])
     .filter(addon => selectedAddons.includes(addon.id))
     .reduce((sum, addon) => sum + (Number(addon.price) || 0), 0);
@@ -806,7 +850,11 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
     setProxyOccupants([createEmptyOccupant(requiredProxyGender)]);
     setActiveProxyDobPickerIndex(null);
     setReceiptImage(null);
-    setSelectedBedNumbers([]);
+    setSelectedBedNumbers(
+      roomPricingModel === 'per_bed' && singleAvailableBedNumber !== null && singleAvailableBedNumber !== undefined
+        ? [singleAvailableBedNumber]
+        : [],
+    );
 
     setBookingModalVisible(true);
   };
@@ -1104,7 +1152,7 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
       }
 
       if (bookingMode === 'normal') {
-        const finalBedCount = activeRoom.pricing_model === 'per_bed' ? selectedBedNumbers.length : 1;
+        const finalBedCount = activeRoom.pricing_model === 'per_bed' ? effectiveSelectedBedNumbers.length : 1;
         if (activeRoom.pricing_model === 'per_bed' && finalBedCount === 0) {
           showError('Selection Required', 'Please select at least one bed to proceed.');
           return;
@@ -1125,9 +1173,9 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
         agreed_to_rules: true,
       };
 
-      if (bookingMode === 'normal' && activeRoom.pricing_model === 'per_bed' && selectedBedNumbers.length > 0) {
-        payload.bed_numbers = selectedBedNumbers.join(',');
-        payload.bed_count = selectedBedNumbers.length;
+      if (bookingMode === 'normal' && activeRoom.pricing_model === 'per_bed' && effectiveSelectedBedNumbers.length > 0) {
+        payload.bed_numbers = effectiveSelectedBedNumbers.join(',');
+        payload.bed_count = effectiveSelectedBedNumbers.length;
       }
 
       if (selectedAddons && selectedAddons.length > 0) {
@@ -1158,7 +1206,7 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
 
         if (result.success) {
           DeviceEventEmitter.emit('accommo:cart-updated');
-          
+
           if (isEditing) {
             showSuccess('Updated', 'Your selection has been updated successfully.');
             setBookingModalVisible(false);
@@ -1719,9 +1767,9 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
                 )}
               </View>
 
-              {activeRoom.pricing_model === 'per_bed' && bookingMode === 'proxy' && (
+              {activeRoom.pricing_model === 'per_bed' && (
                 <View style={styles.inputContainer}>
-                  <Text style={styles.inputLabel}>Select Bed(s)</Text>
+                  <Text style={styles.inputLabel}>{bookingMode === 'proxy' ? 'Select Bed(s)' : 'Select Bed'}</Text>
                   <Text style={styles.summaryNote}>Beds Remaining: {(activeRoom.capacity || 0) - (activeRoom.occupied || 0)}</Text>
                   <View style={styles.bedGrid}>
                     {(activeRoom.available_bed_numbers || []).map((bedNum) => {
@@ -2185,7 +2233,7 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
                       </Text>
                     </View>
                   )}
-                  
+
                   {isReservationRequired && (
                     <View style={styles.summaryRow}>
                       <Text style={styles.summaryLabel}>Reservation Fee</Text>
@@ -2208,8 +2256,8 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
                     <Text style={styles.summaryLabelBold}>Total Amount</Text>
                     <Text style={styles.summaryValueBold}>
                       {isPricingLoading ? '...' : `₱${( // Use selectedPlanTotal which already accounts for promo
-                        (Number(selectedPlanTotal) || 0) + 
-                        (activeRoom.requires_advance ? Number(activeRoom.monthly_rate) : 0) + 
+                        (Number(selectedPlanTotal) || 0) +
+                        (activeRoom.requires_advance ? Number(activeRoom.monthly_rate) : 0) +
                         (isReservationRequired ? reservationFeeAmount : 0) +
                         selectedAddonsTotal
                       ).toLocaleString()}`}
@@ -2318,6 +2366,7 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
                 <Text style={styles.cancelButtonText}>Cancel</Text>
               </TouchableOpacity>
             </ScrollView>
+            <Toast config={toastConfig} />
           </View>
         </View>
       </Modal>

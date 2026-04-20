@@ -613,6 +613,19 @@ class AuthController extends Controller
 
     private function formatUserResponse(User $user): array
     {
+        $assignedPropertyIds = [];
+        if ($user->role === 'caretaker') {
+            if (! $user->relationLoaded('caretakerAssignment')) {
+                $user->load('caretakerAssignment.properties:id');
+            } else {
+                $user->loadMissing('caretakerAssignment.properties:id');
+            }
+
+            $assignedPropertyIds = $user->caretakerAssignment
+                ? $user->caretakerAssignment->properties->pluck('id')->map(fn ($id) => (int) $id)->values()->all()
+                : [];
+        }
+
         return [
             'id' => $user->id,
             'first_name' => $user->first_name,
@@ -629,6 +642,8 @@ class AuthController extends Controller
             'sex' => $user->sex,
             'identified_as' => $user->identified_as,
             'preferences' => $user->preferences,
+            'caretaker_permissions' => $user->caretaker_permissions,
+            'assigned_property_ids' => $assignedPropertyIds,
         ];
     }
 

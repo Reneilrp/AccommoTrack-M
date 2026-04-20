@@ -75,7 +75,7 @@ class MessageController extends Controller
             ]);
 
         $messages = Message::where('conversation_id', $conversationId)
-            ->with(['sender:id,first_name,last_name,role', 'actualSender:id,first_name,last_name', 'replyTo.sender', 'histories'])
+            ->with(['sender:id,first_name,last_name,role,profile_image', 'actualSender:id,first_name,last_name,profile_image', 'replyTo.sender', 'histories'])
             ->orderBy('created_at', 'asc')
             ->get();
 

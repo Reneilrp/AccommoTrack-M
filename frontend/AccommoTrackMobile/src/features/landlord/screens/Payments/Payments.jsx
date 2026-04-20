@@ -44,8 +44,7 @@ const METHOD_OPTIONS = [
   { id: 'cash', label: 'Cash', icon: 'cash-outline' },
   { id: 'gcash', label: 'GCash', icon: 'phone-portrait-outline' },
   { id: 'bank_transfer', label: 'Bank', icon: 'card-outline' },
-  { id: 'check', label: 'Check', icon: 'document-text-outline' },
-  { id: 'other', label: 'Other', icon: 'ellipsis-horizontal-outline' },
+  { id: 'paymaya', label: 'PayMaya', icon: 'wallet-outline' },
 ];
 
 const CASH_REJECTION_REASONS = [
@@ -243,7 +242,7 @@ const getTransactionRefundPreview = (invoice, tx, booking) => {
 
   const paidBaseCents = (invoice.transactions || []).filter(l => Number(l.amount_cents || 0) > 0).filter(l => REFUND_ELIGIBLE_STATUSES.includes((l.status || '').toLowerCase())).reduce((s, l) => s + Math.max(0, Number(l.amount_cents || 0)), 0);
   const alreadyRefundedCents = (invoice.transactions || []).filter(l => Number(l.amount_cents || 0) > 0).reduce((s, l) => s + Math.max(0, Number(l.refunded_amount_cents || 0)), 0);
-  const proratedCents = stayProgress.totalUnits > 0 
+  const proratedCents = stayProgress.totalUnits > 0
     ? Math.floor((paidBaseCents * stayProgress.refundableUnits) / stayProgress.totalUnits)
     : 0;
   const invoiceCapCents = Math.max(0, proratedCents - REFUND_FIXED_PENALTY_CENTS - alreadyRefundedCents);
@@ -263,7 +262,7 @@ const getInvoiceRefundPreview = (invoice, booking) => {
 
   if (totalPaidCents <= 0) return { maxRefundableCents: 0, fixedPenaltyCents: REFUND_FIXED_PENALTY_CENTS, stayProgress };
 
-  const proratedCents = stayProgress.totalUnits > 0 
+  const proratedCents = stayProgress.totalUnits > 0
     ? Math.floor((totalPaidCents * stayProgress.refundableUnits) / stayProgress.totalUnits)
     : 0;
   const invoiceCapCents = Math.max(0, proratedCents - REFUND_FIXED_PENALTY_CENTS - alreadyRefundedCents);
@@ -292,7 +291,7 @@ export default function Payments({ navigation, route }) {
         if (userString) {
           setUser(JSON.parse(userString));
         }
-      } catch (_error) {}
+      } catch (_error) { }
     };
     loadUser();
   }, []);
@@ -400,6 +399,33 @@ export default function Payments({ navigation, route }) {
     (errorOrMessage, fallbackMessage) => normalizeActionError(errorOrMessage, fallbackMessage),
     [],
   );
+
+  const formatRecordPaymentError = useCallback((errorOrMessage) => {
+    const normalized = getPaymentError(errorOrMessage, 'Unable to record payment.');
+    const lower = String(normalized || '').toLowerCase();
+
+    if (/(given data was invalid|validation)/i.test(lower)) {
+      return 'Invalid payment details. Check the amount and payment method, then try again.';
+    }
+
+    if (/(selected method is invalid|\bmethod\b.*invalid|\bmethod\b.*required)/i.test(lower)) {
+      return 'Payment method is not supported. Use Cash, GCash, Bank Transfer, or PayMaya.';
+    }
+
+    if (/(amount_cents|amount cents|\bamount\b.*(required|invalid|integer|min|greater than|at least))/i.test(lower)) {
+      return 'Invalid payment amount. Enter an amount greater than 0.';
+    }
+
+    if (/(unauthorized|forbidden|permission|not allowed|access denied|\b401\b|\b403\b)/i.test(lower)) {
+      return 'You do not have permission to record payments for this invoice.';
+    }
+
+    if (/(no query results|invoice not found|not found)/i.test(lower)) {
+      return 'Invoice not found. Refresh the list and try again.';
+    }
+
+    return normalized;
+  }, [getPaymentError]);
 
   const paymentBundleQuery = useQuery({
     queryKey: ['landlord', 'paymentBundle', statsRange],
@@ -621,10 +647,10 @@ export default function Payments({ navigation, route }) {
         await refetchLandlordQueries(invoiceRefetchers);
         showSuccess('Success', 'Payment recorded successfully.');
       } else {
-        showError('Error', getPaymentError(res.error, 'Unable to record payment.'));
+        showError('Error', formatRecordPaymentError(res.error));
       }
     } catch (error) {
-      showError('Error', getPaymentError(error, 'Unable to record payment.'));
+      showError('Error', formatRecordPaymentError(error));
     } finally {
       setRecording(false);
     }
@@ -763,6 +789,137 @@ export default function Payments({ navigation, route }) {
     }
   };
 
+  const flatListData = useMemo(() => [
+    { id: 'sticky-search' },
+    { id: 'sticky-filters' },
+    ...filteredInvoices
+  ], [filteredInvoices, searchQuery, activeFilter, theme.isDark]);
+
+  const listHeaderComponent = useMemo(() => (
+    <View style={{ backgroundColor: theme.colors.surface, borderBottomWidth: 1, borderBottomColor: theme.colors.border }}>
+      <View style={styles.statsRangeContainer}>
+        {[
+          { value: 'month', label: 'This Month' },
+          { value: 'all', label: 'All Time' },
+        ].map((option) => (
+          <TouchableOpacity
+            key={option.value}
+            style={[
+              styles.statsRangeChip,
+              statsRange === option.value && styles.statsRangeChipActive,
+            ]}
+            onPress={() => setStatsRange(option.value)}
+          >
+            <Text
+              style={[
+                styles.statsRangeChipText,
+                statsRange === option.value && styles.statsRangeChipTextActive,
+              ]}
+            >
+              {option.label}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={{
+          paddingHorizontal: 16,
+          paddingVertical: 8,
+        }}
+      >
+        {[
+          { label: 'Collected', sublabel: statsRange === 'month' ? '(Month)' : '(All Time)', value: `₱${stats.totalPaid.toLocaleString(undefined, { maximumFractionDigits: 0 })}`, icon: 'checkmark-circle', color: '#16a34a', bg: '#DCFCE7' },
+          { label: 'Outstanding', sublabel: statsRange === 'month' ? '(Month)' : '(All Time)', value: `₱${stats.totalBalance.toLocaleString(undefined, { maximumFractionDigits: 0 })}`, icon: 'time-outline', color: '#D97706', bg: '#FEF3C7' },
+          { label: 'Paid', sublabel: statsRange === 'month' ? '(Month)' : '(All Time)', value: stats.paidCount, icon: 'receipt-outline', color: '#16a34a', bg: '#DCFCE7' },
+          { label: 'Pending', sublabel: statsRange === 'month' ? '(Month)' : '(All Time)', value: stats.pendingCount, icon: 'hourglass-outline', color: '#92400E', bg: '#FEF3C7' },
+          { label: 'Cash Verify', sublabel: statsRange === 'month' ? '(Month)' : '(All Time)', value: stats.pendingVerifCount, icon: 'shield-checkmark-outline', color: '#C2410C', bg: '#FFEDD5' },
+          { label: 'Overdue', sublabel: statsRange === 'month' ? '(Month)' : '(All Time)', value: stats.overdueCount, icon: 'alert-circle-outline', color: '#DC2626', bg: '#FEE2E2' },
+        ].map((card, i) => (
+          <View
+            key={i}
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              backgroundColor: theme.isDark ? theme.colors.surface : card.bg,
+              borderRadius: 14,
+              paddingHorizontal: isTablet ? 16 : 14,
+              width: cardWidth,
+              height: cardHeight,
+              borderWidth: 1,
+              borderColor: theme.isDark ? theme.colors.border : 'transparent',
+              marginRight: 10,
+              elevation: theme.isDark ? 0 : 1,
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 1 },
+              shadowOpacity: 0.05,
+              shadowRadius: 2,
+            }}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1.2 }}>
+              <View style={{
+                width: isTablet ? 44 : 38,
+                height: isTablet ? 44 : 38,
+                borderRadius: 12,
+                backgroundColor: theme.isDark ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.4)',
+                justifyContent: 'center',
+                alignItems: 'center',
+                marginRight: isTablet ? 12 : 10,
+                borderWidth: theme.isDark ? 1 : 0,
+                borderColor: 'rgba(255,255,255,0.1)',
+              }}>
+                <Ionicons name={card.icon} size={isTablet ? 22 : 18} color={theme.isDark ? theme.colors.textSecondary : card.color} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text
+                  style={{
+                    fontSize: isTablet ? 13 : 11,
+                    fontWeight: '700',
+                    color: theme.isDark ? theme.colors.text : card.color,
+                    textTransform: 'uppercase',
+                    letterSpacing: 0.3,
+                  }}
+                  numberOfLines={1}
+                >
+                  {card.label}
+                </Text>
+                <Text
+                  style={{
+                    fontSize: isTablet ? 11 : 9,
+                    fontWeight: '500',
+                    color: theme.isDark ? theme.colors.textSecondary : card.color,
+                    opacity: 0.8,
+                    marginTop: 1,
+                  }}
+                  numberOfLines={1}
+                >
+                  {card.sublabel}
+                </Text>
+              </View>
+            </View>
+
+            <View style={{ flex: 1, alignItems: 'flex-end', marginLeft: 4 }}>
+              <Text
+                style={{
+                  fontSize: isTablet ? 20 : 17,
+                  fontWeight: '800',
+                  color: theme.isDark ? theme.colors.text : card.color,
+                }}
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                minimumFontScale={0.75}
+              >
+                {card.value}
+              </Text>
+            </View>
+          </View>
+        ))}
+      </ScrollView>
+    </View>
+  ), [statsRange, stats, theme.isDark, isTablet, cardWidth, cardHeight]);
+
   const renderInvoiceItem = ({ item }) => {
     const status = getInvoiceStatus(item);
 
@@ -849,11 +1006,7 @@ export default function Payments({ navigation, route }) {
 
       {/* Main List */}
       <FlatList
-        data={useMemo(() => [
-          { id: 'sticky-search' },
-          { id: 'sticky-filters' },
-          ...filteredInvoices
-        ], [filteredInvoices, searchQuery, activeFilter, theme.isDark])}
+        data={flatListData}
         renderItem={({ item }) => {
           if (item.id === 'sticky-search') {
             return (
@@ -906,130 +1059,7 @@ export default function Payments({ navigation, route }) {
         keyExtractor={(item) => item.id.toString()}
         contentContainerStyle={styles.listContent}
         stickyHeaderIndices={[0, 1]}
-        ListHeaderComponent={useMemo(() => (
-          <View style={{ backgroundColor: theme.colors.surface, borderBottomWidth: 1, borderBottomColor: theme.colors.border }}>
-            <View style={styles.statsRangeContainer}>
-              {[
-                { value: 'month', label: 'This Month' },
-                { value: 'all', label: 'All Time' },
-              ].map((option) => (
-                <TouchableOpacity
-                  key={option.value}
-                  style={[
-                    styles.statsRangeChip,
-                    statsRange === option.value && styles.statsRangeChipActive,
-                  ]}
-                  onPress={() => setStatsRange(option.value)}
-                >
-                  <Text
-                    style={[
-                      styles.statsRangeChipText,
-                      statsRange === option.value && styles.statsRangeChipTextActive,
-                    ]}
-                  >
-                    {option.label}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={{
-                paddingHorizontal: 16,
-                paddingVertical: 8,
-              }}
-            >
-              {[
-                { label: 'Collected', sublabel: statsRange === 'month' ? '(Month)' : '(All Time)', value: `₱${stats.totalPaid.toLocaleString(undefined, { maximumFractionDigits: 0 })}`, icon: 'checkmark-circle', color: '#16a34a', bg: '#DCFCE7' },
-                { label: 'Outstanding', sublabel: statsRange === 'month' ? '(Month)' : '(All Time)', value: `₱${stats.totalBalance.toLocaleString(undefined, { maximumFractionDigits: 0 })}`, icon: 'time-outline', color: '#D97706', bg: '#FEF3C7' },
-                { label: 'Paid', sublabel: statsRange === 'month' ? '(Month)' : '(All Time)', value: stats.paidCount, icon: 'receipt-outline', color: '#16a34a', bg: '#DCFCE7' },
-                { label: 'Pending', sublabel: statsRange === 'month' ? '(Month)' : '(All Time)', value: stats.pendingCount, icon: 'hourglass-outline', color: '#92400E', bg: '#FEF3C7' },
-                { label: 'Cash Verify', sublabel: statsRange === 'month' ? '(Month)' : '(All Time)', value: stats.pendingVerifCount, icon: 'shield-checkmark-outline', color: '#C2410C', bg: '#FFEDD5' },
-                { label: 'Overdue', sublabel: statsRange === 'month' ? '(Month)' : '(All Time)', value: stats.overdueCount, icon: 'alert-circle-outline', color: '#DC2626', bg: '#FEE2E2' },
-              ].map((card, i) => (
-                <View
-                  key={i}
-                  style={{
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    backgroundColor: theme.isDark ? theme.colors.surface : card.bg,
-                    borderRadius: 14,
-                    paddingHorizontal: isTablet ? 16 : 14,
-                    width: cardWidth,
-                    height: cardHeight,
-                    borderWidth: 1,
-                    borderColor: theme.isDark ? theme.colors.border : 'transparent',
-                    marginRight: 10,
-                    elevation: theme.isDark ? 0 : 1,
-                    shadowColor: '#000',
-                    shadowOffset: { width: 0, height: 1 },
-                    shadowOpacity: 0.05,
-                    shadowRadius: 2,
-                  }}
-                >
-                  <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1.2 }}>
-                    <View style={{
-                      width: isTablet ? 44 : 38,
-                      height: isTablet ? 44 : 38,
-                      borderRadius: 12,
-                      backgroundColor: theme.isDark ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.4)',
-                      justifyContent: 'center',
-                      alignItems: 'center',
-                      marginRight: isTablet ? 12 : 10,
-                      borderWidth: theme.isDark ? 1 : 0,
-                      borderColor: 'rgba(255,255,255,0.1)',
-                    }}>
-                      <Ionicons name={card.icon} size={isTablet ? 22 : 18} color={theme.isDark ? theme.colors.textSecondary : card.color} />
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text
-                        style={{
-                          fontSize: isTablet ? 13 : 11,
-                          fontWeight: '700',
-                          color: theme.isDark ? theme.colors.text : card.color,
-                          textTransform: 'uppercase',
-                          letterSpacing: 0.3,
-                        }}
-                        numberOfLines={1}
-                      >
-                        {card.label}
-                      </Text>
-                      <Text
-                        style={{
-                          fontSize: isTablet ? 11 : 9,
-                          fontWeight: '500',
-                          color: theme.isDark ? theme.colors.textSecondary : card.color,
-                          opacity: 0.8,
-                          marginTop: 1,
-                        }}
-                        numberOfLines={1}
-                      >
-                        {card.sublabel}
-                      </Text>
-                    </View>
-                  </View>
-
-                  <View style={{ flex: 1, alignItems: 'flex-end', marginLeft: 4 }}>
-                    <Text
-                      style={{
-                        fontSize: isTablet ? 20 : 17,
-                        fontWeight: '800',
-                        color: theme.isDark ? theme.colors.text : card.color,
-                      }}
-                      numberOfLines={1}
-                      adjustsFontSizeToFit
-                      minimumFontScale={0.75}
-                    >
-                      {card.value}
-                    </Text>
-                  </View>
-                </View>
-              ))}
-            </ScrollView>
-          </View>
-        ), [statsRange, stats, theme.isDark, isTablet, cardWidth, cardHeight])}
+        ListHeaderComponent={listHeaderComponent}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -1171,7 +1201,7 @@ export default function Payments({ navigation, route }) {
                   if (status === 'pending_verification') {
                     const pendingTx = selectedInvoice?.transactions?.find(tx => tx.status === 'pending_offline');
                     const proofUrl = pendingTx?.gateway_response?.proof_image_url;
-                    
+
                     if (!canRecordPayments) {
                       return (
                         <View style={[styles.cancelledNote, { backgroundColor: theme.colors.backgroundSecondary, marginBottom: 20 }]}>
@@ -1861,7 +1891,7 @@ export default function Payments({ navigation, route }) {
           }}
           onPress={() => setProofLightboxUrl(null)}
         >
-          <Pressable onPress={() => {}} style={{ width: '100%', maxHeight: '85%' }}>
+          <Pressable onPress={() => { }} style={{ width: '100%', maxHeight: '85%' }}>
             {proofLightboxUrl && (
               <Image
                 source={{ uri: proofLightboxUrl }}

@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback, useMemo } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { Loader2, Search, Calendar, Receipt, X, RotateCcw, RefreshCw, PhilippinePeso, Clock, CheckCircle, FileDown, Filter, ShieldCheck, ShieldX, FileText } from "lucide-react";
+import { Loader2, Search, Calendar, Receipt, X, RotateCcw, RefreshCw, PhilippinePeso, Clock, CheckCircle, XCircle, FileDown, Filter, ShieldCheck, ShieldX, FileText } from "lucide-react";
 import { showSuccess, showError } from "../../utils/toast";
 import PriceRow from "../../components/Shared/PriceRow";
 import { SkeletonStatCard } from "../../components/Shared/Skeleton";
@@ -446,7 +446,7 @@ export default function Payments() {
       updateData("landlord_payments", prev => ({
         ...(prev || {}),
         summary: data,
-      });
+      }));
     } catch (err) {
       if (!silent) {
         console.error("Failed to load invoice summary", err);
@@ -552,7 +552,7 @@ export default function Payments() {
         ...(prev || {}),
         invoices: list,
         bookingsMap: finalBookingsMap,
-      });
+      }));
 
       await loadSummary(statsRange, true);
     } catch (e) {
@@ -1258,8 +1258,8 @@ export default function Payments() {
           <button
             onClick={() => setArchiveFilter("active")}
             className={`pb-3 px-2 text-sm font-bold transition-all relative ${archiveFilter === "active"
-                ? "text-green-600 dark:text-green-400"
-                : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+              ? "text-green-600 dark:text-green-400"
+              : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
               }`}
           >
             Active Billing
@@ -1270,8 +1270,8 @@ export default function Payments() {
           <button
             onClick={() => setArchiveFilter("archived")}
             className={`pb-3 px-2 text-sm font-bold transition-all relative flex items-center gap-2 ${archiveFilter === "archived"
-                ? "text-gray-900 dark:text-white"
-                : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+              ? "text-gray-900 dark:text-white"
+              : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
               }`}
           >
             Payment Archive
@@ -1684,7 +1684,6 @@ export default function Payments() {
                           disabled={isRecording}
                           className="flex flex-col items-center justify-center p-4 bg-green-50 dark:bg-green-900/20 hover:bg-green-100 dark:hover:bg-green-900/30 rounded-xl border-2 border-green-200 dark:border-green-800 transition-all disabled:opacity-50"
                         >
-                          <Receipt className="w-6 h-6 text-green-600 dark:text-green-400 mb-2" />
                           <span className="text-xs font-bold text-green-700 dark:text-green-300">Record Payment</span>
                         </button>
                         <button
@@ -1696,7 +1695,6 @@ export default function Payments() {
                           }}
                           className="flex flex-col items-center justify-center p-4 bg-yellow-50 dark:bg-yellow-900/20 hover:bg-yellow-100 dark:hover:bg-yellow-900/30 rounded-xl border-2 border-yellow-200 dark:border-yellow-800 transition-all"
                         >
-                          <Clock className="w-6 h-6 text-yellow-600 dark:text-yellow-400 mb-2" />
                           <span className="text-xs font-bold text-yellow-700 dark:text-yellow-300">Mark Partial</span>
                         </button>
                         <button
@@ -1708,7 +1706,6 @@ export default function Payments() {
                           }}
                           className="flex flex-col items-center justify-center p-4 bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/30 rounded-xl border-2 border-blue-200 dark:border-blue-800 transition-all"
                         >
-                          <CheckCircle className="w-6 h-6 text-blue-600 dark:text-blue-400 mb-2" />
                           <span className="text-xs font-bold text-blue-700 dark:text-blue-300">Mark Paid</span>
                         </button>
                       </div>
@@ -1819,18 +1816,21 @@ export default function Payments() {
                             {
                               id: "unpaid",
                               label: "Unpaid",
+                              icon: XCircle,
                               color:
                                 "bg-red-50 text-red-700 border-red-200 hover:bg-red-100",
                             },
                             {
                               id: "partial",
                               label: "Partial",
+                              icon: Clock,
                               color:
                                 "bg-yellow-50 text-yellow-700 border-yellow-200 hover:bg-yellow-100",
                             },
                             {
                               id: "paid",
                               label: "Paid",
+                              icon: CheckCircle,
                               color:
                                 "bg-green-50 text-green-700 border-green-200 hover:bg-green-100",
                             },
@@ -1846,8 +1846,9 @@ export default function Payments() {
                                   setShowInvoiceModal(false);
                                 }
                               }}
-                              className={`flex items-center justify-center py-2 px-2 rounded-lg border text-[10px] font-bold transition-all ${status.color}`}
+                              className={`flex items-center justify-center gap-1 py-2 px-2 rounded-lg border text-[10px] font-bold transition-all ${status.color}`}
                             >
+                              <status.icon className="w-3.5 h-3.5" />
                               {status.label}
                             </button>
                           ))}
