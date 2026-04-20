@@ -1201,19 +1201,6 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
         if (bookingData.payment_method === 'online') {
           if (checkoutUrl) {
             await Linking.openURL(checkoutUrl);
-          } else {
-            // Backward-compatible fallback for environments that still use room-level checkout creation.
-            const payRes = await PaymentService.createPaymentLink(activeRoom.id);
-            if (payRes.success && payRes.data.checkout_url) {
-              await Linking.openURL(payRes.data.checkout_url);
-            } else {
-              showWarning('Booking Created', 'Your booking was created, but we could not generate a payment link. Please pay from your payments dashboard.');
-            }
-          }
-        } else if (bookingData.payment_method === 'cash') {
-          // Reservation invoice is created by booking endpoint in web flow; fallback keeps compatibility.
-          if (!reservationInvoice) {
-            await PaymentService.generateCashInvoice(activeRoom.id);
           }
         }
 

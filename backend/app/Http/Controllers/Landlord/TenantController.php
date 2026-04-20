@@ -613,47 +613,52 @@ class TenantController extends Controller
      */
     public function assignRoom(Request $request, string $id): JsonResponse
     {
-        $context = $this->resolveLandlordContext($request);
-        $this->ensureCaretakerCanManageTenants($context);
-
-        $validated = $request->validate([
-            'room_id' => 'required|exists:rooms,id',
-            'move_in_date' => 'nullable|date',
-            'end_date' => 'nullable|date',
-            'notes' => 'nullable|string',
-        ]);
-
-        $tenant = $this->resolveTenantForLandlord((int) $id, (int) $context['landlord_id'], $context);
-        $room = Room::with('property')->findOrFail($validated['room_id']);
-
-        if ($this->hasScheduledEviction((int) $tenant->id, (int) $context['landlord_id'])) {
-            return response()->json([
-                'error' => 'This tenant has a pending eviction schedule. Cancel it before assigning a room.',
-            ], 422);
-        }
-
-        // Verify room belongs to landlord
-        if ($room->property->landlord_id !== $context['landlord_id']) {
-            return response()->json(['error' => 'Unauthorized'], 403);
-        }
-
-        if ($context['is_caretaker']) {
-            $this->checkPropertyAccess($context, (int) $room->property_id);
-        }
-
-        if (! $room->isAvailable() || $room->available_slots <= 0) {
-            return response()->json([
-                'error' => 'Room not available',
-                'occupied_slots' => $room->occupied,
-                'total_capacity' => $room->capacity,
-                'available_slots' => $room->available_slots,
-            ], 400);
-        }
-
-        // Use BookingService to create a confirmed booking
-        // This will automatically handle assignTenant, profile update, and invoice creation
         try {
-            \Illuminate\Support\Facades\DB::beginTransaction();
+            $context = $this->resolveLandlordContext($request);
+            $this->ensureCaretakerCanManageTenants($context);
+
+            $validated = $request->validate([
+                'room_id' => 'required|exists:rooms,id',
+                'move_in_date' => 'nullable|date',
+                'end_date' => 'nullable|date',
+                'notes' => 'nullable|string',
+            ]);
+
+            $tenant = $this->resolveTenantForLandlord((int) $id, (int) $context['landlord_id'], $context);
+            $room = Room::with('property')->findOrFail($validated['room_id']);
+
+            if ($this->hasScheduledEviction((int) $tenant->id, (int) $context['landlord_id'])) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'This tenant has a pending eviction schedule. Cancel it before assigning a room.',
+                ], 422);
+            }
+
+            // Verify room belongs to landlord
+            if ($room->property->landlord_id !== $context['landlord_id']) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Unauthorized access to this room.',
+                ], 403);
+            }
+
+            if ($context['is_caretaker']) {
+                $this->checkPropertyAccess($context, (int) $room->property_id);
+            }
+
+            if (! $room->isAvailable() || $room->available_slots <= 0) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Room is fully occupied or not available.',
+                    'errors' => [
+                        'occupied_slots' => $room->occupied,
+                        'total_capacity' => $room->capacity,
+                    ],
+                ], 400);
+            }
+
+            // Use BookingService to create a confirmed booking
+            DB::beginTransaction();
 
             $moveInDate = $validated['move_in_date'] ?? now()->format('Y-m-d');
             $endDate = $validated['end_date'] ?? \Carbon\Carbon::parse($moveInDate)->addMonths(6)->format('Y-m-d');
@@ -668,14 +673,41 @@ class TenantController extends Controller
             // Confirm the booking immediately
             $this->bookingService->updateStatus($booking, ['status' => 'confirmed']);
 
-            \Illuminate\Support\Facades\DB::commit();
+            DB::commit();
 
-            return response()->json($tenant->load(['tenantProfile', 'room']));
+            return response()->json([
+                'success' => true,
+                'data' => $tenant->load(['tenantProfile', 'room']),
+                'message' => 'Tenant assigned to room successfully.',
+            ]);
+
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'errors' => $e->errors(),
+                'message' => 'Validation failed.',
+            ], 422);
+        } catch (\DomainException $e) {
+            DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 400);
         } catch (\Exception $e) {
-            \Illuminate\Support\Facades\DB::rollBack();
-            Log::error('Manual room assignment failed: '.$e->getMessage());
+            if (isset($e) && DB::transactionLevel() > 0) {
+                DB::rollBack();
+            }
+            Log::error('Manual room assignment failed: '.$e->getMessage(), [
+                'exception' => $e,
+                'tenant_id' => $id,
+                'trace' => $e->getTraceAsString(),
+            ]);
 
-            return response()->json(['error' => 'Failed to assign room', 'message' => $e->getMessage()], 500);
+            return response()->json([
+                'success' => false,
+                'message' => 'An unexpected error occurred during room assignment.',
+                'error_detail' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
         }
     }
 

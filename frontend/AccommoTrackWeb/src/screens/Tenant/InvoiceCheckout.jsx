@@ -98,30 +98,29 @@ export default function InvoiceCheckout() {
       const invData = res.data;
       setInvoice(invData);
 
-      const totalAmount = invData.amount_cents ? invData.amount_cents / 100 : Number(invData.amount || 0);
-      // Only count verified/succeeded transactions toward remaining balance shown at top
-      // pending_offline is shown separately as a notice, not deducted from accessible balance
-      const paidAmount = invData.transactions
+      const totalCents = invData.amount_cents ?? Math.round(Number(invData.amount || 0) * 100);
+      
+      const paidCents = invData.transactions
         ?.filter(tx => REFUND_SETTLED_STATUSES.has(String(tx?.status || '').toLowerCase()))
         .reduce((sum, tx) => {
           const txAmountCents = Number(tx?.amount_cents ?? 0);
           const txRefundedCents = Number(tx?.refunded_amount_cents ?? 0);
 
-          if (Number.isFinite(txAmountCents) && txAmountCents > 0) {
-            return sum + Math.max(0, (txAmountCents - Math.max(0, txRefundedCents)) / 100);
+          if (txAmountCents > 0) {
+            return sum + Math.max(0, txAmountCents - txRefundedCents);
           }
 
           const txAmount = Number(tx?.amount || 0);
-          return Number.isFinite(txAmount) && txAmount > 0 ? sum + txAmount : sum;
+          return sum + Math.round(txAmount * 100);
         }, 0) || 0;
 
-      const pendingOfflineAmount = invData.transactions
+      const pendingOfflineCents = invData.transactions
         ?.filter(tx => tx.status === 'pending_offline')
-        .reduce((sum, tx) => sum + (tx.amount_cents ? tx.amount_cents / 100 : Number(tx.amount || 0)), 0) || 0;
+        .reduce((sum, tx) => sum + (tx.amount_cents ?? Math.round(Number(tx.amount || 0) * 100)), 0) || 0;
 
-      const balance = Math.max(0, totalAmount - paidAmount);
+      const balance = Math.max(0, totalCents - paidCents) / 100;
       setRemainingBalance(balance);
-      setPendingOffline(pendingOfflineAmount);
+      setPendingOffline(pendingOfflineCents / 100);
       setPaymentAmount(balance.toString());
 
     } catch (err) {

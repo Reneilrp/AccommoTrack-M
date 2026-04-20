@@ -313,29 +313,23 @@ export default function PaymentDetail() {
   const remainingBalance = React.useMemo(() => {
     if (!invoice) return 0;
 
-    const totalAmount = invoice.amount_cents
-      ? invoice.amount_cents / 100
-      : Number(invoice.amount || 0);
+    const totalCents = invoice.amount_cents ?? Math.round(Number(invoice.amount || 0) * 100);
 
-    const paidAmount =
-      invoice.transactions
-        ?.filter((tx) => REFUND_SETTLED_STATUSES.has(String(tx?.status || '').toLowerCase()))
-        .reduce(
-          (sum, tx) => {
-            const txAmountCents = Number(tx?.amount_cents ?? 0);
-            const txRefundedCents = Number(tx?.refunded_amount_cents ?? 0);
+    const paidCents = (invoice.transactions || [])
+      .filter((tx) => REFUND_SETTLED_STATUSES.has(String(tx?.status || '').toLowerCase()))
+      .reduce((sum, tx) => {
+        const txAmountCents = Number(tx?.amount_cents ?? 0);
+        const txRefundedCents = Number(tx?.refunded_amount_cents ?? 0);
 
-            if (Number.isFinite(txAmountCents) && txAmountCents > 0) {
-              return sum + Math.max(0, (txAmountCents - Math.max(0, txRefundedCents)) / 100);
-            }
+        if (txAmountCents > 0) {
+          return sum + Math.max(0, txAmountCents - txRefundedCents);
+        }
 
-            const txAmount = Number(tx?.amount || 0);
-            return Number.isFinite(txAmount) && txAmount > 0 ? sum + txAmount : sum;
-          },
-          0,
-        ) || 0;
+        const txAmount = Number(tx?.amount || 0);
+        return sum + Math.round(txAmount * 100);
+      }, 0);
 
-    return Math.max(0, totalAmount - paidAmount);
+    return Math.max(0, totalCents - paidCents) / 100;
   }, [invoice]);
 
   useEffect(() => {
@@ -628,90 +622,112 @@ export default function PaymentDetail() {
   const isFullyPaid = remainingBalance <= 0;
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['top']}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       <View style={[styles.header, { backgroundColor: theme.colors.primary }]}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color={theme.colors.textInverse} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Invoice #{invoice.reference || invoice.id}</Text>
+        <Text style={styles.headerTitle}>Invoice Detail</Text>
         <View style={{ width: 24 }} />
       </View>
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView 
+        style={styles.content} 
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: 40 }}
+      >
         <View style={styles.detailContainer}>
-          <View style={[homeStyles.surfaceCardMedium, { backgroundColor: theme.colors.surface, marginBottom: 16 }]}>
-            <Text style={[styles.sectionTitle, { color: theme.colors.text, marginBottom: 8 }]}>Details</Text>
-            <View style={homeStyles.rowBetween}>
-              <Text style={{ color: theme.colors.textSecondary }}>Property</Text>
-              <Text style={{ fontWeight: '600', color: theme.colors.text }}>{invoice.property?.title || invoice.booking?.property?.title || '—'}</Text>
+          
+          {/* 1. Summary Card */}
+          <View style={styles.summaryCard}>
+            <View style={styles.summaryHeader}>
+              <View style={styles.summaryMain}>
+                <Text style={styles.summaryLabel}>Total Balance</Text>
+                <Text style={styles.summaryAmount}>₱{remainingBalance.toLocaleString()}</Text>
+              </View>
+              <View style={styles.summaryStatus}>
+                <Text style={styles.summaryStatusText}>{invoice.status}</Text>
+              </View>
             </View>
-            <View style={[homeStyles.rowBetween, { marginTop: 8 }]}>
-              <Text style={{ color: theme.colors.textSecondary }}>Room</Text>
-              <Text style={{ fontWeight: '600', color: theme.colors.text }}>{invoice.booking?.room?.room_number || '—'}</Text>
-            </View>
-            <View style={[homeStyles.rowBetween, { marginTop: 8 }]}>
-              <Text style={{ color: theme.colors.textSecondary }}>Issued At</Text>
-              <Text style={{ fontWeight: '600', color: theme.colors.text }}>{invoice.issued_at ? new Date(invoice.issued_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'}</Text>
-            </View>
-          </View>
-
-          <Text style={[styles.invoiceTitle, { color: theme.colors.text }]}>{invoice.description || 'Invoice'}</Text>
-
-          <View style={[homeStyles.surfaceCardMedium, { backgroundColor: theme.colors.surface }]}>
-            <View style={homeStyles.rowBetween}>
-              <Text style={{ color: theme.colors.textSecondary }}>Subtotal</Text>
-              <Text style={{ fontWeight: '600', color: theme.colors.text }}>₱{((invoice.subtotal_cents ?? invoice.amount_cents ?? 0) / 100).toLocaleString()}</Text>
-            </View>
-            <View style={[homeStyles.rowBetween, { marginTop: 8 }]}>
-              <Text style={{ color: theme.colors.textSecondary }}>Tax</Text>
-              <Text style={{ fontWeight: '600', color: theme.colors.text }}>₱{((invoice.tax_cents ?? 0) / 100).toLocaleString()}</Text>
-            </View>
-            {addonTotalCents > 0 && (
-              <>
-                {addonLines.map((line) => (
-                  <View key={line.key} style={[homeStyles.rowBetween, { marginTop: 8 }]}>
-                    <Text style={{ color: theme.colors.textSecondary }}>
-                      {line.name}{line.quantity > 1 ? ` x ${line.quantity}` : ''}
-                    </Text>
-                    <Text style={{ fontWeight: '600', color: theme.colors.text }}>₱{(line.amountCents / 100).toLocaleString()}</Text>
-                  </View>
-                ))}
-                <View style={[homeStyles.rowBetween, { marginTop: 8 }]}>
-                  <Text style={{ color: theme.colors.textSecondary }}>Add-ons Total</Text>
-                  <Text style={{ fontWeight: '600', color: theme.colors.text }}>₱{(addonTotalCents / 100).toLocaleString()}</Text>
-                </View>
-              </>
-            )}
-            <View style={[styles.separator, { backgroundColor: theme.colors.border }]} />
-            <View style={homeStyles.rowBetween}>
-              <Text style={[styles.totalText, { color: theme.colors.text }]}>Total</Text>
-              <Text style={[styles.totalText, { color: theme.colors.text }]}>₱{((invoice.total_cents ?? invoice.amount_cents ?? 0) / 100).toLocaleString()}</Text>
-            </View>
-            <View style={[homeStyles.rowBetween, { marginTop: 8 }]}>
-              <Text style={[styles.totalText, { color: theme.colors.text, fontSize: 16 }]}>Remaining Balance</Text>
-              <Text style={[styles.totalText, { color: theme.colors.primary, fontSize: 16 }]}>₱{remainingBalance.toLocaleString()}</Text>
+            
+            <View style={styles.summaryGrid}>
+              <View style={styles.summaryItem}>
+                <Text style={styles.summaryItemLabel}>Reference</Text>
+                <Text style={styles.summaryItemValue}>#{invoice.reference || invoice.id}</Text>
+              </View>
+              <View style={styles.summaryItem}>
+                <Text style={styles.summaryItemLabel}>Due Date</Text>
+                <Text style={styles.summaryItemValue}>
+                  {invoice.due_date ? new Date(invoice.due_date).toLocaleDateString() : '—'}
+                </Text>
+              </View>
             </View>
           </View>
 
-          {invoice?.status === 'rejected' && invoice?.rejection_reason && (
-            <View style={{ marginTop: 12, padding: 12, borderRadius: 10, backgroundColor: 'rgba(239,68,68,0.05)', borderLeftWidth: 4, borderLeftColor: '#EF4444' }}>
-              <Text style={{ fontSize: 12, fontWeight: '700', color: '#EF4444', textTransform: 'uppercase', marginBottom: 4 }}>
-                Reason for Rejection
+          {/* 2. Property & Description Section */}
+          <View style={styles.cardSection}>
+            <Text style={styles.cardSectionTitle}>Invoice Info</Text>
+            <View style={styles.infoRow}>
+              <Text style={styles.infoRowLabel}>Property</Text>
+              <Text style={styles.infoRowValue}>{property?.title || '—'}</Text>
+            </View>
+            <View style={styles.infoRow}>
+              <Text style={styles.infoRowLabel}>Room</Text>
+              <Text style={styles.infoRowValue}>{invoice.booking?.room?.room_number || '—'}</Text>
+            </View>
+            <View style={styles.infoRow}>
+              <Text style={styles.infoRowLabel}>Description</Text>
+              <Text style={[styles.infoRowValue, { flex: 1, textAlign: 'right', marginLeft: 20 }]}>
+                {invoice.description || 'General Service'}
               </Text>
-              <Text style={{ fontSize: 14, color: theme.colors.text }}>{invoice.rejection_reason}</Text>
+            </View>
+          </View>
+
+          {/* 3. Bill Breakdown Section */}
+          <View style={styles.cardSection}>
+            <Text style={styles.cardSectionTitle}>Bill Breakdown</Text>
+            <View style={styles.infoRow}>
+              <Text style={styles.infoRowLabel}>Base Amount</Text>
+              <Text style={styles.infoRowValue}>₱{((invoice.subtotal_cents ?? invoice.amount_cents ?? 0) / 100).toLocaleString()}</Text>
+            </View>
+            
+            {addonTotalCents > 0 && addonLines.map((line) => (
+              <View key={line.key} style={styles.infoRow}>
+                <Text style={styles.infoRowLabel}>
+                  {line.name}{line.quantity > 1 ? ` x ${line.quantity}` : ''}
+                </Text>
+                <Text style={styles.infoRowValue}>₱{(line.amountCents / 100).toLocaleString()}</Text>
+              </View>
+            ))}
+
+            <View style={[styles.separator, { marginVertical: 12 }]} />
+            
+            <View style={styles.infoRow}>
+              <Text style={[styles.infoRowLabel, { fontWeight: '700', color: theme.colors.text }]}>Total Bill</Text>
+              <Text style={[styles.infoRowValue, { fontSize: 16, color: theme.colors.primary }]}>
+                ₱{((invoice.total_cents ?? invoice.amount_cents ?? 0) / 100).toLocaleString()}
+              </Text>
+            </View>
+          </View>
+
+          {/* 4. Rejection Reason (If applicable) */}
+          {invoice?.status === 'rejected' && invoice?.rejection_reason && (
+            <View style={[styles.cardSection, { borderColor: '#FECACA', backgroundColor: '#FEF2F2' }]}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+                <Ionicons name="alert-circle" size={18} color="#DC2626" />
+                <Text style={{ marginLeft: 8, fontWeight: '700', color: '#DC2626' }}>Payment Rejected</Text>
+              </View>
+              <Text style={{ fontSize: 13, color: '#991B1B', lineHeight: 18 }}>{invoice.rejection_reason}</Text>
             </View>
           )}
 
-          {invoice?.status === 'refunded' || invoice?.status === 'partially_refunded' ? (() => {
+          {/* 5. Refund Breakdown (If applicable) */}
+          {['refunded', 'partially_refunded'].includes(String(invoice?.status || '').toLowerCase()) && (() => {
             const stayProgress = getStayProgress(invoice.booking);
             if (!stayProgress) return null;
-            
-            const totalPaidCents = invoice.transactions?.filter(t => (t.amount_cents || 0) > 0 && REFUND_ELIGIBLE_STATUSES.includes(String(t.status || '').toLowerCase())).reduce((sum, t) => sum + (t.amount_cents || 0), 0) || 0;
-            const proratedCents = stayProgress.totalUnits > 0 ? Math.floor((totalPaidCents * stayProgress.refundableUnits) / stayProgress.totalUnits) : 0;
-            
             return (
               <View style={styles.refundStatsCard}>
-                <Text style={[styles.sectionTitle, { fontSize: 13, marginBottom: 12, color: theme.colors.purple }]}>
+                <Text style={[styles.sectionTitle, { fontSize: 14, marginBottom: 12, color: theme.colors.purple }]}>
                   Refund Breakdown
                 </Text>
                 <View style={styles.refundStatRow}>
@@ -728,259 +744,216 @@ export default function PaymentDetail() {
                 </View>
                 <View style={styles.refundStatRow}>
                   <Text style={styles.refundStatLabel}>Prorated Amount</Text>
-                  <Text style={styles.refundStatValue}>₱{(proratedCents / 100).toLocaleString()}</Text>
+                  <Text style={styles.refundStatValue}>₱{( ( (invoice.transactions?.filter(t => (t.amount_cents || 0) > 0 && REFUND_ELIGIBLE_STATUSES.includes(String(t.status || '').toLowerCase())).reduce((sum, t) => sum + (t.amount_cents || 0), 0) || 0) * stayProgress.refundableUnits) / (stayProgress.totalUnits * 100) ).toLocaleString()}</Text>
                 </View>
+                <View style={[styles.separator, { marginVertical: 8, backgroundColor: 'rgba(126,34,206,0.1)' }]} />
                 <View style={styles.refundStatRow}>
-                  <Text style={styles.refundStatLabel}>Fixed Penalty</Text>
-                  <Text style={styles.refundStatValue}>- ₱{(REFUND_FIXED_PENALTY_CENTS / 100).toLocaleString()}</Text>
-                </View>
-                <View style={[styles.separator, { marginVertical: 4, backgroundColor: 'rgba(126,34,206,0.1)' }]} />
-                <View style={styles.refundStatRow}>
-                  <Text style={[styles.refundStatLabel, { fontWeight: '800', color: theme.colors.text }]}>Total Refunded</Text>
+                  <Text style={[styles.refundStatLabel, { fontWeight: '800', color: theme.colors.text }]}>Net Refunded</Text>
                   <Text style={[styles.refundStatValue, { fontSize: 15, color: theme.colors.purple }]}>
                     ₱{(invoice.transactions?.reduce((s, t) => s + (t.refunded_amount_cents || 0), 0) / 100).toLocaleString()}
                   </Text>
                 </View>
               </View>
             );
-          })() : null}
+          })()}
 
-          <Text style={[styles.statusRow, { color: theme.colors.textSecondary }]}>Status: <Text style={[styles.statusValue, { color: theme.colors.text }]}>{invoice.status}</Text></Text>
-
+          {/* 6. Payment Flow */}
           {isFullyPaid ? (
-            <View style={{ alignItems: 'center', paddingVertical: 32 }}>
-              <Ionicons name="checkmark-circle" size={64} color="#10B981" />
-              <Text style={{ fontSize: 20, fontWeight: 'bold', color: theme.colors.text, marginTop: 16 }}>Invoice Fully Paid</Text>
-              <Text style={{ color: theme.colors.textSecondary, marginTop: 8 }}>This invoice has no remaining balance.</Text>
+            <View style={{ alignItems: 'center', paddingVertical: 40 }}>
+              <View style={{ width: 80, height: 80, borderRadius: 40, backgroundColor: theme.colors.success + '15', justifyContent: 'center', alignItems: 'center' }}>
+                <Ionicons name="checkmark-done-circle" size={48} color={theme.colors.success} />
+              </View>
+              <Text style={{ fontSize: 20, fontWeight: '800', color: theme.colors.text, marginTop: 20 }}>Fully Paid</Text>
+              <Text style={{ color: theme.colors.textSecondary, marginTop: 8, textAlign: 'center', paddingHorizontal: 40 }}>
+                This invoice has been settled and no further action is required.
+              </Text>
             </View>
           ) : (
-            <View style={{ marginTop: 24 }}>
-              {tenantPaymentsTempDisabled && (
-                <View style={{ marginBottom: 16, padding: 12, borderRadius: 10, borderWidth: 1, borderColor: '#fde68a', backgroundColor: '#fffbeb' }}>
-                  <Text style={{ color: '#92400e', fontWeight: '600' }}>
+            <View style={{ marginTop: 8 }}>
+              
+              {/* Payment Disabled Banner */}
+              {isPaymentDisabled && (
+                <View style={{ marginBottom: 20, padding: 16, borderRadius: 12, backgroundColor: '#FFFBEB', borderWidth: 1, borderColor: '#FDE68A', flexDirection: 'row' }}>
+                  <Ionicons name="information-circle" size={20} color="#B45309" style={{ marginRight: 12 }} />
+                  <Text style={{ flex: 1, color: '#92400E', fontSize: 13, lineHeight: 18, fontWeight: '500' }}>
                     {paymentDisabledReason}
                   </Text>
                 </View>
               )}
-              {!tenantPaymentsTempDisabled && (invoicePaymongoDisabled || isPendingManualVerification) && (() => {
+
+              {/* Pending Verification Proof */}
+              {isPendingManualVerification && (() => {
                 const pendingTx = invoice?.transactions?.find(tx => tx.status === 'pending_offline');
                 const proofUrl = pendingTx?.gateway_response?.proof_image_url;
+                if (!proofUrl) return null;
                 return (
-                  <View style={{ marginBottom: 16 }}>
-                    <View style={{ padding: 12, borderRadius: 10, borderWidth: 1, borderColor: '#fde68a', backgroundColor: '#fffbeb', marginBottom: proofUrl ? 10 : 0 }}>
-                      <Text style={{ color: '#92400e', fontWeight: '700', marginBottom: 4 }}>
-                        {isPendingManualVerification ? 'Awaiting Verification' : 'Payments Temporarily Unavailable'}
-                      </Text>
-                      <Text style={{ color: '#92400e', fontWeight: '400', fontSize: 13 }}>
-                        {paymentDisabledReason}
-                      </Text>
-                      {pendingTx && (
-                        <Text style={{ color: '#B45309', fontWeight: '600', fontSize: 11, marginTop: 6 }}>
-                          Submitted: ₱{(pendingTx.amount_cents / 100).toLocaleString()} via {(pendingTx.method || '').replace('_', ' ')}
-                          {pendingTx.gateway_reference ? ` · Ref: ${pendingTx.gateway_reference}` : ''}
-                        </Text>
-                      )}
-                    </View>
-                    {proofUrl && (
-                      <View>
-                        <Text style={{ fontSize: 11, fontWeight: '700', color: '#92400e', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>
-                          Your Submitted Proof
-                        </Text>
-                        <Image
-                          source={{ uri: proofUrl }}
-                          style={{ width: '100%', height: 160, borderRadius: 10, borderWidth: 1.5, borderColor: '#fde68a' }}
-                          resizeMode="contain"
-                        />
-                        <Text style={{ fontSize: 10, color: '#B45309', fontStyle: 'italic', textAlign: 'center', marginTop: 4 }}>
-                          This is the proof you submitted
-                        </Text>
-                      </View>
-                    )}
+                  <View style={{ marginBottom: 24 }}>
+                    <Text style={styles.cardSectionTitle}>Submitted Proof</Text>
+                    <Image 
+                      source={{ uri: proofUrl }} 
+                      style={styles.proofPreview} 
+                      resizeMode="contain" 
+                    />
+                    <Text style={{ fontSize: 12, color: theme.colors.textTertiary, textAlign: 'center', marginTop: 8, fontStyle: 'italic' }}>
+                      Wait for the landlord to verify your cash submission.
+                    </Text>
                   </View>
                 );
               })()}
-              <Text style={{ fontSize: 14, fontWeight: 'bold', color: theme.colors.textSecondary, marginBottom: 8, textTransform: 'uppercase' }}>Amount to Pay (₱)</Text>
-              <TextInput
-                style={{
-                  backgroundColor: theme.colors.surface,
-                  borderWidth: 1,
-                  borderColor: paymentAmountError ? '#EF4444' : theme.colors.border,
-                  borderRadius: 12,
-                  padding: 16,
-                  fontSize: 18,
-                  fontWeight: 'bold',
-                  color: theme.colors.text,
-                  marginBottom: 4
-                }}
-                keyboardType="numeric"
-                value={paymentAmount}
-                onChangeText={handlePaymentAmountChange}
-                placeholder="0.00"
-                placeholderTextColor={theme.colors.textTertiary}
-                editable={allowPartialPayments}
-              />
-              {paymentAmountError ? (
-                <Text style={{ fontSize: 12, color: '#EF4444', marginBottom: 8 }}>
-                  {paymentAmountError}
-                </Text>
-              ) : null}
-              <Text style={{ fontSize: 12, color: theme.colors.textTertiary, marginBottom: 24 }}>
-                {allowPartialPayments
-                  ? `You can pay the full remaining balance of ₱${remainingBalance.toLocaleString()} or enter a partial amount.`
-                  : `Partial payments are disabled by the landlord. Please pay the exact remaining balance of ₱${remainingBalance.toLocaleString()}.`}
-              </Text>
 
-              <View style={{ marginBottom: 12 }}>
-                <Text style={{ fontSize: 14, fontWeight: '700', color: theme.colors.text, marginBottom: 8 }}>
-                  Available Methods
-                </Text>
-                <Text style={{ fontSize: 12, color: theme.colors.textSecondary }}>
-                  {showOnline && !isPaymentDisabled ? 'Online (GCash, Card)' : null}
-                  {showOnline && !isPaymentDisabled && (showCash || showManualGcash || walletBalance > 0) ? ' • ' : ''}
-                  {showCash ? 'Cash' : null}
-                  {showCash && (showManualGcash || walletBalance > 0) ? ' • ' : ''}
-                  {showManualGcash ? 'Manual GCash Transfer' : null}
-                  {showManualGcash && walletBalance > 0 ? ' • ' : ''}
-                  {walletBalance > 0 ? `Wallet Credits (₱${walletBalance.toLocaleString()})` : null}
-                  {(isPaymentDisabled || !showOnline) && !showCash && !showManualGcash && walletBalance <= 0 ? 'No payment method is currently enabled for this property.' : ''}
-                </Text>
+              {/* Amount Input */}
+              <Text style={styles.amountInputLabel}>Enter Amount to Pay</Text>
+              <View style={[styles.amountInputWrapper, paymentAmountError ? { borderColor: theme.colors.error } : {}]}>
+                <Text style={styles.amountInputCurrency}>₱</Text>
+                <TextInput
+                  style={styles.amountInputField}
+                  keyboardType="numeric"
+                  value={paymentAmount}
+                  onChangeText={handlePaymentAmountChange}
+                  placeholder="0.00"
+                  editable={allowPartialPayments && !isPaymentDisabled}
+                />
               </View>
+              {paymentAmountError ? (
+                <Text style={{ color: theme.colors.error, fontSize: 12, marginLeft: 4, marginBottom: 12 }}>{paymentAmountError}</Text>
+              ) : (
+                <Text style={{ fontSize: 11, color: theme.colors.textTertiary, marginLeft: 4, marginBottom: 16 }}>
+                  {allowPartialPayments 
+                    ? `You can pay full or partial balance.`
+                    : `Partial payments are disabled for this property.`}
+                </Text>
+              )}
 
+              {/* Payment Method Group: Online */}
               {showOnline && !isPaymentDisabled && (
-                <View style={styles.actionsRow}>
-                  <TouchableOpacity 
-                    onPress={handleGCashPay} 
-                    disabled={isPaymentDisabled || isPaying || !!paymentAmountError} 
-                    style={[homeStyles.buttonFlex, styles.payBtn, { backgroundColor: '#007AFF', opacity: (isPaymentDisabled || isPaying || paymentAmountError) ? 0.5 : 1 }]}
-                  >
-                    <Text style={styles.payBtnText}>Pay with GCash</Text>
+                <View style={{ marginBottom: 16 }}>
+                  <Text style={styles.methodSelectionTitle}>Pay Online (Instant)</Text>
+                  
+                  <TouchableOpacity style={styles.methodTile} onPress={handleGCashPay} disabled={isPaying || !!paymentAmountError}>
+                    <View style={[styles.methodTileIcon, { backgroundColor: '#007AFF' }]}>
+                      <Ionicons name="card" size={24} color="#FFF" />
+                    </View>
+                    <View style={styles.methodTileContent}>
+                      <Text style={styles.methodTileName}>GCash</Text>
+                      <Text style={styles.methodTileDesc}>Fast & Secure redirection</Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={18} color={theme.colors.border} />
                   </TouchableOpacity>
-                  <TouchableOpacity 
-                    onPress={handleCardPay} 
-                    disabled={isPaymentDisabled || isPaying || !!paymentAmountError} 
-                    style={[homeStyles.buttonFlex, styles.payBtn, { backgroundColor: theme.colors.primary, opacity: (isPaymentDisabled || isPaying || paymentAmountError) ? 0.5 : 1 }]}
-                  >
-                    <Text style={styles.payBtnText}>Pay with Card</Text>
+
+                  <TouchableOpacity style={styles.methodTile} onPress={handleCardPay} disabled={isPaying || !!paymentAmountError}>
+                    <View style={[styles.methodTileIcon, { backgroundColor: theme.colors.primary }]}>
+                      <Ionicons name="card-outline" size={24} color="#FFF" />
+                    </View>
+                    <View style={styles.methodTileContent}>
+                      <Text style={styles.methodTileName}>Credit / Debit Card</Text>
+                      <Text style={styles.methodTileDesc}>Visa, Mastercard, etc.</Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={18} color={theme.colors.border} />
                   </TouchableOpacity>
                 </View>
               )}
 
+              {/* Payment Method Group: Manual */}
               {(showCash || showManualGcash) && (
-                <View style={{ marginTop: 16 }}>
-                  <Text style={{ fontSize: 13, fontWeight: '700', color: theme.colors.textSecondary }}>
-                    Manual / Offline Submission
-                  </Text>
-                  {showManualGcash && manualPaymentDetails?.gcash_info ? (
-                    <View style={{ padding: 10, borderRadius: 8, backgroundColor: theme.colors.primaryLight, marginTop: 8, marginBottom: 8 }}>
-                      <Text style={{ color: theme.colors.primary, fontWeight: '700', fontSize: 12 }}>GCash Details</Text>
-                      <Text style={{ color: theme.colors.textSecondary, marginTop: 4, fontSize: 12 }}>{manualPaymentDetails.gcash_info}</Text>
+                <View style={{ marginBottom: 16 }}>
+                  <Text style={styles.methodSelectionTitle}>Manual / Offline Submission</Text>
+                  
+                  {showManualGcash && manualPaymentDetails?.gcash_info && (
+                    <View style={{ padding: 12, borderRadius: 12, backgroundColor: theme.colors.primary + '10', marginBottom: 16, borderWidth: 1, borderColor: theme.colors.primary + '30' }}>
+                      <Text style={{ color: theme.colors.primary, fontWeight: '800', fontSize: 12, marginBottom: 4 }}>Merchant GCash Info:</Text>
+                      <Text style={{ color: theme.colors.text, fontSize: 13, lineHeight: 18 }}>{manualPaymentDetails.gcash_info}</Text>
                     </View>
-                  ) : null}
+                  )}
 
-                  <TextInput
-                    placeholder="Reference Number (required for manual GCash)"
-                    placeholderTextColor="#9CA3AF"
-                    style={{
-                      borderWidth: 1,
-                      borderColor: theme.colors.border,
-                      borderRadius: 10,
-                      padding: 14,
-                      color: theme.colors.text,
-                      backgroundColor: theme.colors.backgroundSecondary,
-                      fontSize: 14,
-                      marginBottom: 8
-                    }}
-                    value={offlineDetails.reference}
-                    onChangeText={(value) => setOfflineDetails((prev) => ({ ...prev, reference: value }))}
-                  />
+                  <View style={styles.formGroup}>
+                    <Text style={styles.formLabel}>Reference Number</Text>
+                    <TextInput
+                      style={styles.formInput}
+                      placeholder="Required for GCash transfer"
+                      value={offlineDetails.reference}
+                      onChangeText={(val) => setOfflineDetails(p => ({ ...p, reference: val }))}
+                    />
+                  </View>
 
-                  <TextInput
-                    placeholder="Notes (optional)"
-                    placeholderTextColor="#9CA3AF"
-                    multiline
-                    numberOfLines={3}
-                    style={{
-                      borderWidth: 1,
-                      borderColor: theme.colors.border,
-                      borderRadius: 10,
-                      padding: 14,
-                      color: theme.colors.text,
-                      backgroundColor: theme.colors.backgroundSecondary,
-                      minHeight: 80,
-                      textAlignVertical: 'top',
-                      fontSize: 14,
-                      marginBottom: 8
-                    }}
-                    value={offlineDetails.notes}
-                    onChangeText={(value) => setOfflineDetails((prev) => ({ ...prev, notes: value }))}
-                  />
+                  <View style={styles.formGroup}>
+                    <Text style={styles.formLabel}>Notes (Optional)</Text>
+                    <TextInput
+                      style={[styles.formInput, styles.formInputMultiline]}
+                      placeholder="Add any extra info for the landlord"
+                      multiline
+                      value={offlineDetails.notes}
+                      onChangeText={(val) => setOfflineDetails(p => ({ ...p, notes: val }))}
+                    />
+                  </View>
 
-                  <TouchableOpacity
-                    onPress={handleProofImagePick}
-                    style={{
-                      flexDirection: 'row',
-                      alignItems: 'center',
-                      padding: 14,
-                      borderWidth: 1,
-                      borderColor: theme.colors.border,
-                      borderRadius: 10,
-                      backgroundColor: theme.colors.backgroundSecondary,
-                      marginBottom: 8,
-                    }}
+                  <View style={styles.formGroup}>
+                    <Text style={styles.formLabel}>Proof of Payment</Text>
+                    <TouchableOpacity style={styles.uploadArea} onPress={handleProofImagePick}>
+                      {proofImage ? (
+                        <Image source={{ uri: proofImage.uri }} style={{ width: '100%', height: '100%', borderRadius: 8 }} resizeMode="cover" />
+                      ) : (
+                        <>
+                          <Ionicons name="cloud-upload" size={32} color={theme.colors.primary} />
+                          <Text style={styles.uploadAreaText}>Tap to Upload Proof</Text>
+                        </>
+                      )}
+                    </TouchableOpacity>
+                  </View>
+
+                  <View style={{ flexDirection: 'row', gap: 12 }}>
+                    {showManualGcash && (
+                      <TouchableOpacity 
+                        style={[styles.payBtn, { flex: 1, backgroundColor: '#2563EB', opacity: isPaying ? 0.6 : 1 }]} 
+                        onPress={() => handleOfflinePayment('gcash')}
+                        disabled={isPaying}
+                      >
+                        <Text style={[styles.payBtnText, { textAlign: 'center' }]}>Submit GCash</Text>
+                      </TouchableOpacity>
+                    )}
+                    {showCash && (
+                      <TouchableOpacity 
+                        style={[styles.payBtn, { flex: 1, backgroundColor: '#16A34A', opacity: isPaying ? 0.6 : 1 }]} 
+                        onPress={() => handleOfflinePayment('cash')}
+                        disabled={isPaying}
+                      >
+                        <Text style={[styles.payBtnText, { textAlign: 'center' }]}>Request Cash</Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                </View>
+              )}
+
+              {/* Wallet Section */}
+              {!tenantPaymentsTempDisabled && walletBalance > 0 && (
+                <View style={{ marginTop: 8 }}>
+                  <TouchableOpacity 
+                    style={[styles.payBtn, { backgroundColor: '#7C3AED', opacity: isPaying ? 0.6 : 1 }]} 
+                    onPress={handleWalletCreditPayment}
+                    disabled={isPaying}
                   >
-                    <Ionicons name="image-outline" size={20} color={theme.colors.text} style={{ marginRight: 10 }} />
-                    <Text style={{ color: theme.colors.text, fontSize: 14, flex: 1 }}>
-                      {proofImage ? 'Change Proof of Payment' : 'Upload Proof of Payment *'}
+                    <Text style={[styles.payBtnText, { textAlign: 'center' }]}>
+                      Apply Wallet Balance (₱{Math.min(remainingBalance, walletBalance).toLocaleString()})
                     </Text>
                   </TouchableOpacity>
-
-                  {proofImage && (
-                    <Image
-                      source={{ uri: proofImage.uri }}
-                      style={{ width: '100%', height: 150, borderRadius: 10, marginBottom: 8, objectFit: 'contain' }}
-                    />
-                  )}
-
-                  {showManualGcash && (
-                    <TouchableOpacity
-                      onPress={() => handleOfflinePayment('gcash')}
-                      disabled={tenantPaymentsTempDisabled || isPaying}
-                      style={[styles.payBtn, { backgroundColor: '#2563EB', opacity: (tenantPaymentsTempDisabled || isPaying) ? 0.6 : 1, marginBottom: 8 }]}
-                    >
-                      <Text style={styles.payBtnText}>Submit Manual GCash Transfer</Text>
-                    </TouchableOpacity>
-                  )}
-
-                  {showCash && (
-                    <TouchableOpacity
-                      onPress={() => handleOfflinePayment('cash')}
-                      disabled={tenantPaymentsTempDisabled || isPaying}
-                      style={[styles.payBtn, { backgroundColor: '#16a34a', opacity: (tenantPaymentsTempDisabled || isPaying) ? 0.6 : 1 }]}
-                    >
-                      <Text style={styles.payBtnText}>Request Cash Payment</Text>
-                    </TouchableOpacity>
-                  )}
-                </View>
-              )}
-
-              {!tenantPaymentsTempDisabled && walletBalance > 0 && (
-                <View style={{ marginTop: 16 }}>
-                  <TouchableOpacity
-                    onPress={handleWalletCreditPayment}
-                    disabled={tenantPaymentsTempDisabled || isPaying}
-                    style={[styles.payBtn, { backgroundColor: '#7C3AED', opacity: (tenantPaymentsTempDisabled || isPaying) ? 0.6 : 1, marginBottom: 8 }]}
-                  >
-                    <Text style={styles.payBtnText}>Apply Wallet Credits (₱{Math.min(remainingBalance, walletBalance).toLocaleString()})</Text>
-                  </TouchableOpacity>
-                  <Text style={{ fontSize: 11, color: theme.colors.textSecondary, textAlign: 'center', fontStyle: 'italic', paddingHorizontal: 16 }}>
-                    * Credits are automatically earned from room transfers and refunds. Manual top-ups are not supported.
+                  <Text style={{ fontSize: 10, color: theme.colors.textTertiary, textAlign: 'center', marginTop: 10, paddingHorizontal: 30 }}>
+                    Wallet credits are applied instantly against your balance.
                   </Text>
                 </View>
               )}
+
             </View>
           )}
+
         </View>
       </ScrollView>
+
+      {/* Subtle Loading Overlay */}
+      {isPaying && (
+        <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(255,255,255,0.7)', justifyContent: 'center', alignItems: 'center' }}>
+          <ActivityIndicator size="large" color={theme.colors.primary} />
+          <Text style={{ marginTop: 16, fontWeight: '700', color: theme.colors.primary }}>Processing...</Text>
+        </View>
+      )}
     </SafeAreaView>
   );
 }
