@@ -104,21 +104,21 @@ class MinimumStayEnforcementTest extends TestCase
     }
 
     /** @test */
-    public function it_enforces_30_day_minimum_for_monthly_contracts()
+    public function it_allows_short_monthly_stays_and_charges_one_month()
     {
-        // Create room with 15-day minimum (but monthly should enforce 30)
+        // Create room with a higher min_stay_days value; monthly should still allow short fixed stays.
         $this->room = Room::factory()->create([
             'property_id' => $this->property->id,
             'room_number' => '101',
             'monthly_rate' => 5000,
             'billing_policy' => 'monthly',
-            'min_stay_days' => 15,
+            'min_stay_days' => 30,
             'capacity' => 1,
         ]);
 
         $this->actingAs($this->tenant, 'sanctum');
 
-        // Try to book for 20 days (should fail - monthly requires 30)
+        // Book for 20 days (should succeed and still bill as one full month)
         $response = $this->postJson('/api/landlord/bookings', [
             'room_id' => $this->room->id,
             'start_date' => now()->addDays(1)->format('Y-m-d'),
@@ -126,8 +126,17 @@ class MinimumStayEnforcementTest extends TestCase
             'contract_mode' => 'monthly',
         ]);
 
-        $response->assertStatus(422);
-        $this->assertStringContainsString('30', $response->json('message'));
+        $response->assertStatus(201);
+
+        $bookingId = data_get($response->json(), 'data.booking.id');
+        $this->assertNotNull($bookingId);
+
+        $this->assertDatabaseHas('bookings', [
+            'id' => $bookingId,
+            'room_id' => $this->room->id,
+            'tenant_id' => $this->tenant->id,
+            'total_months' => 1,
+        ]);
     }
 
     /** @test */

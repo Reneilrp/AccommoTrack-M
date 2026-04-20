@@ -323,21 +323,21 @@ const DashboardScreen = () => {
     const timeline = upcomingMonths.length > 0
       ? upcomingMonths
       : safeArray(bundleUpcoming?.unpaidBookings).slice(0, 4).map((item) => ({
-          month: new Date(item?.dueDate || item?.due_date || Date.now()).toLocaleDateString('en-US', {
-            month: 'long',
-            year: 'numeric',
-          }),
-          due_date: item?.dueDate || item?.due_date,
-          month_total: getNumeric(item?.amount),
-          bookings: [
-            {
-              booking_id: item?.id,
-              room_number: item?.roomNumber || item?.room_number || 'N/A',
-              total: getNumeric(item?.amount),
-              status: item?.paymentStatus || item?.payment_status || 'pending',
-            },
-          ],
-        }));
+        month: new Date(item?.dueDate || item?.due_date || Date.now()).toLocaleDateString('en-US', {
+          month: 'long',
+          year: 'numeric',
+        }),
+        due_date: item?.dueDate || item?.due_date,
+        month_total: getNumeric(item?.amount),
+        bookings: [
+          {
+            booking_id: item?.id,
+            room_number: item?.roomNumber || item?.room_number || 'N/A',
+            total: getNumeric(item?.amount),
+            status: item?.paymentStatus || item?.payment_status || 'pending',
+          },
+        ],
+      }));
 
     return {
       stays: resolvedStays,
@@ -862,7 +862,22 @@ const DashboardScreen = () => {
           ) : activities.map((activity) => (
             <View key={`activity-${activity.id}-${activity.timestamp}`} style={styles.activityRow}>
               <View style={styles.activityIconWrap}>
-                <Ionicons name="time-outline" size={14} color={theme.colors.primary} />
+                <Ionicons
+                  name={(() => {
+                    const type = String(activity?.type || '').toLowerCase();
+                    if (type.includes('payment') || type.includes('billing')) return 'card-outline';
+                    if (type.includes('transfer')) return 'swap-horizontal-outline';
+                    if (type.includes('addon')) return 'cube-outline';
+                    if (type.includes('extension')) return 'time-outline';
+                    if (type.includes('move_out')) return 'log-out-outline';
+                    if (type.includes('maintenance')) return 'construct-outline';
+                    if (type.includes('message')) return 'chatbubble-outline';
+                    if (type.includes('booking')) return 'calendar-outline';
+                    return 'time-outline';
+                  })()}
+                  size={14}
+                  color={theme.colors.primary}
+                />
               </View>
               <View style={styles.activityBody}>
                 <Text style={styles.activityTitle}>{activity.action || 'Booking update'}</Text>

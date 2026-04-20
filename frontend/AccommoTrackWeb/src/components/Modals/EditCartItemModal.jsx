@@ -1,9 +1,9 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { X, Loader2, Calendar, Bed, ClipboardList, Plus, Minus } from 'lucide-react';
 import api from '../../utils/api';
 import { useCart } from '../../contexts/CartContext';
 import { showSuccess, showError } from '../../utils/toast';
-import { getImageUrl, formatApiValidationMessage } from '../../utils/api';
+import { formatApiValidationMessage } from '../../utils/api';
 
 export default function EditCartItemModal({ item, isOpen, onClose }) {
   const { updateItem } = useCart();
@@ -35,9 +35,9 @@ export default function EditCartItemModal({ item, isOpen, onClose }) {
       setNotes(item.notes || '');
       setPaymentPlan(item.payment_plan || 'monthly');
       setContractMode(item.contract_mode || 'monthly');
-      
-      const beds = item.bed_numbers 
-        ? (typeof item.bed_numbers === 'string' ? item.bed_numbers.split(',') : item.bed_numbers) 
+
+      const beds = item.bed_numbers
+        ? (typeof item.bed_numbers === 'string' ? item.bed_numbers.split(',') : item.bed_numbers)
         : [];
       setSelectedBedNumbers(beds);
       setTotalPrice(Number(item.price_snapshot || 0));

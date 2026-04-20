@@ -9,6 +9,11 @@ const ACTIVITY_ICON_MAP = {
   tenant: <Users className="w-4 h-4" />,
   payment: <CreditCard className="w-4 h-4" />,
   transfer: <ArrowLeftRight className="w-4 h-4" />,
+  addon: <AlertCircle className="w-4 h-4" />,
+  extension: <Calendar className="w-4 h-4" />,
+  move_out: <Home className="w-4 h-4" />,
+  maintenance: <AlertCircle className="w-4 h-4" />,
+  message: <AlertCircle className="w-4 h-4" />,
 };
 
 const ACTIVITY_COLOR_MAP = {
@@ -28,6 +33,24 @@ const extractNotificationRows = (payload) => {
   return [];
 };
 
+const getCurrentRole = () => {
+  const userData = (() => { try { return JSON.parse(localStorage.getItem('userData') || '{}'); } catch { return {}; } })();
+  return (userData.role || '').toLowerCase();
+};
+
+const resolveNotificationType = (rawType = '') => {
+  const type = String(rawType || '').toLowerCase();
+  if (type.includes('transfer')) return 'transfer';
+  if (type.includes('move_out')) return 'move_out';
+  if (type.includes('extension')) return 'extension';
+  if (type.includes('addon')) return 'addon';
+  if (type.includes('maintenance')) return 'maintenance';
+  if (type.includes('message')) return 'message';
+  if (type.includes('booking')) return 'booking';
+  if (type.includes('payment') || type.includes('billing') || type === 'rent_paid' || type === 'cash_payment_verified') return 'payment';
+  return 'default';
+};
+
 const NotificationDropdown = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
@@ -40,8 +63,7 @@ const NotificationDropdown = () => {
     try {
       setLoading(true);
 
-      const userData = (() => { try { return JSON.parse(localStorage.getItem('userData') || '{}'); } catch { return {}; } })();
-      const role = (userData.role || '').toLowerCase();
+      const role = getCurrentRole();
       const isLandlordOrCaretaker = role === 'landlord' || role === 'caretaker';
       const isTenant = role === 'tenant';
 
@@ -58,6 +80,7 @@ const NotificationDropdown = () => {
         : [];
       const safeNotifs = (Array.isArray(rawNotifs) ? rawNotifs : []).map(n => ({
         ...n,
+        _type: resolveNotificationType(n.data?.type || n.type),
         _kind: 'notification',
         _sortKey: new Date(n.created_at).getTime(),
       }));
@@ -128,8 +151,7 @@ const NotificationDropdown = () => {
 
   const handleMarkAllRead = async () => {
     try {
-      const userData = (() => { try { return JSON.parse(localStorage.getItem('userData') || '{}'); } catch { return {}; } })();
-      const role = (userData.role || '').toLowerCase();
+      const role = getCurrentRole();
       await api.patch(`/notifications/read-all?role=${role}`);
       setNotifications(prev => prev.map(n => ({ ...n, read_at: n.read_at || new Date().toISOString() })));
       setUnreadCount(0);
@@ -139,6 +161,9 @@ const NotificationDropdown = () => {
   };
 
   const handleNotificationClick = (notification) => {
+    const role = getCurrentRole();
+    const transferRoute = role === 'tenant' ? '/bookings' : '/transfers';
+
     if (notification._kind === 'notification' && !isNotificationRead(notification)) {
       handleMarkAsRead(notification.id);
     }
@@ -164,16 +189,23 @@ const NotificationDropdown = () => {
         navigate(`/payments?${params.toString()}`);
       }
       else if (notification.type === 'room') navigate('/rooms');
-      else if (notification.type === 'transfer') navigate('/transfers');
+      else if (notification.type === 'transfer') navigate(transferRoute);
+      else if (notification.type === 'addon') navigate('/addons');
+      else if (notification.type === 'extension' || notification.type === 'move_out') {
+        const bookingId = notification.booking_id || notification.data?.booking_id;
+        navigate(bookingId ? `/bookings?bookingId=${bookingId}` : '/bookings');
+      }
+      else if (notification.type === 'maintenance') navigate('/maintenance');
+      else if (notification.type === 'message') navigate('/messages');
       return;
     }
 
     // Handle DB notifications
-    const notifType = notification.data?.type;
+    const notifType = resolveNotificationType(notification.data?.type || notification.type || notification._type);
     const bookingId = notification.data?.booking_id;
     const invoiceId = notification.data?.invoice_id;
 
-    if (notifType === 'booking') {
+    if (notifType === 'booking' || notifType === 'move_out' || notifType === 'extension') {
       navigate(bookingId ? `/bookings?bookingId=${bookingId}` : '/bookings');
     }
     else if (notifType === 'payment') {
@@ -182,11 +214,22 @@ const NotificationDropdown = () => {
     else if (notifType === 'message') {
       navigate('/messages');
     }
-    else if (notifType === 'move_out_notice') {
-      navigate(bookingId ? `/bookings?bookingId=${bookingId}` : '/bookings');
-    }
     else if (notifType === 'transfer') {
-      navigate('/transfers');
+      navigate(transferRoute);
+    }
+    else if (notifType === 'addon') {
+      navigate('/addons');
+    }
+    else if (notifType === 'maintenance') {
+      navigate('/maintenance');
+    } else if (notification.data?.url) {
+      const rawUrl = String(notification.data.url || '').toLowerCase();
+      if (rawUrl.includes('payments')) navigate('/payments');
+      else if (rawUrl.includes('bookings')) navigate('/bookings');
+      else if (rawUrl.includes('messages')) navigate('/messages');
+      else if (rawUrl.includes('maintenance')) navigate('/maintenance');
+      else if (rawUrl.includes('transfer')) navigate(transferRoute);
+      else if (rawUrl.includes('addon')) navigate('/addons');
     }
   };
 

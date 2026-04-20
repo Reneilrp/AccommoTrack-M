@@ -683,24 +683,12 @@ export default function TenantLogs() {
                                     <div>
                                       <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">
                                         Transfer Fee (₱)
-                                        <span className="text-amber-600 normal-case font-normal ml-1">
-                                          (Max: ₱{Number(getTransferForm(req.id).prorationDetails?.quoted_transfer_fee || 0).toLocaleString('en-PH')})
-                                        </span>
                                       </label>
                                       <input 
                                         type="number" 
                                         step="0.01"
-                                        max={getTransferForm(req.id).prorationDetails?.quoted_transfer_fee}
                                         value={getTransferForm(req.id).transfer_fee}
-                                        onChange={(e) => {
-                                          const val = e.target.value;
-                                          const max = getTransferForm(req.id).prorationDetails?.quoted_transfer_fee || 0;
-                                          if (Number(val) > max) {
-                                            showError(`You cannot charge more than the quoted fee of ₱${max}`);
-                                            return;
-                                          }
-                                          updateTransferForm(req.id, { transfer_fee: val });
-                                        }}
+                                        onChange={(e) => updateTransferForm(req.id, { transfer_fee: e.target.value })}
                                         className="w-full text-sm font-bold bg-white dark:bg-gray-800 border border-blue-200 dark:border-blue-700/50 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 shadow-sm"
                                       />
                                     </div>

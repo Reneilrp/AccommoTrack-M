@@ -780,6 +780,7 @@ export default function Payments({ navigation, route }) {
       case 'partial':
         return { bg: isDark ? 'rgba(146,64,14,0.2)' : '#FEF3C7', fg: isDark ? '#fbbf24' : '#92400E' };
       case 'unpaid':
+      case 'overdue':
       case 'cancelled':
         return { bg: isDark ? 'rgba(153,27,27,0.2)' : '#FEE2E2', fg: isDark ? '#f87171' : '#991B1B' };
       case 'refunded':

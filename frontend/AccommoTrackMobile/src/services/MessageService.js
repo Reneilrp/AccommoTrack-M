@@ -118,6 +118,15 @@ const MessageService = {
     } catch (error) {
       return { success: false, error: extractError(error, 'Unable to mark messages as read') };
     }
+  },
+
+  async hideConversation(conversationId) {
+    try {
+      const response = await api.delete(`/messages/conversations/${conversationId}`);
+      return { success: true, data: response.data };
+    } catch (error) {
+      return { success: false, error: extractError(error, 'Unable to delete conversation') };
+    }
   }
 };
 

@@ -1,6 +1,5 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useTenantDashboardBundle } from '../../hooks/useTenantQueries';
-import { tenantService } from '../../services/tenantService';
 import { useNavigate } from 'react-router-dom';
 import { SkeletonCurrentStay, SkeletonStatCard } from '../../components/Shared/Skeleton';
 import { useUIState } from '../../contexts/UIStateContext';
@@ -14,21 +13,6 @@ import ActionCenter from './components/ActionCenter';
 
 const ROOM_COLORS = ['#22c55e', '#60a5fa', '#a78bfa', '#fbbf24', '#f87171'];
 const DEFAULT_TOGGLES = systemToggleService.getDefaults();
-
-const unwrapTenantPayload = (response) => {
-  if (response && typeof response === 'object' && Object.prototype.hasOwnProperty.call(response, 'success')) {
-    return response.data ?? null;
-  }
-
-  return response ?? null;
-};
-
-const resolveDashboardActivities = (payload) => {
-  if (Array.isArray(payload)) return payload;
-  if (Array.isArray(payload?.activities)) return payload.activities;
-  if (Array.isArray(payload?.data?.activities)) return payload.data.activities;
-  return [];
-};
 
 // ═════════════════════════════════════════════════════════════════════════════
 // MAIN COMPONENT
@@ -63,7 +47,7 @@ const TenantDashboard = ({ user }) => {
     if (stats) {
       const newWalletBalance = Number(stats?.payments?.walletBalance || stats?.payments?.wallet_balance || 0);
       updateScreenState('wallet', { balance: newWalletBalance });
-      
+
       // Update the UIStateContext bucket for other components that might still consume it
       updateData('dashboard', {
         stayData,
@@ -246,13 +230,13 @@ const TenantDashboard = ({ user }) => {
   const balanceBreakdownRows = React.useMemo(() => {
     // Primary source: comprehensive list from stats
     const statsUnpaid = Array.isArray(stats?.payments?.unpaidInvoices) ? stats.payments.unpaidInvoices : [];
-    
+
     if (statsUnpaid.length > 0) {
       return statsUnpaid.map(invoice => {
         // Map room info from stays if available
         let roomNumber = 'Other';
         let roomColor = '#94a3b8'; // gray-400
-        
+
         for (let i = 0; i < stays.length; i++) {
           const stay = stays[i];
           const stayInvoices = Array.isArray(stay?.financials?.invoices) ? stay.financials.invoices : [];
@@ -298,7 +282,7 @@ const TenantDashboard = ({ user }) => {
             const paidByTransactions = transactions
               .filter((tx) => ['succeeded', 'completed', 'paid', 'approved', 'verified'].includes((tx?.status || '').toLowerCase()))
               .reduce((sum, tx) => sum + (Number(tx?.amount) || 0), 0);
-            
+
             const invoiceAmount = Number(invoice?.amount) || 0;
             const remainingAmount = Math.max(0, invoiceAmount - paidByTransactions);
             const status = (invoice?.status || '').toLowerCase();
@@ -360,14 +344,14 @@ const TenantDashboard = ({ user }) => {
     safeCheckIns.forEach(pending => {
       const isOverdue = Boolean(pending?.isOverdue || (Number(pending?.daysOverdue) > 0));
       const hasAction = !dismissedNotifications[`pending-checkin-${pending.id}`];
-      
+
       if (hasAction) {
         alerts.push({
           id: `pending-checkin-${pending.id}`,
           type: 'booking',
           priority: isOverdue ? 'high' : 'medium',
           title: pending.status === 'confirmed' ? 'Action Required: Check-in Overdue' : 'Stay Starting: Approval Pending',
-          message: isOverdue 
+          message: isOverdue
             ? `Your check-in for ${pending.property || 'your stay'} was scheduled for ${formatDate(pending.startDate)}. Please contact the landlord.`
             : `Your check-in for ${pending.property || 'your stay'} is scheduled for today.`,
           actionText: 'View Booking',
@@ -924,7 +908,17 @@ const TenantDashboard = ({ user }) => {
             <div className="px-6 py-2 flex-1">
               {activities.length > 0 ? (
                 activities.map((activity, idx) => {
-                  const iconMap = { booking: Calendar, payment: CreditCard, room: Home, message: MessageSquare };
+                  const iconMap = {
+                    booking: Calendar,
+                    payment: CreditCard,
+                    room: Home,
+                    message: MessageSquare,
+                    transfer: ArrowRight,
+                    addon: Zap,
+                    extension: CalendarClock,
+                    move_out: AlertTriangle,
+                    maintenance: Droplets,
+                  };
                   const IconComp = iconMap[activity.type] || Activity;
 
                   return (
@@ -957,7 +951,7 @@ const TenantDashboard = ({ user }) => {
 
         {/* Right Column: Payment Components (30%) */}
         <div className="lg:col-span-3 flex flex-col gap-6">
-          
+
           {/* Current Payment Cycle */}
           <div className="bg-white dark:bg-[#1e2332] border border-gray-200 dark:border-[#2a3045] rounded-[16px] overflow-hidden flex flex-col">
             <div className="px-6 py-6 border-b border-gray-100 dark:border-[#2a3045]">

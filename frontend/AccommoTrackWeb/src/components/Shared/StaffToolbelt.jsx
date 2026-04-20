@@ -2,14 +2,60 @@ import React, { useState, useEffect, useRef } from 'react';
 import { PenTool, MessageSquare, Wrench, X, Loader2 } from 'lucide-react';
 import { showSuccess, showError } from '../../utils/toast';
 import api from '../../utils/api';
-import { propertyService } from '../../services/propertyService';
 import { useUIState } from '../../contexts/UIStateContext';
 // import ConversationViewer from './Messaging/ConversationViewer'; // or similar for chat
 
-export default function StaffToolbelt({ _user }) {
+const normalizeId = (value) => {
+  if (value === null || value === undefined) return '';
+  return String(value).trim();
+};
+
+const extractAssignedPropertyIds = (user) => {
+  if (!user || user.role !== 'caretaker') return [];
+
+  const ids = new Set();
+  const pushId = (value) => {
+    const normalized = normalizeId(value);
+    if (normalized) ids.add(normalized);
+  };
+
+  pushId(user.assigned_property_id);
+  pushId(user.property_id);
+
+  if (Array.isArray(user.assigned_property_ids)) {
+    user.assigned_property_ids.forEach(pushId);
+  }
+
+  if (Array.isArray(user.assigned_properties)) {
+    user.assigned_properties.forEach((property) => {
+      if (property && typeof property === 'object') {
+        pushId(property.id ?? property.property_id);
+      }
+    });
+  }
+
+  return [...ids];
+};
+
+const normalizePropertiesPayload = (payload) => {
+  if (Array.isArray(payload)) return payload;
+  if (Array.isArray(payload?.data)) return payload.data;
+  return [];
+};
+
+export default function StaffToolbelt({ user }) {
   const [isOpen, setIsOpen] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
   const [showChatModal, setShowChatModal] = useState(false);
+
+  const activeUser = React.useMemo(() => {
+    if (user) return user;
+    try {
+      return JSON.parse(localStorage.getItem('userData') || '{}');
+    } catch {
+      return {};
+    }
+  }, [user]);
 
   return (
     <>
@@ -58,6 +104,7 @@ export default function StaffToolbelt({ _user }) {
       <QuickReportModal 
         isOpen={showReportModal} 
         onClose={() => setShowReportModal(false)}
+        user={activeUser}
       />
 
       {showChatModal && (
@@ -70,7 +117,7 @@ export default function StaffToolbelt({ _user }) {
   );
 }
 
-function QuickReportModal({ isOpen, onClose }) {
+function QuickReportModal({ isOpen, onClose, user }) {
   const [properties, setProperties] = useState([]);
   const [propertyId, setPropertyId] = useState('');
   const [description, setDescription] = useState('');
@@ -78,30 +125,53 @@ function QuickReportModal({ isOpen, onClose }) {
   const [isLoading, setIsLoading] = useState(false);
   const { invalidateData } = useUIState();
 
+  const assignedPropertyIds = React.useMemo(() => extractAssignedPropertyIds(user), [user]);
+  const hasSingleProperty = properties.length === 1;
+  const singleProperty = hasSingleProperty ? properties[0] : null;
+
+  const resolvePropertyLabel = (property) => {
+    if (!property || typeof property !== 'object') return 'Assigned Property';
+    if (property.title) return property.title;
+    if (property.name) return property.name;
+    const normalized = normalizeId(property.id);
+    return normalized ? `Property #${normalized}` : 'Assigned Property';
+  };
+
+  const loadProperties = React.useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const response = await api.get('/landlord/properties');
+      const propertyRows = normalizePropertiesPayload(response?.data);
+      setProperties(propertyRows);
+
+      if (propertyRows.length === 0) {
+        setPropertyId('');
+        return;
+      }
+
+      const propertyIdSet = new Set(propertyRows.map((property) => normalizeId(property?.id)).filter(Boolean));
+
+      const assignedDefault = assignedPropertyIds.find((assignedId) => propertyIdSet.has(assignedId));
+      const fallbackAssignedId = normalizeId(user?.assigned_property_id || user?.property_id);
+      const keeperAssignedId = propertyIdSet.has(fallbackAssignedId) ? fallbackAssignedId : '';
+      const firstPropertyId = normalizeId(propertyRows[0]?.id);
+
+      setPropertyId(assignedDefault || keeperAssignedId || firstPropertyId);
+    } catch (err) {
+      console.error(err);
+      showError('Failed to load assigned properties.');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [assignedPropertyIds, user]);
+
   useEffect(() => {
     if (isOpen) {
       loadProperties();
       setDescription('');
       setPropertyId('');
     }
-  }, [isOpen]);
-
-  const loadProperties = async () => {
-    setIsLoading(true);
-    try {
-      const res = await propertyService.getProperties();
-      if (res.success) {
-        setProperties(res.data);
-        if (res.data.length === 1) {
-          setPropertyId(res.data[0].id);
-        }
-      }
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setIsLoading(false);
-    }
-  }
+  }, [isOpen, loadProperties]);
 
   const handleSubmit = async (e) => {
     if (e) e.preventDefault();
@@ -150,21 +220,38 @@ function QuickReportModal({ isOpen, onClose }) {
 
         {isLoading ? (
           <div className="flex justify-center p-12"><Loader2 className="w-8 h-8 animate-spin text-green-600" /></div>
+        ) : properties.length === 0 ? (
+          <div className="p-4 rounded-xl border border-red-200 bg-red-50 text-red-700 dark:border-red-800 dark:bg-red-900/20 dark:text-red-300 text-sm font-medium">
+            No assigned property found. Please ask your landlord to assign a property first.
+          </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1.5 uppercase tracking-wide">Property</label>
-              <select
-                value={propertyId}
-                onChange={(e) => setPropertyId(e.target.value)}
-                className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-green-500 outline-none text-sm dark:text-white"
-                required
-              >
-                <option value="">Select a property...</option>
-                {properties.map(p => (
-                  <option key={p.id} value={p.id}>{p.title}</option>
-                ))}
-              </select>
+              {hasSingleProperty ? (
+                <button
+                  type="button"
+                  onClick={() => setPropertyId(normalizeId(singleProperty?.id))}
+                  className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-xl text-left text-sm dark:text-white cursor-pointer"
+                  aria-label="Assigned property"
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-semibold">{resolvePropertyLabel(singleProperty)}</span>
+                    <span className="text-[11px] font-bold uppercase tracking-wide text-green-600 dark:text-green-400">Assigned</span>
+                  </div>
+                </button>
+              ) : (
+                <select
+                  value={propertyId}
+                  onChange={(e) => setPropertyId(e.target.value)}
+                  className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-green-500 outline-none text-sm dark:text-white"
+                  required
+                >
+                  {properties.map((property) => (
+                    <option key={property.id} value={property.id}>{resolvePropertyLabel(property)}</option>
+                  ))}
+                </select>
+              )}
             </div>
 
             <div>

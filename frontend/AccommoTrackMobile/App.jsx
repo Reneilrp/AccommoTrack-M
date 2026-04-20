@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, StatusBar } from 'react-native';
+import { View, StatusBar, Modal } from 'react-native';
 import { NavigationContainer, DefaultTheme, DarkTheme } from '@react-navigation/native';
 import { navigationRef, notifyNavigationStateChange } from './src/navigation/RootNavigation.js';
 import { QueryClientProvider } from '@tanstack/react-query';
@@ -11,8 +11,11 @@ import { UIStateProvider, useUIState } from './src/contexts/UIStateContext.jsx';
 import { queryClient } from './src/config/queryClient.js';
 import { useAuthStore } from './src/stores/auth/authStore.js';
 import { useAppVersion } from './src/shared/hooks/useAppVersion.js';
+import ForceUpdateModal from './src/components/ForceUpdateModal.jsx';
+import ThemedAlert from './src/components/ThemedAlert.jsx';
 
 import { getToastConfig } from './src/config/toastConfig.jsx';
+import { registerToastPresenter } from './src/utils/toast.js';
 
 const MyLightTheme = {
   ...DefaultTheme,
@@ -30,15 +33,15 @@ const MyDarkTheme = {
   },
 };
 
-import ForceUpdateModal from './src/components/ForceUpdateModal.jsx';
-import ThemedAlert from './src/components/ThemedAlert.jsx';
-
 function AppContent() {
   const { theme, isDarkMode, isLoading: isThemeLoading } = useTheme();
   const { isLoaded: isUIStateLoaded } = useUIState();
   const isAuthHydrated = useAuthStore((state) => state.hasHydrated);
   const setHydrated = useAuthStore((state) => state.setHydrated);
   const toastConfig = React.useMemo(() => getToastConfig(theme), [theme]);
+  const [isToastHostVisible, setIsToastHostVisible] = React.useState(false);
+  const toastShowTimerRef = React.useRef(null);
+  const toastHideTimerRef = React.useRef(null);
   const {
     latestVersion,
     downloadUrl,
@@ -50,6 +53,57 @@ function AppContent() {
   // Show startup update prompt at most once per app open.
   const [showStartupUpdateModal, setShowStartupUpdateModal] = React.useState(false);
   const [hasPromptedThisLaunch, setHasPromptedThisLaunch] = React.useState(false);
+
+  const clearToastTimers = React.useCallback(() => {
+    if (toastShowTimerRef.current) {
+      clearTimeout(toastShowTimerRef.current);
+      toastShowTimerRef.current = null;
+    }
+
+    if (toastHideTimerRef.current) {
+      clearTimeout(toastHideTimerRef.current);
+      toastHideTimerRef.current = null;
+    }
+  }, []);
+
+  const showToastAboveModals = React.useCallback((params) => {
+    clearToastTimers();
+    setIsToastHostVisible(true);
+
+    // Wait one frame so the modal-hosted toast instance is mounted and gets top priority.
+    toastShowTimerRef.current = setTimeout(() => {
+      Toast.show(params);
+
+      const autoHide = params?.autoHide !== false;
+      const visibilityTime = Number.isFinite(params?.visibilityTime)
+        ? params.visibilityTime
+        : 4000;
+      const hideDelay = (autoHide ? visibilityTime : 5000) + 600;
+
+      toastHideTimerRef.current = setTimeout(() => {
+        setIsToastHostVisible(false);
+        toastHideTimerRef.current = null;
+      }, hideDelay);
+    }, 16);
+  }, [clearToastTimers]);
+
+  const hideToastAboveModals = React.useCallback(() => {
+    clearToastTimers();
+    Toast.hide();
+    setIsToastHostVisible(false);
+  }, [clearToastTimers]);
+
+  React.useEffect(() => {
+    const unregisterToastPresenter = registerToastPresenter({
+      show: showToastAboveModals,
+      hide: hideToastAboveModals,
+    });
+
+    return () => {
+      unregisterToastPresenter();
+      clearToastTimers();
+    };
+  }, [clearToastTimers, hideToastAboveModals, showToastAboveModals]);
 
   // Safety timeout: force hydration after 2 seconds
   React.useEffect(() => {
@@ -101,6 +155,19 @@ function AppContent() {
       />
       <ThemedAlert />
       <Toast config={toastConfig} />
+      <Modal
+        transparent
+        visible={isToastHostVisible}
+        animationType="none"
+        statusBarTranslucent
+        navigationBarTranslucent
+        presentationStyle="overFullScreen"
+        onRequestClose={hideToastAboveModals}
+      >
+        <View style={{ flex: 1 }} pointerEvents="box-none">
+          <Toast config={toastConfig} />
+        </View>
+      </Modal>
     </View>
   );
 }

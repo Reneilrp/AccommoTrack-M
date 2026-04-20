@@ -25,6 +25,7 @@ export const useMessaging = (user, accessRole = 'landlord') => {
   const [sendingMessage, setSendingMessage] = useState(false);
   const [replyingTo, setReplyingTo] = useState(null);
   const [editingMessage, setEditingMessage] = useState(null);
+  const [deletingConversation, setDeletingConversation] = useState(false);
   const [isOtherTyping, setIsOtherTyping] = useState(false);
   const typingTimeoutRef = useRef(null);
 
@@ -273,12 +274,36 @@ export const useMessaging = (user, accessRole = 'landlord') => {
     }
   };
 
+  const handleDeleteConversation = async () => {
+    if (readOnlyGuard()) return;
+    if (!selectedChat?.id) return;
+
+    setDeletingConversation(true);
+    try {
+      await api.delete(`/messages/conversations/${selectedChat.id}`);
+      setConversations((prev) => prev.filter((conv) => String(conv.id) !== String(selectedChat.id)));
+      setSelectedChat(null);
+      setMessages([]);
+      showSuccess('Conversation deleted from your inbox');
+    } catch (err) {
+      console.error('Failed to delete conversation:', err);
+      showError(err.response?.data?.message || 'Failed to delete conversation');
+    } finally {
+      setDeletingConversation(false);
+    }
+  };
+
   const formatTime = (timestamp) => {
     if (!timestamp) return '';
     const date = new Date(timestamp);
+    if (Number.isNaN(date.getTime())) return '';
+
     const now = new Date();
-    const diffDays = Math.floor((now - date) / (1000 * 60 * 60 * 24));
-    if (diffDays === 0) return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const startOfMessageDay = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    const diffDays = Math.round((startOfToday - startOfMessageDay) / (1000 * 60 * 60 * 24));
+
+    if (diffDays <= 0) return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
     if (diffDays === 1) return 'Yesterday';
     if (diffDays < 7) return date.toLocaleDateString('en-US', { weekday: 'short' });
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
@@ -483,6 +508,8 @@ export const useMessaging = (user, accessRole = 'landlord') => {
     editingMessage,
     setEditingMessage,
     handleEditMessage,
+    handleDeleteConversation,
+    deletingConversation,
     isOtherTyping,
     selectedFile,
     handleFileSelect,

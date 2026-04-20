@@ -814,6 +814,7 @@ export default function Payments() {
       case "partial":
         return "bg-yellow-100 text-yellow-800";
       case "unpaid":
+      case "overdue":
         return "bg-red-100 text-red-800";
       case "cancelled":
         return "bg-red-100 text-red-800";
@@ -1228,10 +1229,10 @@ export default function Payments() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs font-bold text-gray-500 dark:text-gray-500 uppercase tracking-wider mb-2">{statsRange === "month" ? "Overdue Invoices (Month)" : "Overdue Invoices"}</p>
-                <p className="text-2xl font-bold text-orange-600 mt-2">{stats.overdueCount}</p>
+                <p className="text-2xl font-bold text-red-600 mt-2">{stats.overdueCount}</p>
               </div>
-              <div className="w-10 h-10 bg-orange-50 dark:bg-orange-900/20 rounded-lg flex items-center justify-center">
-                <Clock className="w-5 h-5 text-orange-600 dark:text-orange-400" />
+              <div className="w-10 h-10 bg-red-50 dark:bg-red-900/20 rounded-lg flex items-center justify-center">
+                <Clock className="w-5 h-5 text-red-600 dark:text-red-400" />
               </div>
             </div>
           </div>
@@ -1677,39 +1678,6 @@ export default function Payments() {
                   getInvoiceStatus(selectedInvoice),
                 ) && (
                     <>
-                      {/* Action Buttons */}
-                      <div className="grid grid-cols-3 gap-3 mb-6">
-                        <button
-                          onClick={handleRecordOffline}
-                          disabled={isRecording}
-                          className="flex flex-col items-center justify-center p-4 bg-green-50 dark:bg-green-900/20 hover:bg-green-100 dark:hover:bg-green-900/30 rounded-xl border-2 border-green-200 dark:border-green-800 transition-all disabled:opacity-50"
-                        >
-                          <span className="text-xs font-bold text-green-700 dark:text-green-300">Record Payment</span>
-                        </button>
-                        <button
-                          onClick={() => {
-                            if (selectedInvoice.booking_id) {
-                              updateBookingPayment(selectedInvoice.booking_id, "partial");
-                              setShowInvoiceModal(false);
-                            }
-                          }}
-                          className="flex flex-col items-center justify-center p-4 bg-yellow-50 dark:bg-yellow-900/20 hover:bg-yellow-100 dark:hover:bg-yellow-900/30 rounded-xl border-2 border-yellow-200 dark:border-yellow-800 transition-all"
-                        >
-                          <span className="text-xs font-bold text-yellow-700 dark:text-yellow-300">Mark Partial</span>
-                        </button>
-                        <button
-                          onClick={() => {
-                            if (selectedInvoice.booking_id) {
-                              updateBookingPayment(selectedInvoice.booking_id, "paid");
-                              setShowInvoiceModal(false);
-                            }
-                          }}
-                          className="flex flex-col items-center justify-center p-4 bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/30 rounded-xl border-2 border-blue-200 dark:border-blue-800 transition-all"
-                        >
-                          <span className="text-xs font-bold text-blue-700 dark:text-blue-300">Mark Paid</span>
-                        </button>
-                      </div>
-
                       <div className="space-y-4">
                         <h4 className="text-sm font-bold text-gray-900 dark:text-white border-b pb-2">
                           Record Payment Details

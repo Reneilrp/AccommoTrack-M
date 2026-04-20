@@ -4,9 +4,14 @@ namespace App\Services;
 
 use App\Models\Addon;
 use App\Models\Booking;
+use App\Models\ExtensionRequest;
 use App\Models\Invoice;
+use App\Models\MaintenanceRequest;
 use App\Models\PaymentTransaction;
+use App\Models\TransferRequest;
 use App\Models\User;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 
 class TenantDashboardService
 {
@@ -117,13 +122,385 @@ class TenantDashboardService
     //     return  $bookings['status'] === 'confirmed';
     // }
 
-    public function getRecentActivities(int $tenantId)
+    public function getRecentActivities(int $tenantId): Collection
     {
-        return Booking::where('tenant_id', $tenantId)
+        $resolveSortKey = static function ($value): int {
+            if ($value instanceof \DateTimeInterface) {
+                return (int) $value->getTimestamp();
+            }
+
+            if (is_numeric($value)) {
+                return (int) $value;
+            }
+
+            $parsed = strtotime((string) $value);
+
+            return $parsed !== false ? (int) $parsed : 0;
+        };
+
+        $bookingActivities = Booking::where('tenant_id', $tenantId)
             ->with(['landlord', 'property', 'room'])
-            ->orderBy('created_at', 'desc')
+            ->orderBy('updated_at', 'desc')
+            ->limit(15)
+            ->get()
+            ->map(function ($booking) use ($resolveSortKey) {
+                $status = strtolower((string) $booking->status);
+                $propertyTitle = $booking->property->title ?? 'your property';
+                $roomLabel = $booking->room->room_number ?? 'N/A';
+                $eventAt = $booking->updated_at ?? $booking->created_at;
+
+                $action = 'Booking update';
+                $color = 'gray';
+                if (in_array($status, ['pending', 'pending_reservation', 'reserved'], true)) {
+                    $action = 'Booking pending';
+                    $color = 'yellow';
+                } elseif (in_array($status, ['confirmed', 'active'], true)) {
+                    $action = 'Booking confirmed';
+                    $color = 'green';
+                } elseif (in_array($status, ['cancelled', 'rejected'], true)) {
+                    $action = 'Booking cancelled';
+                    $color = 'red';
+                }
+
+                return [
+                    'id' => $booking->id,
+                    'type' => 'booking',
+                    'action' => $action,
+                    'description' => 'Your booking for '.$propertyTitle.' - Room '.$roomLabel.' is '.$status,
+                    'status' => $status,
+                    'timestamp' => $eventAt,
+                    'icon' => 'calendar',
+                    'color' => $color,
+                    'booking_id' => $booking->id,
+                    '_sort_key' => $resolveSortKey($eventAt),
+                    '_uid' => 'booking-'.$booking->id.'-'.$status,
+                ];
+            });
+
+        $moveOutActivities = Booking::where('tenant_id', $tenantId)
+            ->whereNotNull('notice_given_at')
+            ->with(['property', 'room'])
+            ->orderBy('notice_given_at', 'desc')
             ->limit(10)
-            ->get();
+            ->get()
+            ->map(function ($booking) use ($resolveSortKey) {
+                $propertyTitle = $booking->property->title ?? 'your property';
+                $roomLabel = $booking->room->room_number ?? 'N/A';
+                $eventAt = $booking->notice_given_at;
+
+                return [
+                    'id' => $booking->id,
+                    'type' => 'move_out',
+                    'action' => 'Move-out notice submitted',
+                    'description' => 'You submitted a move-out notice for '.$propertyTitle.' - Room '.$roomLabel.'.',
+                    'status' => 'notice_submitted',
+                    'timestamp' => $eventAt,
+                    'icon' => 'log-out-outline',
+                    'color' => 'blue',
+                    'booking_id' => $booking->id,
+                    '_sort_key' => $resolveSortKey($eventAt),
+                    '_uid' => 'move-out-'.$booking->id.'-'.$resolveSortKey($eventAt),
+                ];
+            });
+
+        $invoiceActivities = Invoice::where('tenant_id', $tenantId)
+            ->with(['property', 'booking.room'])
+            ->orderBy('updated_at', 'desc')
+            ->limit(15)
+            ->get()
+            ->map(function ($invoice) use ($resolveSortKey) {
+                $status = strtolower((string) $invoice->status);
+                $propertyTitle = $invoice->property->title ?? 'your property';
+                $roomLabel = $invoice->booking?->room?->room_number;
+                $roomSuffix = $roomLabel ? ' - Room '.$roomLabel : '';
+                $eventAt = $invoice->updated_at ?? $invoice->created_at;
+
+                $action = 'Payment update';
+                $color = 'blue';
+                if ($status === 'overdue') {
+                    $action = 'Payment overdue';
+                    $color = 'red';
+                } elseif ($status === 'pending' || $status === 'partial') {
+                    $action = 'Payment reminder';
+                    $color = 'yellow';
+                } elseif ($status === 'paid') {
+                    $action = 'Payment confirmed';
+                    $color = 'green';
+                }
+
+                return [
+                    'id' => $invoice->id,
+                    'type' => 'payment',
+                    'action' => $action,
+                    'description' => 'Invoice for '.$propertyTitle.$roomSuffix.' is '.$status,
+                    'status' => $status,
+                    'timestamp' => $eventAt,
+                    'icon' => 'credit-card',
+                    'color' => $color,
+                    'invoice_id' => $invoice->id,
+                    'booking_id' => $invoice->booking_id,
+                    '_sort_key' => $resolveSortKey($eventAt),
+                    '_uid' => 'invoice-'.$invoice->id.'-'.$status,
+                ];
+            });
+
+        $paymentActivities = PaymentTransaction::where('tenant_id', $tenantId)
+            ->with(['invoice.property', 'invoice.booking.room'])
+            ->orderBy('created_at', 'desc')
+            ->limit(15)
+            ->get()
+            ->map(function ($tx) use ($resolveSortKey) {
+                $status = strtolower((string) $tx->status);
+                $invoice = $tx->invoice;
+                $propertyTitle = $invoice?->property?->title ?? 'your property';
+                $roomLabel = $invoice?->booking?->room?->room_number;
+                $roomSuffix = $roomLabel ? ' - Room '.$roomLabel : '';
+                $eventAt = $tx->created_at;
+
+                $action = 'Payment update';
+                $color = 'blue';
+                if (in_array($status, ['paid', 'succeeded', 'partially_refunded', 'refunded'], true)) {
+                    $action = 'Payment transaction recorded';
+                    $color = 'green';
+                } elseif (in_array($status, ['pending', 'pending_offline', 'pending_verification'], true)) {
+                    $action = 'Payment submitted';
+                    $color = 'yellow';
+                } elseif ($status === 'failed' || $status === 'cancelled') {
+                    $action = 'Payment attempt failed';
+                    $color = 'red';
+                }
+
+                return [
+                    'id' => $tx->id,
+                    'type' => 'payment',
+                    'action' => $action,
+                    'description' => 'Transaction for '.$propertyTitle.$roomSuffix.' is '.$status,
+                    'status' => $status,
+                    'timestamp' => $eventAt,
+                    'icon' => 'credit-card',
+                    'color' => $color,
+                    'invoice_id' => $tx->invoice_id,
+                    'booking_id' => $invoice?->booking_id,
+                    '_sort_key' => $resolveSortKey($eventAt),
+                    '_uid' => 'payment-tx-'.$tx->id.'-'.$status,
+                ];
+            });
+
+        $transferActivities = TransferRequest::where('tenant_id', $tenantId)
+            ->with(['booking.property', 'currentRoom', 'requestedRoom'])
+            ->orderBy('updated_at', 'desc')
+            ->limit(15)
+            ->get()
+            ->map(function ($transfer) use ($resolveSortKey) {
+                $status = strtolower((string) $transfer->status);
+                $fromRoom = $transfer->currentRoom?->room_number ?? 'N/A';
+                $toRoom = $transfer->requestedRoom?->room_number ?? 'N/A';
+                $propertyTitle = $transfer->booking?->property?->title ?? 'your property';
+                $eventAt = $transfer->handled_at ?? $transfer->updated_at ?? $transfer->created_at;
+
+                $action = 'Transfer update';
+                $color = 'blue';
+                if ($status === 'pending') {
+                    $action = 'Transfer request submitted';
+                    $color = 'yellow';
+                } elseif ($status === 'approved') {
+                    $action = 'Transfer request approved';
+                    $color = 'green';
+                } elseif ($status === 'rejected') {
+                    $action = 'Transfer request rejected';
+                    $color = 'red';
+                } elseif ($status === 'cancelled') {
+                    $action = 'Transfer request cancelled';
+                    $color = 'gray';
+                }
+
+                return [
+                    'id' => $transfer->id,
+                    'type' => 'transfer',
+                    'action' => $action,
+                    'description' => 'Transfer from Room '.$fromRoom.' to Room '.$toRoom.' at '.$propertyTitle.' is '.$status.'.',
+                    'status' => $status,
+                    'timestamp' => $eventAt,
+                    'icon' => 'swap-horizontal-outline',
+                    'color' => $color,
+                    'transfer_request_id' => $transfer->id,
+                    'booking_id' => $transfer->booking_id,
+                    '_sort_key' => $resolveSortKey($eventAt),
+                    '_uid' => 'transfer-'.$transfer->id.'-'.$status,
+                ];
+            });
+
+        $addonActivities = DB::table('booking_addons as ba')
+            ->join('bookings as b', 'b.id', '=', 'ba.booking_id')
+            ->join('addons as a', 'a.id', '=', 'ba.addon_id')
+            ->leftJoin('properties as p', 'p.id', '=', 'b.property_id')
+            ->leftJoin('rooms as r', 'r.id', '=', 'b.room_id')
+            ->where('b.tenant_id', $tenantId)
+            ->orderBy('ba.updated_at', 'desc')
+            ->limit(20)
+            ->get([
+                'ba.id as booking_addon_id',
+                'ba.booking_id',
+                'ba.addon_id',
+                'ba.status as addon_status',
+                'ba.created_at',
+                'ba.updated_at',
+                'ba.cancellation_requested_at',
+                'ba.cancellation_effective_at',
+                'a.name as addon_name',
+                'p.title as property_title',
+                'r.room_number',
+            ])
+            ->map(function ($row) use ($resolveSortKey) {
+                $status = strtolower((string) $row->addon_status);
+                $propertyTitle = $row->property_title ?: 'your property';
+                $roomLabel = $row->room_number ?: 'N/A';
+                $eventAt = $row->updated_at ?: $row->created_at;
+
+                $action = 'Add-on update';
+                $color = 'blue';
+                if ($status === 'pending') {
+                    $action = 'Add-on request submitted';
+                    $color = 'yellow';
+                } elseif ($status === 'approved') {
+                    $action = 'Add-on request approved';
+                    $color = 'green';
+                } elseif ($status === 'active') {
+                    $action = 'Add-on activated';
+                    $color = 'green';
+                } elseif ($status === 'completed') {
+                    $action = 'Add-on completed';
+                    $color = 'green';
+                } elseif ($status === 'rejected') {
+                    $action = 'Add-on request rejected';
+                    $color = 'red';
+                } elseif ($status === 'cancelled') {
+                    $action = 'Add-on cancelled';
+                    $color = 'gray';
+                }
+
+                return [
+                    'id' => (int) $row->booking_addon_id,
+                    'type' => 'addon',
+                    'action' => $action,
+                    'description' => ($row->addon_name ?: 'Add-on').' for '.$propertyTitle.' - Room '.$roomLabel.' is '.$status.'.',
+                    'status' => $status,
+                    'timestamp' => $eventAt,
+                    'icon' => 'sparkles-outline',
+                    'color' => $color,
+                    'booking_id' => (int) $row->booking_id,
+                    'addon_id' => (int) $row->addon_id,
+                    '_sort_key' => $resolveSortKey($eventAt),
+                    '_uid' => 'addon-'.$row->booking_addon_id.'-'.$status,
+                ];
+            });
+
+        $extensionActivities = ExtensionRequest::where('tenant_id', $tenantId)
+            ->with(['booking.property', 'booking.room'])
+            ->orderBy('updated_at', 'desc')
+            ->limit(10)
+            ->get()
+            ->map(function ($extension) use ($resolveSortKey) {
+                $status = strtolower((string) $extension->status);
+                $propertyTitle = $extension->booking?->property?->title ?? 'your property';
+                $roomLabel = $extension->booking?->room?->room_number ?? 'N/A';
+                $targetEnd = optional($extension->requested_end_date)->format('Y-m-d') ?? 'the requested date';
+                $eventAt = $extension->handled_at ?? $extension->updated_at ?? $extension->created_at;
+
+                $action = 'Extension request update';
+                $color = 'blue';
+                if ($status === 'pending') {
+                    $action = 'Extension request submitted';
+                    $color = 'yellow';
+                } elseif ($status === 'approved') {
+                    $action = 'Extension request approved';
+                    $color = 'green';
+                } elseif ($status === 'rejected') {
+                    $action = 'Extension request rejected';
+                    $color = 'red';
+                } elseif ($status === 'cancelled') {
+                    $action = 'Extension request cancelled';
+                    $color = 'gray';
+                }
+
+                return [
+                    'id' => $extension->id,
+                    'type' => 'extension',
+                    'action' => $action,
+                    'description' => 'Extension request for '.$propertyTitle.' - Room '.$roomLabel.' until '.$targetEnd.' is '.$status.'.',
+                    'status' => $status,
+                    'timestamp' => $eventAt,
+                    'icon' => 'time-outline',
+                    'color' => $color,
+                    'booking_id' => $extension->booking_id,
+                    'extension_request_id' => $extension->id,
+                    '_sort_key' => $resolveSortKey($eventAt),
+                    '_uid' => 'extension-'.$extension->id.'-'.$status,
+                ];
+            });
+
+        $maintenanceActivities = MaintenanceRequest::where('tenant_id', $tenantId)
+            ->with(['property', 'booking.room'])
+            ->orderBy('updated_at', 'desc')
+            ->limit(10)
+            ->get()
+            ->map(function ($request) use ($resolveSortKey) {
+                $status = strtolower((string) $request->status);
+                $propertyTitle = $request->property?->title ?? 'your property';
+                $roomLabel = $request->booking?->room?->room_number;
+                $roomSuffix = $roomLabel ? ' - Room '.$roomLabel : '';
+                $eventAt = $request->resolved_at ?? $request->updated_at ?? $request->created_at;
+
+                $action = 'Maintenance request update';
+                $color = 'blue';
+                if (in_array($status, ['pending', 'open'], true)) {
+                    $action = 'Maintenance request submitted';
+                    $color = 'yellow';
+                } elseif (in_array($status, ['in_progress', 'assigned'], true)) {
+                    $action = 'Maintenance in progress';
+                    $color = 'blue';
+                } elseif (in_array($status, ['resolved', 'completed'], true)) {
+                    $action = 'Maintenance resolved';
+                    $color = 'green';
+                } elseif (in_array($status, ['cancelled', 'rejected'], true)) {
+                    $action = 'Maintenance closed';
+                    $color = 'gray';
+                }
+
+                return [
+                    'id' => $request->id,
+                    'type' => 'maintenance',
+                    'action' => $action,
+                    'description' => 'Maintenance request "'.($request->title ?: 'Request').'" for '.$propertyTitle.$roomSuffix.' is '.$status.'.',
+                    'status' => $status,
+                    'timestamp' => $eventAt,
+                    'icon' => 'construct-outline',
+                    'color' => $color,
+                    'booking_id' => $request->booking_id,
+                    'maintenance_request_id' => $request->id,
+                    '_sort_key' => $resolveSortKey($eventAt),
+                    '_uid' => 'maintenance-'.$request->id.'-'.$status,
+                ];
+            });
+
+        return $bookingActivities
+            ->merge($moveOutActivities)
+            ->merge($invoiceActivities)
+            ->merge($paymentActivities)
+            ->merge($transferActivities)
+            ->merge($addonActivities)
+            ->merge($extensionActivities)
+            ->merge($maintenanceActivities)
+            ->sortByDesc(fn ($item) => (int) ($item['_sort_key'] ?? 0))
+            ->unique(fn ($item) => $item['_uid'] ?? ($item['type'].'-'.$item['id']))
+            ->values()
+            ->take(30)
+            ->map(function ($item) {
+                unset($item['_sort_key'], $item['_uid']);
+
+                return $item;
+            })
+            ->values();
     }
 
     public function getUpcomingPayments(int $tenantId): array

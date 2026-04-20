@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { 
   useTenantStayBundle, 
@@ -50,7 +50,7 @@ import ReservationPolicyNotice from './components/ReservationPolicyNotice';
 const MyBookings = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { uiState, updateScreenState, updateData, invalidateData } = useUIState();
+  const { uiState, updateScreenState } = useUIState();
   const activeTab = uiState.bookings?.activeTab || 'current';
 
   // --- Queries ---
@@ -61,7 +61,7 @@ const MyBookings = () => {
 
   const { data: bundleData, isLoading: bundleLoading, refetch: refetchBundle } = stayBundleQuery;
   const { data: transfersData, isLoading: transfersLoading, refetch: refetchTransfers } = transferQuery;
-  const { data: historyData, isLoading: historyLoading, isFetching: historyFetching } = historyQuery;
+  const { data: historyData, isFetching: historyFetching } = historyQuery;
 
   // Use cached data for instant mount fallback (optional, queries are usually fast enough)
   const cachedData = uiState.data?.bookings;
@@ -100,7 +100,15 @@ const MyBookings = () => {
   const [selectedStayIndex, setSelectedStayIndex] = useState(0);
 
   const loading = (bundleLoading || transfersLoading) && !cachedData;
-  const error = stayBundleQuery.error?.message || null;
+  const rawError = stayBundleQuery.error?.message || null;
+  const [isErrorDismissed, setIsErrorDismissed] = useState(false);
+  const error = isErrorDismissed ? null : rawError;
+
+  useEffect(() => {
+    if (rawError) {
+      setIsErrorDismissed(false);
+    }
+  }, [rawError]);
 
   const [showAddonModal, setShowAddonModal] = useState(false);
   const [showExtensionModal, setShowExtensionModal] = useState(false);
@@ -236,6 +244,8 @@ const MyBookings = () => {
     }
   }, [history, historyFetching]);
 
+  const historyLoadingMore = historyFetching && historyPage > 1;
+
   useEffect(() => {
     const handleFocusRefresh = () => {
       if (activeTab === 'current' || activeTab === 'financials') {
@@ -341,7 +351,7 @@ const MyBookings = () => {
     <div className="min-h-screen bg-transparent dark:bg-gray-900 p-4 md:p-6">
       {error && (
         <div className="mb-6 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 px-4 py-3 rounded-xl flex items-center gap-3 animate-in fade-in slide-in-from-top-2">
-          <X className="w-5 h-5 cursor-pointer" onClick={() => setError(null)} />
+          <X className="w-5 h-5 cursor-pointer" onClick={() => setIsErrorDismissed(true)} />
           <span className="font-bold text-xs uppercase tracking-wide">{error}</span>
         </div>
       )}
@@ -585,7 +595,6 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
   const SETTLED_INVOICE_STATUSES = new Set(['paid', 'settled', 'succeeded', 'verified', 'completed']);
   const hasStays = stays && stays.length > 0;
   const hasPending = (pendingBookings && pendingBookings.length > 0) || (pendingCheckIns && pendingCheckIns.length > 0);
-  const totalPendingCount = (pendingBookings?.length || 0) + (pendingCheckIns?.length || 0);
   const hasOverdueStays = (stays || []).some((stay) =>
     Boolean(stay?.booking?.is_overdue || stay?.booking?.isOverdue),
   );

@@ -40,10 +40,14 @@ class Conversation extends Model
         'property_id',
         'caretaker_id',
         'last_message_at',
+        'user_one_deleted_at',
+        'user_two_deleted_at',
     ];
 
     protected $casts = [
         'last_message_at' => 'datetime',
+        'user_one_deleted_at' => 'datetime',
+        'user_two_deleted_at' => 'datetime',
     ];
 
     public function userOne()
@@ -80,5 +84,50 @@ class Conversation extends Model
     public function getOtherUser($userId)
     {
         return $this->user_one_id === $userId ? $this->userTwo : $this->userOne;
+    }
+
+    public function markDeletedForUser(int $userId): void
+    {
+        if ((int) $this->user_one_id === (int) $userId) {
+            $this->user_one_deleted_at = now();
+        }
+
+        if ((int) $this->user_two_id === (int) $userId) {
+            $this->user_two_deleted_at = now();
+        }
+    }
+
+    public function clearDeletedForUser(int $userId): void
+    {
+        if ((int) $this->user_one_id === (int) $userId) {
+            $this->user_one_deleted_at = null;
+        }
+
+        if ((int) $this->user_two_id === (int) $userId) {
+            $this->user_two_deleted_at = null;
+        }
+    }
+
+    public function isHiddenForUser(int $userId): bool
+    {
+        $deletedAt = null;
+
+        if ((int) $this->user_one_id === (int) $userId) {
+            $deletedAt = $this->user_one_deleted_at;
+        } elseif ((int) $this->user_two_id === (int) $userId) {
+            $deletedAt = $this->user_two_deleted_at;
+        }
+
+        if (! $deletedAt) {
+            return false;
+        }
+
+        $lastActivityAt = $this->last_message_at ?? $this->updated_at ?? $this->created_at;
+
+        if (! $lastActivityAt) {
+            return true;
+        }
+
+        return $deletedAt->greaterThanOrEqualTo($lastActivityAt);
     }
 }

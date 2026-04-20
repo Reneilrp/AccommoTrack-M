@@ -14,7 +14,6 @@ import {
   Loader2,
   Eye,
   EyeOff,
-  User,
   Key,
   KeyRound,
   ChevronDown,
@@ -134,6 +133,8 @@ export default function CareTakerAccess({
   });
   const [revocationModal, setRevocationModal] = useState({ show: false, caretaker: null, reason: '' });
   const [activeModuleTab, setActiveModuleTab] = useState(0);
+  const [createRoleTemplate, setCreateRoleTemplate] = useState('custom');
+  const [editRoleTemplate, setEditRoleTemplate] = useState('custom');
   const [selectedCaretaker, setSelectedCaretaker] = useState(null);
 
   const fetchCaretakersRef = useRef(fetchCaretakers);
@@ -187,6 +188,12 @@ export default function CareTakerAccess({
     restoreDraft();
   }, [restoreDraft]);
 
+  useEffect(() => {
+    if (activeModuleTab >= MODULE_GROUPS.length) {
+      setActiveModuleTab(0);
+    }
+  }, [activeModuleTab]);
+
   // Auto-save draft to localStorage
   useEffect(() => {
     if (modalMode !== 'create') return;
@@ -215,6 +222,22 @@ export default function CareTakerAccess({
   const requestPermissionPrompt = (key, target) =>
     setPermissionPrompt({ open: true, key, target, isBulk: false, keys: [] });
 
+  const setRoleTemplateForTarget = (target, value) => {
+    if (target === 'create') {
+      setCreateRoleTemplate(value);
+    } else {
+      setEditRoleTemplate(value);
+    }
+  };
+
+  const markCurrentRoleTemplateAsCustom = () => {
+    if (modalMode === 'create') {
+      setCreateRoleTemplate('custom');
+    } else {
+      setEditRoleTemplate('custom');
+    }
+  };
+
   const applyBulkPermissions = (keys, value, target) => {
     if (target === 'create') {
       keys.forEach((k) => handlePermissionToggle(k, value));
@@ -225,6 +248,41 @@ export default function CareTakerAccess({
         return { ...prev, permissions: newPerms };
       });
     }
+  };
+
+  const applyRoleTemplate = (rolePermissions, target) => {
+    const allKeys = CARETAKER_PERMISSION_FIELDS.map((f) => f.key);
+    const permissionSet = new Set(rolePermissions || []);
+
+    if (target === 'create') {
+      allKeys.forEach((k) => handlePermissionToggle(k, permissionSet.has(k)));
+    } else {
+      setEditFormData((prev) => {
+        const nextPermissions = { ...prev.permissions };
+        allKeys.forEach((k) => {
+          nextPermissions[k] = permissionSet.has(k);
+        });
+        return { ...prev, permissions: nextPermissions };
+      });
+    }
+  };
+
+  const handleRoleTemplateChange = (value) => {
+    const target = modalMode === 'create' ? 'create' : 'edit';
+    setRoleTemplateForTarget(target, value);
+
+    if (value === 'custom') return;
+
+    if (target === 'create') {
+      setCaretakerForm?.((prev) => ({ ...prev, custom_role_name: '' }));
+    } else {
+      setEditFormData((prev) => ({ ...prev, custom_role_name: '' }));
+    }
+
+    const role = ROLE_PRESETS.find((r) => r.id === value);
+    if (!role) return;
+
+    applyRoleTemplate(role.permissions, target);
   };
 
   const handleGroupToggleAll = (keys, _currentPerms) => {
@@ -242,23 +300,28 @@ export default function CareTakerAccess({
       }
     }
     applyBulkPermissions(keys, nextState, target);
+    markCurrentRoleTemplateAsCustom();
   };
 
-  const handleGlobalSelectAll = (target, currentState) => {
+  const handleGrantAllPermissions = (target, currentState) => {
     const allKeys = CARETAKER_PERMISSION_FIELDS.map((f) => f.key);
-    const allSelected = allKeys.every((k) => !!currentState[k]);
-    const nextState = !allSelected;
+    const sensitiveKeys = allKeys.filter(
+      (k) => isLandlordLevelPermission(k) && !currentState[k],
+    );
 
-    if (nextState === true) {
-      const sensitiveKeys = allKeys.filter(
-        (k) => isLandlordLevelPermission(k) && !currentState[k],
-      );
-      if (sensitiveKeys.length > 0) {
-        setPermissionPrompt({ open: true, key: null, target, isBulk: true, keys: allKeys });
-        return;
-      }
+    if (sensitiveKeys.length > 0) {
+      setPermissionPrompt({ open: true, key: null, target, isBulk: true, keys: allKeys });
+      return;
     }
-    applyBulkPermissions(allKeys, nextState, target);
+
+    applyBulkPermissions(allKeys, true, target);
+    setRoleTemplateForTarget(target, 'admin');
+  };
+
+  const handleRevokeAllPermissions = (target) => {
+    const allKeys = CARETAKER_PERMISSION_FIELDS.map((f) => f.key);
+    applyBulkPermissions(allKeys, false, target);
+    setRoleTemplateForTarget(target, 'custom');
   };
 
   const handleSinglePermissionToggle = (key) => {
@@ -279,11 +342,24 @@ export default function CareTakerAccess({
         permissions: { ...prev.permissions, [key]: !prev.permissions[key] },
       }));
     }
+
+    markCurrentRoleTemplateAsCustom();
   };
 
   const confirmPermissionGrant = () => {
+    const allKeys = CARETAKER_PERMISSION_FIELDS.map((f) => f.key);
+    const grantedAllPermissions =
+      permissionPrompt.isBulk &&
+      permissionPrompt.keys.length === allKeys.length &&
+      allKeys.every((k) => permissionPrompt.keys.includes(k));
+
     if (permissionPrompt.isBulk) {
       applyBulkPermissions(permissionPrompt.keys, true, permissionPrompt.target);
+      if (grantedAllPermissions) {
+        setRoleTemplateForTarget(permissionPrompt.target, 'admin');
+      } else {
+        setRoleTemplateForTarget(permissionPrompt.target, 'custom');
+      }
     } else {
       const { key, target } = permissionPrompt;
       if (target === 'create') {
@@ -294,6 +370,7 @@ export default function CareTakerAccess({
           permissions: { ...prev.permissions, [key]: true },
         }));
       }
+      setRoleTemplateForTarget(target, 'custom');
     }
     closePermissionPrompt();
   };
@@ -371,6 +448,7 @@ export default function CareTakerAccess({
     setShowPasswords(false);
     setCreateStep(1);
     setActiveModuleTab(0);
+    setCreateRoleTemplate('custom');
     setModalMode('create');
   };
 
@@ -379,6 +457,8 @@ export default function CareTakerAccess({
     setShowPasswords(false);
     setCreateStep(1);
     setActiveModuleTab(0);
+    setCreateRoleTemplate('custom');
+    setEditRoleTemplate('custom');
   };
 
   const handleCreateStepNext = () => {
@@ -435,6 +515,7 @@ export default function CareTakerAccess({
 
   // ── Edit modal ──────────────────────────────────────────────────────────
   const handleEditClick = (c) => {
+    const matchedRole = identifyRole(c.permissions || {});
     setEditFormData({
       id: c.id,
       first_name: c.caretaker.first_name || '',
@@ -469,6 +550,7 @@ export default function CareTakerAccess({
       property_ids: (c.assigned_properties || []).map((p) => p.id),
       custom_role_name: c.custom_role_name || '',
     });
+    setEditRoleTemplate(c.custom_role_name ? 'custom' : (matchedRole?.id || 'custom'));
     setActiveModuleTab(0);
     setShowPasswords(false);
     setSelectedCaretaker(null);
@@ -620,166 +702,143 @@ export default function CareTakerAccess({
   const isModalOpen = modalMode !== 'closed';
 
   const renderPermissionSection = () => {
-    const activeGroup = MODULE_GROUPS[activeModuleTab] || null;
+    const activeGroup = MODULE_GROUPS[activeModuleTab] || MODULE_GROUPS[0] || null;
     const activeGroupKeys = Array.isArray(activeGroup?.keys) ? activeGroup.keys : [];
     const groupFields = CARETAKER_PERMISSION_FIELDS.filter((f) => activeGroupKeys.includes(f.key));
     const allGroupOn = groupFields.length > 0 && groupFields.every((f) => !!activePermissions[f.key]);
 
-    // Global Select All states
-    const allKeys = CARETAKER_PERMISSION_FIELDS.map((f) => f.key);
-    const allSelected = allKeys.every((k) => !!activePermissions[k]);
     const target = modalMode === 'create' ? 'create' : 'edit';
+    const selectedRoleTemplate = modalMode === 'create' ? createRoleTemplate : editRoleTemplate;
+    const currentPropertyIds = modalMode === 'create' ? safeSelectedIds : editFormData.property_ids;
+    const handlePropertyToggle =
+      modalMode === 'create'
+        ? (id) =>
+          setSelectedPropertyIds((prev) =>
+            prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
+          )
+        : (id) =>
+          setEditFormData((prev) => ({
+            ...prev,
+            property_ids: prev.property_ids.includes(id)
+              ? prev.property_ids.filter((i) => i !== id)
+              : [...prev.property_ids, id],
+          }));
 
     return (
-      <div className="flex flex-col md:flex-row gap-0 bg-white dark:bg-gray-800 rounded-3xl border border-gray-100 dark:border-gray-700 overflow-hidden min-h-[500px] animate-in fade-in duration-500">
-        {/* Sidebar */}
-        <div className="w-full md:w-64 border-r border-gray-100 dark:border-gray-700 bg-gray-50/20 dark:bg-gray-900/10 flex flex-col h-full">
-          <div className="p-4 space-y-6 flex-1">
-            {/* Minimalist Role Dropdown */}
-            <div className="space-y-2">
-              <label className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest ml-1">
-                Role Template
-              </label>
-              <div className="relative">
-                <select
-                  onChange={(e) => {
-                    if (e.target.value === 'custom') return;
-                    const role = ROLE_PRESETS.find(r => r.id === e.target.value);
-                    if (role) applyBulkPermissions(role.permissions, true, target);
-                  }}
-                  className="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-3 py-2 text-xs font-bold text-gray-700 dark:text-gray-300 focus:ring-2 focus:ring-emerald-500 outline-none appearance-none cursor-pointer"
-                  defaultValue="custom"
-                >
-                  <option value="custom">Custom Configuration</option>
-                  {ROLE_PRESETS.map(role => (
-                    <option key={role.id} value={role.id}>{role.label}</option>
-                  ))}
-                </select>
-                <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
-                  <ChevronDown className="w-3.5 h-3.5" />
+      <div className="space-y-6 animate-in fade-in duration-500">
+        <div className="flex flex-col md:flex-row gap-0 bg-white dark:bg-gray-800 rounded-3xl border border-gray-100 dark:border-gray-700 overflow-hidden min-h-[500px]">
+          {/* Sidebar */}
+          <div className="w-full md:w-64 border-r border-gray-100 dark:border-gray-700 bg-gray-50/20 dark:bg-gray-900/10 flex flex-col h-full">
+            <div className="p-4 space-y-6 flex-1">
+              <button
+                type="button"
+                onClick={() => handleGrantAllPermissions(target, activePermissions)}
+                className="w-full flex items-center justify-center gap-2 p-2.5 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-all border border-emerald-200 dark:border-emerald-800/40 text-emerald-700 dark:text-emerald-300 bg-emerald-50/70 dark:bg-emerald-900/15 hover:bg-emerald-100 dark:hover:bg-emerald-900/25"
+              >
+                <CheckCircle2 className="w-3.5 h-3.5" />
+                Grant All Access
+              </button>
+
+              <div className="space-y-2">
+                <label className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest ml-1">
+                  Role Template
+                </label>
+                <div className="relative">
+                  <select
+                    onChange={(e) => handleRoleTemplateChange(e.target.value)}
+                    className="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-3 py-2 text-xs font-bold text-gray-700 dark:text-gray-300 focus:ring-2 focus:ring-emerald-500 outline-none appearance-none cursor-pointer"
+                    value={selectedRoleTemplate}
+                  >
+                    <option value="custom">Custom Configuration</option>
+                    {ROLE_PRESETS.map((role) => (
+                      <option key={role.id} value={role.id}>{role.label}</option>
+                    ))}
+                  </select>
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
+                    <ChevronDown className="w-3.5 h-3.5" />
+                  </div>
                 </div>
               </div>
-            </div>
 
-            <div className="space-y-1">
-              <p className="px-1 pb-2 text-[9px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest">
-                Modules
-              </p>
-              <div className="space-y-0.5">
-                {MODULE_GROUPS.map((group, idx) => {
-                  const activeCount = group.keys.filter((k) => !!activePermissions[k]).length;
-                  const isActive = activeModuleTab === idx;
-                  return (
-                    <button
-                      key={group.title}
-                      type="button"
-                      onClick={() => setActiveModuleTab(idx)}
-                      className={`w-full group flex items-center justify-between px-3 py-2.5 rounded-xl transition-all ${isActive
-                        ? 'bg-emerald-600 text-white font-bold'
-                        : 'hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400'
-                        }`}
-                    >
-                      <div className="flex items-center gap-2.5">
-                        <div className={`transition-colors ${isActive ? 'text-white' : 'text-gray-400 group-hover:text-emerald-500'}`}>
-                          {React.cloneElement(group.icon, { className: 'w-4 h-4' })}
-                        </div>
-                        <span className="text-[11px] tracking-tight">{group.title}</span>
-                      </div>
-                      {activeCount > 0 && !isActive && (
-                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                      )}
-                    </button>
-                  );
-                })}
-
-                {/* Properties Tab */}
-                <button
-                  type="button"
-                  onClick={() => setActiveModuleTab(MODULE_GROUPS.length)}
-                  className={`w-full group flex items-center justify-between px-3 py-2.5 rounded-xl transition-all ${activeModuleTab === MODULE_GROUPS.length
-                    ? 'bg-emerald-600 text-white font-bold'
-                    : 'hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400'
-                    }`}
-                >
-                  <div className="flex items-center gap-2.5">
-                    <div className={`transition-colors ${activeModuleTab === MODULE_GROUPS.length ? 'text-white' : 'text-gray-400 group-hover:text-emerald-500'}`}>
-                      <Building2 className="w-4 h-4" />
-                    </div>
-                    <span className="text-[11px] tracking-tight">Managed Properties</span>
-                  </div>
-                  {(modalMode === 'create' ? safeSelectedIds.length : editFormData.property_ids.length) > 0 && activeModuleTab !== MODULE_GROUPS.length && (
-                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                  )}
-                </button>
-              </div>
-
-              {/* Role Title Input */}
-              <div className="mt-6 px-1 space-y-2">
-                <label className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest ml-1">
-                  Custom Role Title
-                </label>
-                <input
-                  type="text"
-                  name="custom_role_name"
-                  value={modalMode === 'create' ? safeForm.custom_role_name : editFormData.custom_role_name}
-                  onChange={handleInputChange}
-                  placeholder="e.g. Night Manager"
-                  list="suggested-roles"
-                  className="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-3 py-2 text-xs font-bold text-gray-700 dark:text-gray-300 focus:ring-2 focus:ring-emerald-500 outline-none"
-                />
-                <datalist id="suggested-roles">
-                  {[...new Set(safeCaretakers.map(c => c.custom_role_name).filter(Boolean))].map(name => (
-                    <option key={name} value={name} />
-                  ))}
-                </datalist>
-                <p className="text-[10px] text-gray-400 dark:text-gray-500 ml-1 italic leading-tight">
-                  Optional. Overrides the preset label in the dashboard list.
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <div className="p-4 border-t border-gray-100 dark:border-gray-700">
-            <button
-              type="button"
-              onClick={() => handleGlobalSelectAll(target, activePermissions)}
-              className="w-full flex items-center justify-center gap-2 p-2.5 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-all border border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800"
-            >
-              {allSelected ? <XCircle className="w-3.5 h-3.5" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
-              {allSelected ? 'Revoke All' : 'Grant All Access'}
-            </button>
-          </div>
-        </div>
-
-        {/* Content area: Minimalist & Dense */}
-        <div className="flex-1 p-6 overflow-y-auto max-h-[600px] custom-scrollbar flex flex-col">
-          {activeModuleTab === MODULE_GROUPS.length ? (
-            <div className="animate-in fade-in duration-500 h-full">
-              {renderPropertySection(
-                modalMode === 'create' ? safeSelectedIds : editFormData.property_ids,
-                modalMode === 'create'
-                  ? (id) =>
-                    setSelectedPropertyIds((prev) =>
-                      prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
-                    )
-                  : (id) =>
-                    setEditFormData((prev) => ({
-                      ...prev,
-                      property_ids: prev.property_ids.includes(id)
-                        ? prev.property_ids.filter((i) => i !== id)
-                        : [...prev.property_ids, id],
-                    }))
+              {selectedRoleTemplate === 'custom' && (
+                <div className="space-y-2">
+                  <label className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest ml-1">
+                    Custom Role Title
+                  </label>
+                  <input
+                    type="text"
+                    name="custom_role_name"
+                    value={modalMode === 'create' ? safeForm.custom_role_name : editFormData.custom_role_name}
+                    onChange={handleInputChange}
+                    placeholder="e.g. Night Manager"
+                    list="suggested-roles"
+                    className="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-3 py-2 text-xs font-bold text-gray-700 dark:text-gray-300 focus:ring-2 focus:ring-emerald-500 outline-none"
+                  />
+                  <datalist id="suggested-roles">
+                    {[...new Set(safeCaretakers.map((c) => c.custom_role_name).filter(Boolean))].map((name) => (
+                      <option key={name} value={name} />
+                    ))}
+                  </datalist>
+                  <p className="text-[10px] text-gray-400 dark:text-gray-500 ml-1 italic leading-tight">
+                    Optional. Overrides the preset label in the dashboard list.
+                  </p>
+                </div>
               )}
+
+              <div className="space-y-1">
+                <p className="px-1 pb-2 text-[9px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest">
+                  Modules
+                </p>
+                <div className="space-y-0.5">
+                  {MODULE_GROUPS.map((group, idx) => {
+                    const activeCount = group.keys.filter((k) => !!activePermissions[k]).length;
+                    const isActive = activeModuleTab === idx;
+                    return (
+                      <button
+                        key={group.title}
+                        type="button"
+                        onClick={() => setActiveModuleTab(idx)}
+                        className={`w-full group flex items-center justify-between px-3 py-2.5 rounded-xl transition-all ${isActive
+                          ? 'bg-emerald-600 text-white font-bold'
+                          : 'hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400'
+                          }`}
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <div className={`transition-colors ${isActive ? 'text-white' : 'text-gray-400 group-hover:text-emerald-500'}`}>
+                            {React.cloneElement(group.icon, { className: 'w-4 h-4' })}
+                          </div>
+                          <span className="text-[11px] tracking-tight">{group.title}</span>
+                        </div>
+                        {activeCount > 0 && !isActive && (
+                          <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => handleRevokeAllPermissions(target)}
+                className="w-full flex items-center justify-center gap-2 p-2.5 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-all border border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800"
+              >
+                <XCircle className="w-3.5 h-3.5" />
+                Revoke Access
+              </button>
             </div>
-          ) : (
+          </div>
+
+          {/* Content area: Minimalist & Dense */}
+          <div className="flex-1 p-6 overflow-y-auto max-h-[600px] custom-scrollbar flex flex-col">
             <>
               <div className="flex items-center justify-between mb-6 pb-4 border-b border-gray-50 dark:border-gray-700/50">
                 <div>
                   <h4 className="text-sm font-black text-gray-900 dark:text-white uppercase tracking-widest">
-                    {activeGroup?.title}
+                    {activeGroup?.title || 'Permissions'}
                   </h4>
                   <p className="text-[10px] text-gray-500 dark:text-gray-400 mt-0.5">
-                    Manage {activeGroup?.title?.toLowerCase()} operational rights.
+                    Manage {activeGroup?.title?.toLowerCase() || 'module'} operational rights.
                   </p>
                 </div>
                 <button
@@ -792,6 +851,12 @@ export default function CareTakerAccess({
               </div>
 
               <div className="space-y-1 flex-1">
+                {groupFields.length === 0 && (
+                  <div className="p-4 rounded-xl border border-dashed border-gray-200 dark:border-gray-700 text-[11px] text-gray-500 dark:text-gray-400">
+                    Select a module to manage permissions.
+                  </div>
+                )}
+
                 {groupFields.map((field) => {
                   const isChecked = !!activePermissions[field.key];
                   const isSensitive = isLandlordLevelPermission(field.key);
@@ -845,7 +910,7 @@ export default function CareTakerAccess({
               </div>
 
               {/* Sensitive Grant Notice */}
-              {activeModuleTab !== MODULE_GROUPS.length && (() => {
+              {(() => {
                 const sensitiveInGroup = groupFields.filter((f) => isLandlordLevelPermission(f.key));
                 const sensitiveActive = sensitiveInGroup.some((f) => !!activePermissions[f.key]);
                 if (!sensitiveActive) return null;
@@ -861,47 +926,65 @@ export default function CareTakerAccess({
                 );
               })()}
             </>
-          )}
+          </div>
+        </div>
+
+        <div className="bg-white dark:bg-gray-800 rounded-3xl border border-gray-100 dark:border-gray-700 overflow-hidden">
+          <div className="px-5 py-4 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Building2 className="w-4 h-4 text-gray-500 dark:text-gray-400" />
+              <h3 className="text-[11px] font-extrabold text-gray-700 dark:text-gray-300 uppercase tracking-widest">
+                Manage Properties
+              </h3>
+            </div>
+            <span className="text-[10px] text-gray-500 dark:text-gray-400 font-semibold">
+              {currentPropertyIds.length} selected
+            </span>
+          </div>
+          <div className="p-5">
+            {renderPropertySection(currentPropertyIds, handlePropertyToggle)}
+          </div>
         </div>
       </div>
     );
   };
 
-  const renderPropertySection = (propertyIds, onToggle) => (
-    safeProperties.length > 0 && (
-      <div className="space-y-4">
-        <div className="flex items-center gap-2 px-1">
-          <Building2 className="w-4 h-4 text-gray-400" />
-          <h3 className="text-[10px] font-black text-gray-500 dark:text-gray-400 uppercase tracking-widest">
-            Assigned Properties
-          </h3>
-        </div>
+  const renderPropertySection = (propertyIds, onToggle) => {
+    const selectedIds = Array.isArray(propertyIds) ? propertyIds : [];
 
-        <div className="flex flex-wrap gap-2">
-          {safeProperties.map((property) => {
-            const selected = propertyIds.includes(property.id);
-            return (
-              <button
-                key={property.id}
-                type="button"
-                onClick={() => onToggle(property.id)}
-                className={`flex items-center gap-2 px-3 py-1.5 rounded-full border text-[11px] font-bold transition-all ${selected
-                  ? 'bg-emerald-600 border-emerald-600 text-white shadow-sm'
-                  : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:border-emerald-300'
-                  }`}
-              >
-                <div className={`p-0.5 rounded-full ${selected ? 'bg-white/20' : 'bg-gray-100 dark:bg-gray-700'}`}>
-                  <Building2 className="w-3 h-3" />
-                </div>
-                {property.name || property.title || 'Property'}
-                {selected && <Check className="w-3 h-3" />}
-              </button>
-            );
-          })}
+    if (safeProperties.length === 0) {
+      return (
+        <div className="p-4 rounded-xl border border-dashed border-gray-200 dark:border-gray-700 text-[11px] text-gray-500 dark:text-gray-400">
+          No properties available. Add a property first, then assign it to this caretaker.
         </div>
+      );
+    }
+
+    return (
+      <div className="flex flex-wrap gap-2">
+        {safeProperties.map((property) => {
+          const selected = selectedIds.includes(property.id);
+          return (
+            <button
+              key={property.id}
+              type="button"
+              onClick={() => onToggle(property.id)}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-full border text-[11px] font-bold transition-all ${selected
+                ? 'bg-emerald-600 border-emerald-600 text-white shadow-sm'
+                : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:border-emerald-300'
+                }`}
+            >
+              <div className={`p-0.5 rounded-full ${selected ? 'bg-white/20' : 'bg-gray-100 dark:bg-gray-700'}`}>
+                <Building2 className="w-3 h-3" />
+              </div>
+              {property.name || property.title || 'Property'}
+              {selected && <Check className="w-3 h-3" />}
+            </button>
+          );
+        })}
       </div>
-    )
-  );
+    );
+  };
 
   // ── Render ──────────────────────────────────────────────────────────────
   return (
@@ -1127,41 +1210,6 @@ export default function CareTakerAccess({
 
                 {(modalMode === 'create' ? createStep === 2 : true) && (
                   <div className="animate-in fade-in slide-in-from-bottom-4 duration-700">
-                    {modalMode === 'create' && createStep === 2 && (
-                      <section className="space-y-4 mb-6">
-                        <div className="flex items-center gap-2 px-1">
-                          <div className="p-2 bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 rounded-lg">
-                            <User className="w-4 h-4" />
-                          </div>
-                          <h3 className="text-[11px] font-extrabold text-gray-700 dark:text-gray-300 uppercase tracking-widest">
-                            Caretaker Personal Information
-                          </h3>
-                        </div>
-
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 p-1">
-                          {[
-                            { label: 'First Name', value: safeForm.first_name || 'N/A' },
-                            { label: 'Middle Name', value: safeForm.middle_name || 'N/A' },
-                            { label: 'Last Name', value: safeForm.last_name || 'N/A' },
-                            { label: 'Email Address', value: safeForm.email || 'N/A' },
-                            { label: 'Phone Number', value: safeForm.phone || 'N/A' },
-                            { label: 'Date of Birth', value: safeForm.date_of_birth || 'N/A' },
-                          ].map(({ label, value }) => (
-                            <div
-                              key={label}
-                              className="px-4 py-3 bg-gray-50 dark:bg-gray-900/20 border border-gray-100 dark:border-gray-700/50 rounded-xl"
-                            >
-                              <p className="text-[9px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest">
-                                {label}
-                              </p>
-                              <p className="text-[12px] font-bold text-gray-800 dark:text-gray-200 mt-1 truncate">
-                                {value}
-                              </p>
-                            </div>
-                          ))}
-                        </div>
-                      </section>
-                    )}
                     {renderPermissionSection()}
                   </div>
                 )}

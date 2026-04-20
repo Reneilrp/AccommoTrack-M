@@ -89,11 +89,8 @@ class StoreBookingRequest extends FormRequest
                         }
                         if ($roomId) {
                             $room = Room::find($roomId);
-                            if ($room && $room->min_stay_days) {
+                            if ($room && $room->min_stay_days && $resolvedContractMode === 'daily') {
                                 $minStay = (int) $room->min_stay_days;
-                                if ($resolvedContractMode === 'monthly' && $minStay < 30) {
-                                    $minStay = 30;
-                                }
                                 $requestedDays = Carbon::parse($startDate)->diffInDays(Carbon::parse($value));
                                 if ($requestedDays < $minStay) {
                                     $fail("This room requires a minimum stay of {$minStay} days. Your requested stay is only {$requestedDays} days.");

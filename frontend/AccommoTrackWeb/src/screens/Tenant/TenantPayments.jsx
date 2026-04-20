@@ -1,11 +1,9 @@
-import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useQueryClient } from '@tanstack/react-query';
-import { 
-  useTenantPayments, 
-  useTenantPaymentStats, 
-  useTenantWalletLogs,
-  tenantQueryKeys 
+import {
+  useTenantPayments,
+  useTenantPaymentStats,
+  useTenantWalletLogs
 } from '../../hooks/useTenantQueries';
 import { paymentService } from '../../services/paymentService';
 import { invoiceService } from '../../services/invoiceService';
@@ -32,8 +30,7 @@ const formatDate = (date) => {
 
 export default function TenantPayments({ user }) {
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
-  const { uiState, updateScreenState, updateData } = useUIState();
+  const { uiState, updateScreenState } = useUIState();
   const { statusFilter, archiveFilter, timeRange, searchQuery } = uiState.wallet || {
     searchQuery: "",
     statusFilter: "all",
@@ -50,7 +47,7 @@ export default function TenantPayments({ user }) {
   const { data: payments = [], isLoading: paymentsLoading, refetch: refetchPayments } = paymentsQuery;
   const { data: stats = null, isLoading: statsLoading, refetch: refetchStats } = statsQuery;
   const { data: walletLogsBundle = { data: [], meta: null }, isLoading: walletLogsLoading, refetch: refetchLogs } = walletLogsQuery;
-  
+
   const walletLogs = walletLogsBundle.data;
   const walletLogsPagination = walletLogsBundle.meta;
 

@@ -498,5 +498,6 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/{id}/read', [MessageController::class, 'markAsRead']);
         Route::patch('/{id}/unsend', [MessageController::class, 'unsend']);
         Route::patch('/{id}/edit', [MessageController::class, 'edit']);
+        Route::delete('/conversations/{id}', [MessageController::class, 'hideConversation']);
     });
 });

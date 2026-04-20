@@ -1207,9 +1207,15 @@ export default function MyBookings() {
       requestedEnd.setDate(requestedEnd.getDate() + days);
 
       setSubmittingExtension(true);
+      const requestedEndDate = formatIsoDate(requestedEnd);
+      if (!requestedEndDate) {
+        showAlert('Request Failed', 'Could not determine a valid extension date.');
+        setSubmittingExtension(false);
+        return;
+      }
       const result = await TenantService.requestExtension(booking.id, {
         extension_type: 'daily',
-        requested_end_date: requestedEnd.toISOString().split('T')[0],
+        requested_end_date: requestedEndDate,
       });
 
       if (result.success) {
@@ -1908,10 +1914,12 @@ export default function MyBookings() {
     if (hasPending || hasAnyOverdue) tabs.push({ id: 'pending', label: 'Pending', color: '#F59E0B' });
     if (hasAnyOverdue) tabs.push({ id: 'overdue', label: 'Overdue', color: theme.colors.error });
 
-    const translateX = slideAnim.interpolate({
-      inputRange: tabs.map((_, i) => i),
-      outputRange: tabs.map((_, i) => i * ((viewportWidth - 40) / tabs.length)),
-    });
+    const translateX = tabs.length > 1
+      ? slideAnim.interpolate({
+        inputRange: tabs.map((_, i) => i),
+        outputRange: tabs.map((_, i) => i * ((viewportWidth - 40) / tabs.length)),
+      })
+      : 0;
 
     const renderViewToggle = () => {
       if (tabs.length <= 1) return null;
@@ -2078,7 +2086,7 @@ export default function MyBookings() {
                   </Text>
                 </View>
               </View>
- 
+
               <View style={styles.locationRow}>
                 <Ionicons name="location-outline" size={16} color={theme.colors.textSecondary} />
                 <Text style={[styles.locationText, { color: theme.colors.textSecondary }]}>{property?.address || property?.full_address || 'Address not available'}</Text>

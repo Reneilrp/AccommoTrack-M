@@ -35,7 +35,7 @@ export default function RoomDetailsModal({
 }) {
   const PROXY_MINIMUM_AGE = 18;
   const navigate = useNavigate();
-  const { addToCart, addItem } = useCart();
+  const { addItem } = useCart();
   const [viewMode, setViewMode] = useState(initialView || "details"); // 'details' | 'booking'
   const [isCartMode, setIsCartMode] = useState(false);
   const [bedCount, setBedCount] = useState(1);
@@ -491,7 +491,7 @@ export default function RoomDetailsModal({
       setBedCount(maxBookableBeds);
     }
   }, [bedCount, maxBookableBeds]);
- 
+
   useEffect(() => {
     // Auto-select bed number if only one is available and user is booking exactly one bed
     if (bookingMode === "normal" && room.available_bed_numbers?.length === 1 && bedCount === 1) {
@@ -643,11 +643,9 @@ export default function RoomDetailsModal({
     const diffDays = end ? Math.ceil(diffTime / (1000 * 60 * 60 * 24)) : 0;
 
     const minStay = parseInt(room.min_stay_days) || 1;
-    const effectiveMinStay = !isDailyContract
-      ? Math.max(30, minStay)
-      : minStay;
+    const effectiveMinStay = minStay;
 
-    if (hasCheckout && diffDays < effectiveMinStay) {
+    if (isDailyContract && hasCheckout && diffDays < effectiveMinStay) {
       const msg = `The minimum stay for this room is ${effectiveMinStay} days.`;
       showError(msg);
       return;
@@ -1473,8 +1471,8 @@ export default function RoomDetailsModal({
                   {/* Date Selection */}
                   <div className="space-y-4">
                     <p className="text-sm font-medium text-gray-600 dark:text-gray-400 flex items-center gap-2">
-                       <BedDouble className="w-4 h-4" />
-                       Beds Remaining: <span className="text-green-600 dark:text-green-400 font-bold">{resolvedCapacity - resolvedOccupiedCount}</span>
+                      <BedDouble className="w-4 h-4" />
+                      Beds Remaining: <span className="text-green-600 dark:text-green-400 font-bold">{resolvedCapacity - resolvedOccupiedCount}</span>
                     </p>
 
                     {showBedCountSelector && (
@@ -1595,7 +1593,7 @@ export default function RoomDetailsModal({
                         className={`text-xs mt-1 ${isReservationFeeRequired
                           ? "text-amber-700 dark:text-amber-400"
                           : "text-green-700 dark:text-green-400"
-                        }`}
+                          }`}
                       >
                         {isReservationFeeRequired
                           ? `Reservation fee is required because move-in is ${daysUntilMoveIn} days after booking date.`
@@ -1627,6 +1625,11 @@ export default function RoomDetailsModal({
                     {!isDailyContract && (
                       <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
                         Leave this blank for an open-ended tenancy. Monthly billing will continue until move-out notice is submitted.
+                      </p>
+                    )}
+                    {!isDailyContract && (
+                      <p className="text-[11px] text-amber-700 dark:text-amber-400 mt-1">
+                        Note: Monthly billing still charges 1 full month even if your planned stay is below 30 days.
                       </p>
                     )}
                   </div>

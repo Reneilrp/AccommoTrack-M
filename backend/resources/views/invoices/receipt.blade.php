@@ -15,7 +15,7 @@
             min-height: 100vh;
         }
         .receipt-container {
-            width: 90%;
+            width: 50vw;
             height: 85vh;
             margin: 5vh auto;
             background: #fff;
@@ -29,20 +29,41 @@
         }
         @media (min-width: 1024px) {
             .receipt-container {
-                width: 50%;
+                width: 50vw;
                 height: 80vh;
                 margin: 10vh auto;
                 padding: 40px;
                 border-radius: 16px;
             }
         }
+        .receipt-container h1 {
+            font-size: 24px;
+            line-height: 1.15;
+        }
+        .receipt-container .logo {
+            font-size: 20px;
+        }
+        .receipt-container h3,
+        .receipt-container .status-badge,
+        .receipt-container th {
+            font-size: 10px;
+        }
+        .receipt-container p,
+        .receipt-container td,
+        .receipt-container .total-row {
+            font-size: 12px !important;
+            line-height: 1.3;
+        }
+        .receipt-container .total-row.grand-total {
+            font-size: 16px !important;
+        }
         .header {
             display: flex;
             justify-content: space-between;
             align-items: flex-start;
-            margin-bottom: 40px;
+            margin-bottom: 24px;
             border-bottom: 2px solid #f3f4f6;
-            padding-bottom: 20px;
+            padding-bottom: 14px;
         }
         .logo {
             font-size: 24px;
@@ -54,8 +75,8 @@
         .info-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 40px;
-            margin-bottom: 40px;
+            gap: 20px;
+            margin-bottom: 24px;
         }
         .info-section h3 {
             font-size: 10px;
@@ -73,7 +94,7 @@
         table {
             width: 100%;
             border-collapse: collapse;
-            margin-bottom: 40px;
+            margin-bottom: 24px;
         }
         th {
             text-align: left;
@@ -118,7 +139,7 @@
         }
         .status-paid { background: #d1fae5; color: #065f46; }
         .footer {
-            margin-top: 60px;
+            margin-top: 32px;
             text-align: center;
             font-size: 12px;
             color: #9ca3af;

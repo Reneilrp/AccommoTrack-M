@@ -1565,7 +1565,7 @@ export default function DormProfileSettings({
                           Room Transfer Processing Fee (₱)
                         </label>
                         <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">
-                          The fee quoted to tenants during a transfer request. You can discount or waive this during approval, but you cannot increase it above this quoted amount.
+                          The default fee quoted to tenants during a transfer request. You can update this amount anytime.
                         </p>
                         <div className="relative max-w-[200px]">
                           <span className="absolute left-3 top-2.5 text-gray-500 dark:text-gray-400">₱</span>

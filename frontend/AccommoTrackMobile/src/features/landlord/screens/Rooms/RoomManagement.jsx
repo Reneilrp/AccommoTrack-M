@@ -159,6 +159,27 @@ const formatCurrency = (value) => {
   return `₱${number.toLocaleString("en-US")}`;
 };
 
+const resolveExtendTenantId = (room) => {
+  if (!room || typeof room !== 'object') return null;
+
+  const candidateIds = [
+    room.tenant_id,
+    room.current_tenant_id,
+    room.tenant?.id,
+    room.current_tenant?.id,
+    ...(Array.isArray(room.tenants) ? room.tenants.map((tenant) => tenant?.id) : []),
+  ];
+
+  for (const candidate of candidateIds) {
+    const parsed = Number(candidate);
+    if (Number.isFinite(parsed) && parsed > 0) {
+      return parsed;
+    }
+  }
+
+  return null;
+};
+
 const LONG_TERM_PROMO_TERMS = ["3", "6", "9", "12"];
 
 const createInitialDurationPricing = () =>
@@ -2644,11 +2665,16 @@ export default function RoomManagementScreen({ navigation, route }) {
                     showWarning('Invalid Value', `Please enter a valid number of ${extendType}.`);
                     return;
                   }
+                  const tenantId = resolveExtendTenantId(extendTarget);
+                  if (!tenantId) {
+                    showWarning('Tenant Not Found', 'Could not identify the active tenant for this room. Please refresh and try again.');
+                    return;
+                  }
                   setExtending(true);
                   try {
                     const payload = {
                       [extendType]: parseInt(extendValue),
-                      tenant_id: extendTarget.tenant?.id || extendTarget.tenant_id
+                      tenant_id: tenantId,
                     };
                     const res = await PropertyService.extendStay(extendTarget.id, payload);
                     if (res.success) {

@@ -26,7 +26,7 @@ createRoot(document.getElementById('root')).render(
       <BrowserRouter>
         <App />
         <Toaster 
-          containerStyle={{ zIndex: 99999 }}
+          containerStyle={{ zIndex: 2147483647 }}
           toastOptions={{
             style: {
               background: 'var(--bg-secondary)',

@@ -64,7 +64,7 @@ const getStatusMeta = (status) => {
     case 'refunded':
       return { label: 'Refunded', icon: RotateCcw, cls: 'bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-500/10 dark:text-purple-400 dark:border-purple-500/20' };
     case 'cancelled':
-      return { label: 'Cancelled', icon: XCircle, cls: 'bg-gray-100 text-gray-600 border-gray-200 dark:bg-gray-500/10 dark:text-gray-400 dark:border-gray-500/20' };
+      return { label: 'Cancelled', icon: XCircle, cls: 'bg-red-50 text-red-700 border-red-200 dark:bg-red-500/10 dark:text-red-400 dark:border-red-500/20' };
     default:
       return { label: 'Pending', icon: Clock, cls: 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/20' };
   }

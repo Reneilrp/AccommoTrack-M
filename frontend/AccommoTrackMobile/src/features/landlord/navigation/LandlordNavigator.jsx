@@ -5,6 +5,7 @@ import LandlordBottomNavigation from '../components/LandlordBottomNavigation.jsx
 import { 
   canAccessModule as checkModuleAccess 
 } from '../../../utils/permissionHelpers.js';
+import { useAuthStore } from '../../../stores/auth/authStore.js';
 
 // Import screens
 import LandlordDashboard from '../screens/Dashboard/DashboardPage.jsx';
@@ -48,8 +49,15 @@ const Stack = createNativeStackNavigator();
 
 // Main Stack Navigator
 export default function LandlordNavigator({ onLogout }) {
+  const activeRole = useAuthStore((state) => state.activeRole);
   const [user, setUser] = React.useState(null);
-  const [userRole, setUserRole] = React.useState('landlord');
+  const [userRole, setUserRole] = React.useState(activeRole || 'landlord');
+
+  React.useEffect(() => {
+    if (activeRole) {
+      setUserRole(activeRole);
+    }
+  }, [activeRole]);
 
   React.useEffect(() => {
     const checkRole = async () => {
@@ -143,7 +151,9 @@ export default function LandlordNavigator({ onLogout }) {
       {canAccessPayments && (
         <Stack.Screen name="PaymentLogs" component={PaymentLogs} options={{ animation: 'slide_from_right' }} />
       )}
-      <Stack.Screen name="VerificationStatus" component={VerificationStatus} options={{ animation: 'none' }} />
+      {userRole === 'landlord' && (
+        <Stack.Screen name="VerificationStatus" component={VerificationStatus} options={{ animation: 'none' }} />
+      )}
       {canAccessPropertyActivityLogs && (
         <Stack.Screen name="PropertyActivityLogs" component={PropertyActivityLogs} options={{ animation: 'none' }} />
       )}

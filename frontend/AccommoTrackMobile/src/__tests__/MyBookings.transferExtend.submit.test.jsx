@@ -52,6 +52,16 @@ jest.mock('../contexts/ThemeContext.jsx', () => ({
   }),
 }));
 
+jest.mock('../styles/Menu/MyBookings.js', () => ({
+  getStyles: () =>
+    new Proxy(
+      {},
+      {
+        get: () => ({}),
+      },
+    ),
+}));
+
 jest.mock('../contexts/UIStateContext.jsx', () => ({
   useUIState: () => ({
     uiState: {
@@ -77,7 +87,7 @@ jest.mock('../features/tenant/hooks/useTenantQueryHelpers.js', () => ({
     myBookingsBundle: () => ['tenantMyBookingsBundle'],
   },
   useTenantFocusRefetch: jest.fn(),
-  useTenantRefreshHandler: () => async () => {},
+  useTenantRefreshHandler: () => async () => { },
 }));
 
 jest.mock('../services/BookingService.js', () => ({
@@ -122,6 +132,13 @@ const buildIsoDate = (offsetDays) => {
   date.setHours(0, 0, 0, 0);
   date.setDate(date.getDate() + offsetDays);
   return date.toISOString().split('T')[0];
+};
+
+const formatLocalIsoDate = (date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 };
 
 const buildStay = () => ({
@@ -191,7 +208,7 @@ describe('MyBookings transfer/extend submit flows (mobile)', () => {
 
     mockStay = buildStay();
 
-    jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+    jest.spyOn(Alert, 'alert').mockImplementation(() => { });
 
     TenantService.getCurrentStay.mockResolvedValue({
       success: true,
@@ -280,22 +297,22 @@ describe('MyBookings transfer/extend submit flows (mobile)', () => {
 
     expect(TenantService.requestExtension).toHaveBeenCalledWith(321, {
       extension_type: 'daily',
-      requested_end_date: expectedDate.toISOString().split('T')[0],
+      requested_end_date: formatLocalIsoDate(expectedDate),
     });
   });
 
   it('submits transfer request from transfer modal', async () => {
     renderWithQueryClient(<MyBookings />);
 
-    await screen.findByText('Transfer');
+    await screen.findByText('Request Room Transfer');
 
-    fireEvent.press(screen.getByText('Transfer'));
+    fireEvent.press(screen.getByText('Request Room Transfer'));
 
     await waitFor(() => {
       expect(TenantService.getTransferOptions).toHaveBeenCalledWith(321, 654);
     });
 
-    await screen.findByText('Request Room Transfer');
+    await screen.findByPlaceholderText('Provide your reason');
 
     fireEvent.changeText(
       screen.getByPlaceholderText('Provide your reason'),
@@ -310,6 +327,7 @@ describe('MyBookings transfer/extend submit flows (mobile)', () => {
         property_id: 654,
         requested_room_id: 900,
         reason: 'Need quieter room for work schedule.',
+        refund_preference: 'wallet',
       });
     });
   });

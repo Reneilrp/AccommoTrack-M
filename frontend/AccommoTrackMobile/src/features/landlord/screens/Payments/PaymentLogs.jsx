@@ -79,7 +79,7 @@ const STATUS_STYLES = {
   pending: { bg: '#FEF3C7', fg: '#92400E', icon: 'time-outline' },
   overdue: { bg: '#FEE2E2', fg: '#991B1B', icon: 'alert-circle' },
   refunded: { bg: '#F3E8FF', fg: '#7E22CE', icon: 'refresh-circle' },
-  cancelled: { bg: '#F3F4F6', fg: '#4B5563', icon: 'close-circle' },
+  cancelled: { bg: '#FEE2E2', fg: '#991B1B', icon: 'close-circle' },
 };
 
 const getStatusStyle = (status, isDark) => {

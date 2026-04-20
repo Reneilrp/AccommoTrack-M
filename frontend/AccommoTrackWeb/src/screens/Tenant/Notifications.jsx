@@ -1,13 +1,32 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import api from '../../utils/api';
-import { Bell, BellOff, Check, Calendar, CreditCard, MessageSquare, AlertCircle, RefreshCw } from 'lucide-react';
+import { Bell, BellOff, Check, Calendar, CreditCard, MessageSquare, AlertCircle, RefreshCw, Home, Users, ArrowLeftRight } from 'lucide-react';
 
 const TYPE_CONFIG = {
   booking: { icon: Calendar, color: 'text-blue-600 dark:text-blue-400', bg: 'bg-blue-100 dark:bg-blue-900/30' },
   payment: { icon: CreditCard, color: 'text-green-600 dark:text-green-400', bg: 'bg-green-100 dark:bg-green-900/30' },
   message: { icon: MessageSquare, color: 'text-purple-600 dark:text-purple-400', bg: 'bg-purple-100 dark:bg-purple-900/30' },
+  room: { icon: Home, color: 'text-teal-600 dark:text-teal-400', bg: 'bg-teal-100 dark:bg-teal-900/30' },
+  tenant: { icon: Users, color: 'text-indigo-600 dark:text-indigo-400', bg: 'bg-indigo-100 dark:bg-indigo-900/30' },
+  transfer: { icon: ArrowLeftRight, color: 'text-orange-600 dark:text-orange-400', bg: 'bg-orange-100 dark:bg-orange-900/30' },
+  addon: { icon: AlertCircle, color: 'text-violet-600 dark:text-violet-400', bg: 'bg-violet-100 dark:bg-violet-900/30' },
+  extension: { icon: Calendar, color: 'text-cyan-600 dark:text-cyan-400', bg: 'bg-cyan-100 dark:bg-cyan-900/30' },
+  move_out: { icon: Home, color: 'text-rose-600 dark:text-rose-400', bg: 'bg-rose-100 dark:bg-rose-900/30' },
   maintenance: { icon: AlertCircle, color: 'text-orange-600 dark:text-orange-400', bg: 'bg-orange-100 dark:bg-orange-900/30' },
   default: { icon: Bell, color: 'text-gray-500 dark:text-gray-400', bg: 'bg-gray-100 dark:bg-gray-700' },
+};
+
+const resolveNotificationType = (rawType = '') => {
+  const type = String(rawType || '').toLowerCase();
+  if (type.includes('transfer')) return 'transfer';
+  if (type.includes('move_out')) return 'move_out';
+  if (type.includes('extension')) return 'extension';
+  if (type.includes('addon')) return 'addon';
+  if (type.includes('maintenance')) return 'maintenance';
+  if (type.includes('message')) return 'message';
+  if (type.includes('booking')) return 'booking';
+  if (type.includes('payment') || type.includes('billing') || type === 'rent_paid' || type === 'cash_payment_verified') return 'payment';
+  return 'default';
 };
 
 const formatRelativeTime = (timestamp) => {
@@ -32,6 +51,8 @@ export default function Notifications() {
   const [fetchError, setFetchError] = useState('');
   const [actionError, setActionError] = useState('');
 
+  const isNotificationRead = (item) => Boolean(item?.is_read || item?.read_at);
+
   const extractNotificationRows = (payload) => {
     if (Array.isArray(payload)) return payload;
     if (Array.isArray(payload?.data)) return payload.data;
@@ -43,22 +64,59 @@ export default function Notifications() {
     setLoading(true);
     setFetchError('');
     try {
-      const res = await api.get('/notifications?role=tenant&per_page=200');
-      const rawNotifs = extractNotificationRows(res.data);
+      const [notifRes, activitiesRes] = await Promise.allSettled([
+        api.get('/notifications?role=tenant&per_page=200'),
+        api.get('/tenant/dashboard/activities'),
+      ]);
 
-      // Only use real backend notifications — no synthetic booking/payment injection
-      const items = (Array.isArray(rawNotifs) ? rawNotifs : []).map((n) => ({
+      const rawNotifs = notifRes.status === 'fulfilled'
+        ? extractNotificationRows(notifRes.value.data)
+        : [];
+      const safeNotifs = (Array.isArray(rawNotifs) ? rawNotifs : []).map((n) => ({
         id: `n-${n.id}`,
-        type: n.data?.type || 'default',
+        _kind: 'notification',
+        type: resolveNotificationType(n.data?.type || n.type),
         title: n.data?.title || 'Notification',
-        message: n.data?.message || n.data?.body || '',
+        message: n.data?.message || n.data?.body || 'You have a new update.',
         timestamp: n.created_at,
-        read: Boolean(n.is_read || n.read_at),
+        read: isNotificationRead(n),
         raw: n,
       }));
 
-      items.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+      const rawActivities = activitiesRes.status === 'fulfilled'
+        ? (activitiesRes.value?.data?.activities || activitiesRes.value?.data || [])
+        : [];
+      const safeActivities = (Array.isArray(rawActivities) ? rawActivities : [])
+        .slice(0, 15)
+        .map((a) => ({
+          id: `a-${a.id || a.timestamp}`,
+          _kind: 'activity',
+          type: resolveNotificationType(a.type),
+          title: a.action || 'Activity',
+          message: a.description || '',
+          timestamp: a.timestamp,
+          read: true,
+          raw: a,
+        }));
+
+      const seen = new Set();
+      const items = [...safeNotifs, ...safeActivities]
+        .filter((item) => {
+          if (seen.has(item.id)) return false;
+          seen.add(item.id);
+          return true;
+        })
+        .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
       setNotifications(items);
+
+      if (notifRes.status !== 'fulfilled' && activitiesRes.status !== 'fulfilled') {
+        setFetchError('Unable to load notifications right now. Please try again.');
+      } else if (notifRes.status !== 'fulfilled') {
+        setFetchError('Unable to load notifications right now. Please try again.');
+      } else if (activitiesRes.status !== 'fulfilled') {
+        setFetchError('Recent activity feed is temporarily unavailable.');
+      }
     } catch (err) {
       console.error('Error fetching notifications', err);
       setFetchError('Unable to load notifications right now. Please try again.');
@@ -72,10 +130,10 @@ export default function Notifications() {
   }, [fetchNotifications]);
 
   const markAsRead = async (id) => {
+    if (!id.startsWith('n-')) return;
+
     const previousState = notifications;
     setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
-
-    if (!id.startsWith('n-')) return;
 
     const backendId = id.replace('n-', '');
     try {
@@ -104,6 +162,8 @@ export default function Notifications() {
   const displayed = notifications.filter((n) => {
     if (filterType === 'bookings' && n.type !== 'booking') return false;
     if (filterType === 'payments' && n.type !== 'payment') return false;
+    if (filterType === 'transfers' && n.type !== 'transfer') return false;
+    if (filterType === 'addons' && n.type !== 'addon') return false;
     if (unreadOnly && n.read) return false;
     return true;
   });
@@ -113,6 +173,8 @@ export default function Notifications() {
     { key: 'all', label: 'All' },
     { key: 'bookings', label: 'Bookings' },
     { key: 'payments', label: 'Payments' },
+    { key: 'transfers', label: 'Transfers' },
+    { key: 'addons', label: 'Add-ons' },
   ];
 
   return (
@@ -151,11 +213,10 @@ export default function Notifications() {
             <button
               key={f.key}
               onClick={() => setFilterType(f.key)}
-              className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-all ${
-                filterType === f.key
-                  ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
-                  : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
-              }`}
+              className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-all ${filterType === f.key
+                ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
+                : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
+                }`}
             >
               {f.label}
             </button>
@@ -163,11 +224,10 @@ export default function Notifications() {
         </div>
         <button
           onClick={() => setUnreadOnly((v) => !v)}
-          className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors border ${
-            unreadOnly
-              ? 'bg-green-600 text-white border-green-600'
-              : 'bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
-          }`}
+          className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors border ${unreadOnly
+            ? 'bg-green-600 text-white border-green-600'
+            : 'bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
+            }`}
         >
           Unread only
         </button>
@@ -214,9 +274,8 @@ export default function Notifications() {
                 <li
                   key={notification.id}
                   onClick={() => markAsRead(notification.id)}
-                  className={`flex items-start gap-4 px-6 py-4 cursor-pointer transition-colors hover:bg-gray-50 dark:hover:bg-gray-700/50 ${
-                    !notification.read ? 'bg-green-50/40 dark:bg-green-900/10' : ''
-                  }`}
+                  className={`flex items-start gap-4 px-6 py-4 cursor-pointer transition-colors hover:bg-gray-50 dark:hover:bg-gray-700/50 ${!notification.read ? 'bg-green-50/40 dark:bg-green-900/10' : ''
+                    }`}
                 >
                   <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${config.bg}`}>
                     <Icon className={`w-5 h-5 ${config.color}`} />

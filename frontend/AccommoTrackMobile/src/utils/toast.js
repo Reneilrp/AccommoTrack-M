@@ -1,12 +1,42 @@
 import Toast from 'react-native-toast-message';
 
+let toastPresenter = null;
+
+export const registerToastPresenter = (presenter) => {
+  toastPresenter = presenter;
+
+  return () => {
+    if (toastPresenter === presenter) {
+      toastPresenter = null;
+    }
+  };
+};
+
+const showToast = (params) => {
+  if (toastPresenter && typeof toastPresenter.show === 'function') {
+    toastPresenter.show(params);
+    return;
+  }
+
+  Toast.show(params);
+};
+
+const hideCurrentToast = () => {
+  if (toastPresenter && typeof toastPresenter.hide === 'function') {
+    toastPresenter.hide();
+    return;
+  }
+
+  Toast.hide();
+};
+
 /**
  * Show success toast notification
  * @param {string} message - Main message to display
  * @param {string} description - Optional description text
  */
 export const showSuccess = (message, description = '') => {
-  Toast.show({
+  showToast({
     type: 'success',
     text1: message,
     text2: description,
@@ -23,7 +53,7 @@ export const showSuccess = (message, description = '') => {
  * @param {string} description - Optional description text
  */
 export const showError = (message, description = '') => {
-  Toast.show({
+  showToast({
     type: 'error',
     text1: message,
     text2: description,
@@ -40,7 +70,7 @@ export const showError = (message, description = '') => {
  * @param {string} description - Optional description text
  */
 export const showInfo = (message, description = '') => {
-  Toast.show({
+  showToast({
     type: 'info',
     text1: message,
     text2: description,
@@ -57,7 +87,7 @@ export const showInfo = (message, description = '') => {
  * @param {string} description - Optional description text
  */
 export const showWarning = (message, description = '') => {
-  Toast.show({
+  showToast({
     type: 'warning',
     text1: message,
     text2: description || '',
@@ -72,5 +102,5 @@ export const showWarning = (message, description = '') => {
  * Hide currently displayed toast
  */
 export const hideToast = () => {
-  Toast.hide();
+  hideCurrentToast();
 };

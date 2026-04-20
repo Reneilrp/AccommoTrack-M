@@ -36,6 +36,41 @@ const getNotificationTypeMap = (theme) => ({
     color: theme.colors.purple,
     bg: theme.colors.purpleLight,
   },
+  transfer: {
+    icon: "swap-horizontal-outline",
+    color: theme.colors.warning,
+    bg: theme.colors.warningLight,
+  },
+  addon: {
+    icon: "cube-outline",
+    color: theme.colors.purple,
+    bg: theme.colors.purpleLight,
+  },
+  extension: {
+    icon: "time-outline",
+    color: theme.colors.info,
+    bg: theme.colors.infoLight,
+  },
+  move_out: {
+    icon: "log-out-outline",
+    color: theme.colors.error,
+    bg: theme.colors.errorLight,
+  },
+  maintenance: {
+    icon: "construct-outline",
+    color: theme.colors.warning,
+    bg: theme.colors.warningLight,
+  },
+  room: {
+    icon: "home-outline",
+    color: theme.colors.info,
+    bg: theme.colors.infoLight,
+  },
+  tenant: {
+    icon: "person-outline",
+    color: theme.colors.info,
+    bg: theme.colors.infoLight,
+  },
   default: {
     icon: "notifications-outline",
     color: theme.colors.textTertiary,
@@ -56,6 +91,21 @@ const formatRelativeTime = (timestamp) => {
   if (diffHours < 24) return `${diffHours}h ago`;
   if (diffDays < 7) return `${diffDays}d ago`;
   return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+};
+
+const resolveNotificationType = (rawType = "") => {
+  const type = String(rawType || "").toLowerCase();
+  if (type.includes("transfer")) return "transfer";
+  if (type.includes("move_out")) return "move_out";
+  if (type.includes("extension")) return "extension";
+  if (type.includes("addon")) return "addon";
+  if (type.includes("maintenance")) return "maintenance";
+  if (type.includes("message")) return "message";
+  if (type.includes("booking")) return "booking";
+  if (type.includes("payment") || type.includes("billing") || type === "rent_paid" || type === "cash_payment_verified") return "payment";
+  if (type.includes("room")) return "room";
+  if (type.includes("tenant")) return "tenant";
+  return "default";
 };
 
 const getStyles = (theme) =>
@@ -235,24 +285,63 @@ export default function TenantNotifications({ navigation }) {
     queryKey: tenantQueryKeys.notificationsFeed(),
     queryFn: async () => {
       try {
-        const backendResult = await api.get("/notifications?role=tenant&per_page=200");
-        const backendNotifs = extractNotificationRows(backendResult?.data);
+        const [backendResult, activitiesResult] = await Promise.allSettled([
+          api.get("/notifications?role=tenant&per_page=200"),
+          api.get("/tenant/dashboard/activities"),
+        ]);
 
-        const items = backendNotifs.map((n) => ({
+        const backendNotifs = backendResult.status === "fulfilled"
+          ? extractNotificationRows(backendResult.value?.data)
+          : [];
+        const notificationItems = backendNotifs.map((n) => ({
           id: `n-${n.id}`,
-          type: n.data?.type || "default",
+          _kind: "notification",
+          type: resolveNotificationType(n.data?.type || n.type),
           title: n.data?.title || "Notification",
-          message: n.data?.message || "",
+          message: n.data?.message || n.data?.body || "You have a new update.",
           timestamp: n.created_at || new Date().toISOString(),
           read: Boolean(n.is_read || n.read_at),
           raw: n,
         }));
 
-        items.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+        const rawActivities = activitiesResult.status === "fulfilled"
+          ? (activitiesResult.value?.data?.activities || activitiesResult.value?.data || [])
+          : [];
+        const activityItems = (Array.isArray(rawActivities) ? rawActivities : [])
+          .slice(0, 20)
+          .map((a) => ({
+            id: `a-${a.id || a.timestamp}`,
+            _kind: "activity",
+            type: resolveNotificationType(a.type),
+            title: a.action || "Activity",
+            message: a.description || "",
+            timestamp: a.timestamp || new Date().toISOString(),
+            read: true,
+            raw: a,
+          }));
+
+        const seen = new Set();
+        const items = [...notificationItems, ...activityItems]
+          .filter((item) => {
+            const uniqueId = `${item._kind}-${item.id}`;
+            if (seen.has(uniqueId)) return false;
+            seen.add(uniqueId);
+            return true;
+          })
+          .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+        let feedError = "";
+        if (backendResult.status !== "fulfilled" && activitiesResult.status !== "fulfilled") {
+          feedError = "Unable to load notifications right now. Pull to refresh.";
+        } else if (backendResult.status !== "fulfilled") {
+          feedError = "Unable to load notifications right now. Pull to refresh.";
+        } else if (activitiesResult.status !== "fulfilled") {
+          feedError = "Recent activity feed is temporarily unavailable.";
+        }
 
         return {
           items,
-          fetchError: "",
+          fetchError: feedError,
         };
       } catch (err) {
         console.warn("Error fetching tenant notifications", err);
@@ -294,12 +383,12 @@ export default function TenantNotifications({ navigation }) {
   });
 
   const markAsRead = async (id) => {
+    if (!id.startsWith("n-")) return;
+
     const previousState = notifications;
     setNotifications((prev) =>
       prev.map((n) => (n.id === id ? { ...n, read: true } : n)),
     );
-
-    if (!id.startsWith("n-")) return;
 
     const backendId = id.replace("n-", "");
     try {
@@ -314,7 +403,7 @@ export default function TenantNotifications({ navigation }) {
 
   const markAllAsRead = async () => {
     const previousState = notifications;
-    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+    setNotifications((prev) => prev.map((n) => (n.id.startsWith("n-") ? { ...n, read: true } : n)));
 
     try {
       await api.patch("/notifications/read-all?role=tenant");
@@ -324,6 +413,47 @@ export default function TenantNotifications({ navigation }) {
       setNotifications(previousState);
       setActionError("Could not mark all notifications as read. Please try again.");
     }
+  };
+
+  const openNotificationTarget = (item) => {
+    const type = resolveNotificationType(item?.type);
+
+    if (type === "booking" || type === "move_out" || type === "extension") {
+      navigation.navigate("MyBookings");
+      return;
+    }
+
+    if (type === "payment") {
+      navigation.navigate("Payments");
+      return;
+    }
+
+    if (type === "message") {
+      navigation.navigate("Messages");
+      return;
+    }
+
+    if (type === "transfer") {
+      navigation.navigate("ServiceRequests", { initialTab: "Transfers" });
+      return;
+    }
+
+    if (type === "addon") {
+      navigation.navigate("ServiceRequests", { initialTab: "Add-ons" });
+      return;
+    }
+
+    if (type === "maintenance") {
+      navigation.navigate("ServiceRequests", { initialTab: "Maintenance" });
+    }
+  };
+
+  const handleNotificationPress = (item) => {
+    if (item?.id?.startsWith("n-") && !item.read) {
+      markAsRead(item.id);
+    }
+
+    openNotificationTarget(item);
   };
 
   const unreadCount = notifications.filter((n) => !n.read).length;
@@ -592,7 +722,7 @@ export default function TenantNotifications({ navigation }) {
                       : theme.colors.successLight,
                   },
                 ]}
-                onPress={() => markAsRead(notification.id)}
+                onPress={() => handleNotificationPress(notification)}
                 activeOpacity={0.7}
               >
                 <View

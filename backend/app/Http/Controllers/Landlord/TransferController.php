@@ -85,17 +85,6 @@ class TransferController extends Controller
             'bed_numbers' => 'nullable|string',
         ]);
 
-        if ($validated['action'] === 'approve') {
-            $quotedFee = (float) ($transferReq->quoted_transfer_fee ?? 0);
-            $submittedFee = (float) ($validated['transfer_fee'] ?? 0);
-
-            if ($submittedFee > $quotedFee) {
-                return response()->json([
-                    'message' => 'You cannot charge more than the ₱'.number_format($quotedFee, 2).' fee quoted to the tenant at the time of request.',
-                ], 422);
-            }
-        }
-
         if ($validated['action'] === 'reject') {
             $transferReq->update([
                 'status' => 'rejected',

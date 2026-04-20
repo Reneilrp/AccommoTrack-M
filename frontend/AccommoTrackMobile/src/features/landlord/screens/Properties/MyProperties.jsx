@@ -19,6 +19,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { getImageUrl } from "../../../../utils/imageUtils.js";
 import { getStyles } from "../../../../styles/Landlord/MyProperties.js";
 import { useTheme } from "../../../../contexts/ThemeContext.jsx";
+import { useAuthStore } from "../../../../stores/auth/authStore.js";
 import {
   landlordQueryKeys,
   useLandlordFocusRefetch,
@@ -64,10 +65,15 @@ export default function MyPropertiesScreen({ navigation }) {
   const [refreshing, setRefreshing] = useState(false);
   const [statusFilter, setStatusFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
+  const activeRole = useAuthStore((state) => state.activeRole);
 
   const verificationQuery = useQuery({
-    queryKey: landlordQueryKeys.verificationStatusBundle(),
+    queryKey: [...landlordQueryKeys.verificationStatusBundle(), activeRole || "unknown"],
     queryFn: async () => {
+      if (activeRole === "caretaker") {
+        return { isCaretaker: true, status: "approved", user: { is_verified: true } };
+      }
+
       let isCaretaker = false;
 
       try {
@@ -103,7 +109,7 @@ export default function MyPropertiesScreen({ navigation }) {
     },
   });
 
-  const isCaretaker = verificationQuery.data?.isCaretaker === true;
+  const isCaretaker = activeRole === "caretaker" || verificationQuery.data?.isCaretaker === true;
   const verificationPayload = verificationQuery.data;
   const verificationStatus = typeof verificationPayload === "string"
     ? verificationPayload
@@ -310,7 +316,7 @@ export default function MyPropertiesScreen({ navigation }) {
   const renderListHeader = () => (
     <View style={styles.section}>
       {/* Verification Warning */}
-      {!isVerified && (
+      {!isCaretaker && !isVerified && (
         <TouchableOpacity 
           style={{ 
             margin: 16, 

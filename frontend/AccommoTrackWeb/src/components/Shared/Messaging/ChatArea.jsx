@@ -25,6 +25,8 @@ const ChatArea = ({
   editingMessage,
   setEditingMessage,
   handleEditMessage,
+  handleDeleteConversation,
+  deletingConversation,
   isOtherTyping,
   selectedFile,
   handleFileSelect,
@@ -179,6 +181,17 @@ const ChatArea = ({
               : null;
             const incomingAvatarUrl = incomingSender?.profile_image || null;
             const incomingInitials = getInitials(incomingSender || selectedChat?.other_user);
+            const incomingRole = String(msg.sender_role || incomingSender?.role || '').toLowerCase();
+            let otherPartyIndicator = null;
+            if (!isMine) {
+              if (incomingRole === 'caretaker') {
+                const caretakerName = `${msg.actual_sender?.first_name || incomingSender?.first_name || ''} ${msg.actual_sender?.last_name || incomingSender?.last_name || ''}`.trim();
+                otherPartyIndicator = `${caretakerName || 'Caretaker'} (Caretaker)`;
+              } else if (incomingRole === 'tenant') {
+                const tenantName = `${incomingSender?.first_name || selectedChat?.other_user?.first_name || ''} ${incomingSender?.last_name || selectedChat?.other_user?.last_name || ''}`.trim();
+                otherPartyIndicator = `${tenantName || 'Tenant'} (Tenant)`;
+              }
+            }
 
             const ts = msg.created_at || new Date().toISOString();
             const isUnsent = Boolean(msg.is_unsent);
@@ -210,6 +223,11 @@ const ChatArea = ({
                     </div>
                   )}
                   <div className={`flex flex-col ${isMine ? 'items-end' : 'items-start'} max-w-[85%] sm:max-w-xs lg:max-w-md`}>
+                    {!isUnsent && otherPartyIndicator && (
+                      <p className="text-[10px] leading-none mb-1.5 px-1 text-gray-500 dark:text-gray-400">
+                        {otherPartyIndicator}
+                      </p>
+                    )}
                     <div className="flex items-center gap-1 max-w-full">
                       {canEdit && (
                         <div className="opacity-0 group-hover/msg:opacity-100 flex items-center bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-full shadow-sm border border-gray-200 dark:border-gray-700 transition-all">
@@ -582,25 +600,47 @@ const ChatArea = ({
               {mediaItems.length === 0 ? (
                 <p className="text-sm text-gray-500 dark:text-gray-400">No photos shared in this conversation yet.</p>
               ) : (
-                <div className="grid grid-cols-3 gap-2">
-                  {mediaItems.map((item) => (
-                    <button
-                      type="button"
-                      key={item.id}
-                      onClick={() => window.open(item.image_url, '_blank', 'noopener,noreferrer')}
-                      className="group relative aspect-square rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700"
-                      title={item.created_at ? `Sent ${formatTime(item.created_at)}` : 'Open image'}
-                    >
-                      <img
-                        src={item.image_url}
-                        alt="Shared media"
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
-                      />
-                    </button>
-                  ))}
+                <div className="max-h-64 overflow-y-auto pr-1">
+                  <div className="grid grid-cols-3 gap-2">
+                    {mediaItems.map((item) => (
+                      <button
+                        type="button"
+                        key={item.id}
+                        onClick={() => window.open(item.image_url, '_blank', 'noopener,noreferrer')}
+                        className="group relative aspect-square rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700"
+                        title={item.created_at ? `Sent ${formatTime(item.created_at)}` : 'Open image'}
+                      >
+                        <img
+                          src={item.image_url}
+                          alt="Shared media"
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+                        />
+                      </button>
+                    ))}
+                  </div>
                 </div>
               )}
             </section>
+
+            {(normalizedRole === 'tenant' || normalizedRole === 'landlord') && (
+              <section className="rounded-2xl border border-red-200 dark:border-red-900/40 bg-red-50/60 dark:bg-red-950/20 p-4">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (window.confirm('Delete this conversation from your inbox only?')) {
+                      handleDeleteConversation();
+                    }
+                  }}
+                  disabled={deletingConversation}
+                  className="w-full text-left text-sm font-semibold text-red-600 dark:text-red-400 disabled:opacity-60"
+                >
+                  {deletingConversation ? 'Deleting conversation...' : 'Delete Conversation'}
+                </button>
+                <p className="text-xs mt-1 text-red-500/80 dark:text-red-300/70">
+                  This only removes the chat from your view.
+                </p>
+              </section>
+            )}
           </div>
         </div>
       </aside>

@@ -1675,7 +1675,7 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
                     <Text style={{ fontSize: 13, fontWeight: 'bold', color: theme.colors.primary }}>Monthly Billing Policy</Text>
                   </View>
                   <Text style={{ fontSize: 12, color: theme.colors.textSecondary, marginTop: 4 }}>
-                    Stays are billed in 30-day blocks. Partial months are charged as full months.
+                    Stays are billed in 30-day blocks. Even below 30 days, monthly billing charges 1 full month.
                   </Text>
 
                   {pricingBreakdown?.remaining_days > 0 && (

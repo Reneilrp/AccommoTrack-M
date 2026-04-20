@@ -41,7 +41,9 @@ class MessageController extends Controller
                     ->where('is_read', false);
             }])
             ->orderBy('last_message_at', 'desc')
-            ->get();
+            ->get()
+            ->filter(fn (Conversation $conversation) => ! $conversation->isHiddenForUser((int) $ownerId))
+            ->values();
 
         return response()->json(ConversationResource::collection($conversations));
     }
@@ -64,6 +66,10 @@ class MessageController extends Controller
                 });
             })
             ->firstOrFail();
+
+        if ($conversation->isHiddenForUser((int) $ownerId)) {
+            abort(404, 'Conversation not found.');
+        }
 
         // Mark messages as read
         Message::where('conversation_id', $conversationId)
@@ -242,6 +248,9 @@ class MessageController extends Controller
                 'user_two_id' => $recipientId,
                 'property_id' => $request->property_id,
             ]);
+        } else {
+            $conversation->clearDeletedForUser((int) $userId);
+            $conversation->save();
         }
 
         $conversation->load(['userOne', 'userTwo', 'property', 'lastMessage']);
@@ -276,6 +285,9 @@ class MessageController extends Controller
                 'user_two_id' => $recipientId,
                 'property_id' => null,
             ]);
+        } else {
+            $conversation->clearDeletedForUser((int) $userId);
+            $conversation->save();
         }
 
         $conversation->load(['userOne', 'userTwo', 'property', 'lastMessage']);
@@ -289,7 +301,23 @@ class MessageController extends Controller
         $context = $this->resolveMessageContext($request);
         $ownerId = $context['owner_id'];
 
-        $count = Message::where('receiver_id', $ownerId)
+        $visibleConversationIds = Conversation::query()
+            ->where(function ($q) use ($ownerId) {
+                $q->where('user_one_id', $ownerId)
+                    ->orWhere('user_two_id', $ownerId);
+            })
+            ->when($context['is_caretaker'] ?? false, function ($q) use ($context) {
+                $q->where(function ($q2) use ($context) {
+                    $q2->whereNull('caretaker_id')
+                        ->orWhere('caretaker_id', $context['viewer_id']);
+                });
+            })
+            ->get()
+            ->filter(fn (Conversation $conversation) => ! $conversation->isHiddenForUser((int) $ownerId))
+            ->pluck('id');
+
+        $count = Message::whereIn('conversation_id', $visibleConversationIds)
+            ->where('receiver_id', $ownerId)
             ->where('is_read', false)
             ->count();
 
@@ -330,6 +358,35 @@ class MessageController extends Controller
         return response()->json([
             'message' => 'Caretaker assignment updated.',
             'caretaker_id' => $conversation->caretaker_id,
+        ]);
+    }
+
+    public function hideConversation(Request $request, $id)
+    {
+        $user = $request->user();
+        if (! $user || ! in_array($user->role, ['tenant', 'landlord'], true)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Only tenants and landlords can delete conversations.',
+            ], 403);
+        }
+
+        $context = $this->resolveMessageContext($request);
+        $ownerId = (int) $context['owner_id'];
+
+        $conversation = Conversation::where('id', $id)
+            ->where(function ($q) use ($ownerId) {
+                $q->where('user_one_id', $ownerId)
+                    ->orWhere('user_two_id', $ownerId);
+            })
+            ->firstOrFail();
+
+        $conversation->markDeletedForUser($ownerId);
+        $conversation->save();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Conversation removed from your inbox.',
         ]);
     }
 

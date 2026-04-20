@@ -211,8 +211,25 @@ export default function ChatScreen({ navigation, route }) {
     const markAsReadMutation = useMutation({
         mutationFn: (conversationId) => MessageService.api.post(`/messages/${conversationId}/read`),
         onSuccess: () => {
-             queryClient.invalidateQueries({ queryKey: tenantQueryKeys.messagesConversations() });
+            queryClient.invalidateQueries({ queryKey: tenantQueryKeys.messagesConversations() });
         }
+    });
+
+    const hideConversationMutation = useMutation({
+        mutationFn: (conversationId) => MessageService.hideConversation(conversationId),
+        onSuccess: (result) => {
+            if (result.success) {
+                setIsDetailsOpen(false);
+                queryClient.removeQueries({ queryKey: messagesQueryKey });
+                queryClient.invalidateQueries({ queryKey: tenantQueryKeys.messagesConversations() });
+                navigation.goBack();
+            } else {
+                showError('Error', result.error || 'Failed to delete conversation');
+            }
+        },
+        onError: (err) => {
+            showError('Error', err.message || 'Failed to delete conversation');
+        },
     });
 
     useEffect(() => {
@@ -224,7 +241,7 @@ export default function ChatScreen({ navigation, route }) {
     useEffect(() => {
         const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
         const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
-        
+
         const showSubscription = Keyboard.addListener(showEvent, () => setKeyboardVisible(true));
         const hideSubscription = Keyboard.addListener(hideEvent, () => setKeyboardVisible(false));
 
@@ -262,9 +279,9 @@ export default function ChatScreen({ navigation, route }) {
                 echoRef.current.private(`conversation.${conv.id}`).listen('.message.read', (e) => {
                     queryClient.setQueryData(messagesQueryKey, (old) => {
                         const messages = old || [];
-                        return messages.map((m) => 
-                            String(m.receiver_id) === String(e.reader_id) 
-                                ? { ...m, is_read: true, read_at: e.read_at } 
+                        return messages.map((m) =>
+                            String(m.receiver_id) === String(e.reader_id)
+                                ? { ...m, is_read: true, read_at: e.read_at }
                                 : m
                         );
                     });
@@ -288,7 +305,7 @@ export default function ChatScreen({ navigation, route }) {
             if (echoRef.current) {
                 try {
                     echoRef.current.leave(`conversation.${conv.id}`);
-                } catch (_error) {}
+                } catch (_error) { }
             }
         };
     }, [conv?.id, messagesQueryKey, queryClient, markAsReadMutation]);
@@ -306,7 +323,7 @@ export default function ChatScreen({ navigation, route }) {
     // Signal typing status
     useEffect(() => {
         if (!conv?.id || !echoRef.current) return;
-        
+
         if (messageText.length > 0) {
             echoRef.current.private(`conversation.${conv.id}`).whisper('typing', { typing: true });
         } else {
@@ -387,12 +404,12 @@ export default function ChatScreen({ navigation, route }) {
 
     const handleSendMessage = () => {
         if ((!messageText.trim() && !selectedImage && !selectedFile) || !conv || sendMessageMutation.isPending) return;
-        
+
         if (editingMessage) {
             editMessageMutation.mutate({ messageId: editingMessage.id, text: messageText.trim() });
         } else {
-            sendMessageMutation.mutate({ 
-                text: messageText.trim(), 
+            sendMessageMutation.mutate({
+                text: messageText.trim(),
                 imageUri: selectedImage,
                 replyToId: replyingTo?.id,
                 fileUri: selectedFile?.uri,
@@ -404,20 +421,15 @@ export default function ChatScreen({ navigation, route }) {
     const formatTime = (timestamp) => {
         if (!timestamp) return '';
         const date = new Date(timestamp);
-        const now = new Date();
-        
-        const isToday = date.toDateString() === now.toDateString();
-        const isYesterday = new Date(now.setDate(now.getDate() - 1)).toDateString() === date.toDateString();
-        
-        // Reset now to today
-        const today = new Date();
-        const diffMs = today - date;
-        const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+        if (Number.isNaN(date.getTime())) return '';
 
-        if (isToday) {
-            return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
-        }
-        if (isYesterday) return 'Yesterday';
+        const now = new Date();
+        const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const startOfMessageDay = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+        const diffDays = Math.round((startOfToday - startOfMessageDay) / (1000 * 60 * 60 * 24));
+
+        if (diffDays <= 0) return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+        if (diffDays === 1) return 'Yesterday';
         if (diffDays < 7) return date.toLocaleDateString('en-US', { weekday: 'short' });
         return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
     };
@@ -462,6 +474,18 @@ export default function ChatScreen({ navigation, route }) {
         { label: 'Email', value: participantEmail || 'Not provided' },
     ];
 
+    const mediaItems = React.useMemo(() => {
+        if (!Array.isArray(messages)) return [];
+
+        const seen = new Set();
+        return messages.filter((msg) => {
+            const imagePath = msg?.image_path;
+            if (!imagePath || msg?.is_unsent || seen.has(imagePath)) return false;
+            seen.add(imagePath);
+            return true;
+        });
+    }, [messages]);
+
     return (
         <SafeAreaView edges={safeAreaEdges} style={[styles.safeArea, { backgroundColor: theme.colors.background }]}>
             <KeyboardAvoidingView
@@ -483,15 +507,15 @@ export default function ChatScreen({ navigation, route }) {
                     <View style={styles.chatHeaderInfo}>
                         <View style={[styles.chatHeaderAvatar, { overflow: 'hidden' }]}>
                             {conv?.property?.image_url ? (
-                                <Image 
-                                    source={{ uri: getImageUrl(conv.property.image_url) }} 
-                                    style={{ width: '100%', height: '100%' }} 
+                                <Image
+                                    source={{ uri: getImageUrl(conv.property.image_url) }}
+                                    style={{ width: '100%', height: '100%' }}
                                     resizeMode="cover"
                                 />
                             ) : conv?.other_user?.profile_image ? (
-                                <Image 
-                                    source={{ uri: getImageUrl(conv.other_user.profile_image) }} 
-                                    style={{ width: '100%', height: '100%' }} 
+                                <Image
+                                    source={{ uri: getImageUrl(conv.other_user.profile_image) }}
+                                    style={{ width: '100%', height: '100%' }}
                                     resizeMode="cover"
                                 />
                             ) : (
@@ -509,8 +533,8 @@ export default function ChatScreen({ navigation, route }) {
                     </View>
 
                     {participantPhone && (
-                        <TouchableOpacity 
-                            style={[styles.headerIcon, { marginRight: 8 }]} 
+                        <TouchableOpacity
+                            style={[styles.headerIcon, { marginRight: 8 }]}
                             onPress={() => Linking.openURL(`tel:${participantPhone}`)}
                         >
                             <Ionicons name="call-outline" size={24} color="#FFFFFF" />
@@ -556,10 +580,23 @@ export default function ChatScreen({ navigation, route }) {
                         messages.map((msg) => {
                             // Local fallback for isMine calculation
                             const isMine = msg.is_mine || (currentUserId && String(msg.actual_sender_id || msg.sender_id) === String(currentUserId));
-                            const isCaretakerMessage = msg.sender_role === 'caretaker';
                             const actualSenderName = msg.actual_sender ? `${msg.actual_sender.first_name} ${msg.actual_sender.last_name}` : 'Caretaker';
                             const isUnsent = Boolean(msg.is_unsent);
                             const replyingToMessage = msg.parent || msg.reply_to || null;
+                            const senderRole = String(msg.sender_role || '').toLowerCase();
+                            let otherPartyIndicator = null;
+                            if (!isMine) {
+                                if (senderRole === 'caretaker') {
+                                    otherPartyIndicator = `${actualSenderName || 'Caretaker'} (Caretaker)`;
+                                } else if (senderRole === 'tenant') {
+                                    const tenantName = `${msg.sender?.first_name || conv?.other_user?.first_name || ''} ${msg.sender?.last_name || conv?.other_user?.last_name || ''}`.trim();
+                                    otherPartyIndicator = `${tenantName || 'Tenant'} (Tenant)`;
+                                }
+                            }
+                            const incomingAvatarPath = !isMine
+                                ? (msg.actual_sender?.profile_image || msg.sender?.profile_image || conv?.other_user?.profile_image || null)
+                                : null;
+                            const incomingInitials = `${msg.actual_sender?.first_name?.[0] || msg.sender?.first_name?.[0] || conv?.other_user?.first_name?.[0] || ''}${msg.actual_sender?.last_name?.[0] || msg.sender?.last_name?.[0] || conv?.other_user?.last_name?.[0] || ''}`.toUpperCase() || '??';
 
                             const handleLongPress = () => {
                                 if (isUnsent) return;
@@ -571,29 +608,35 @@ export default function ChatScreen({ navigation, route }) {
                                     const canEdit = timeDiff < 30 * 60 * 1000;
 
                                     options = [
-                                        ...(canEdit ? [{ text: 'Edit', onPress: () => {
-                                            setEditingMessage(msg);
-                                            setReplyingTo(null);
-                                            setMessageText(msg.message);
-                                        }}] : []),
-                                        { text: 'Unsend', style: 'destructive', onPress: () => {
-                                            Alert.alert(
-                                                'Unsend Message',
-                                                'Unsend this message for everyone?',
-                                                [
-                                                    { text: 'Cancel', style: 'cancel' },
-                                                    { text: 'Unsend', style: 'destructive', onPress: () => unsendMutation.mutate(msg.id) }
-                                                ]
-                                            );
-                                        }},
+                                        ...(canEdit ? [{
+                                            text: 'Edit', onPress: () => {
+                                                setEditingMessage(msg);
+                                                setReplyingTo(null);
+                                                setMessageText(msg.message);
+                                            }
+                                        }] : []),
+                                        {
+                                            text: 'Unsend', style: 'destructive', onPress: () => {
+                                                Alert.alert(
+                                                    'Unsend Message',
+                                                    'Unsend this message for everyone?',
+                                                    [
+                                                        { text: 'Cancel', style: 'cancel' },
+                                                        { text: 'Unsend', style: 'destructive', onPress: () => unsendMutation.mutate(msg.id) }
+                                                    ]
+                                                );
+                                            }
+                                        },
                                         { text: 'Cancel', style: 'cancel' }
                                     ];
                                 } else {
                                     options = [
-                                        { text: 'Reply', onPress: () => {
-                                            setReplyingTo(msg);
-                                            setEditingMessage(null);
-                                        }},
+                                        {
+                                            text: 'Reply', onPress: () => {
+                                                setReplyingTo(msg);
+                                                setEditingMessage(null);
+                                            }
+                                        },
                                         { text: 'Cancel', style: 'cancel' }
                                     ];
                                 }
@@ -603,110 +646,127 @@ export default function ChatScreen({ navigation, route }) {
 
                             return (
                                 <View key={msg.id} style={[styles.messageWrapper, isMine ? styles.myMessageWrapper : styles.theirMessageWrapper]}>
-                                    <View style={[styles.messageContent, isMine ? styles.myMessageContent : styles.theirMessageContent]}>
-                                        {isCaretakerMessage && msg.actual_sender && (
-                                            <Text style={{ fontSize: 10, color: theme.colors.textSecondary, marginBottom: 2, alignSelf: isMine ? 'flex-end' : 'flex-start' }}>
-                                                via {actualSenderName}
-                                            </Text>
+                                    <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
+                                        {!isMine && (
+                                            <View style={{ width: 32, height: 32, borderRadius: 16, overflow: 'hidden', backgroundColor: theme.colors.primaryLight, marginRight: 8, marginTop: 2 }}>
+                                                {incomingAvatarPath ? (
+                                                    <Image
+                                                        source={{ uri: getImageUrl(incomingAvatarPath) }}
+                                                        style={{ width: '100%', height: '100%' }}
+                                                        resizeMode="cover"
+                                                    />
+                                                ) : (
+                                                    <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+                                                        <Text style={{ color: theme.colors.primary, fontWeight: '700', fontSize: 12 }}>{incomingInitials}</Text>
+                                                    </View>
+                                                )}
+                                            </View>
                                         )}
-                                        <TouchableOpacity 
-                                            activeOpacity={isMine && !isUnsent ? 0.7 : 1}
-                                            onLongPress={() => handleLongPress(msg)}
-                                            style={[
-                                                styles.messageBubble, 
-                                                isMine ? styles.myMessageBubble : styles.theirMessageBubble,
-                                                isUnsent && { 
-                                                    backgroundColor: theme.colors.backgroundSecondary, 
-                                                    borderWidth: 1, 
-                                                    borderColor: theme.colors.border, 
-                                                    borderStyle: 'dashed' 
-                                                },
-                                                (msg.image_path || msg.file_path) && !isUnsent && { 
-                                                    backgroundColor: 'transparent', 
-                                                    padding: 0,
-                                                    borderWidth: 0,
-                                                    elevation: 0,
-                                                    shadowOpacity: 0
-                                                }
-                                            ]}
-                                        >
-                                            {isUnsent ? (
-                                                <Text style={[styles.messageText, { color: theme.colors.textSecondary, fontStyle: 'italic', fontSize: 12 }]}>This message was unsent</Text>
-                                            ) : (
-                                                <>
-                                                    {replyingToMessage && (
-                                                        <View style={{ 
-                                                            backgroundColor: isMine ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.05)', 
-                                                            padding: 8, 
-                                                            borderRadius: 6, 
-                                                            borderLeftWidth: 3, 
-                                                            borderLeftColor: theme.colors.primary,
-                                                            marginBottom: 8
-                                                        }}>
-                                                            <Text style={{ fontSize: 10, fontWeight: 'bold', color: isMine ? '#FFF' : theme.colors.primary, marginBottom: 2 }}>
-                                                                {String(replyingToMessage.sender_id) === String(currentUserId) ? 'You' : (replyingToMessage.sender?.first_name || 'Someone')}
-                                                            </Text>
-                                                            <Text style={{ fontSize: 11, color: isMine ? '#EEE' : theme.colors.textSecondary }} numberOfLines={2}>
-                                                                {replyingToMessage.image_path ? '📷 Photo' : replyingToMessage.file_path ? '📄 Document' : replyingToMessage.message}
-                                                            </Text>
-                                                        </View>
-                                                    )}
-                                                    {msg.image_path && (
-                                                        <TouchableOpacity onPress={() => setSelectedImage(getImageUrl(msg.image_path))}>
-                                                            <Image 
-                                                                source={{ uri: getImageUrl(msg.image_path) }} 
-                                                                style={{ width: 200, height: 200, borderRadius: 12 }} 
-                                                                resizeMode="cover" 
-                                                            />
-                                                        </TouchableOpacity>
-                                                    )}
-                                                    {msg.file_path && (
-                                                        <TouchableOpacity 
-                                                            style={styles.fileCard}
-                                                            onPress={() => Linking.openURL(getImageUrl(msg.file_path))}
-                                                        >
-                                                            <View style={styles.fileIconContainer}>
-                                                                <Ionicons 
-                                                                    name={msg.file_path.toLowerCase().endsWith('.pdf') ? 'document-text' : 'document'} 
-                                                                    size={24} 
-                                                                    color={theme.colors.primary} 
+                                        <View style={[styles.messageContent, isMine ? styles.myMessageContent : styles.theirMessageContent]}>
+                                            {!isUnsent && otherPartyIndicator && (
+                                                <Text style={{ fontSize: 9, color: theme.colors.textSecondary, marginBottom: 3, alignSelf: 'flex-start' }}>
+                                                    {otherPartyIndicator}
+                                                </Text>
+                                            )}
+                                            <TouchableOpacity
+                                                activeOpacity={isMine && !isUnsent ? 0.7 : 1}
+                                                onLongPress={() => handleLongPress(msg)}
+                                                style={[
+                                                    styles.messageBubble,
+                                                    isMine ? styles.myMessageBubble : styles.theirMessageBubble,
+                                                    isUnsent && {
+                                                        backgroundColor: theme.colors.backgroundSecondary,
+                                                        borderWidth: 1,
+                                                        borderColor: theme.colors.border,
+                                                        borderStyle: 'dashed'
+                                                    },
+                                                    (msg.image_path || msg.file_path) && !isUnsent && {
+                                                        backgroundColor: 'transparent',
+                                                        padding: 0,
+                                                        borderWidth: 0,
+                                                        elevation: 0,
+                                                        shadowOpacity: 0
+                                                    }
+                                                ]}
+                                            >
+                                                {isUnsent ? (
+                                                    <Text style={[styles.messageText, { color: theme.colors.textSecondary, fontStyle: 'italic', fontSize: 12 }]}>This message was unsent</Text>
+                                                ) : (
+                                                    <>
+                                                        {replyingToMessage && (
+                                                            <View style={{
+                                                                backgroundColor: isMine ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.05)',
+                                                                padding: 8,
+                                                                borderRadius: 6,
+                                                                borderLeftWidth: 3,
+                                                                borderLeftColor: theme.colors.primary,
+                                                                marginBottom: 8
+                                                            }}>
+                                                                <Text style={{ fontSize: 10, fontWeight: 'bold', color: isMine ? '#FFF' : theme.colors.primary, marginBottom: 2 }}>
+                                                                    {String(replyingToMessage.sender_id) === String(currentUserId) ? 'You' : (replyingToMessage.sender?.first_name || 'Someone')}
+                                                                </Text>
+                                                                <Text style={{ fontSize: 11, color: isMine ? '#EEE' : theme.colors.textSecondary }} numberOfLines={2}>
+                                                                    {replyingToMessage.image_path ? '📷 Photo' : replyingToMessage.file_path ? '📄 Document' : replyingToMessage.message}
+                                                                </Text>
+                                                            </View>
+                                                        )}
+                                                        {msg.image_path && (
+                                                            <TouchableOpacity onPress={() => setSelectedImage(getImageUrl(msg.image_path))}>
+                                                                <Image
+                                                                    source={{ uri: getImageUrl(msg.image_path) }}
+                                                                    style={{ width: 200, height: 200, borderRadius: 12 }}
+                                                                    resizeMode="cover"
                                                                 />
+                                                            </TouchableOpacity>
+                                                        )}
+                                                        {msg.file_path && (
+                                                            <TouchableOpacity
+                                                                style={styles.fileCard}
+                                                                onPress={() => Linking.openURL(getImageUrl(msg.file_path))}
+                                                            >
+                                                                <View style={styles.fileIconContainer}>
+                                                                    <Ionicons
+                                                                        name={msg.file_path.toLowerCase().endsWith('.pdf') ? 'document-text' : 'document'}
+                                                                        size={24}
+                                                                        color={theme.colors.primary}
+                                                                    />
+                                                                </View>
+                                                                <View style={styles.fileInfo}>
+                                                                    <Text style={styles.fileName} numberOfLines={1}>{msg.file_name || 'Document'}</Text>
+                                                                    <Text style={styles.fileExt}>{msg.file_path.split('.').pop().toUpperCase()}</Text>
+                                                                </View>
+                                                                <Ionicons name="download-outline" size={20} color={theme.colors.textSecondary} />
+                                                            </TouchableOpacity>
+                                                        )}
+                                                        {msg.message ? (
+                                                            <View style={[(msg.image_path || msg.file_path) ? { padding: 10, backgroundColor: isMine ? theme.colors.primary : '#fff', borderRadius: 10, marginTop: 4 } : null]}>
+                                                                <Text style={[styles.messageText, isMine ? styles.myMessageText : styles.theirMessageText]}>{msg.message}</Text>
+                                                                {msg.is_edited && (
+                                                                    <TouchableOpacity onPress={() => setHistoryViewingMessage(msg)}>
+                                                                        <Text style={{ fontSize: 9, color: isMine ? 'rgba(255,255,255,0.7)' : theme.colors.textSecondary, marginLeft: 4, fontWeight: 'bold', textDecorationLine: 'underline' }}>
+                                                                            (edited)
+                                                                        </Text>
+                                                                    </TouchableOpacity>
+                                                                )}
                                                             </View>
-                                                            <View style={styles.fileInfo}>
-                                                                <Text style={styles.fileName} numberOfLines={1}>{msg.file_name || 'Document'}</Text>
-                                                                <Text style={styles.fileExt}>{msg.file_path.split('.').pop().toUpperCase()}</Text>
-                                                            </View>
-                                                            <Ionicons name="download-outline" size={20} color={theme.colors.textSecondary} />
-                                                        </TouchableOpacity>
-                                                    )}
-                                                    {msg.message ? (
-                                                        <View style={[(msg.image_path || msg.file_path) ? { padding: 10, backgroundColor: isMine ? theme.colors.primary : '#fff', borderRadius: 10, marginTop: 4 } : null]}>
-                                                            <Text style={[styles.messageText, isMine ? styles.myMessageText : styles.theirMessageText]}>{msg.message}</Text>
-                                                            {msg.is_edited && (
-                                                                <TouchableOpacity onPress={() => setHistoryViewingMessage(msg)}>
-                                                                    <Text style={{ fontSize: 9, color: isMine ? 'rgba(255,255,255,0.7)' : theme.colors.textSecondary, marginLeft: 4, fontWeight: 'bold', textDecorationLine: 'underline' }}>
-                                                                        (edited)
-                                                                    </Text>
-                                                                </TouchableOpacity>
-                                                            )}
-                                                        </View>
-                                                    ) : null}
-                                                </>
-                                            )}
-                                        </TouchableOpacity>
-                                        <View style={[
-                                            { flexDirection: 'row', alignItems: 'center', justifyContent: isMine ? 'flex-end' : 'flex-start' },
-                                            (msg.image_path || msg.file_path) && !isUnsent && styles.timestampOnMedia
-                                        ]}>
-                                            <Text style={[styles.messageTime, (msg.image_path || msg.file_path) && !isUnsent && { color: '#fff', marginTop: 0 }]}>{formatTime(msg.created_at)}</Text>
-                                            {isMine && !isUnsent && (
-                                                <Ionicons 
-                                                    name="checkmark-done" 
-                                                    size={14} 
-                                                    color={(msg.image_path || msg.file_path) ? '#fff' : (msg.is_read ? '#3B82F6' : '#9CA3AF')} 
-                                                    style={{ marginLeft: 4 }} 
-                                                />
-                                            )}
+                                                        ) : null}
+                                                    </>
+                                                )}
+                                            </TouchableOpacity>
+                                            <View style={[
+                                                { flexDirection: 'row', alignItems: 'center', justifyContent: isMine ? 'flex-end' : 'flex-start' },
+                                                (msg.image_path || msg.file_path) && !isUnsent && styles.timestampOnMedia
+                                            ]}>
+                                                <Text style={[styles.messageTime, (msg.image_path || msg.file_path) && !isUnsent && { color: '#fff', marginTop: 0 }]}>{formatTime(msg.created_at)}</Text>
+                                                {isMine && !isUnsent && (
+                                                    <Ionicons
+                                                        name="checkmark-done"
+                                                        size={14}
+                                                        color={(msg.image_path || msg.file_path) ? '#fff' : (msg.is_read ? '#3B82F6' : '#9CA3AF')}
+                                                        style={{ marginLeft: 4 }}
+                                                    />
+                                                )}
+                                            </View>
                                         </View>
                                     </View>
                                 </View>
@@ -722,15 +782,15 @@ export default function ChatScreen({ navigation, route }) {
                             <Image source={{ uri: selectedImage }} style={styles.attachmentPreviewImage} />
                         ) : (
                             <View style={styles.attachmentPreviewFile}>
-                                <Ionicons 
-                                    name={selectedFile.name.toLowerCase().endsWith('.pdf') ? 'document-text' : 'document'} 
-                                    size={32} 
-                                    color={theme.colors.primary} 
+                                <Ionicons
+                                    name={selectedFile.name.toLowerCase().endsWith('.pdf') ? 'document-text' : 'document'}
+                                    size={32}
+                                    color={theme.colors.primary}
                                 />
                                 <Text style={styles.attachmentPreviewFileName} numberOfLines={1}>{selectedFile.name}</Text>
                             </View>
                         )}
-                        <TouchableOpacity 
+                        <TouchableOpacity
                             style={styles.attachmentPreviewClose}
                             onPress={() => {
                                 setSelectedImage(null);
@@ -793,18 +853,18 @@ export default function ChatScreen({ navigation, route }) {
                     <TouchableOpacity style={styles.attachButton} activeOpacity={0.7} onPress={handlePickDocument}>
                         <Ionicons name="attach" size={28} color={theme.colors.primary} />
                     </TouchableOpacity>
-                    <TextInput 
+                    <TextInput
                         ref={inputRef}
-                        style={[styles.textInput, { backgroundColor: theme.colors.background, color: theme.colors.text }]} 
-                        placeholder="Type a message..." 
-                        placeholderTextColor="#9CA3AF" 
-                        value={messageText} 
-                        onChangeText={setMessageText} 
-                        multiline 
+                        style={[styles.textInput, { backgroundColor: theme.colors.background, color: theme.colors.text }]}
+                        placeholder="Type a message..."
+                        placeholderTextColor="#9CA3AF"
+                        value={messageText}
+                        onChangeText={setMessageText}
+                        multiline
                     />
-                    <TouchableOpacity 
-                        style={[styles.sendButton, (!messageText.trim() && !selectedImage || sendMessageMutation.isPending || editMessageMutation.isPending) && styles.sendButtonDisabled, !(!messageText.trim() && !selectedImage || sendMessageMutation.isPending || editMessageMutation.isPending) && { backgroundColor: editingMessage ? (theme.colors.success || '#10B981') : theme.colors.primary }]} 
-                        onPress={handleSendMessage} 
+                    <TouchableOpacity
+                        style={[styles.sendButton, (!messageText.trim() && !selectedImage || sendMessageMutation.isPending || editMessageMutation.isPending) && styles.sendButtonDisabled, !(!messageText.trim() && !selectedImage || sendMessageMutation.isPending || editMessageMutation.isPending) && { backgroundColor: editingMessage ? (theme.colors.success || '#10B981') : theme.colors.primary }]}
+                        onPress={handleSendMessage}
                         disabled={(!messageText.trim() && !selectedImage) || sendMessageMutation.isPending || editMessageMutation.isPending}
                     >
                         {sendMessageMutation.isPending || editMessageMutation.isPending ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Ionicons name={editingMessage ? "checkmark" : "send"} size={20} color="#FFFFFF" />}
@@ -844,8 +904,8 @@ export default function ChatScreen({ navigation, route }) {
                     </View>
 
                     <ScrollView style={styles.detailsContent} contentContainerStyle={{ paddingBottom: 20 }}>
-                        <View style={[styles.detailsIdentityCard, { borderColor: theme.colors.border, backgroundColor: theme.colors.backgroundSecondary }]}> 
-                            <View style={[styles.detailsAvatarLarge, { backgroundColor: theme.colors.primaryLight }]}> 
+                        <View style={[styles.detailsIdentityCard, { borderColor: theme.colors.border, backgroundColor: theme.colors.backgroundSecondary }]}>
+                            <View style={[styles.detailsAvatarLarge, { backgroundColor: theme.colors.primaryLight }]}>
                                 {conv?.other_user?.profile_image ? (
                                     <Image
                                         source={{ uri: getImageUrl(conv.other_user.profile_image) }}
@@ -860,13 +920,62 @@ export default function ChatScreen({ navigation, route }) {
                             <Text style={[styles.detailsIdentityRole, { color: theme.colors.textSecondary }]}>{participantStatusLine || participantRoleLabel}</Text>
                         </View>
 
-                        <View style={[styles.detailsSection, { borderColor: theme.colors.border }]}> 
+                        <View style={[styles.detailsSection, { borderColor: theme.colors.border }]}>
                             {detailRows.map((row) => (
                                 <View key={row.label} style={styles.detailRow}>
                                     <Text style={[styles.detailLabel, { color: theme.colors.textSecondary }]}>{row.label}</Text>
                                     <Text style={[styles.detailValue, { color: theme.colors.text }]} numberOfLines={2}>{row.value}</Text>
                                 </View>
                             ))}
+                        </View>
+
+                        <View style={[styles.detailsSection, { borderColor: theme.colors.border }]}>
+                            <Text style={[styles.detailsSectionTitle, { color: theme.colors.textSecondary }]}>Media</Text>
+                            {mediaItems.length === 0 ? (
+                                <Text style={[styles.detailValue, { color: theme.colors.textSecondary }]}>No photos shared yet.</Text>
+                            ) : (
+                                <ScrollView style={{ maxHeight: 220 }} nestedScrollEnabled>
+                                    <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+                                        {mediaItems.map((item) => (
+                                            <TouchableOpacity
+                                                key={item.id}
+                                                style={{ width: '31%', aspectRatio: 1, borderRadius: 10, overflow: 'hidden', marginRight: '2%', marginBottom: 8 }}
+                                                onPress={() => setSelectedImage(getImageUrl(item.image_path))}
+                                            >
+                                                <Image
+                                                    source={{ uri: getImageUrl(item.image_path) }}
+                                                    style={{ width: '100%', height: '100%' }}
+                                                    resizeMode="cover"
+                                                />
+                                            </TouchableOpacity>
+                                        ))}
+                                    </View>
+                                </ScrollView>
+                            )}
+                        </View>
+
+                        <View style={[styles.detailsSection, { borderColor: theme.colors.border, backgroundColor: 'rgba(239, 68, 68, 0.08)' }]}>
+                            <TouchableOpacity
+                                onPress={() => {
+                                    Alert.alert(
+                                        'Delete Conversation',
+                                        'Delete this conversation from your inbox only?',
+                                        [
+                                            { text: 'Cancel', style: 'cancel' },
+                                            {
+                                                text: 'Delete Conversation',
+                                                style: 'destructive',
+                                                onPress: () => hideConversationMutation.mutate(conv.id),
+                                            },
+                                        ],
+                                    );
+                                }}
+                                disabled={hideConversationMutation.isPending}
+                            >
+                                <Text style={{ color: '#DC2626', fontWeight: '700', fontSize: 14 }}>
+                                    {hideConversationMutation.isPending ? 'Deleting conversation...' : 'Delete Conversation'}
+                                </Text>
+                            </TouchableOpacity>
                         </View>
                     </ScrollView>
                 </Animated.View>
@@ -878,7 +987,7 @@ export default function ChatScreen({ navigation, route }) {
                     animationType="fade"
                     onRequestClose={() => setHistoryViewingMessage(null)}
                 >
-                    <Pressable 
+                    <Pressable
                         style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 20 }}
                         onPress={() => setHistoryViewingMessage(null)}
                     >
@@ -892,7 +1001,7 @@ export default function ChatScreen({ navigation, route }) {
                                     <Ionicons name="close" size={24} color={theme.colors.textSecondary} />
                                 </TouchableOpacity>
                             </View>
-                            
+
                             <ScrollView style={{ maxHeight: 400, padding: 20 }}>
                                 <View style={{ padding: 12, backgroundColor: 'rgba(16, 185, 129, 0.1)', borderRadius: 12, borderLeftWidth: 4, borderLeftColor: '#10B981', marginBottom: 16 }}>
                                     <Text style={{ fontSize: 10, fontWeight: 'bold', color: '#10B981', textTransform: 'uppercase', marginBottom: 4 }}>Current Version</Text>
@@ -916,7 +1025,7 @@ export default function ChatScreen({ navigation, route }) {
                             </ScrollView>
 
                             <View style={{ padding: 16, borderTopWidth: 1, borderTopColor: theme.colors.border }}>
-                                <TouchableOpacity 
+                                <TouchableOpacity
                                     onPress={() => setHistoryViewingMessage(null)}
                                     style={{ backgroundColor: theme.colors.primary, padding: 12, borderRadius: 10, alignItems: 'center' }}
                                 >

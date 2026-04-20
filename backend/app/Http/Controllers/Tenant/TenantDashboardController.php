@@ -125,15 +125,7 @@ class TenantDashboardController extends Controller
     public function getRecentActivities()
     {
         try {
-            $recentBookings = $this->dashboardService->getRecentActivities(Auth::id());
-            $activities = collect($recentBookings)->map(function ($booking) {
-                return [
-                    'id' => $booking->id, 'type' => 'booking', 'action' => 'Booking update',
-                    'description' => 'Your booking for '.$booking->property->title.' - Room '.$booking->room->room_number.' is '.$booking->status,
-                    'status' => $booking->status, 'timestamp' => $booking->created_at, 'icon' => 'calendar',
-                    'color' => $booking->status === 'pending' ? 'yellow' : ($booking->status === 'confirmed' ? 'green' : 'gray'),
-                ];
-            });
+            $activities = $this->dashboardService->getRecentActivities(Auth::id());
 
             return response()->json($activities->values(), 200);
         } catch (\Exception $e) {
@@ -188,15 +180,7 @@ class TenantDashboardController extends Controller
                 $stats = $this->dashboardService->getStats($tenantId);
 
                 // 2. Recent activities
-                $recentBookings = $this->dashboardService->getRecentActivities($tenantId);
-                $activities = collect($recentBookings)->map(function ($booking) {
-                    return [
-                        'id' => $booking->id, 'type' => 'booking', 'action' => 'Booking update',
-                        'description' => 'Your booking for '.$booking->property->title.' - Room '.$booking->room->room_number.' is '.$booking->status,
-                        'status' => $booking->status, 'timestamp' => $booking->created_at, 'icon' => 'calendar',
-                        'color' => $booking->status === 'pending' ? 'yellow' : ($booking->status === 'confirmed' ? 'green' : 'gray'),
-                    ];
-                })->values();
+                $activities = $this->dashboardService->getRecentActivities($tenantId)->values();
 
                 // 3. Upcoming payments/check-ins
                 $upcomingRaw = $this->dashboardService->getUpcomingPayments($tenantId);

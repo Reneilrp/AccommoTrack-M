@@ -9,6 +9,7 @@ import { getDefaultLandingRoute } from '../utils/userRoutes.js';
 const PropertyDetailRoute  = lazy(() => import('./PropertyDetailRoute.jsx'));
 const PropertySummary      = lazy(() => import('../screens/Landlord/PropertySummary.jsx'));
 const CaretakerDashboard   = lazy(() => import('../screens/Landlord/CaretakerDashboard.jsx'));
+const DashboardPage        = lazy(() => import('../screens/Landlord/DashboardPage.jsx'));
 const MyProperties         = lazy(() => import('../screens/Landlord/MyProperties.jsx'));
 const RoomManagement       = lazy(() => import('../screens/Landlord/RoomManagement.jsx'));
 const LandlordMaintenance  = lazy(() => import('../screens/Landlord/LandlordMaintenance.jsx'));
@@ -34,6 +35,7 @@ export default function CaretakerNavigator({ user, onLogout, onUserUpdate }) {
     canManageTenants,
     canManageMessages,
     canManageAnalytics,
+    fullAccess,
   } = perms;
 
   const caretakerHome = getDefaultLandingRoute(user);
@@ -60,7 +62,10 @@ export default function CaretakerNavigator({ user, onLogout, onUserUpdate }) {
           <Route index element={<Navigate to={caretakerHome} replace />} />
           <Route
             path="dashboard"
-            element={withSuspense(<CaretakerDashboard user={user} />, 'Loading dashboard')}
+            element={withSuspense(
+              fullAccess ? <DashboardPage user={user} /> : <CaretakerDashboard user={user} />,
+              'Loading dashboard',
+            )}
           />
           <Route
             path="settings"
