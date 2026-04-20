@@ -532,10 +532,10 @@ export default function RoomManagement() {
       updateData.append('room_type', roomTypeMap[selectedRoom.type] || 'single');
       updateData.append('sex_restriction', selectedRoom.sexRestriction);
       updateData.append('floor', floorNumber);
-      updateData.append('monthly_rate', parseInt(selectedRoom.price, 10) || 0);
+      updateData.append('monthly_rate', Math.round(Number(selectedRoom.price)) || 0);
 
       if (selectedRoom.dailyRate !== undefined && selectedRoom.dailyRate !== '') {
-        updateData.append('daily_rate', parseInt(selectedRoom.dailyRate, 10) || 0);
+        updateData.append('daily_rate', Math.round(Number(selectedRoom.dailyRate)) || 0);
       }
       if (selectedRoom.billingPolicy) {
         updateData.append('billing_policy', selectedRoom.billingPolicy);

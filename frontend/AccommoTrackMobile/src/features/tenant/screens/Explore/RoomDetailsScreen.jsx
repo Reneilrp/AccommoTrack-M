@@ -1377,8 +1377,14 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
 
           {/* Price */}
           <View style={styles.priceContainer}>
-            <Text style={styles.price}>₱{(Number(activeRoom.monthly_rate) || 0).toLocaleString()}</Text>
-            <Text style={styles.priceLabel}>/month</Text>
+            <Text style={styles.price}>
+              ₱{(() => {
+                const isDaily = activeRoom.billing_policy === 'daily';
+                const rate = isDaily ? (activeRoom.daily_rate || Math.round(activeRoom.monthly_rate / 30)) : activeRoom.monthly_rate;
+                return (Number(rate) || 0).toLocaleString();
+              })()}
+            </Text>
+            <Text style={styles.priceLabel}>{activeRoom.billing_policy === 'daily' ? '/day' : '/month'}</Text>
           </View>
 
           {/* Tenancy Reminder */}
@@ -2133,6 +2139,11 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
                     {pricingBreakdown && pricingBreakdown.months > 0 && (
                       <Text style={[styles.summaryNote, { marginBottom: 2 }]}>
                         Rent: ₱{(Number(activeRoom.monthly_rate) || 0).toLocaleString()}/month × {pricingBreakdown.months}
+                      </Text>
+                    )}
+                    {pricingBreakdown && pricingBreakdown.remaining_days > 0 && (
+                      <Text style={[styles.summaryNote, { marginBottom: 2 }]}>
+                        Rent: ₱{(Number(activeRoom.daily_rate || Math.round(activeRoom.monthly_rate / 30)) || 0).toLocaleString()}/day × {pricingBreakdown.remaining_days}
                       </Text>
                     )}
                     {activeRoom.requires_advance && (

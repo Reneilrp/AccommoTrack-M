@@ -67,6 +67,8 @@ const transformPropertyDetailsPayload = (rawData) => {
         ...room,
         images: room.images || [],
         monthly_rate: parseFloat(room.monthly_rate) || 0,
+        daily_rate: parseFloat(room.daily_rate) || 0,
+        billing_policy: room.billing_policy || 'monthly',
         status: resolvedStatus,
         is_physically_available: isPhysicallyAvailable,
         is_tenant: room.is_tenant || false,
@@ -1439,7 +1441,12 @@ export default function PropertyDetailsScreen({
                             Room {room.room_number}
                           </Text>
                           <Text style={styles.roomPrice} numberOfLines={1}>
-                            ₱{room.monthly_rate.toLocaleString()}
+                            ₱{(() => {
+                              const amount = room.billing_policy === 'daily'
+                                ? (room.daily_rate || Math.round(room.monthly_rate / 30))
+                                : room.monthly_rate;
+                              return amount.toLocaleString();
+                            })()}
                           </Text>
                         </View>
 
@@ -1483,7 +1490,7 @@ export default function PropertyDetailsScreen({
                             )}
                           </View>
                           <Text style={styles.priceLabel} numberOfLines={1}>
-                            /month
+                            {room.billing_policy === 'daily' ? '/day' : '/month'}
                           </Text>
                         </View>
 

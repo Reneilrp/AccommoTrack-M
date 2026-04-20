@@ -258,6 +258,11 @@ export default function AddRoomModal({
   }
 
   const handleInputChange = (field, value) => {
+    // Auto-round price fields to integers
+    if (field === "monthlyRate" || field === "dailyRate") {
+      value = value ? Math.round(Number(value)) : "";
+    }
+
     let updated = { ...formData, [field]: value };
 
     // Auto-set capacity based on room type
@@ -614,7 +619,7 @@ export default function AddRoomModal({
       payload.append("sex_restriction", formData.sexRestriction);
       payload.append("floor", parseInt(formData.floor));
       if (bp === "monthly" || bp === "monthly_with_daily") {
-        const monthlyVal = parseFloat(formData.monthlyRate);
+        const monthlyVal = Math.round(Number(formData.monthlyRate));
         if (Number.isFinite(monthlyVal))
           payload.append("monthly_rate", monthlyVal);
       }
@@ -624,7 +629,7 @@ export default function AddRoomModal({
         parseInt(formData.capacity || 1),
       );
       if (bp === "daily" || bp === "monthly_with_daily") {
-        const dailyVal = parseFloat(formData.dailyRate);
+        const dailyVal = Math.round(Number(formData.dailyRate));
         if (Number.isFinite(dailyVal)) payload.append("daily_rate", dailyVal);
       }
       if (formData.billingPolicy)
@@ -892,7 +897,7 @@ export default function AddRoomModal({
                   }
                   className={`w-full px-2 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 dark:bg-gray-700 dark:text-white ${formData.billingPolicy === "daily" ? "bg-gray-50 dark:bg-gray-600" : ""} ${fieldErrors.monthlyRate ? "border-red-500" : "border-gray-300 dark:border-gray-600"}`}
                   min="0"
-                  step="0.01"
+                  step="1"
                   disabled={formData.billingPolicy === "daily"}
                 />
                 {fieldErrors.monthlyRate && <p className="text-red-500 text-xs mt-2">{fieldErrors.monthlyRate}</p>}
@@ -916,7 +921,7 @@ export default function AddRoomModal({
                   }
                   className={`w-full px-2 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 dark:bg-gray-700 dark:text-white ${!(formData.billingPolicy === "daily" || formData.billingPolicy === "monthly_with_daily") ? "bg-gray-50 dark:bg-gray-600" : ""} ${fieldErrors.dailyRate ? "border-red-500" : "border-gray-300 dark:border-gray-600"}`}
                   min="0"
-                  step="0.01"
+                  step="1"
                   disabled={
                     !(
                       formData.billingPolicy === "daily" ||

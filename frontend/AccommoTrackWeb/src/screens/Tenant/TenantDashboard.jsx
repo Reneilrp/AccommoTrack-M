@@ -9,6 +9,7 @@ import {
   CheckCircle2, AlertTriangle, ArrowRight, Zap, Droplets, Wifi
 } from 'lucide-react';
 import systemToggleService from '../../services/systemToggleService';
+import ActionCenter from './components/ActionCenter';
 
 const ROOM_COLORS = ['#22c55e', '#60a5fa', '#a78bfa', '#fbbf24', '#f87171'];
 const DEFAULT_TOGGLES = systemToggleService.getDefaults();
@@ -311,7 +312,7 @@ const TenantDashboard = ({ user }) => {
           {[
             { icon: Home, label: 'Active Rooms', value: '0', color: 'green' },
             { icon: Calendar, label: 'Days Stayed', value: '0', color: 'blue' },
-            { icon: Wallet, label: 'Monthly Rent', value: formatCurrency(0), color: 'purple' },
+            { icon: Zap, label: 'Monthly Rent', value: formatCurrency(0), color: 'purple' },
             { icon: CheckCircle2, label: 'All Paid Up', value: '0', color: 'green' },
           ].map((card, i) => (
             <div key={i} className="bg-white dark:bg-[#1e2332] border border-gray-200 dark:border-[#2a3045] rounded-[14px] p-6 relative overflow-hidden flex flex-col">
@@ -417,6 +418,86 @@ const TenantDashboard = ({ user }) => {
     }
   };
 
+  const activeAlerts = React.useMemo(() => {
+    const alerts = [];
+
+    // 1. Overdue Balance
+    if (!dismissedNotifications.overdueBalance && stats?.payments?.hasOverdueInvoices && unpaidBalance > 0) {
+      alerts.push({
+        id: 'overdue-balance',
+        priority: 'high',
+        type: 'payment',
+        title: 'Action Required: Balance Overdue',
+        message: `You have an outstanding balance of ${formatCurrency(unpaidBalance)} that is past its due date. Please settle it immediately.`,
+        actionText: !tenantPaymentsTempDisabled ? 'Pay Now' : null,
+        target: '/payments',
+        originalType: 'overdueBalance'
+      });
+    }
+
+    // 2. Balance Due
+    if (!dismissedNotifications.balanceDue && unpaidBalance > 0 && !stats?.payments?.hasOverdueInvoices) {
+      alerts.push({
+        id: 'balance-due',
+        priority: 'normal',
+        type: 'payment',
+        title: 'Action Required: Balance Due',
+        message: `You have an outstanding balance of ${formatCurrency(unpaidBalance)}. Please settle it to avoid late fees.`,
+        actionText: !tenantPaymentsTempDisabled ? 'Pay Now' : null,
+        target: '/payments',
+        originalType: 'balanceDue'
+      });
+    }
+
+    // 3. Pending Check-Ins
+    if (pendingCheckIns.length > 0) {
+      pendingCheckIns
+        .filter(pending => !dismissedNotifications.pendingCheckIns.includes(pending.id))
+        .forEach(pending => {
+          alerts.push({
+            id: `pending-checkin-${pending.id}`,
+            priority: pending.status === 'confirmed' ? 'high' : 'normal',
+            type: 'booking',
+            title: pending.status === 'confirmed' ? 'Action Required: Check-in Overdue' : 'Stay Starting: Approval Pending',
+            message: pending.status === 'confirmed'
+              ? `Your stay at ${pending.property} was scheduled to start on ${formatDate(pending.startDate)}. Please contact your landlord.`
+              : `Your booking for ${pending.property} was set to start on ${formatDate(pending.startDate)}, but it's still awaiting landlord approval.`,
+            actionText: 'View Booking',
+            target: '/bookings',
+            originalType: 'pendingCheckIns',
+            originalId: pending.id
+          });
+        });
+    }
+
+    // 4. Upcoming Bookings
+    if (!dismissedNotifications.upcomingBooking && upcomingBooking) {
+      alerts.push({
+        id: 'upcoming-booking',
+        priority: 'low',
+        type: 'booking',
+        title: `Upcoming Stay at ${upcomingBooking.property}`,
+        message: `Begins on ${formatDate(upcomingBooking.startDate)}`,
+        actionText: 'View',
+        target: '/bookings',
+        originalType: 'upcomingBooking'
+      });
+    }
+
+    return alerts;
+  }, [
+    dismissedNotifications, stats, unpaidBalance, pendingCheckIns,
+    upcomingBooking, tenantPaymentsTempDisabled, formatCurrency, formatDate
+  ]);
+
+  const handleAlertDismiss = (alert) => {
+    dismissNotification(alert.originalType, alert.originalId);
+  };
+
+  const handleAlertAction = (alert) => {
+    if (alert.target) navigate(alert.target);
+  };
+
   // ════════════════════════════════════════════════════════════════════════════
   // RENDER
   // ════════════════════════════════════════════════════════════════════════════
@@ -424,155 +505,12 @@ const TenantDashboard = ({ user }) => {
     <div className="min-h-screen bg-transparent dark:bg-gray-900 p-4 md:p-6 space-y-8 font-sans">
 
 
-      {/* ── High Priority Action Notification (Unpaid/Overdue Balance) ── */}
-      {!dismissedNotifications.overdueBalance && stats?.payments?.hasOverdueInvoices && unpaidBalance > 0 && (
-        <div className="bg-red-50 dark:bg-gradient-to-r dark:from-red-500/15 dark:to-[#1e2332] border border-red-200 dark:border-red-500/30 rounded-[16px] p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-6 shadow-sm">
-          <div className="flex items-start md:items-center gap-4">
-            <div className="bg-red-100 dark:bg-red-500/20 p-4 rounded-full flex-shrink-0 mt-2 md:mt-0">
-              <AlertCircle className="w-7 h-7 text-red-600 dark:text-red-400" />
-            </div>
-            <div>
-              <h2 className="text-lg font-bold text-red-800 dark:text-red-100">Action Required: Balance Overdue</h2>
-              <p className="text-[15px] text-red-700 dark:text-red-200/80 mt-2 leading-snug">
-                You have an outstanding balance of <span className="font-bold text-red-800 dark:text-red-300">{formatCurrency(unpaidBalance)}</span> that is past its due date. Please settle it immediately.
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-3">
-            {!tenantPaymentsTempDisabled && (
-              <button
-                onClick={() => navigate('/payments')}
-                className="w-full md:w-auto px-8 py-4.5 bg-red-500 hover:bg-red-600 text-white font-bold rounded-xl transition-colors shadow-lg shadow-red-500/20 flex items-center justify-center gap-2"
-              >
-                Pay Now <ArrowRight className="w-4 h-4" />
-              </button>
-            )}
-            <button
-              onClick={() => dismissNotification('overdueBalance')}
-              className="w-8 h-8 rounded-full border border-red-200 dark:border-red-500/30 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-500/20 transition-colors flex-shrink-0"
-              aria-label="Close overdue balance notification"
-            >
-              ×
-            </button>
-          </div>
-        </div>
-      )}
-
-      {!dismissedNotifications.balanceDue && unpaidBalance > 0 && !stats?.payments?.hasOverdueInvoices && (
-        <div className="bg-amber-50 dark:bg-gradient-to-r dark:from-amber-500/15 dark:to-[#1e2332] border border-amber-200 dark:border-amber-500/30 rounded-[16px] p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-6 shadow-sm">
-          <div className="flex items-start md:items-center gap-4">
-            <div className="bg-amber-100 dark:bg-amber-500/20 p-4 rounded-full flex-shrink-0 mt-2 md:mt-0">
-              <AlertCircle className="w-7 h-7 text-amber-600 dark:text-amber-400" />
-            </div>
-            <div>
-              <h2 className="text-lg font-bold text-amber-800 dark:text-amber-100">Action Required: Balance Due</h2>
-              <p className="text-[15px] text-amber-700 dark:text-amber-200/80 mt-2 leading-snug">
-                You have an outstanding balance of <span className="font-bold text-amber-800 dark:text-amber-300">{formatCurrency(unpaidBalance)}</span>. Please settle it to avoid late fees.
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-3">
-            {!tenantPaymentsTempDisabled && (
-              <button
-                onClick={() => navigate('/payments')}
-                className="w-full md:w-auto px-8 py-4.5 bg-amber-500 hover:bg-amber-600 text-white font-bold rounded-xl transition-colors shadow-lg shadow-amber-500/20 flex items-center justify-center gap-2"
-              >
-                Pay Now <ArrowRight className="w-4 h-4" />
-              </button>
-            )}
-            <button
-              onClick={() => dismissNotification('balanceDue')}
-              className="w-8 h-8 rounded-full border border-amber-200 dark:border-amber-500/30 text-amber-600 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-500/20 transition-colors flex-shrink-0"
-              aria-label="Close balance due notification"
-            >
-              ×
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* ── Pending Check-In Alert (Overdue for move-in) ── */}
-      {pendingCheckIns.length > 0 && pendingCheckIns
-        .filter(pending => !dismissedNotifications.pendingCheckIns.includes(pending.id))
-        .map(pending => (
-          <div key={pending.id} className={pending.status === 'confirmed'
-            ? "bg-red-50 dark:bg-gradient-to-r dark:from-red-500/15 dark:to-[#1e2332] border border-red-200 dark:border-red-500/30 rounded-[16px] p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-6 shadow-sm mb-4"
-            : "bg-orange-50 dark:bg-gradient-to-r dark:from-orange-500/15 dark:to-[#1e2332] border border-orange-200 dark:border-orange-500/30 rounded-[16px] p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-6 shadow-sm mb-4"
-          }>
-            <div className="flex items-start md:items-center gap-4">
-              <div className={pending.status === 'confirmed'
-                ? "bg-red-100 dark:bg-red-500/20 p-4 rounded-full flex-shrink-0 mt-2 md:mt-0"
-                : "bg-orange-100 dark:bg-orange-500/20 p-4 rounded-full flex-shrink-0 mt-2 md:mt-0"
-              }>
-                <AlertCircle className={pending.status === 'confirmed' ? "w-7 h-7 text-red-600 dark:text-red-400" : "w-7 h-7 text-orange-600 dark:text-orange-400"} />
-              </div>
-              <div>
-                <h2 className={pending.status === 'confirmed' ? "text-lg font-bold text-red-800 dark:text-red-100" : "text-lg font-bold text-orange-800 dark:text-orange-100"}>
-                  {pending.status === 'confirmed' ? 'Action Required: Check-in Overdue' : 'Stay Starting: Approval Pending'}
-                </h2>
-                <p className={pending.status === 'confirmed' ? "text-[15px] text-red-700 dark:text-red-200/80 mt-2 leading-snug" : "text-[15px] text-orange-700 dark:text-orange-200/80 mt-2 leading-snug"}>
-                  {pending.status === 'confirmed'
-                    ? `Your stay at ${pending.property} was scheduled to start on ${formatDate(pending.startDate)}. Please contact your landlord to finalize your check-in.`
-                    : `Your booking for ${pending.property} was set to start on ${formatDate(pending.startDate)}, but it's still awaiting landlord approval.`
-                  }
-                </p>
-              </div>
-            </div>
-            <div className="flex items-center gap-3">
-              <button
-                onClick={() => navigate('/bookings')}
-                className={pending.status === 'confirmed'
-                  ? "w-full md:w-auto px-8 py-4.5 bg-red-500 hover:bg-red-600 text-white font-bold rounded-xl transition-colors shadow-lg shadow-red-500/20 flex items-center justify-center gap-2"
-                  : "w-full md:w-auto px-8 py-4.5 bg-orange-500 hover:bg-orange-600 text-white font-bold rounded-xl transition-colors shadow-lg shadow-orange-500/20 flex items-center justify-center gap-2"
-                }
-              >
-                View Booking <ArrowRight className="w-4 h-4" />
-              </button>
-              <button
-                onClick={() => dismissNotification('pendingCheckIns', pending.id)}
-                className={pending.status === 'confirmed'
-                  ? "w-8 h-8 rounded-full border border-red-200 dark:border-red-500/30 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-500/20 transition-colors flex-shrink-0"
-                  : "w-8 h-8 rounded-full border border-orange-200 dark:border-orange-500/30 text-orange-600 dark:text-orange-400 hover:bg-orange-100 dark:hover:bg-orange-500/20 transition-colors flex-shrink-0"
-                }
-                aria-label="Close pending check-in notification"
-              >
-                ×
-              </button>
-            </div>
-          </div>
-        ))}
-
-      {/* ── Upcoming Booking Alert ── */}
-      {!dismissedNotifications.upcomingBooking && upcomingBooking && (
-        <div className="bg-blue-50 dark:bg-gradient-to-r dark:from-blue-500/15 dark:to-[#1e2332] border border-blue-200 dark:border-blue-500/30 rounded-[16px] p-6 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <div className="bg-blue-100 dark:bg-blue-500/20 p-4 rounded-full flex-shrink-0">
-              <CalendarClock className="w-6 h-6 text-blue-600 dark:text-blue-400" />
-            </div>
-            <div>
-              <h2 className="text-[16px] font-bold text-blue-900 dark:text-blue-100">Upcoming Stay at {upcomingBooking.property}</h2>
-              <p className="text-[14px] text-blue-700 dark:text-blue-200/80 mt-0.5">
-                Begins on <span className="font-semibold">{formatDate(upcomingBooking.startDate)}</span>
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => navigate('/bookings')}
-              className="px-6 py-2.5 bg-white dark:bg-[#1e2332] text-blue-700 dark:text-blue-300 font-bold rounded-xl border border-blue-200 dark:border-blue-500/30 hover:bg-blue-50 dark:hover:bg-blue-500/10 transition-colors"
-            >
-              View
-            </button>
-            <button
-              onClick={() => dismissNotification('upcomingBooking')}
-              className="w-8 h-8 rounded-full border border-blue-200 dark:border-blue-500/30 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-500/20 transition-colors flex-shrink-0"
-              aria-label="Close upcoming booking notification"
-            >
-              ×
-            </button>
-          </div>
-        </div>
-      )}
+      {/* Action required & Notifications Recap */}
+      <ActionCenter
+        alerts={activeAlerts}
+        onDismiss={handleAlertDismiss}
+        onAction={handleAlertAction}
+      />
 
       {/* ── Stat Cards Grid (Read Only) ── */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mt-[-10px]">

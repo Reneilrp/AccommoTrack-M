@@ -1,5 +1,5 @@
 export function formatPrice(value, { currency = 'PHP', locale = 'en-PH', minimumFractionDigits = 0 } = {}) {
-  const num = Number(value);
+  const num = Math.round(Number(value));
   if (!Number.isFinite(num)) return formatZero(currency);
 
   // For PHP show zero decimal places by default, but allow 2 decimals when cents are present

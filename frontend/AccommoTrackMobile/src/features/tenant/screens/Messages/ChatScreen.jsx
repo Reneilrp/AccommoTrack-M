@@ -554,7 +554,7 @@ export default function ChatScreen({ navigation, route }) {
                     ) : (
                         messages.map((msg) => {
                             // Local fallback for isMine calculation
-                            const isMine = msg.is_mine || (currentUserId && String(msg.sender_id) === String(currentUserId));
+                            const isMine = msg.is_mine || (currentUserId && String(msg.actual_sender_id || msg.sender_id) === String(currentUserId));
                             const isCaretakerMessage = msg.sender_role === 'caretaker';
                             const actualSenderName = msg.actual_sender ? `${msg.actual_sender.first_name} ${msg.actual_sender.last_name}` : 'Caretaker';
                             const isUnsent = Boolean(msg.is_unsent);

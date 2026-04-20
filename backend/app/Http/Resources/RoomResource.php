@@ -29,7 +29,7 @@ class RoomResource extends JsonResource
             'type_label' => $this->getRoomTypeLabel($this->room_type),
             'monthly_rate' => (string) $this->monthly_rate,
             'daily_rate' => isset($this->daily_rate) ? (string) $this->daily_rate : null,
-            'unit_price' => (float) ($this->billing_policy === 'daily' ? ($this->daily_rate ?? ($this->monthly_rate / 30)) : $this->monthly_rate),
+            'unit_price' => (float) round($this->billing_policy === 'daily' ? ($this->daily_rate ?? ($this->monthly_rate / 30)) : $this->monthly_rate),
             'billing_policy' => $this->billing_policy ?? 'monthly',
             'pricing_model' => $this->pricing_model ?? 'full_room',
             'duration_pricing' => $durationPricing,
