@@ -74,6 +74,7 @@ class TenantPaymentController extends Controller
                             default => ucfirst($invoice->status)
                         },
                         'statusRaw' => $invoice->status,
+                        'is_archived' => (bool) $invoice->is_archived,
                         'method' => $lastTx ? ucfirst(str_replace('paymongo_', '', $lastTx->method)) : 'N/A',
                         'referenceNo' => $lastTx->gateway_reference ?? ($invoice->reference ?? 'N/A'),
                         'transactions' => $invoice->transactions->map(function ($tx) {

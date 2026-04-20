@@ -7,7 +7,7 @@ import {
 import { paymentService } from '../../services/paymentService';
 import { invoiceService } from '../../services/invoiceService';
 import systemToggleService from '../../services/systemToggleService';
-import { showSuccess, showError } from '../../utils/toast';
+import { showSuccess, showError, showLoading } from '../../utils/toast';
 
 const DEFAULT_TOGGLES = systemToggleService.getDefaults();
 
@@ -141,7 +141,7 @@ export default function TenantPaymentLogs({ _user }) {
     setError(null);
     try {
       const [allRes, archiveRes] = await Promise.all([
-        paymentService.getPayments('all', 'all'),
+        paymentService.getPayments('all', 'active'),
         paymentService.getPayments('all', 'archived'),
       ]);
 
