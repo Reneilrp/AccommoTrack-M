@@ -249,7 +249,7 @@ export default function RoomManagementScreen({ navigation, route }) {
   const [statusTarget, setStatusTarget] = useState(null);
   const [floorSelectModalVisible, setFloorSelectModalVisible] = useState(false);
   const [roomTypeSelectModalVisible, setRoomTypeSelectModalVisible] = useState(false);
-  const [genderSelectModalVisible, setGenderSelectModalVisible] = useState(false);
+  const [sexRestrictionSelectModalVisible, setSexRestrictionSelectModalVisible] = useState(false);
   const [billingPolicySelectModalVisible, setBillingPolicySelectModalVisible] = useState(false);
   const [promoTermSelectModalVisible, setPromoTermSelectModalVisible] = useState(false);
   const [activePromoTerm, setActivePromoTerm] = useState(null);
@@ -428,7 +428,7 @@ export default function RoomManagementScreen({ navigation, route }) {
     return ALL_ROOM_TYPES.filter((rt) => rt.value !== "bedSpacer");
   }, [isApartment, isBedSpacerProperty, isDormitory, isBoarding]);
 
-  const genderOptions = useMemo(
+  const sexRestrictionOptions = useMemo(
     () => [
       { label: "Boys", value: "male" },
       { label: "Girls", value: "female" },
@@ -605,7 +605,7 @@ export default function RoomManagementScreen({ navigation, route }) {
       formData.sexRestriction,
       fallbackGender,
     );
-    const allowedGenders = new Set(genderOptions.map((option) => option.value));
+    const allowedGenders = new Set(sexRestrictionOptions.map((option) => option.value));
 
     if (!allowedGenders.has(normalizedGender)) {
       handleInputChange("sexRestriction", fallbackGender);
@@ -617,7 +617,7 @@ export default function RoomManagementScreen({ navigation, route }) {
     }
   }, [
     formData.sexRestriction,
-    genderOptions,
+    sexRestrictionOptions,
     isApartment,
     propertySex,
     handleInputChange,
@@ -1749,7 +1749,7 @@ export default function RoomManagementScreen({ navigation, route }) {
                   disabled={propertySex !== "mixed"}
                   onPress={() => {
                     if (propertySex === "mixed") {
-                      setGenderSelectModalVisible(true);
+                      setSexRestrictionSelectModalVisible(true);
                     }
                   }}
                 >
@@ -2364,17 +2364,17 @@ export default function RoomManagementScreen({ navigation, route }) {
       </Modal>
 
       <Modal
-        visible={genderSelectModalVisible}
+        visible={sexRestrictionSelectModalVisible}
         transparent
         animationType="fade"
         statusBarTranslucent={true}
         navigationBarTranslucent={true}
         presentationStyle="overFullScreen"
-        onRequestClose={() => setGenderSelectModalVisible(false)}
+        onRequestClose={() => setSexRestrictionSelectModalVisible(false)}
       >
         <Pressable
           style={styles.statusModalOverlay}
-          onPress={() => setGenderSelectModalVisible(false)}
+          onPress={() => setSexRestrictionSelectModalVisible(false)}
         >
           <Pressable style={styles.statusSheet} onPress={() => { }}>
             <Text style={[styles.sectionTitle, { marginTop: 0, marginBottom: 20 }]}>Select Sex</Text>
@@ -2393,7 +2393,7 @@ export default function RoomManagementScreen({ navigation, route }) {
                   style={[styles.statusOption, isLast && styles.statusOptionLast]}
                   onPress={() => {
                     handleInputChange("sexRestriction", option.value);
-                    setGenderSelectModalVisible(false);
+                    setSexRestrictionSelectModalVisible(false);
                   }}
                 >
                   <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
@@ -2405,7 +2405,7 @@ export default function RoomManagementScreen({ navigation, route }) {
             })}
             <TouchableOpacity
               style={[styles.statusOption, styles.statusOptionLast]}
-              onPress={() => setGenderSelectModalVisible(false)}
+              onPress={() => setSexRestrictionSelectModalVisible(false)}
             >
               <Text style={[styles.statusOptionText, { color: "#EF4444" }]}>Cancel</Text>
             </TouchableOpacity>

@@ -150,7 +150,7 @@ export default function TenantHomePage({
     { label: "Bed Spacer", value: "bedSpacer" },
   ];
 
-  const genderOptions = [
+  const sexOptions = [
     { label: "All", value: "All" },
     { label: "Mixed", value: "mixed" },
     { label: "Boys Only", value: "male" },
@@ -989,7 +989,7 @@ export default function TenantHomePage({
                   Sex Restriction
                 </Text>
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
-                  {genderOptions.map((opt) => {
+                  {sexOptions.map((opt) => {
                     const isSelected = (draftAdvancedFilters.sex || 'All') === opt.value;
                     return (
                       <TouchableOpacity

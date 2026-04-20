@@ -42,7 +42,7 @@ const PROPERTY_TYPES = [
   { label: "Others", value: "others" },
 ];
 
-const GENDER_OPTIONS = [
+const SEX_RESTRICTION_OPTIONS = [
   { label: "Mixed (Any Sex)", value: "mixed" },
   { label: "Boys Only", value: "male" },
   { label: "Girls Only", value: "female" },
@@ -132,7 +132,7 @@ export default function AddProperty({ navigation }) {
   const [saving, setSaving] = useState(false);
   const [scrollEnabled, setScrollEnabled] = useState(true);
   const [propertyTypeModalVisible, setPropertyTypeModalVisible] = useState(false);
-  const [genderModalVisible, setGenderModalVisible] = useState(false);
+  const [sexRestrictionModalVisible, setSexRestrictionModalVisible] = useState(false);
   const [error, setError] = useState("");
   const [successModal, setSuccessModal] = useState({
     visible: false,
@@ -914,10 +914,10 @@ export default function AddProperty({ navigation }) {
                   <TouchableOpacity
                     testID="add-property-sex-picker"
                     style={styles.selectTrigger}
-                    onPress={() => setGenderModalVisible(true)}
+                    onPress={() => setSexRestrictionModalVisible(true)}
                   >
                     <Text style={styles.selectTriggerText}>
-                      {getOptionLabel(GENDER_OPTIONS, form.sexRestriction, "Select sex restriction")}
+                      {getOptionLabel(SEX_RESTRICTION_OPTIONS, form.sexRestriction, "Select sex restriction")}
                     </Text>
                     <Ionicons name="chevron-down" size={18} color={theme.colors.textSecondary} />
                   </TouchableOpacity>
@@ -1782,19 +1782,19 @@ export default function AddProperty({ navigation }) {
       </Modal>
 
       <Modal
-        visible={genderModalVisible}
+        visible={sexRestrictionModalVisible}
         transparent
         animationType="fade"
         statusBarTranslucent
         navigationBarTranslucent
         presentationStyle="overFullScreen"
-        onRequestClose={() => setGenderModalVisible(false)}
+        onRequestClose={() => setSexRestrictionModalVisible(false)}
       >
-        <Pressable style={styles.statusModalOverlay} onPress={() => setGenderModalVisible(false)}>
+        <Pressable style={styles.statusModalOverlay} onPress={() => setSexRestrictionModalVisible(false)}>
           <Pressable style={styles.statusSheet} onPress={() => { }}>
             <Text style={[styles.sectionTitle, { marginTop: 0, marginBottom: 20 }]}>Select Sex Restriction</Text>
-            {GENDER_OPTIONS.map((option, index) => {
-              const isLast = index === GENDER_OPTIONS.length - 1;
+            {SEX_RESTRICTION_OPTIONS.map((option, index) => {
+              const isLast = index === SEX_RESTRICTION_OPTIONS.length - 1;
               const isActive = option.value === form.sexRestriction;
               return (
                 <TouchableOpacity
@@ -1802,7 +1802,7 @@ export default function AddProperty({ navigation }) {
                   style={[styles.statusOption, isLast && styles.statusOptionLast]}
                   onPress={() => {
                     updateForm("sexRestriction", option.value);
-                    setGenderModalVisible(false);
+                    setSexRestrictionModalVisible(false);
                   }}
                 >
                   <Text style={styles.statusOptionText}>{option.label}</Text>
@@ -1812,7 +1812,7 @@ export default function AddProperty({ navigation }) {
             })}
             <TouchableOpacity
               style={[styles.statusOption, styles.statusOptionLast]}
-              onPress={() => setGenderModalVisible(false)}
+              onPress={() => setSexRestrictionModalVisible(false)}
             >
               <Text style={[styles.statusOptionText, { color: "#EF4444" }]}>Cancel</Text>
             </TouchableOpacity>

@@ -293,11 +293,13 @@ describe('Landlord smoke flows', () => {
     const propertyTypePicker = screen.getByTestId('add-property-type-picker');
     fireEvent(propertyTypePicker, 'valueChange', 'dormitory');
 
-    const genderPicker = await screen.findByTestId('add-property-sex-picker');
-    expect(genderPicker).toBeTruthy();
+    const sexRestrictionTrigger = await screen.findByTestId('add-property-sex-picker');
+    expect(sexRestrictionTrigger).toBeTruthy();
 
-    fireEvent(genderPicker, 'valueChange', 'female');
-    expect(screen.getByTestId('add-property-sex-picker')).toBeTruthy();
+    fireEvent.press(sexRestrictionTrigger);
+    const girlsOnlyOption = await screen.findByText('Girls Only');
+    fireEvent.press(girlsOnlyOption);
+    expect(screen.queryByText('Select Sex Restriction')).toBeNull(); // Modal closed
 
     fireEvent(propertyTypePicker, 'valueChange', 'apartment');
     await waitFor(() => {

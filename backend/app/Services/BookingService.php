@@ -112,7 +112,7 @@ class BookingService
             DB::commit();
 
             return [
-                'bookings' => collect($bookings)->load(['property', 'tenant', 'room', 'occupants'])->toArray(),
+                'bookings' => (new \App\Models\Booking)->newCollection($bookings)->load(['property', 'tenant', 'room', 'occupants'])->toArray(),
                 'reservation_invoice' => $reservationInvoice,
                 'booking_group_reference' => $bookingGroupReference,
             ];

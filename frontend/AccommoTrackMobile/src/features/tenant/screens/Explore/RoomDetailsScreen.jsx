@@ -101,6 +101,7 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
   const [propertyData, setPropertyData] = useState(property || null);
   const [roomData, setRoomData] = useState(room || null);
   const [receiptImage, setReceiptImage] = useState(null);
+  const [agreedToRules, setAgreedToRules] = useState(false);
   const [selectedAddons, setSelectedAddons] = useState([]);
 
   const { data: profileResult } = useQuery({
@@ -1033,13 +1034,8 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
         }
       }
 
-      if (!isCartMode && isReservationRequired && manualGcashReservationDisabled && bookingData.payment_method !== 'online') {
-        showError('Required', 'Please select Online (PayMongo) as your payment method to complete the reservation.');
-        return;
-      }
-
-      if (!isCartMode && isReservationRequired && !manualGcashReservationDisabled && !receiptImage) {
-        showError('Required', 'Please attach your GCash receipt to confirm your reservation.');
+      if (!agreedToRules) {
+        showError('Agreement Required', 'Please read and agree to the Room Rules and policies to proceed.');
         return;
       }
 
@@ -1056,38 +1052,37 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
 
       setIsSubmitting(true);
 
-      const data = new FormData();
+      const payload = {
+        room_id: activeRoom.id,
+        booking_mode: bookingMode,
+        start_date: bookingData.start_date.toISOString().split('T')[0],
+        end_date: bookingData.end_date ? bookingData.end_date.toISOString().split('T')[0] : null,
+        contract_mode: isDailyContract ? 'daily' : 'monthly',
+        payment_method: bookingData.payment_method || 'cash',
+        payment_plan: isDailyContract ? 'full' : bookingData.payment_plan,
+        notes: bookingData.notes || '',
+        agreed_to_rules: true,
+      };
 
+      if (selectedAddons && selectedAddons.length > 0) {
+        payload.addons = selectedAddons;
+      }
+
+      if (bookingMode === 'proxy') {
+        const inferredBedCount = Math.max(1, normalizedOccupants.length);
+        payload.bed_count = inferredBedCount;
+        payload.occupants = normalizedOccupants.map(occupant => ({
+          first_name: occupant.first_name,
+          middle_name: occupant.middle_name || null,
+          last_name: occupant.last_name,
+          date_of_birth: occupant.date_of_birth,
+          sex: occupant.sex,
+          relationship_to_booker: occupant.relationship_to_booker,
+          phone: occupant.phone || '',
+          email: occupant.email || '',
+        }));
+      }
       if (isCartMode) {
-        let occupantsPayload = undefined;
-        if (bookingMode === 'proxy') {
-          occupantsPayload = normalizedOccupants.map((o, index) => ({
-            first_name: o.first_name,
-            middle_name: o.middle_name || null,
-            last_name: o.last_name,
-            sex: o.sex,
-            date_of_birth: o.date_of_birth,
-            relationship_to_booker: o.relationship_to_booker,
-            phone: o.phone || '',
-            email: o.email || '',
-            bed_number: index + 1,
-          }));
-        }
-
-        let payload = {
-          room_id: activeRoom.id,
-          booking_mode: bookingMode,
-          start_date: bookingData.start_date.toISOString().split('T')[0],
-          end_date: bookingData.end_date ? bookingData.end_date.toISOString().split('T')[0] : null,
-          contract_mode: isDailyContract ? 'daily' : 'monthly',
-          payment_method: bookingData.payment_method || 'cash',
-          payment_plan: isDailyContract ? 'full' : bookingData.payment_plan,
-          bed_count: bookingMode === 'proxy' ? Math.max(1, normalizedOccupants.length) : 1,
-          notes: bookingData.notes || '',
-          occupants: occupantsPayload,
-          addons: selectedAddons,
-        };
-
         const result = await CartService.addToCart(payload);
         if (result.success) {
           DeviceEventEmitter.emit('accommo:cart-updated');
@@ -1113,53 +1108,7 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
         return;
       }
 
-      data.append('room_id', activeRoom.id);
-      data.append('booking_mode', bookingMode);
-      data.append('start_date', bookingData.start_date.toISOString().split('T')[0]);
-      if (bookingData.end_date) data.append('end_date', bookingData.end_date.toISOString().split('T')[0]);
-      data.append('contract_mode', isDailyContract ? 'daily' : 'monthly');
-      data.append('payment_method', bookingData.payment_method || 'cash');
-      data.append('payment_plan', isDailyContract ? 'full' : bookingData.payment_plan);
-      if (bookingData.notes) data.append('notes', bookingData.notes);
-      
-      if (selectedAddons && selectedAddons.length > 0) {
-        selectedAddons.forEach((addonId, index) => {
-          data.append(`addons[${index}]`, String(addonId));
-        });
-      }
-
-      if (bookingMode === 'proxy') {
-        const inferredBedCount = Math.max(1, normalizedOccupants.length);
-        data.append('bed_count', String(inferredBedCount));
-
-        normalizedOccupants.forEach((occupant, index) => {
-          data.append(`occupants[${index}][first_name]`, occupant.first_name);
-          if (occupant.middle_name) data.append(`occupants[${index}][middle_name]`, occupant.middle_name);
-          data.append(`occupants[${index}][last_name]`, occupant.last_name);
-          data.append(`occupants[${index}][date_of_birth]`, occupant.date_of_birth);
-          data.append(`occupants[${index}][sex]`, occupant.sex);
-          data.append(`occupants[${index}][relationship_to_booker]`, occupant.relationship_to_booker);
-          if (occupant.phone) data.append(`occupants[${index}][phone]`, occupant.phone);
-          if (occupant.email) data.append(`occupants[${index}][email]`, occupant.email);
-        });
-      }
-
-      if (isReservationRequired && receiptImage) {
-        const proofUri = receiptImage.uri;
-        const proofName = receiptImage.name || receiptImage.fileName || proofUri.split('/').pop() || 'receipt.jpg';
-        const proofType = receiptImage.mimeType || receiptImage.type || 'image/jpeg';
-
-        data.append('receipt_image', {
-          uri: proofUri,
-          name: proofName,
-          type: proofType
-        });
-      }
-
-      console.log('Submitting booking:', data);
-
-      // Create the booking first
-      const result = await BookingService.createBooking(data);
+      const result = await BookingService.createBooking(payload);
 
       if (result.success) {
         const bookingResponse = result.data || {};
@@ -2183,69 +2132,32 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
                     </View>
                   )}
 
-                  {!isCartMode && isReservationRequired && (
-                    <View style={{ marginTop: 24, padding: 12, backgroundColor: theme.colors.surface || '#f8fafc', borderRadius: 8, borderWidth: 1, borderColor: theme.colors.border || '#e2e8f0' }}>
-                      <Text style={{ fontSize: 14, fontWeight: 'bold', color: theme.colors.text, marginBottom: 8 }}>
-                        <Ionicons name="warning-outline" size={14} /> Reservation Payment Required
-                      </Text>
-                      <Text style={{ fontSize: 13, color: theme.colors.textSecondary, marginBottom: 16 }}>
-                        {manualGcashReservationDisabled
-                          ? `This property requires a ₱${reservationFeeAmount.toLocaleString()} reservation fee paid online via PayMongo.`
-                          : `This property requires a ₱${reservationFeeAmount.toLocaleString()} reservation fee paid manually via GCash.`}
-                      </Text>
-
-                      {isManualGcashReservationFlow ? (
-                        <>
-                          <View style={{ backgroundColor: theme.colors.card || '#fff', padding: 12, borderRadius: 8, marginBottom: 16 }}>
-                            <Text style={{ fontSize: 12, color: theme.colors.textSecondary, marginBottom: 4 }}>GCash Account Details:</Text>
-                            <Text style={{ fontSize: 14, fontWeight: 'bold', color: theme.colors.text }}>{gcashName || 'Not Provided'}</Text>
-                            <Text style={{ fontSize: 16, fontWeight: 'bold', color: theme.colors.primary, marginVertical: 4 }}>{gcashNumber || 'Not Provided'}</Text>
-                            {gcashQrPath ? (
-                              <TouchableOpacity style={{ marginTop: 8 }} onPress={() => Linking.openURL(getRoomImageUrl(gcashQrPath))}>
-                                <Text style={{ color: theme.colors.primary, fontSize: 13, fontWeight: 'bold' }}>View QR Code</Text>
-                              </TouchableOpacity>
-                            ) : null}
-                          </View>
-
-                          <Text style={{ fontSize: 13, fontWeight: 'bold', color: theme.colors.text, marginBottom: 8 }}>Upload Receipt <Text style={{ color: theme.colors.error }}>*</Text></Text>
-                          <TouchableOpacity
-                            style={{
-                              height: 120,
-                              borderWidth: 2,
-                              borderColor: receiptImage ? theme.colors.primary : (theme.colors.border || '#cbd5e1'),
-                              borderStyle: 'dashed',
-                              borderRadius: 12,
-                              justifyContent: 'center',
-                              alignItems: 'center',
-                              backgroundColor: receiptImage ? (theme.colors.primary + '10') : 'transparent'
-                            }}
-                            onPress={pickReceiptImage}
-                          >
-                            {receiptImage ? (
-                              <>
-                                <Image source={{ uri: receiptImage.uri }} style={{ width: '100%', height: '100%', borderRadius: 10, position: 'absolute' }} opacity={0.3} resizeMode="cover" />
-                                <Ionicons name="checkmark-circle" size={32} color={theme.colors.primary} />
-                                <Text style={{ fontSize: 12, fontWeight: 'bold', color: theme.colors.primary, marginTop: 4 }}>Receipt Attached</Text>
-                                <Text style={{ fontSize: 10, color: theme.colors.primary }}>Tap to change</Text>
-                              </>
-                            ) : (
-                              <>
-                                <Ionicons name="cloud-upload-outline" size={32} color={theme.colors.textTertiary || '#94a3b8'} />
-                                <Text style={{ fontSize: 12, fontWeight: 'bold', color: theme.colors.textSecondary, marginTop: 8 }}>Tap to upload GCash receipt</Text>
-                                <Text style={{ fontSize: 10, color: theme.colors.textTertiary, marginTop: 4 }}>PNG, JPG up to 5MB</Text>
-                              </>
-                            )}
-                          </TouchableOpacity>
-                        </>
-                      ) : (
-                        <View style={{ backgroundColor: theme.colors.card || '#fff', padding: 12, borderRadius: 8 }}>
-                          <Text style={{ fontSize: 12, color: theme.colors.textSecondary }}>
-                            Manual GCash upload is unavailable for reservation fees. Continue using Online (PayMongo) to proceed.
-                          </Text>
-                        </View>
-                      )}
-                    </View>
-                  )}
+              {/* Agreement Checkbox */}
+              <View style={styles.inputContainer}>
+                <TouchableOpacity
+                  style={{ flexDirection: 'row', alignItems: 'center' }}
+                  onPress={() => setAgreedToRules(!agreedToRules)}
+                >
+                  <View
+                    style={{
+                      width: 24,
+                      height: 24,
+                      borderRadius: 4,
+                      borderWidth: 2,
+                      borderColor: agreedToRules ? theme.colors.primary : theme.colors.border,
+                      backgroundColor: agreedToRules ? theme.colors.primary : 'transparent',
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                      marginRight: 10,
+                    }}
+                  >
+                    {agreedToRules && <Ionicons name="checkmark" size={16} color="#fff" />}
+                  </View>
+                  <Text style={{ fontSize: 13, color: theme.colors.text, flex: 1 }}>
+                    I have read and agree to the Room Rules and policies. <Text style={{ color: theme.colors.primary }}>*</Text>
+                  </Text>
+                </TouchableOpacity>
+              </View>
 
                   <View style={{ marginTop: 8 }}>
                     {pricingBreakdown && pricingBreakdown.months > 0 && (
