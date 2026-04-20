@@ -2893,7 +2893,7 @@ const TransferRequestModal = ({ booking, property, onClose, onSubmit, loading })
                 <div className="group relative">
                   <HelpCircle className="w-3.5 h-3.5 text-amber-500 cursor-help" />
                   <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-2 bg-gray-900 text-white text-[10px] rounded shadow-xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
-                    Rent is prorated based on a standard 30-day month: (Monthly Rent ÷ 30) × remaining days. Any transfer fee is deducted from your unused credit.
+                    Rent is prorated based on the actual number of days in your billing cycle. Any transfer fee is deducted from your unused credit.
                   </div>
                 </div>
               </div>
@@ -2944,11 +2944,10 @@ const TransferRequestModal = ({ booking, property, onClose, onSubmit, loading })
                           <div className="text-right">
                             <p className={`text-base font-black ${transferPreview.suggested_adjustment > 0 ? 'text-amber-600' : 'text-green-600'
                               }`}>
-                              {transferPreview.suggested_adjustment > 0 ? '+' : ''}
                               ₱{Math.abs(transferPreview.suggested_adjustment).toLocaleString()}
                             </p>
                             <p className="text-[10px] text-gray-400 font-medium">
-                              {transferPreview.suggested_adjustment > 0 ? 'Additional charge' : 'Excess credits'}
+                              {transferPreview.suggested_adjustment > 0 ? 'Additional charge (to be paid)' : 'Excess credit applied'}
                             </p>
                           </div>
                         </div>

@@ -297,6 +297,32 @@ class TenantPaymentController extends Controller
     }
 
     /**
+     * Get property-scoped wallet credit balance for tenant
+     */
+    public function getPropertyCreditBalance(Request $request)
+    {
+        try {
+            $propertyId = $request->query('property_id');
+            if (!$propertyId) {
+                return response()->json(['message' => 'Property ID is required'], 400);
+            }
+
+            $balanceCents = \App\Models\TenantCredit::getBalance(Auth::id(), $propertyId);
+
+            return response()->json([
+                'success' => true,
+                'balance' => (float) $balanceCents / 100
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch property credits',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
      * Archive/Unarchive a single invoice for the tenant
      */
     public function archive($id)

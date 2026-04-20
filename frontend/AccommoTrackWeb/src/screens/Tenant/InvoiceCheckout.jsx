@@ -135,18 +135,22 @@ export default function InvoiceCheckout() {
     loadInvoice();
   }, [loadInvoice]);
 
-  // Load tenant wallet balance
+  // Load property-specific wallet balance
   useEffect(() => {
     let mounted = true;
-    api.get('/tenant/profile').then((res) => {
+    const propertyId = invoice?.property_id || invoice?.booking?.property_id;
+    if (!propertyId) return;
+
+    paymentService.getPropertyCreditBalance(propertyId).then((result) => {
       if (!mounted) return;
-      const balance = Number(res.data?.wallet_balance ?? 0);
-      setWalletBalance(isFinite(balance) ? balance : 0);
+      if (result.success) {
+        setWalletBalance(result.data || 0);
+      }
     }).catch(() => {
-      // Non-critical; wallet button will simply not show if balance is 0
+      // Non-critical
     });
     return () => { mounted = false; };
-  }, [id]);
+  }, [invoice?.id, invoice?.property_id, invoice?.booking?.property_id, id]);
 
   useEffect(() => {
     let mounted = true;
@@ -645,12 +649,12 @@ export default function InvoiceCheckout() {
                           </div>
                           <div>
                             <p className="font-bold text-gray-900 dark:text-white text-lg uppercase tracking-tight">Apply Wallet Credits</p>
-                            <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Instantly apply up to ₱{Math.min(remainingBalance, walletBalance).toLocaleString()}</p>
+                            <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Apply up to ₱{Math.min(remainingBalance, walletBalance).toLocaleString()} from property credits</p>
                             <p className="text-xs text-purple-600 dark:text-purple-400 font-bold mt-1">
-                              Available: ₱{walletBalance.toLocaleString()}
+                              Available for this property: ₱{walletBalance.toLocaleString()}
                             </p>
                             <p className="text-[10px] text-purple-500/80 dark:text-purple-400/80 mt-2 font-medium italic">
-                              *Credits are earned from transfers/refunds. Modifying/Top-ups via external methods are restricted.
+                              *Credits are property-specific and earned from transfers/refunds within this property.
                             </p>
                           </div>
                         </div>

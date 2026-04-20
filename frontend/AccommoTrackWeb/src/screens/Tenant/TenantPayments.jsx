@@ -62,12 +62,12 @@ export default function TenantPayments({ user }) {
       const searchParams = new URLSearchParams(window.location.search);
       if (searchParams.get('payment_refresh') === 'true' && !tenantPaymentsTempDisabled) {
         // Find any pending/unpaid invoices and trigger a background refresh
-        showLoading('Updating payment status...');
+        const toastId = showLoading('Updating payment status...');
         const listRes = await paymentService.getPayments('all', archiveFilter || 'active');
         if (listRes.success && Array.isArray(listRes.data)) {
           const pending = listRes.data.filter(p => ['pending', 'unpaid', 'partial'].includes(p.status?.toLowerCase()));
           await Promise.all(pending.map(p => api.post(`/tenant/invoices/${p.id}/paymongo-refresh`)));
-          showSuccess('Payment statuses updated');
+          showSuccess('Payment statuses updated', toastId);
         }
         // Remove the parameter to stop the loop
         navigate('/payments', { replace: true });

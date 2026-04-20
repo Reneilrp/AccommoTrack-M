@@ -551,10 +551,16 @@ export default function TransferRequests() {
                                 </div>
                                 <div className="pt-3 border-t border-blue-200 dark:border-blue-700">
                                   <div className="flex justify-between text-sm">
-                                    <span className="text-gray-600 dark:text-gray-400">Room Rate Difference:</span>
+                                    <span className="text-gray-600 dark:text-gray-400">
+                                      {getTransferForm(selectedRequest.id).prorationDetails.suggested_adjustment > 0 
+                                        ? 'Additional Charge (to be paid):' 
+                                        : getTransferForm(selectedRequest.id).prorationDetails.suggested_adjustment < 0 
+                                        ? 'Credit Applied (from balance):' 
+                                        : 'Room Rate Difference:'}
+                                    </span>
                                     <span className={`font-black ${getTransferForm(selectedRequest.id).prorationDetails.suggested_adjustment > 0 ? 'text-amber-600' : getTransferForm(selectedRequest.id).prorationDetails.suggested_adjustment < 0 ? 'text-green-600' : 'text-gray-600'}`}>
-                                      {getTransferForm(selectedRequest.id).prorationDetails.suggested_adjustment > 0 ? '+' : ''}
-                                      ₱{Number(getTransferForm(selectedRequest.id).prorationDetails.suggested_adjustment || 0).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                      {getTransferForm(selectedRequest.id).prorationDetails.suggested_adjustment > 0 ? '+' : getTransferForm(selectedRequest.id).prorationDetails.suggested_adjustment < 0 ? '-' : ''}
+                                      ₱{Number(Math.abs(getTransferForm(selectedRequest.id).prorationDetails.suggested_adjustment || 0)).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                     </span>
                                   </div>
                                   <p className="text-[10px] text-gray-500 dark:text-gray-400 mt-1">
@@ -610,7 +616,7 @@ export default function TransferRequests() {
                               </div>
                             </div>
                             <p className="text-[10px] text-gray-500 dark:text-gray-400 mt-2 italic text-center">
-                              * All proration is based on a standard 30-day month calculation.
+                              * All proration is based on the actual number of days in the billing cycle.
                             </p>
                           </div>
 

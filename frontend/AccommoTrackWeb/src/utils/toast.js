@@ -7,25 +7,30 @@ import toast from 'react-hot-toast';
 
 const toastConfig = {
   duration: 4000,
-  position: 'top-right',
+  position: 'top-center',
 };
 
-export const showSuccess = (message) => {
+export const showSuccess = (message, options = {}) => {
+  const toastOptions = typeof options === 'string' ? { id: options } : options;
   return toast.success(message, {
     ...toastConfig,
-    id: message, // Prevent duplicates
+    id: message,
+    ...toastOptions,
   });
 };
 
-export const showError = (message) => {
+export const showError = (message, options = {}) => {
+  const toastOptions = typeof options === 'string' ? { id: options } : options;
   return toast.error(message, {
     ...toastConfig,
     duration: 6000,
     id: message,
+    ...toastOptions,
   });
 };
 
-export const showWarning = (message) => {
+export const showWarning = (message, options = {}) => {
+  const toastOptions = typeof options === 'string' ? { id: options } : options;
   return toast(message, {
     ...toastConfig,
     icon: '⚠️',
@@ -34,19 +39,23 @@ export const showWarning = (message) => {
       border: '1px solid #F59E0B',
     },
     id: message,
+    ...toastOptions,
   });
 };
 
-export const showInfo = (message) => {
+export const showInfo = (message, options = {}) => {
+  const toastOptions = typeof options === 'string' ? { id: options } : options;
   return toast(message, {
     ...toastConfig,
     icon: 'ℹ️',
     id: message,
+    ...toastOptions,
   });
 };
 
 export const showLoading = (message) => {
   return toast.loading(message, {
+    ...toastConfig,
     id: 'global-loading',
   });
 };

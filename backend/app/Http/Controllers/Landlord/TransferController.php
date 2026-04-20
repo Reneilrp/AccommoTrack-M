@@ -221,8 +221,10 @@ class TransferController extends Controller
         // Calculate new room cost for remaining days
         $newRoom = $transferReq->requestedRoom;
         $remainingDays = (int) ($creditCalculation['remaining_days'] ?? 0);
+        $daysInCycle = $creditCalculation['days_in_cycle'] ?? 30;
+
         $newMonthlyRentCents = (int) round(((float) ($newRoom->monthly_rate ?? $newRoom->price ?? 0)) * 100);
-        $costOfNewRoomForRemainingDaysCents = (int) round(($newMonthlyRentCents * $remainingDays) / 30);
+        $costOfNewRoomForRemainingDaysCents = (int) round(($newMonthlyRentCents * $remainingDays) / $daysInCycle);
         $oldRoomUnusedValueCents = (int) ($creditCalculation['unused_value_cents']
             ?? round(((float) ($creditCalculation['unused_value'] ?? 0)) * 100));
 

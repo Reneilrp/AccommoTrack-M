@@ -295,6 +295,8 @@ const PropertyCarousel = ({ property, onOpenDetails }) => {
               effectiveDisplayStatus = 'reserved';
             }
 
+            const isOccupied = effectiveDisplayStatus === 'occupied' || effectiveDisplayStatus === 'reserved';
+
             const statusBadgeText = room.reserved_by_me
               ? 'Reserved by you (Pending)'
               : (room.display_status_label || effectiveDisplayStatus || '').toString().charAt(0).toUpperCase() +

@@ -31,6 +31,7 @@ export default function RoomDetailsModal({
   initialView,
   onBookingSuccess,
   bookingService,
+  isEditing = false,
 }) {
   const PROXY_MINIMUM_AGE = 18;
   const navigate = useNavigate();
@@ -490,6 +491,16 @@ export default function RoomDetailsModal({
       setBedCount(maxBookableBeds);
     }
   }, [bedCount, maxBookableBeds]);
+ 
+  useEffect(() => {
+    // Auto-select bed number if only one is available and user is booking exactly one bed
+    if (bookingMode === "normal" && room.available_bed_numbers?.length === 1 && bedCount === 1) {
+      const singleBed = String(room.available_bed_numbers[0]);
+      if (selectedBedNumbers[0] !== singleBed) {
+        setSelectedBedNumbers([singleBed]);
+      }
+    }
+  }, [room.available_bed_numbers, bedCount, bookingMode, selectedBedNumbers]);
 
   useEffect(() => {
     if (isDailyContract) {
@@ -647,7 +658,7 @@ export default function RoomDetailsModal({
       return;
     }
 
-    if (hasCheckout && !isDailyContract && duration && duration.extraDays > 0) {
+    if (hasCheckout && !isDailyContract && billingPolicy === "monthly" && duration && duration.extraDays > 0) {
       showError(
         `Billing Policy: Stays with extra days (${duration.extraDays} days extra) will be charged for the full next month under the Monthly policy.`,
         { duration: 6000 }
@@ -754,7 +765,7 @@ export default function RoomDetailsModal({
         finalBedCount = Math.max(bedCount, normalizedOccupants.length);
       }
 
-      if (bookingMode === "normal" && room.available_bed_numbers?.length > 0) {
+      if (bookingMode === "normal" && room.available_bed_numbers?.length > 0 && resolvedCapacity > 1 && (finalBedCount > 1 || room.available_bed_numbers.length > 1)) {
         if (selectedBedNumbers.filter(Boolean).length < finalBedCount) {
           showError(`Please select ${finalBedCount > 1 ? "all bed numbers" : "a bed number"}.`);
           setIsSubmitting(false);
@@ -1467,159 +1478,157 @@ export default function RoomDetailsModal({
                     </p>
 
                     {showBedCountSelector && (
-                      <div className="space-y-4">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                            Number of Beds <span className="text-red-500">*</span>
-                          </label>
-                          {maxBookableBeds > 1 ? (
-                            <select
-                              value={bedCount}
-                              onChange={(e) => {
-                                const newCount = parseInt(e.target.value, 10);
-                                setBedCount(newCount);
-                                if (bookingMode === "normal") {
-                                  setSelectedBedNumbers([]);
-                                }
-                              }}
-                              className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                            >
-                              {[...Array(maxBookableBeds)].map((_, i) => (
-                                <option key={i + 1} value={i + 1}>
-                                  {i + 1} {i === 0 ? "Bed" : "Beds"}
-                                </option>
-                              ))}
-                            </select>
-                          ) : (
-                            <div className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700/70 text-gray-700 dark:text-gray-200">
-                              1 Bed
-                            </div>
-                          )}
-                        </div>
-
-                        {bookingMode === "normal" && room.available_bed_numbers?.length > 0 && (
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                              Select Bed {bedCount > 1 ? "Numbers" : "Number"} <span className="text-red-500">*</span>
-                            </label>
-                            <div className="space-y-3">
-                              {[...Array(bedCount)].map((_, idx) => {
-                                const currentBedValue = selectedBedNumbers[idx] || "";
-                                return (
-                                  <select
-                                    key={idx}
-                                    value={currentBedValue}
-                                    onChange={(e) => {
-                                      const newNumbers = [...selectedBedNumbers];
-                                      newNumbers[idx] = e.target.value;
-                                      setSelectedBedNumbers(newNumbers);
-                                    }}
-                                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                                  >
-                                    <option value="">-- Choose Bed {bedCount > 1 ? `#${idx + 1}` : ""} --</option>
-                                    {room.available_bed_numbers.map((bed) => {
-                                      const isTakenByOther = selectedBedNumbers.some(
-                                        (val, sIdx) => sIdx !== idx && String(val) === String(bed)
-                                      );
-                                      return (
-                                        <option key={bed} value={bed} disabled={isTakenByOther}>
-                                          Bed #{bed} {isTakenByOther ? "(Selected)" : ""}
-                                        </option>
-                                      );
-                                    })}
-                                  </select>
-                                );
-                              })}
-                            </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                          Number of Beds <span className="text-red-500">*</span>
+                        </label>
+                        {maxBookableBeds > 1 ? (
+                          <select
+                            value={bedCount}
+                            onChange={(e) => {
+                              const newCount = parseInt(e.target.value, 10);
+                              setBedCount(newCount);
+                              if (bookingMode === "normal") {
+                                setSelectedBedNumbers([]);
+                              }
+                            }}
+                            className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                          >
+                            {[...Array(maxBookableBeds)].map((_, i) => (
+                              <option key={i + 1} value={i + 1}>
+                                {i + 1} {i === 0 ? "Bed" : "Beds"}
+                              </option>
+                            ))}
+                          </select>
+                        ) : (
+                          <div className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700/70 text-gray-700 dark:text-gray-200">
+                            1 Bed
                           </div>
                         )}
                       </div>
                     )}
 
-                    <div>
-                      {supportsContractModeSwitch && (
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                            Stay Mode
-                          </label>
-                          <div className="grid grid-cols-2 gap-2">
-                            <button
-                              type="button"
-                              onClick={() => setContractMode('monthly')}
-                              className={`px-4 py-2 rounded-lg text-sm font-semibold border transition-colors ${!isDailyContract ? 'bg-green-600 text-white border-green-600' : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 border-gray-300 dark:border-gray-600'}`}
-                            >
-                              Monthly Contract
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setContractMode('daily')}
-                              className={`px-4 py-2 rounded-lg text-sm font-semibold border transition-colors ${isDailyContract ? 'bg-green-600 text-white border-green-600' : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 border-gray-300 dark:border-gray-600'}`}
-                            >
-                              Daily Contract
-                            </button>
-                          </div>
-                          <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-                            Monthly contract supports open-ended tenancy. Daily contract requires a fixed check-out date.
-                          </p>
+                    {bookingMode === "normal" && room.available_bed_numbers?.length > 0 && resolvedCapacity > 1 && (bedCount > 1 || room.available_bed_numbers.length > 1) && (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                          Select Bed {bedCount > 1 ? "Numbers" : "Number"} <span className="text-red-500">*</span>
+                        </label>
+                        <div className="space-y-3">
+                          {[...Array(bedCount)].map((_, idx) => {
+                            const currentBedValue = selectedBedNumbers[idx] || "";
+                            return (
+                              <select
+                                key={idx}
+                                value={currentBedValue}
+                                onChange={(e) => {
+                                  const newNumbers = [...selectedBedNumbers];
+                                  newNumbers[idx] = e.target.value;
+                                  setSelectedBedNumbers(newNumbers);
+                                }}
+                                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                              >
+                                <option value="">-- Choose Bed {bedCount > 1 ? `#${idx + 1}` : ""} --</option>
+                                {room.available_bed_numbers.map((bed) => {
+                                  const isTakenByOther = selectedBedNumbers.some(
+                                    (val, sIdx) => sIdx !== idx && String(val) === String(bed)
+                                  );
+                                  return (
+                                    <option key={bed} value={bed} disabled={isTakenByOther}>
+                                      Bed #{bed} {isTakenByOther ? "(Selected)" : ""}
+                                    </option>
+                                  );
+                                })}
+                              </select>
+                            );
+                          })}
                         </div>
-                      )}
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        {isDailyContract ? 'Check-in Date' : 'Move-in Date'} <span className="text-red-500">*</span>
-                      </label>
-                      <div className="relative">
-                        <Calendar className="absolute left-3 top-2.5 w-5 h-5 text-gray-500" />
-                        <input
-                          type="date"
-                          value={startDate}
-                          onChange={handleStartDateChange}
-                          className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                        />
                       </div>
-                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-                        {isDailyContract
-                          ? 'Bookings can be made up to 3 months in advance'
-                          : 'Move-ins can be scheduled up to 3 months in advance'}
-                      </p>
-                      {isReservationFeeConfigured && (
-                        <p
-                          className={`text-xs mt-1 ${isReservationFeeRequired
-                            ? "text-amber-700 dark:text-amber-400"
-                            : "text-green-700 dark:text-green-400"
-                            }`}
-                        >
-                          {isReservationFeeRequired
-                            ? `Reservation fee is required because move-in is ${daysUntilMoveIn} days after booking date.`
-                            : 'No reservation fee for move-in within 3 days from booking date.'}
-                        </p>
-                      )}
-                    </div>
+                    )}
+                  </div>
 
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        {isDailyContract ? (
-                          <>
-                            Check-out Date <span className="text-red-500">*</span>
-                          </>
-                        ) : (
-                          'Planned Move-out Date (Optional)'
-                        )}
-                      </label>
-                      <div className="relative">
-                        <Calendar className="absolute left-3 top-2.5 w-5 h-5 text-gray-500" />
-                        <input
-                          type="date"
-                          value={endDate}
-                          onChange={(e) => setEndDate(e.target.value)}
-                          min={startDate}
-                          className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                        />
-                      </div>
-                      {!isDailyContract && (
+                  <div>
+                    {supportsContractModeSwitch && (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                          Stay Mode
+                        </label>
+                        <div className="grid grid-cols-2 gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setContractMode('monthly')}
+                            className={`px-4 py-2 rounded-lg text-sm font-semibold border transition-colors ${!isDailyContract ? 'bg-green-600 text-white border-green-600' : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 border-gray-300 dark:border-gray-600'}`}
+                          >
+                            Monthly Contract
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setContractMode('daily')}
+                            className={`px-4 py-2 rounded-lg text-sm font-semibold border transition-colors ${isDailyContract ? 'bg-green-600 text-white border-green-600' : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 border-gray-300 dark:border-gray-600'}`}
+                          >
+                            Daily Contract
+                          </button>
+                        </div>
                         <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-                          Leave this blank for an open-ended tenancy. Monthly billing will continue until move-out notice is submitted.
+                          Monthly contract supports open-ended tenancy. Daily contract requires a fixed check-out date.
                         </p>
-                      )}
+                      </div>
+                    )}
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      {isDailyContract ? 'Check-in Date' : 'Move-in Date'} <span className="text-red-500">*</span>
+                    </label>
+                    <div className="relative">
+                      <Calendar className="absolute left-3 top-2.5 w-5 h-5 text-gray-500" />
+                      <input
+                        type="date"
+                        value={startDate}
+                        onChange={handleStartDateChange}
+                        className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                      />
                     </div>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                      {isDailyContract
+                        ? 'Bookings can be made up to 3 months in advance'
+                        : 'Move-ins can be scheduled up to 3 months in advance'}
+                    </p>
+                    {isReservationFeeConfigured && (
+                      <p
+                        className={`text-xs mt-1 ${isReservationFeeRequired
+                          ? "text-amber-700 dark:text-amber-400"
+                          : "text-green-700 dark:text-green-400"
+                        }`}
+                      >
+                        {isReservationFeeRequired
+                          ? `Reservation fee is required because move-in is ${daysUntilMoveIn} days after booking date.`
+                          : 'No reservation fee for move-in within 3 days from booking date.'}
+                      </p>
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      {isDailyContract ? (
+                        <>
+                          Check-out Date <span className="text-red-500">*</span>
+                        </>
+                      ) : (
+                        'Planned Move-out Date (Optional)'
+                      )}
+                    </label>
+                    <div className="relative">
+                      <Calendar className="absolute left-3 top-2.5 w-5 h-5 text-gray-500" />
+                      <input
+                        type="date"
+                        value={endDate}
+                        onChange={(e) => setEndDate(e.target.value)}
+                        min={startDate}
+                        className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                      />
+                    </div>
+                    {!isDailyContract && (
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                        Leave this blank for an open-ended tenancy. Monthly billing will continue until move-out notice is submitted.
+                      </p>
+                    )}
                   </div>
 
                   {bookingMode === "proxy" && (
@@ -1988,7 +1997,7 @@ export default function RoomDetailsModal({
                   </div>
 
                   {/* Action Buttons */}
-                  {hasCheckout && !isDailyContract && duration && duration.extraDays > 0 && (
+                  {hasCheckout && !isDailyContract && billingPolicy === "monthly" && duration && duration.extraDays > 0 && (
                     <div className="mt-4 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/30 rounded-xl text-xs text-amber-800 dark:text-amber-400 flex items-start gap-2 animate-in fade-in slide-in-from-top-2">
                       <AlertTriangle className="w-4 h-4 mt-0.5 flex-shrink-0" />
                       <p>

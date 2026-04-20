@@ -327,6 +327,7 @@ class TransferController extends Controller
         $creditCalc = $this->refundService->calculateProratedCredit($activeBooking, 0, $transferFee);
 
         $remainingDays = (int) ($creditCalc['remaining_days'] ?? 0);
+        $daysInCycle = $creditCalc['days_in_cycle'] ?? 30;
         $paidAmount = (float) ($creditCalc['paid_amount'] ?? 0);
         $creditAvailable = (float) ($creditCalc['final_credit'] ?? 0);
         $unusedValue = (float) ($creditCalc['unused_value'] ?? 0);
@@ -335,7 +336,7 @@ class TransferController extends Controller
         $currentRoomRate = (float) ($activeBooking->monthly_rent ?? 0);
         $newRoomRate = (float) ($newRoom->monthly_rate ?? $newRoom->price ?? 0);
 
-        $newRoomCostCents = (int) round(($newRoomRate * 100 * $remainingDays) / 30);
+        $newRoomCostCents = (int) round(($newRoomRate * 100 * $remainingDays) / $daysInCycle);
         $unusedValueCents = (int) round($unusedValue * 100);
         $suggestedAdjustmentCents = $newRoomCostCents - $unusedValueCents;
         $suggestedAdjustment = round($suggestedAdjustmentCents / 100, 2);

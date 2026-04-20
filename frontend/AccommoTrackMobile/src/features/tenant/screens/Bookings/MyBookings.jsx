@@ -3260,7 +3260,7 @@ export default function MyBookings() {
                   <TouchableOpacity
                     onPress={() => showAlert(
                       'Proration Rule',
-                      'Rent is prorated based on a standard 30-day month: (Monthly Rent ÷ 30) × remaining days. Any transfer processing fee is deducted from your unused credit.'
+                      'Rent is prorated based on the actual number of days in your billing cycle. Any transfer processing fee is deducted from your unused credit.'
                     )}
                     style={{ marginLeft: 6, paddingHorizontal: 4 }}
                   >
@@ -3376,10 +3376,10 @@ export default function MyBookings() {
                                 backgroundColor: theme.isDark ? 'rgba(245,158,11,0.12)' : '#FFFBEB',
                               }}>
                                 <Text style={{ fontSize: 12, fontWeight: '700', color: '#D97706' }}>
-                                  ⚠️ Estimated Adjustment: +{formatCurrency(transferPreview.suggested_adjustment)}
+                                  ⚠️ Estimated Additional Charge: {formatCurrency(transferPreview.suggested_adjustment)}
                                 </Text>
                                 <Text style={{ fontSize: 11, color: '#B45309', marginTop: 2 }}>
-                                  The new room is more expensive or your fees exceed your credit. This amount will be added to your next invoice.
+                                  (To be paid in your next invoice)
                                 </Text>
                               </View>
                             ) : transferPreview.suggested_adjustment < 0 ? (
@@ -3467,7 +3467,7 @@ export default function MyBookings() {
                               </View>
                             )}
                             <Text style={{ fontSize: 10, color: theme.colors.textTertiary, marginTop: 10, textAlign: 'center', fontStyle: 'italic' }}>
-                              *Calculated based on a standard 30-day billing cycle.*
+                              *Calculated based on actual days in the billing cycle.*
                             </Text>
                           </View>
                         </>

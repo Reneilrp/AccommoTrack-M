@@ -89,8 +89,29 @@ export const paymentService = {
     },
 
     /**
-     * Get the tenant's wallet credit balance.
-     * Re-routed to use getStats since standalone balance endpoint is not in current routes.
+     * Get the tenant's wallet credit balance for a specific property.
+     * @param {number} propertyId
+     */
+    async getPropertyCreditBalance(propertyId) {
+        try {
+            const response = await api.get('/tenant/payments/credits/balance', {
+                params: { property_id: propertyId }
+            });
+            return {
+                success: true,
+                data: response.data?.balance || 0
+            };
+        } catch (error) {
+            return {
+                success: false,
+                error: error.response?.data?.message || 'Failed to fetch property wallet balance',
+                data: 0
+            };
+        }
+    },
+
+    /**
+     * Get the tenant's global wallet credit balance.
      */
     async getWalletBalance() {
         try {
@@ -107,7 +128,6 @@ export const paymentService = {
             };
         }
     },
-
     /**
      * Apply wallet credits to an invoice.
      * POST /tenant/invoices/{id}/apply-wallet-credit

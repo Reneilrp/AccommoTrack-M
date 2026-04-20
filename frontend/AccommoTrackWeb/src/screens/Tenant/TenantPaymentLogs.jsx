@@ -267,20 +267,19 @@ export default function TenantPaymentLogs({ _user }) {
     }
 
     try {
-      showLoading('Updating archive status...');
+      const toastId = showLoading('Updating archive status...');
       const res = await paymentService.archiveInvoice(invoiceId);
-      dismissToast(); // Remove loading toast
 
       if (res.success) {
-        showSuccess(res.data?.message || 'Archive status updated successfully');
+        showSuccess(res.data?.message || 'Archive status updated successfully', toastId);
         setShowPaymentModal(false);
         setSelectedPayment(null);
         loadData(); // Refresh list to reflect moving between tabs
       } else {
-        showError(res.error || 'Failed to update archive status');
+        showError(res.error || 'Failed to update archive status', toastId);
       }
     } catch (err) {
-      dismissToast();
+      dismissToast(); // Fallback to clear loading if caught early
       console.error('Archive error:', err);
       showError('An unexpected error occurred while archiving.');
     }

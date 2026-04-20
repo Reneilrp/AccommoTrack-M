@@ -663,9 +663,15 @@ export default function TenantLogs() {
                                         <span className="font-bold">₱{Number(getTransferForm(req.id).prorationDetails.new_room_cost || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}</span>
                                       </div>
                                       <div className="flex justify-between text-sm pt-2 border-t dark:border-gray-700">
-                                        <span className="text-gray-600 dark:text-gray-400">Suggested Adjustment:</span>
-                                        <span className={`font-black ${getTransferForm(req.id).prorationDetails.suggested_adjustment > 0 ? 'text-amber-600' : 'text-green-600'}`}>
-                                          {getTransferForm(req.id).prorationDetails.suggested_adjustment > 0 ? '+' : ''}₱{Number(getTransferForm(req.id).prorationDetails.suggested_adjustment || 0).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                        <span className="text-gray-600 dark:text-gray-400">
+                                          {getTransferForm(req.id).prorationDetails.suggested_adjustment > 0 
+                                            ? 'Additional Charge (to be paid):' 
+                                            : getTransferForm(req.id).prorationDetails.suggested_adjustment < 0 
+                                            ? 'Credit Applied (from balance):' 
+                                            : 'Suggested Adjustment:'}
+                                        </span>
+                                        <span className={`font-black ${getTransferForm(req.id).prorationDetails.suggested_adjustment > 0 ? 'text-amber-600' : getTransferForm(req.id).prorationDetails.suggested_adjustment < 0 ? 'text-green-600' : 'text-gray-600'}`}>
+                                          {getTransferForm(req.id).prorationDetails.suggested_adjustment > 0 ? '+' : getTransferForm(req.id).prorationDetails.suggested_adjustment < 0 ? '-' : ''}₱{Number(Math.abs(getTransferForm(req.id).prorationDetails.suggested_adjustment || 0)).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                         </span>
                                       </div>
                                     </>
