@@ -21,19 +21,44 @@ class TenantDashboardService
             ")
             ->first();
 
-        // 2. Optimized Invoice Stats & Sums (Single Query)
+        // 2. Optimized Invoice Stats & Sums (Fetch Invoices first for accurate balance logic)
         $now = now();
-        $invoiceStats = Invoice::where('tenant_id', $tenantId)
-            ->selectRaw("
-                SUM(CASE WHEN status IN ('pending', 'partial', 'overdue') AND MONTH(due_date) = ? AND YEAR(due_date) = ? THEN amount_cents ELSE 0 END) as monthly_due_cents,
-                SUM(CASE WHEN status IN ('pending', 'partial', 'overdue') THEN amount_cents ELSE 0 END) as total_due_cents,
-                COUNT(CASE WHEN status = 'pending' THEN 1 END) as count_pending,
-                COUNT(CASE WHEN status = 'partial' THEN 1 END) as count_partial,
-                COUNT(CASE WHEN status = 'overdue' THEN 1 END) as count_overdue,
-                COUNT(CASE WHEN status = 'paid' THEN 1 END) as count_paid,
-                EXISTS(SELECT 1 FROM invoices as sub WHERE sub.tenant_id = ? AND sub.status = 'overdue') as has_overdue
-            ", [$now->month, $now->year, $tenantId])
-            ->first();
+        $unpaidInvoices = Invoice::with(['transactions' => function ($q) {
+            $q->whereIn('status', ['succeeded', 'paid', 'partially_refunded', 'refunded']);
+        }])
+            ->where('tenant_id', $tenantId)
+            ->whereIn('status', ['pending', 'partial', 'overdue'])
+            ->get();
+
+        $monthlyDueCents = 0;
+        $totalDueCents = 0;
+        $countPending = 0;
+        $countPartial = 0;
+        $countOverdue = 0;
+        $hasOverdue = false;
+
+        foreach ($unpaidInvoices as $inv) {
+            $netPaid = $inv->transactions->sum(fn ($tx) => $tx->amount_cents - ($tx->refunded_amount_cents ?? 0));
+            $balance = max(0, ($inv->total_cents ?? $inv->amount_cents) - $netPaid);
+
+            if ($balance > 0) {
+                $totalDueCents += $balance;
+                if ($inv->due_date && $inv->due_date->month == $now->month && $inv->due_date->year == $now->year) {
+                    $monthlyDueCents += $balance;
+                }
+            }
+
+            if ($inv->status === 'pending') {
+                $countPending++;
+            } elseif ($inv->status === 'partial') {
+                $countPartial++;
+            } elseif ($inv->status === 'overdue') {
+                $countOverdue++;
+                $hasOverdue = true;
+            }
+        }
+
+        $countPaid = Invoice::where('tenant_id', $tenantId)->where('status', 'paid')->count();
 
         // 3. Paid Amount Calculation
         $totalPaidCents = PaymentTransaction::where('tenant_id', $tenantId)
@@ -53,23 +78,34 @@ class TenantDashboardService
 
         return [
             'bookings' => [
-                'active' => (int)($bookingStats->active ?? 0),
-                'confirmed' => (int)($bookingStats->confirmed ?? 0),
-                'pending' => (int)($bookingStats->pending ?? 0),
+                'active' => (int) ($bookingStats->active ?? 0),
+                'confirmed' => (int) ($bookingStats->confirmed ?? 0),
+                'pending' => (int) ($bookingStats->pending ?? 0),
             ],
             'payments' => [
-                'monthlyDue' => (float) (($invoiceStats->monthly_due_cents ?? 0) / 100),
-                'totalDue' => (float) (($invoiceStats->total_due_cents ?? 0) / 100),
+                'monthlyDue' => (float) ($monthlyDueCents / 100),
+                'totalDue' => (float) ($totalDueCents / 100),
                 'totalPaid' => (float) ($totalPaidCents / 100),
                 'walletBalance' => (float) ($walletBalanceCents / 100),
-                'pendingAmount' => (float) (($invoiceStats->total_due_cents ?? 0) / 100),
+                'pendingAmount' => (float) ($totalDueCents / 100),
                 'latestUnpaidInvoiceId' => $latestUnpaidInvoice ? $latestUnpaidInvoice->id : null,
-                'hasOverdueInvoices' => (bool) ($invoiceStats->has_overdue ?? false),
+                'hasOverdueInvoices' => (bool) $hasOverdue,
+                'unpaidInvoices' => $unpaidInvoices->map(fn($inv) => [
+                    'id' => $inv->id,
+                    'reference' => $inv->reference || $inv->invoice_number,
+                    'description' => $inv->description,
+                    'amount' => (float) ($inv->total_cents ?? $inv->amount_cents) / 100,
+                    'due_date' => $inv->due_date,
+                    'status' => $inv->status,
+                    'property_id' => $inv->property_id,
+                    'booking_id' => $inv->booking_id,
+                    'net_paid' => (float) $inv->transactions->sum(fn($tx) => $tx->amount_cents - ($tx->refunded_amount_cents ?? 0)) / 100,
+                ]),
                 'invoice_breakdown' => [
-                    'pending' => (int) ($invoiceStats->count_pending ?? 0),
-                    'partial' => (int) ($invoiceStats->count_partial ?? 0),
-                    'overdue' => (int) ($invoiceStats->count_overdue ?? 0),
-                    'paid' => (int) ($invoiceStats->count_paid ?? 0),
+                    'pending' => (int) $countPending,
+                    'partial' => (int) $countPartial,
+                    'overdue' => (int) $countOverdue,
+                    'paid' => (int) $countPaid,
                 ],
             ],
             'notifications' => [

@@ -61,6 +61,10 @@ class MessageResource extends JsonResource
                 'first_name' => $this->actualSender->first_name,
                 'last_name' => $this->actualSender->last_name,
             ]),
+            'histories' => $this->whenLoaded('histories', fn () => $this->histories->map(fn ($h) => [
+                'message' => $h->old_message,
+                'created_at' => $h->created_at,
+            ])),
         ];
     }
 }

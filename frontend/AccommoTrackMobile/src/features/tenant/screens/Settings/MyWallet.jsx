@@ -8,7 +8,8 @@ import ProfileService from '../../../../services/ProfileService.js';
 import PaymentService from '../../../../services/PaymentService.js';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { tenantQueryKeys } from '../../hooks/useTenantQueryHelpers.js';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import getStyles from '../../../styles/Tenant/WalletStyles.js';
 
 const TransactionItem = ({ item, theme }) => {
   const isDebit = item.type === 'debit';
@@ -58,6 +59,7 @@ const TransactionItem = ({ item, theme }) => {
 
 export default function MyWallet() {
   const { theme } = useTheme();
+  const styles = getStyles(theme);
   const navigation = useNavigation();
   const [balance, setBalance] = useState(0);
 
@@ -101,7 +103,31 @@ export default function MyWallet() {
       ) : (
         <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 40 }}>
           {/* Header Spacer */}
-          <View style={{ height: 20 }} />
+          {/* <View style={{ height: 20 }} /> */}
+
+          {/* Balance Card */}
+          <View style={styles.balanceCard}>
+            <View style={{ position: 'absolute', right: -20, bottom: -20, opacity: 0.1 }}>
+              <MaterialCommunityIcons name="wallet" size={160} color="white" />
+            </View>
+            <Text style={styles.balanceLabel}>Available Balance</Text>
+            <Text style={styles.balanceValue}>
+              ₱{balance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </Text>
+            <Text style={styles.balanceSubtext}>
+              Automatically applied to your next payments.
+            </Text>
+          </View>
+
+          {/* Property Scoping Disclaimer */}
+          <View style={styles.disclaimerCard}>
+            <Ionicons name="information-circle" size={20} color={theme.isDark ? '#FBBF24' : '#B45309'} />
+            <Text style={styles.disclaimerText}>
+              Important: Credits are only applicable to the property where they were earned and will not appear or be usable at other properties.
+            </Text>
+          </View>
+
+          <View style={{ height: 32 }} />
 
           {/* History Section */}
           <View style={{ paddingHorizontal: 20, marginTop: 10 }}>

@@ -70,9 +70,15 @@ const WalletTab = () => {
         </div>
         
         <div className="px-8 py-4 bg-gray-50/50 dark:bg-gray-700/30 border-t border-gray-100 dark:border-gray-700">
-          <div className="flex items-center gap-2 text-[11px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
-            <AlertCircle className="w-3.5 h-3.5 text-green-500" />
-            Credits are strictly derived from transfer adjustments & refunds.
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center gap-2 text-[11px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
+              <AlertCircle className="w-3.5 h-3.5 text-green-500" />
+              Credits are strictly derived from transfer adjustments & refunds.
+            </div>
+            <div className="flex items-center gap-2 text-[10px] font-medium text-amber-600 dark:text-amber-400 italic">
+              <AlertCircle className="w-3 h-3" />
+              Note: This balance is the total across all properties. Credits are property-specific and can only be applied to invoices within the property where they were earned.
+            </div>
           </div>
         </div>
       </div>

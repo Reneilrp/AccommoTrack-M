@@ -257,42 +257,86 @@ const TenantDashboard = ({ user }) => {
   const totalAddOns = roomBreakdownRows.reduce((sum, row) => sum + row.addOns, 0);
   const totalGrandRent = roomBreakdownRows.reduce((sum, row) => sum + row.grandTotal, 0);
 
-  const balanceBreakdownRows = stays
-    .flatMap((stay, idx) => {
-      const invoices = Array.isArray(stay?.financials?.invoices) ? stay.financials.invoices : [];
-      const roomNumber = stay?.room?.roomNumber || stay?.room?.room_number || '—';
-      const roomColor = ROOM_COLORS[idx % ROOM_COLORS.length];
+  const balanceBreakdownRows = React.useMemo(() => {
+    // Primary source: comprehensive list from stats
+    const statsUnpaid = Array.isArray(stats?.payments?.unpaidInvoices) ? stats.payments.unpaidInvoices : [];
+    
+    if (statsUnpaid.length > 0) {
+      return statsUnpaid.map(invoice => {
+        // Map room info from stays if available
+        let roomNumber = 'Other';
+        let roomColor = '#94a3b8'; // gray-400
+        
+        for (let i = 0; i < stays.length; i++) {
+          const stay = stays[i];
+          const stayInvoices = Array.isArray(stay?.financials?.invoices) ? stay.financials.invoices : [];
+          if (stayInvoices.some(si => si.id === invoice.id)) {
+            roomNumber = stay?.room?.roomNumber || stay?.room?.room_number || 'Room';
+            roomColor = ROOM_COLORS[i % ROOM_COLORS.length];
+            break;
+          }
+        }
 
-      return invoices
-        .filter((invoice) => ['pending', 'partial', 'overdue'].includes((invoice?.status || '').toLowerCase()))
-        .map((invoice) => {
-          const transactions = Array.isArray(invoice?.transactions) ? invoice.transactions : [];
-          const paidAmount = transactions
-            .filter((tx) => ['succeeded', 'completed', 'paid', 'approved', 'verified'].includes((tx?.status || '').toLowerCase()))
-            .reduce((sum, tx) => sum + (Number(tx?.amount) || 0), 0);
-          const invoiceAmount = Number(invoice?.amount) || 0;
-          const remainingAmount = Math.max(0, invoiceAmount - paidAmount);
-          const status = (invoice?.status || '').toLowerCase();
+        const remainingAmount = Math.max(0, (Number(invoice?.amount) || 0) - (Number(invoice?.net_paid) || 0));
 
-          return {
-            id: invoice?.id,
-            roomNumber,
-            roomColor,
-            description: invoice?.description || `Invoice #${invoice?.id}`,
-            dueDate: formatDate(invoice?.dueDate),
-            sortDueDate: invoice?.dueDate ? new Date(invoice.dueDate).getTime() : Number.MAX_SAFE_INTEGER,
-            amount: status === 'partial' && remainingAmount > 0 ? remainingAmount : invoiceAmount,
-            status,
-          };
-        });
-    })
-    .sort((a, b) => {
-      const rank = { overdue: 0, partial: 1, pending: 2 };
-      if ((rank[a.status] ?? 99) !== (rank[b.status] ?? 99)) {
-        return (rank[a.status] ?? 99) - (rank[b.status] ?? 99);
-      }
-      return a.sortDueDate - b.sortDueDate;
-    });
+        return {
+          id: invoice?.id,
+          roomNumber,
+          roomColor,
+          description: invoice?.description || `Invoice #${invoice?.id}`,
+          dueDate: formatDate(invoice?.due_date || invoice?.dueDate),
+          sortDueDate: (invoice?.due_date || invoice?.dueDate) ? new Date(invoice.due_date || invoice.dueDate).getTime() : Number.MAX_SAFE_INTEGER,
+          amount: remainingAmount,
+          status: (invoice?.status || 'pending').toLowerCase(),
+        };
+      }).sort((a, b) => {
+        const rank = { overdue: 0, partial: 1, pending: 2 };
+        if ((rank[a.status] ?? 99) !== (rank[b.status] ?? 99)) {
+          return (rank[a.status] ?? 99) - (rank[b.status] ?? 99);
+        }
+        return a.sortDueDate - b.sortDueDate;
+      });
+    }
+
+    // Fallback: original logic using stays
+    return stays
+      .flatMap((stay, idx) => {
+        const invoices = Array.isArray(stay?.financials?.invoices) ? stay.financials.invoices : [];
+        const roomNumber = stay?.room?.roomNumber || stay?.room?.room_number || '—';
+        const roomColor = ROOM_COLORS[idx % ROOM_COLORS.length];
+
+        return invoices
+          .filter((invoice) => ['pending', 'partial', 'overdue'].includes((invoice?.status || '').toLowerCase()))
+          .map((invoice) => {
+            const transactions = Array.isArray(invoice?.transactions) ? invoice.transactions : [];
+            const paidByTransactions = transactions
+              .filter((tx) => ['succeeded', 'completed', 'paid', 'approved', 'verified'].includes((tx?.status || '').toLowerCase()))
+              .reduce((sum, tx) => sum + (Number(tx?.amount) || 0), 0);
+            
+            const invoiceAmount = Number(invoice?.amount) || 0;
+            const remainingAmount = Math.max(0, invoiceAmount - paidByTransactions);
+            const status = (invoice?.status || '').toLowerCase();
+
+            return {
+              id: invoice?.id,
+              roomNumber,
+              roomColor,
+              description: invoice?.description || `Invoice #${invoice?.id}`,
+              dueDate: formatDate(invoice?.dueDate),
+              sortDueDate: invoice?.dueDate ? new Date(invoice.dueDate).getTime() : Number.MAX_SAFE_INTEGER,
+              amount: remainingAmount,
+              status,
+            };
+          });
+      })
+      .sort((a, b) => {
+        const rank = { overdue: 0, partial: 1, pending: 2 };
+        if ((rank[a.status] ?? 99) !== (rank[b.status] ?? 99)) {
+          return (rank[a.status] ?? 99) - (rank[b.status] ?? 99);
+        }
+        return a.sortDueDate - b.sortDueDate;
+      });
+  }, [stays, stats]);
 
   const activeAlerts = React.useMemo(() => {
     const alerts = [];

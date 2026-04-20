@@ -57,6 +57,7 @@ export default function ChatScreen({ navigation, route }) {
     const [isKeyboardVisible, setKeyboardVisible] = useState(false);
     const [isOtherTyping, setIsOtherTyping] = useState(false);
     const typingTimeoutRef = useRef(null);
+    const [historyViewingMessage, setHistoryViewingMessage] = useState(null);
     
     // Assignment State
     const [caretakers, setCaretakers] = useState([]);
@@ -602,12 +603,16 @@ export default function ChatScreen({ navigation, route }) {
 
                                 let options = [];
                                 if (isMine) {
+                                    const ts = msg.created_at || new Date().toISOString();
+                                    const timeDiff = new Date() - new Date(ts);
+                                    const canEdit = timeDiff < 30 * 60 * 1000;
+
                                     options = [
-                                        { text: 'Edit', onPress: () => {
+                                        ...(canEdit ? [{ text: 'Edit', onPress: () => {
                                             setEditingMessage(msg);
                                             setReplyingTo(null);
                                             setMessageText(msg.message);
-                                        }},
+                                        }}] : []),
                                         { text: 'Unsend', style: 'destructive', onPress: () => {
                                             Alert.alert(
                                                 'Unsend Message',
@@ -718,9 +723,11 @@ export default function ChatScreen({ navigation, route }) {
                                                         <View style={[(msg.image_path || msg.file_path) ? { padding: 10, backgroundColor: isMine ? theme.colors.primary : '#fff', borderRadius: 10, marginTop: 4 } : null]}>
                                                             <Text style={[styles.messageText, isMine ? styles.myMessageText : styles.theirMessageText]}>{msg.message}</Text>
                                                             {msg.is_edited && (
-                                                                <Text style={{ fontSize: 9, color: isMine ? 'rgba(255,255,255,0.7)' : theme.colors.textSecondary, marginLeft: 4, fontWeight: 'bold' }}>
-                                                                    (edited)
-                                                                </Text>
+                                                                <TouchableOpacity onPress={() => setHistoryViewingMessage(msg)}>
+                                                                    <Text style={{ fontSize: 9, color: isMine ? 'rgba(255,255,255,0.7)' : theme.colors.textSecondary, marginLeft: 4, fontWeight: 'bold', textDecorationLine: 'underline' }}>
+                                                                        (edited)
+                                                                    </Text>
+                                                                </TouchableOpacity>
                                                             )}
                                                         </View>
                                                     ) : null}
@@ -1002,6 +1009,61 @@ export default function ChatScreen({ navigation, route }) {
                         </Pressable>
                     </Modal>
 
+                {/* Message History Modal */}
+                <Modal
+                    visible={!!historyViewingMessage}
+                    transparent
+                    animationType="fade"
+                    onRequestClose={() => setHistoryViewingMessage(null)}
+                >
+                    <Pressable 
+                        style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 20 }}
+                        onPress={() => setHistoryViewingMessage(null)}
+                    >
+                        <Pressable style={{ backgroundColor: theme.colors.surface, borderRadius: 16, width: '100%', maxWidth: 400, overflow: 'hidden', shadowColor: '#000', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.3, shadowRadius: 20, elevation: 5 }}>
+                            <View style={{ padding: 20, borderBottomWidth: 1, borderBottomColor: theme.colors.border, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <View>
+                                    <Text style={{ fontSize: 16, fontWeight: 'bold', color: theme.colors.text }}>Message History</Text>
+                                    <Text style={{ fontSize: 10, color: theme.colors.textSecondary, textTransform: 'uppercase', letterSpacing: 1, fontWeight: 'bold' }}>Previous versions</Text>
+                                </View>
+                                <TouchableOpacity onPress={() => setHistoryViewingMessage(null)}>
+                                    <Ionicons name="close" size={24} color={theme.colors.textSecondary} />
+                                </TouchableOpacity>
+                            </View>
+                            
+                            <ScrollView style={{ maxHeight: 400, padding: 20 }}>
+                                <View style={{ padding: 12, backgroundColor: 'rgba(16, 185, 129, 0.1)', borderRadius: 12, borderLeftWidth: 4, borderLeftColor: '#10B981', marginBottom: 16 }}>
+                                    <Text style={{ fontSize: 10, fontWeight: 'bold', color: '#10B981', textTransform: 'uppercase', marginBottom: 4 }}>Current Version</Text>
+                                    <Text style={{ fontSize: 14, color: theme.colors.text }}>{historyViewingMessage?.message}</Text>
+                                </View>
+
+                                {historyViewingMessage?.histories?.length > 0 ? (
+                                    historyViewingMessage.histories.slice().reverse().map((history, i) => (
+                                        <View key={i} style={{ padding: 12, backgroundColor: theme.colors.background, borderRadius: 12, borderWidth: 1, borderColor: theme.colors.border, marginBottom: 12 }}>
+                                            <Text style={{ fontSize: 10, fontWeight: 'bold', color: theme.colors.textSecondary, marginBottom: 4 }}>
+                                                {formatTime(history.created_at)}
+                                            </Text>
+                                            <Text style={{ fontSize: 14, color: theme.colors.text }}>{history.message}</Text>
+                                        </View>
+                                    ))
+                                ) : (
+                                    <View style={{ paddingVertical: 40, alignItems: 'center' }}>
+                                        <Text style={{ color: theme.colors.textTertiary, fontSize: 14 }}>No history available</Text>
+                                    </View>
+                                )}
+                            </ScrollView>
+
+                            <View style={{ padding: 16, borderTopWidth: 1, borderTopColor: theme.colors.border }}>
+                                <TouchableOpacity 
+                                    onPress={() => setHistoryViewingMessage(null)}
+                                    style={{ backgroundColor: theme.colors.primary, padding: 12, borderRadius: 10, alignItems: 'center' }}
+                                >
+                                    <Text style={{ color: '#FFF', fontWeight: 'bold' }}>Close</Text>
+                                </TouchableOpacity>
+                            </View>
+                        </Pressable>
+                    </Pressable>
+                </Modal>
             </KeyboardAvoidingView>
         </SafeAreaView>
     );

@@ -75,7 +75,7 @@ class MessageController extends Controller
             ]);
 
         $messages = Message::where('conversation_id', $conversationId)
-            ->with(['sender:id,first_name,last_name,role', 'actualSender:id,first_name,last_name', 'replyTo.sender'])
+            ->with(['sender:id,first_name,last_name,role', 'actualSender:id,first_name,last_name', 'replyTo.sender', 'histories'])
             ->orderBy('created_at', 'asc')
             ->get();
 
@@ -402,8 +402,19 @@ class MessageController extends Controller
             return response()->json(['message' => 'Cannot edit an unsent message.'], 422);
         }
 
+        // Enforce 30-minute limit
+        if ($message->created_at->diffInMinutes(now()) > 30) {
+            return response()->json(['message' => 'Messages can only be edited within 30 minutes.'], 422);
+        }
+
         $request->validate([
             'message' => 'required|string|max:2000',
+        ]);
+
+        // Save history before updating
+        $message->histories()->create([
+            'old_message' => $message->message,
+            'created_at' => now(),
         ]);
 
         $message->update([

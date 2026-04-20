@@ -35,6 +35,7 @@ const ChatArea = ({
   const docInputRef = useRef(null);
   const textareaRef = useRef(null);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
+  const [viewingHistory, setViewingHistory] = useState(null);
   
   // Auto-focus textarea when replying or editing
   React.useEffect(() => {
@@ -185,6 +186,8 @@ const ChatArea = ({
             const replyTo = msg.reply_to;
             const isImageOnly = msg.image_url && !msg.message && !replyTo && !msg.file_url;
 
+            const canEdit = isMine && !isUnsent && !caretakerMessagingRestricted && (new Date() - new Date(ts)) < 30 * 60 * 1000;
+            
             return (
               <div
                 key={msg.id || idx}
@@ -204,7 +207,7 @@ const ChatArea = ({
                     </p>
                   )}
                     <div className="flex items-center gap-1 max-w-full">
-                      {isMine && !isUnsent && !caretakerMessagingRestricted && (
+                      {canEdit && (
                         <div className="opacity-0 group-hover/msg:opacity-100 flex items-center bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-full shadow-sm border border-gray-200 dark:border-gray-700 transition-all">
                           <button
                             onClick={() => {
@@ -231,13 +234,15 @@ const ChatArea = ({
                         </div>
                       )}
                       {!isMine && !isUnsent && !caretakerMessagingRestricted && (
-                        <button
-                          onClick={() => setReplyingTo(msg)}
-                          className="opacity-0 group-hover/msg:opacity-100 p-1.5 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-all text-gray-400 hover:text-blue-500"
-                          title="Reply"
-                        >
-                          <Reply className="w-3.5 h-3.5" />
-                        </button>
+                        <div className="opacity-0 group-hover/msg:opacity-100 flex items-center bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-full shadow-sm border border-gray-200 dark:border-gray-700 transition-all">
+                          <button
+                            onClick={() => setReplyingTo(msg)}
+                            className="p-1.5 hover:text-blue-500 transition-colors"
+                            title="Reply"
+                          >
+                            <Reply className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
                       )}
                       
                       <div
@@ -300,9 +305,12 @@ const ChatArea = ({
                               <div className="flex items-end gap-2 flex-wrap">
                                 <p className="text-sm whitespace-pre-wrap break-words flex-1">{msg.message}</p>
                                 {isEdited && (
-                                  <span className={`text-[9px] uppercase font-bold tracking-tighter opacity-70 ${isMine ? 'text-green-100' : 'text-gray-400'}`}>
+                                  <button 
+                                    onClick={() => setViewingHistory(msg)}
+                                    className={`text-[9px] uppercase font-bold tracking-tighter opacity-70 hover:opacity-100 transition-opacity underline cursor-pointer ${isMine ? 'text-green-100' : 'text-gray-400'}`}
+                                  >
                                     (edited)
-                                  </span>
+                                  </button>
                                 )}
                               </div>
                             )}
@@ -592,6 +600,53 @@ const ChatArea = ({
           </div>
         </div>
       </aside>
+
+      {/* Message History Modal */}
+      {viewingHistory && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl w-full max-w-md overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200">
+            <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+              <div>
+                <h3 className="font-bold text-gray-900 dark:text-white">Message History</h3>
+                <p className="text-[10px] text-gray-500 uppercase tracking-widest font-bold">Previous versions</p>
+              </div>
+              <button 
+                onClick={() => setViewingHistory(null)}
+                className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors"
+              >
+                <X className="w-5 h-5 text-gray-500" />
+              </button>
+            </div>
+            <div className="p-4 max-h-[60vh] overflow-y-auto space-y-4">
+              <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded-xl border border-green-100 dark:border-green-800/30">
+                <p className="text-[10px] font-bold text-green-600 dark:text-green-400 uppercase mb-1">Current Version</p>
+                <p className="text-sm text-gray-900 dark:text-white">{viewingHistory.message}</p>
+              </div>
+              
+              {viewingHistory.histories?.length > 0 ? (
+                viewingHistory.histories.slice().reverse().map((history, i) => (
+                  <div key={i} className="p-3 bg-gray-50 dark:bg-gray-700/50 rounded-xl border border-gray-200 dark:border-gray-700">
+                    <p className="text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">
+                      {formatTime(history.created_at)}
+                    </p>
+                    <p className="text-sm text-gray-700 dark:text-gray-300">{history.message}</p>
+                  </div>
+                ))
+              ) : (
+                <p className="text-center py-8 text-gray-500 text-sm">No history available.</p>
+              )}
+            </div>
+            <div className="p-4 bg-gray-50 dark:bg-gray-900/40 border-t border-gray-200 dark:border-gray-700 flex justify-end">
+              <button 
+                onClick={() => setViewingHistory(null)}
+                className="px-6 py-2 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-xl text-sm font-bold shadow-md active:scale-95 transition-all"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

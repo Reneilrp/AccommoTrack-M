@@ -105,4 +105,9 @@ class Message extends Model
     {
         return $this->hasMany(Message::class, 'reply_to_id');
     }
+
+    public function histories()
+    {
+        return $this->hasMany(MessageHistory::class);
+    }
 }
