@@ -188,7 +188,7 @@ class Property extends Model
         'accepted_payments' => 'array',
     ];
 
-    protected $appends = ['image_url'];
+    protected $appends = ['image_url', 'image'];
 
     /**
      * Relationship: Property belongs to a User (Landlord)
@@ -317,6 +317,14 @@ class Property extends Model
         $firstImage = $this->images()->where('media_type', 'image')->first();
 
         return $firstImage ? \Illuminate\Support\Facades\Storage::url($firstImage->image_url) : null;
+    }
+
+    /**
+     * Alias for image_url for frontend compatibility (Resource style)
+     */
+    public function getImageAttribute()
+    {
+        return $this->image_url;
     }
 
     /**

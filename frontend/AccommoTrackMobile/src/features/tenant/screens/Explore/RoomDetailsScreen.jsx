@@ -1140,7 +1140,9 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
           `Booking submitted successfully! Reference: ${bookingObj?.booking_reference || 'N/A'}`
         );
         setBookingModalVisible(false);
-        navigation.goBack();
+        setTimeout(() => {
+          navigation.goBack();
+        }, 1000);
       } else {
         // Handle errors with enhanced messages for booking limits
         if (result.error && (
@@ -1436,13 +1438,7 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
             </View>
           </View>
 
-          {activeRoom.capacity && parseInt(activeRoom.capacity, 10) > 1 && (
-            <View style={{ paddingHorizontal: 20, paddingTop: 12 }}>
-              <Text style={[styles.psText, { fontSize: 12, color: theme.colors.textTertiary || '#94a3b8' }]}>
-                *Capacity is {activeRoom.capacity}. Rent may be divided if you share with other tenants.
-              </Text>
-            </View>
-          )}
+
 
           {/* Description */}
           {activeRoom.description && (
@@ -2132,32 +2128,6 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
                     </View>
                   )}
 
-              {/* Agreement Checkbox */}
-              <View style={styles.inputContainer}>
-                <TouchableOpacity
-                  style={{ flexDirection: 'row', alignItems: 'center' }}
-                  onPress={() => setAgreedToRules(!agreedToRules)}
-                >
-                  <View
-                    style={{
-                      width: 24,
-                      height: 24,
-                      borderRadius: 4,
-                      borderWidth: 2,
-                      borderColor: agreedToRules ? theme.colors.primary : theme.colors.border,
-                      backgroundColor: agreedToRules ? theme.colors.primary : 'transparent',
-                      justifyContent: 'center',
-                      alignItems: 'center',
-                      marginRight: 10,
-                    }}
-                  >
-                    {agreedToRules && <Ionicons name="checkmark" size={16} color="#fff" />}
-                  </View>
-                  <Text style={{ fontSize: 13, color: theme.colors.text, flex: 1 }}>
-                    I have read and agree to the Room Rules and policies. <Text style={{ color: theme.colors.primary }}>*</Text>
-                  </Text>
-                </TouchableOpacity>
-              </View>
 
                   <View style={{ marginTop: 8 }}>
                     {pricingBreakdown && pricingBreakdown.months > 0 && (
@@ -2188,6 +2158,33 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
                 />
               </View>
 
+              {/* Agreement Checkbox */}
+              <View style={[styles.inputContainer, { marginBottom: 20 }]}>
+                <TouchableOpacity
+                  style={{ flexDirection: 'row', alignItems: 'center' }}
+                  onPress={() => setAgreedToRules(!agreedToRules)}
+                >
+                  <View
+                    style={{
+                      width: 24,
+                      height: 24,
+                      borderRadius: 4,
+                      borderWidth: 2,
+                      borderColor: agreedToRules ? theme.colors.primary : theme.colors.border,
+                      backgroundColor: agreedToRules ? theme.colors.primary : 'transparent',
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                      marginRight: 10,
+                    }}
+                  >
+                    {agreedToRules && <Ionicons name="checkmark" size={16} color="#fff" />}
+                  </View>
+                  <Text style={{ fontSize: 13, color: theme.colors.text, flex: 1 }}>
+                    I have read and agree to the Room Rules and policies. <Text style={{ color: theme.colors.primary }}>*</Text>
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
               <TouchableOpacity
                 style={[styles.submitButton, ((isDailyContract && !bookingData.end_date) || isSubmitting) && styles.submitButtonDisabled]}
                 onPress={handleSubmitBooking}
@@ -2208,7 +2205,6 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
                 <Text style={styles.cancelButtonText}>Cancel</Text>
               </TouchableOpacity>
             </ScrollView>
-            <Toast config={toastConfig} />
           </View>
         </View>
       </Modal>

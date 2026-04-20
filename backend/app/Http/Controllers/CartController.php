@@ -77,7 +77,7 @@ class CartController extends Controller
 
         return response()->json([
             'cart' => $cart,
-            'items' => $cart->items->load('room.property'),
+            'items' => $cart->items->load(['room.property', 'room.images']),
             'total' => $cart->getTotalPrice(),
             'item_count' => $cart->items->count(),
         ]);
@@ -90,7 +90,7 @@ class CartController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'room_id' => 'required|exists:rooms,id',
-            'bed_count' => 'required|integer|min:1',
+            'bed_count' => 'nullable|integer|min:1',
             'bed_numbers' => 'nullable|string',
             'start_date' => 'required|date|after_or_equal:today',
             'end_date' => 'nullable|date|after:start_date',

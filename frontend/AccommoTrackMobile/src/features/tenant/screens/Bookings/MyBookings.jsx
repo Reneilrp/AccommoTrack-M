@@ -84,7 +84,7 @@ export default function MyBookings() {
     uiState.bookings?.activeTab ?? 'current'
   );
   const [overdueTab, setOverdueTab] = useState('all'); // 'all', 'active', 'pending', 'overdue'
-  const [viewMode, setViewMode] = useState('active'); // 'active' or 'pending'
+  const [viewMode, setViewMode] = useState('active'); // 'active', 'pending', or 'overdue'
   const slideAnim = useRef(new Animated.Value(0)).current;
   const cachedBookings = uiState.data?.[BUCKET];
   const [refreshing, setRefreshing] = useState(false);
@@ -93,6 +93,7 @@ export default function MyBookings() {
   const [stayData, setStayData] = useState(cachedBookings?.stayData ?? null);
   const [historyData, setHistoryData] = useState(cachedBookings?.historyData ?? []);
   const [pendingBookings, setPendingBookings] = useState(cachedBookings?.pendingBookings ?? []);
+  const [pendingCheckIns, setPendingCheckIns] = useState(cachedBookings?.pendingCheckIns ?? []);
   const [selectedStayIndex, setSelectedStayIndex] = useState(0);
   const [selectedPendingIndex, setSelectedPendingIndex] = useState(0);
   const [showPropertySwitchModal, setShowPropertySwitchModal] = useState(false);
@@ -206,6 +207,7 @@ export default function MyBookings() {
     ? {
       stayData: cachedBookings.stayData ?? null,
       pendingBookings: cachedBookings.pendingBookings ?? [],
+      pendingCheckIns: cachedBookings.pendingCheckIns ?? [],
       historyData: cachedBookings.historyData ?? [],
       pendingTransferRequests: [],
       monthlyTransferCount: 0,
@@ -224,10 +226,15 @@ export default function MyBookings() {
         ]);
 
         const stayDataNext = stayRes.success ? stayRes.data : null;
+        const pendingCheckInsNext = stayRes.success ? (stayRes.data?.pendingCheckIns || []) : [];
+
         const allBookings = bookingsRes.success ? bookingsRes.data || [] : [];
         const pendingStatuses = new Set(['pending', 'pending_reservation', 'reserved', 'booked']);
+        
+        const pendingCheckInIds = new Set(pendingCheckInsNext.map(pc => pc.id));
         const pendingBookingsNext = allBookings.filter((bookingItem) =>
-          pendingStatuses.has(String(bookingItem.status || '').toLowerCase()),
+          pendingStatuses.has(String(bookingItem.status || '').toLowerCase()) &&
+          !pendingCheckInIds.has(bookingItem.id)
         );
 
         const historyPayload = historyRes.success ? (historyRes.data || {}) : {};
@@ -266,6 +273,7 @@ export default function MyBookings() {
         return {
           stayData: stayDataNext,
           pendingBookings: pendingBookingsNext,
+          pendingCheckIns: pendingCheckInsNext,
           historyData: historyDataNext,
           pendingTransferRequests: pendingTransferRequestsNext,
           monthlyTransferCount: monthlyTransferCountNext,
@@ -276,6 +284,7 @@ export default function MyBookings() {
           cachedBundle || {
             stayData: null,
             pendingBookings: [],
+            pendingCheckIns: [],
             historyData: [],
             pendingTransferRequests: [],
             monthlyTransferCount: 0,
@@ -310,19 +319,38 @@ export default function MyBookings() {
 
     setStayData(nextBundle.stayData ?? null);
     setPendingBookings(nextBundle.pendingBookings ?? []);
+    setPendingCheckIns(nextBundle.pendingCheckIns ?? []);
     setHistoryData(nextBundle.historyData ?? []);
     setPendingTransferRequests(nextBundle.pendingTransferRequests ?? []);
     setMonthlyTransferCount(nextBundle.monthlyTransferCount ?? 0);
 
-    if (nextBundle.stayData?.stays?.length > 0) {
+    // Dynamic initial viewMode selection
+    const nonOverdueStaysCount = (nextBundle.stayData?.stays || []).filter(s => !(s?.booking?.is_overdue || s?.booking?.isOverdue)).length;
+    const nonOverduePendingBookingsCount = (nextBundle.pendingBookings || []).filter(b => !(b?.is_overdue || b?.isOverdue)).length;
+    const nonOverdueCheckInsCount = (nextBundle.pendingCheckIns || []).filter(pc => !(pc.isOverdue || pc.daysOverdue > 0)).length;
+    const nonOverduePendingCount = nonOverduePendingBookingsCount + nonOverdueCheckInsCount;
+    
+    if (nonOverdueStaysCount > 0) {
       setViewMode('active');
-    } else {
+    } else if (nonOverduePendingCount > 0) {
       setViewMode('pending');
+    } else {
+      const overduePendingCheckInsCount = (nextBundle.pendingCheckIns || []).filter(pc => pc.isOverdue || pc.daysOverdue > 0).length;
+      const overdueCount = ((nextBundle.stayData?.stays || []).length - nonOverdueStaysCount) + 
+                          ((nextBundle.pendingBookings || []).length - nonOverduePendingBookingsCount) + 
+                          overduePendingCheckInsCount;
+      
+      if (overdueCount > 0) {
+        setViewMode('overdue');
+      } else {
+        setViewMode('active'); // fallback
+      }
     }
 
     updateData(BUCKET, {
       stayData: nextBundle.stayData ?? null,
       pendingBookings: nextBundle.pendingBookings ?? [],
+      pendingCheckIns: nextBundle.pendingCheckIns ?? [],
       historyData: nextBundle.historyData ?? [],
     });
   }, [myBookingsBundleQuery.data, updateData]);
@@ -330,8 +358,12 @@ export default function MyBookings() {
   const loading = myBookingsBundleQuery.isLoading && !myBookingsBundleQuery.data;
 
   useEffect(() => {
+    let target = 0;
+    if (viewMode === 'pending') target = 1;
+    else if (viewMode === 'overdue') target = 2;
+
     Animated.timing(slideAnim, {
-      toValue: viewMode === 'active' ? 0 : 1,
+      toValue: target,
       duration: 300,
       useNativeDriver: false,
     }).start();
@@ -1374,7 +1406,7 @@ export default function MyBookings() {
     const isDark = theme.isDark;
     if (s.includes('overdue')) return isDark ? '#f87171' : '#EF4444';
     if (s === 'transferred') return isDark ? '#818cf8' : '#6366f1';
-    if (s.includes('confirm') || s.includes('active') || s.includes('complete')) return theme.colors.primary;
+    if (s.includes('confirm') || s.includes('active') || s.includes('complete')) return theme.colors.success; // Use success (green) for active
     if (s === 'reserved') return isDark ? '#2dd4bf' : '#0D9488';
     if (s === 'pending_reservation') return isDark ? '#fb923c' : '#EA580C';
     if (s.includes('pending') || s.includes('partial')) return isDark ? '#fbbf24' : '#F59E0B';
@@ -1547,53 +1579,29 @@ export default function MyBookings() {
   );
 
   const renderCurrentStay = () => {
-    const hasStays = stayData?.stays && stayData.stays.length > 0;
-    const hasPending = pendingBookings && pendingBookings.length > 0;
+    const hasStays = (stayData?.stays || []).length > 0;
+    const hasPending = (pendingBookings || []).length > 0 || (pendingCheckIns || []).length > 0;
 
-    // Check if any booking is overdue
-    const hasOverdueStays = stayData?.stays?.some(stay =>
-      stay?.booking?.isOverdue || stay?.booking?.is_overdue
-    ) || false;
-    const hasOverduePending = pendingBookings?.some(booking =>
-      booking?.isOverdue || booking?.is_overdue
-    ) || false;
-    const hasAnyOverdue = hasOverdueStays || hasOverduePending;
+    const nonOverdueStays = (stayData?.stays || []).filter(s => !(s?.booking?.is_overdue || s?.booking?.isOverdue));
+    const nonOverduePendingBookings = (pendingBookings || []).filter(b => !(b?.is_overdue || b?.isOverdue));
+    const nonOverdueCheckIns = (pendingCheckIns || []).filter(pc => !(pc.isOverdue || pc.daysOverdue > 0));
+    
+    const overdueStays = (stayData?.stays || []).filter(s => s?.booking?.is_overdue || s?.booking?.isOverdue);
+    const overduePendingBookings = (pendingBookings || []).filter(b => b?.is_overdue || b?.isOverdue);
+    const overdueCheckIns = (pendingCheckIns || []).filter(pc => pc.isOverdue || pc.daysOverdue > 0);
 
-    // Filter based on overdue tab
-    let filteredStays = stayData?.stays || [];
-    let filteredPending = pendingBookings || [];
+    const hasAnyOverdue = overdueStays.length > 0 || overduePendingBookings.length > 0 || overdueCheckIns.length > 0;
 
-    if (hasAnyOverdue && overdueTab !== 'all') {
-      if (overdueTab === 'active') {
-        filteredStays = filteredStays.filter(stay =>
-          !(stay?.booking?.isOverdue || stay?.booking?.is_overdue)
-        );
-        filteredPending = filteredPending.filter(booking =>
-          !(booking?.isOverdue || booking?.is_overdue)
-        );
-      } else if (overdueTab === 'pending') {
-        // Show only pending status bookings (not overdue)
-        filteredStays = filteredStays.filter(stay => {
-          const status = String(stay?.booking?.status || '').toLowerCase();
-          return ['pending', 'pending_reservation', 'reserved', 'booked'].includes(status) &&
-            !(stay?.booking?.isOverdue || stay?.booking?.is_overdue);
-        });
-        filteredPending = filteredPending.filter(booking =>
-          !(booking?.isOverdue || booking?.is_overdue)
-        );
-      } else if (overdueTab === 'overdue') {
-        filteredStays = filteredStays.filter(stay =>
-          stay?.booking?.isOverdue || stay?.booking?.is_overdue
-        );
-        filteredPending = filteredPending.filter(booking =>
-          booking?.isOverdue || booking?.is_overdue
-        );
-      }
-    }
+    const displayedStays = viewMode === 'overdue' ? overdueStays : (viewMode === 'active' ? nonOverdueStays : []);
+    const displayedPendingBookings = viewMode === 'overdue' ? overduePendingBookings : (viewMode === 'pending' ? nonOverduePendingBookings : []);
+    const displayedPendingCheckIns = viewMode === 'overdue' ? overdueCheckIns : (viewMode === 'pending' ? nonOverdueCheckIns : []);
 
-    const currentData = viewMode === 'active'
-      ? (filteredStays?.[selectedStayIndex] || filteredStays?.[0])
-      : (filteredPending?.[selectedPendingIndex] || filteredPending?.[0]);
+    const hasAvailableStays = displayedStays.length > 0;
+    const hasAvailablePending = displayedPendingBookings.length > 0 || displayedPendingCheckIns.length > 0;
+
+    const currentData = viewMode === 'active' || (viewMode === 'overdue' && hasAvailableStays)
+      ? (displayedStays?.[selectedStayIndex] || displayedStays?.[0])
+      : (displayedPendingBookings?.[selectedPendingIndex] || displayedPendingBookings?.[0]);
 
     // Check if filtered results are empty
     const hasFilteredStays = filteredStays.length > 0;
@@ -1619,19 +1627,20 @@ export default function MyBookings() {
       );
     }
 
-    // Show empty state if filter returns no results
-    if (hasAnyOverdue && overdueTab !== 'all' && !hasFilteredStays && !hasFilteredPending) {
-      return (
-        <View style={styles.content}>
-          <View style={styles.emptyState}>
-            <Ionicons name="filter-outline" size={64} color={theme.colors.textTertiary} />
-            <Text style={styles.emptyTitle}>No {overdueTab === 'overdue' ? 'Overdue' : overdueTab === 'pending' ? 'Pending' : 'Active'} Bookings</Text>
-            <Text style={styles.emptyText}>
-              You don't have any {overdueTab === 'overdue' ? 'overdue' : overdueTab === 'pending' ? 'pending' : 'active'} bookings at the moment.
-            </Text>
-          </View>
-        </View>
-      );
+    // Empty state for filters
+    if (viewMode === 'active' && !hasAvailableStays && (hasAnyOverdue || hasPending)) {
+        return (
+            <View style={styles.content}>
+                {renderViewToggle()}
+                <View style={[styles.emptyState, { marginTop: 40 }]}>
+                    <Ionicons name="home-outline" size={48} color={theme.colors.textTertiary} />
+                    <Text style={styles.emptyTitle}>No Active Stays</Text>
+                    <Text style={styles.emptyText}>
+                        Switch to Pending or Overdue to see other bookings.
+                    </Text>
+                </View>
+            </View>
+        );
     }
 
     // Normalize data for display
@@ -1771,159 +1780,256 @@ export default function MyBookings() {
     const isCurrentMonthPaidForMoveOut = !isMonthlyBilling || ['paid', 'settled', 'succeeded', 'verified', 'completed'].includes(paymentStatusRaw);
     const reviewAlreadySubmitted = Boolean(booking.hasReview || booking.has_review);
 
+    const renderCheckInCard = (pc) => {
+        const isOverdue = pc.isOverdue || Number(pc.daysOverdue) > 0;
+        return (
+            <View key={pc.id} style={[styles.bookingCard, { padding: 16, borderColor: isOverdue ? theme.colors.error : '#F59E0B', borderWidth: 1 }]}>
+                <View style={{ alignItems: 'center', marginBottom: 12 }}>
+                    <Ionicons 
+                        name={isOverdue ? "alert-circle" : "calendar"} 
+                        size={48} 
+                        color={isOverdue ? theme.colors.error : '#F59E0B'} 
+                    />
+                    <Text style={[styles.emptyTitle, { fontSize: 18, marginTop: 8 }]}>
+                        {isOverdue ? 'Check-in Overdue' : 'Check-in Pending'}
+                    </Text>
+                    <Text style={[styles.emptyText, { marginBottom: 12 }]}>
+                        {isOverdue 
+                            ? 'Action required: finalize your move-in with the landlord.' 
+                            : 'Your move-in date has arrived! Finalize your check-in with the landlord.'}
+                    </Text>
+                </View>
+
+                <View style={{ 
+                    backgroundColor: isOverdue ? (theme.isDark ? 'rgba(239,68,68,0.1)' : '#FEF2F2') : (theme.isDark ? 'rgba(245,158,11,0.1)' : '#FFFBEB'), 
+                    padding: 16, borderRadius: 12, marginBottom: 16,
+                    borderWidth: 1, borderColor: isOverdue ? (theme.isDark ? '#ef4444' : '#FEE2E2') : (theme.isDark ? '#f59e0b' : '#FEF3C7')
+                }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                        <View style={{ backgroundColor: theme.colors.surface, p: 8, borderRadius: 8, padding: 8 }}>
+                            <Ionicons name="home" size={20} color={isOverdue ? theme.colors.error : '#F59E0B'} />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                            <Text style={{ fontWeight: 'bold', fontSize: 16, color: theme.colors.text }}>{pc.property}</Text>
+                            <Text style={{ fontSize: 12, color: theme.colors.textSecondary }}>Room {pc.room || '—'}</Text>
+                            <Text style={{ fontSize: 12, color: theme.colors.textSecondary }}>
+                                Scheduled start: {formatDate(pc.startDate)}
+                            </Text>
+                            <Text style={{ fontSize: 11, fontWeight: 'bold', color: isOverdue ? theme.colors.error : '#F59E0B', marginTop: 4, textTransform: 'uppercase' }}>
+                                {Number(pc.daysOverdue) > 0
+                                    ? `${Math.max(0, Math.round(Number(pc.daysOverdue)))} day${Math.round(Number(pc.daysOverdue)) === 1 ? '' : 's'} overdue`
+                                    : (isOverdue ? 'Overdue' : 'Check-in Today')}
+                            </Text>
+                        </View>
+                    </View>
+                </View>
+
+                <View style={{ flexDirection: 'row', gap: 8, justifyContent: 'center' }}>
+                    <TouchableOpacity
+                        style={[styles.actionBtn, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border, borderWidth: 1, minHeight: 40 }]}
+                        onPress={() => {
+                            const propertyId = pc?.property_id || pc?.propertyId || pc?.property?.id;
+                            if (propertyId) navigation.navigate('RoomDetails', { roomId: pc?.room_id, propertyId });
+                        }}
+                    >
+                        <Text style={[styles.actionBtnText, { color: theme.colors.text }]}>Room Details</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                        style={[styles.actionBtn, { backgroundColor: theme.colors.error, minHeight: 40 }]}
+                        onPress={() => handleCancelBooking(pc)}
+                    >
+                        <Text style={styles.actionBtnText}>Cancel Booking</Text>
+                    </TouchableOpacity>
+                </View>
+            </View>
+        );
+    };
+
+    const renderPendingCard = (pb) => {
+        const isProxy = String(pb?.booking_mode || pb?.bookingMode || '').toLowerCase() === 'proxy';
+        return (
+            <View key={pb.id} style={[styles.bookingCard, { padding: 16, borderColor: '#F59E0B', borderWidth: 1 }]}>
+                <View style={{ alignItems: 'center', marginBottom: 12 }}>
+                    <Ionicons name="time" size={48} color="#F59E0B" />
+                    <Text style={[styles.emptyTitle, { fontSize: 18, marginTop: 8 }]}>Booking Pending</Text>
+                    <Text style={[styles.emptyText, { marginBottom: 12 }]}>The landlord is reviewing your request.</Text>
+                </View>
+
+                <View style={{ backgroundColor: theme.isDark ? 'rgba(245,158,11,0.1)' : '#FFFBEB', padding: 16, borderRadius: 12, marginBottom: 16, borderSize: 1, borderColor: theme.isDark ? '#f59e0b' : '#FEF3C7', borderWidth: 1 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                        <View style={{ backgroundColor: theme.colors.surface, padding: 8, borderRadius: 8 }}>
+                            <Ionicons name="home" size={20} color="#F59E0B" />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                            <Text style={{ fontWeight: 'bold', fontSize: 15, color: theme.colors.text }}>{pb?.property_title || pb?.property?.title || 'Property'}</Text>
+                            <Text style={{ fontSize: 11, color: theme.colors.textSecondary }}>Room {pb?.room_number || pb?.room?.room_number || '—'}</Text>
+                            <Text style={{ fontSize: 11, color: theme.colors.textSecondary, marginTop: 2 }}>
+                                Move-in Date: {pb.start_date ? formatDate(pb.start_date) : 'Awaiting Approval'}
+                            </Text>
+                            <View style={{ marginTop: 8 }}>
+                                <ReservationPolicyNotice policy={pb?.reservation_policy} theme={theme} marginBottom={0} />
+                            </View>
+                        </View>
+                    </View>
+                    
+                    <View style={{ marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: theme.isDark ? 'rgba(245,158,11,0.2)' : '#FEF3C7', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <View>
+                            <Text style={{ fontSize: 10, fontWeight: 'bold', color: theme.colors.textTertiary, textTransform: 'uppercase' }}>
+                                {pb?.billing_policy === 'daily' ? 'Daily' : 'Monthly'}
+                            </Text>
+                            <Text style={{ fontSize: 16, fontWeight: 'bold', color: theme.colors.text }}>{formatPesoNoCents(pb?.unit_price || pb?.monthly_rent || 0)}</Text>
+                        </View>
+                        <TouchableOpacity
+                            style={[styles.actionBtn, { backgroundColor: theme.colors.error, paddingHorizontal: 12, minHeight: 36 }]}
+                            onPress={() => handleCancelBooking(pb)}
+                        >
+                            <Text style={styles.actionBtnText}>Cancel</Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+
+                <TouchableOpacity
+                    style={[styles.actionBtn, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border, borderWidth: 1, alignSelf: 'center', minHeight: 36, paddingHorizontal: 20 }]}
+                    onPress={() => {
+                        const propertyId = pb?.property_id || pb?.property?.id;
+                        if (propertyId) navigation.navigate('RoomDetails', { roomId: pb?.room?.id, propertyId });
+                    }}
+                >
+                    <Text style={[styles.actionBtnText, { color: theme.colors.text }]}>View Room Details</Text>
+                </TouchableOpacity>
+            </View>
+        );
+    };
+
+    const tabs = [];
+    if (hasStays || hasAnyOverdue) tabs.push({ id: 'active', label: 'Active', color: theme.colors.success });
+    if (hasPending || hasAnyOverdue) tabs.push({ id: 'pending', label: 'Pending', color: '#F59E0B' });
+    if (hasAnyOverdue) tabs.push({ id: 'overdue', label: 'Overdue', color: theme.colors.error });
+
+    const renderViewToggle = () => {
+        if (tabs.length <= 1) return null;
+
+        const activeIndicatorColor = 
+            viewMode === 'active' ? theme.colors.success :
+            viewMode === 'pending' ? '#F59E0B' :
+            theme.colors.error;
+
+        return (
+            <View style={{
+                backgroundColor: theme.colors.backgroundTertiary,
+                borderRadius: 12,
+                padding: 4,
+                marginBottom: 20,
+                flexDirection: 'row',
+                position: 'relative',
+                height: 48
+            }}>
+                <Animated.View
+                    style={{
+                        width: (viewportWidth - 40) / tabs.length,
+                        backgroundColor: activeIndicatorColor,
+                        transform: [{ translateX }],
+                        borderRadius: 8,
+                        position: 'absolute',
+                        top: 4,
+                        bottom: 4,
+                        left: 4,
+                        shadowColor: activeIndicatorColor,
+                        shadowOffset: { width: 0, height: 2 },
+                        shadowOpacity: 0.3,
+                        shadowRadius: 4,
+                        elevation: 3
+                    }}
+                />
+                {tabs.map((tab, index) => (
+                    <TouchableOpacity
+                        key={tab.id}
+                        style={{ flex: 1, alignItems: 'center', justifyContent: 'center', zIndex: 1 }}
+                        onPress={() => {
+                            setViewMode(tab.id);
+                            Animated.spring(slideAnim, {
+                                toValue: index,
+                                useNativeDriver: true,
+                                tension: 50,
+                                friction: 8
+                            }).start();
+                        }}
+                    >
+                        <Text style={{
+                            fontWeight: '700',
+                            fontSize: 13,
+                            color: viewMode === tab.id ? '#fff' : theme.colors.textSecondary
+                        }}>
+                            {tab.label}
+                        </Text>
+                    </TouchableOpacity>
+                ))}
+            </View>
+        );
+    };
+
     const translateX = slideAnim.interpolate({
-      inputRange: [0, 1],
-      outputRange: [0, Math.max(viewportWidth - 40, 0) / 2],
+        inputRange: tabs.map((_, i) => i),
+        outputRange: tabs.map((_, i) => i * ((viewportWidth - 40) / tabs.length)),
     });
+
+    const showActiveView = viewMode === 'active' || viewMode === 'overdue';
+    const showPendingView = viewMode === 'pending' || viewMode === 'overdue';
 
     return (
       <View style={styles.content}>
-        {/* Sliding Toggle */}
-        {hasStays && hasPending && (
-          <View style={[styles.sliderContainer, { backgroundColor: theme.colors.backgroundSecondary }]}>
-            <Animated.View
-              style={[
-                styles.sliderIndicator,
-                {
-                  width: '50%',
-                  backgroundColor: viewMode === 'active' ? theme.colors.primary : (theme.isDark ? '#fbbf24' : '#F59E0B'),
-                  transform: [{ translateX }]
-                }
-              ]}
-            />
-            <TouchableOpacity
-              style={styles.sliderTab}
-              onPress={() => setViewMode('active')}
-            >
-              <Text style={[styles.sliderTabText, { color: viewMode === 'active' ? '#fff' : theme.colors.textSecondary }]}>
-                Active Stays ({stayData.stays.length})
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.sliderTab}
-              onPress={() => setViewMode('pending')}
-            >
-              <Text style={[styles.sliderTabText, { color: viewMode === 'pending' ? '#fff' : theme.colors.textSecondary }]}>
-                Pending ({pendingBookings.length})
-              </Text>
-            </TouchableOpacity>
-          </View>
-        )}
+        {renderViewToggle()}
 
-        {/* Overdue Filter Tabs */}
-        {hasAnyOverdue && (
-          <View style={{ paddingHorizontal: 16, marginTop: 12, marginBottom: 8 }}>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={{ gap: 8 }}
-            >
-              <TouchableOpacity
-                onPress={() => setOverdueTab('all')}
-                style={{
-                  paddingHorizontal: 16,
-                  paddingVertical: 8,
-                  borderRadius: 20,
-                  backgroundColor: overdueTab === 'all' ? theme.colors.primary : theme.colors.backgroundSecondary,
-                  borderWidth: 1,
-                  borderColor: overdueTab === 'all' ? theme.colors.primary : theme.colors.border,
-                }}
-              >
-                <Text style={{
-                  fontSize: 12,
-                  fontWeight: '700',
-                  color: overdueTab === 'all' ? '#fff' : theme.colors.textSecondary
-                }}>
-                  All
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={() => setOverdueTab('active')}
-                style={{
-                  paddingHorizontal: 16,
-                  paddingVertical: 8,
-                  borderRadius: 20,
-                  backgroundColor: overdueTab === 'active' ? theme.colors.success : theme.colors.backgroundSecondary,
-                  borderWidth: 1,
-                  borderColor: overdueTab === 'active' ? theme.colors.success : theme.colors.border,
-                }}
-              >
-                <Text style={{
-                  fontSize: 12,
-                  fontWeight: '700',
-                  color: overdueTab === 'active' ? '#fff' : theme.colors.textSecondary
-                }}>
-                  Active
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={() => setOverdueTab('pending')}
-                style={{
-                  paddingHorizontal: 16,
-                  paddingVertical: 8,
-                  borderRadius: 20,
-                  backgroundColor: overdueTab === 'pending' ? (theme.isDark ? '#fbbf24' : '#F59E0B') : theme.colors.backgroundSecondary,
-                  borderWidth: 1,
-                  borderColor: overdueTab === 'pending' ? (theme.isDark ? '#fbbf24' : '#F59E0B') : theme.colors.border,
-                }}
-              >
-                <Text style={{
-                  fontSize: 12,
-                  fontWeight: '700',
-                  color: overdueTab === 'pending' ? '#fff' : theme.colors.textSecondary
-                }}>
-                  Pending
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={() => setOverdueTab('overdue')}
-                style={{
-                  paddingHorizontal: 16,
-                  paddingVertical: 8,
-                  borderRadius: 20,
-                  backgroundColor: overdueTab === 'overdue' ? theme.colors.error : theme.colors.backgroundSecondary,
-                  borderWidth: 1,
-                  borderColor: overdueTab === 'overdue' ? theme.colors.error : theme.colors.border,
-                }}
-              >
-                <Text style={{
-                  fontSize: 12,
-                  fontWeight: '700',
-                  color: overdueTab === 'overdue' ? '#fff' : theme.colors.textSecondary
-                }}>
-                  Overdue
-                </Text>
-              </TouchableOpacity>
-            </ScrollView>
-          </View>
-        )}
-
-        {/* Property Selector */}
-        {((viewMode === 'active' && filteredStays.length > 1) || (viewMode === 'pending' && filteredPending.length > 1)) && (
-          <View style={[styles.selectorContainer, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border, borderWidth: 1 }]}>
-            <View style={styles.selectorInfo}>
-              <View style={[styles.selectorIcon, { backgroundColor: theme.colors.primaryLight }]}>
-                <Ionicons name="business" size={20} color={theme.colors.primary} />
-              </View>
-              <View>
-                <Text style={[styles.selectorLabel, { color: theme.colors.text }]}>Switch Property</Text>
-                <Text style={[styles.selectorSublabel, { color: theme.colors.textSecondary }]}>
-                  {viewMode === 'active' ? `${filteredStays.length} active stays` : `${filteredPending.length} pending requests`}
-                </Text>
-              </View>
+        {showPendingView && displayedPendingCheckIns.length > 0 && (
+            <View style={{ marginBottom: 20 }}>
+                {displayedPendingCheckIns.map(pc => renderCheckInCard(pc))}
             </View>
-            <TouchableOpacity
-              style={[styles.selectorDropdown, { backgroundColor: theme.colors.backgroundSecondary, borderColor: theme.colors.border }]}
-              onPress={() => {
-                setShowPropertySwitchModal(true);
-              }}
-            >
-              <Text style={[styles.selectorValue, { color: theme.colors.text }]} numberOfLines={1}>
-                {property.title || property.property_title || 'Select'}
-              </Text>
-              <Ionicons name="chevron-down" size={16} color={theme.colors.textTertiary} />
-            </TouchableOpacity>
-          </View>
+        )}
+
+        {showPendingView && displayedPendingBookings.length > 0 && (
+            <View style={{ marginBottom: 20 }}>
+                {displayedPendingBookings.map(pb => renderPendingCard(pb))}
+            </View>
+        )}
+
+        {showPendingView && displayedPendingCheckIns.length === 0 && displayedPendingBookings.length === 0 && viewMode === 'pending' && (
+            <View style={[styles.emptyState, { marginTop: 40 }]}>
+                <Ionicons name="time-outline" size={48} color={theme.colors.textTertiary} />
+                <Text style={styles.emptyTitle}>No Pending Bookings</Text>
+                <Text style={styles.emptyText}>You don't have any requests awaiting approval.</Text>
+            </View>
+        )}
+
+        {showActiveView && hasAvailableStays && (
+            <>
+                {/* Property Selector */}
+                {displayedStays.length > 1 && (
+                    <View style={[styles.selectorContainer, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border, borderWidth: 1 }]}>
+                        <View style={styles.selectorInfo}>
+                            <View style={[styles.selectorIcon, { backgroundColor: theme.colors.primaryLight }]}>
+                                <Ionicons name="business" size={20} color={theme.colors.primary} />
+                            </View>
+                            <View>
+                                <Text style={[styles.selectorLabel, { color: theme.colors.text }]}>Switch Property</Text>
+                                <Text style={[styles.selectorSublabel, { color: theme.colors.textSecondary }]}>
+                                    {displayedStays.length} stays available
+                                </Text>
+                            </View>
+                        </View>
+                        <TouchableOpacity
+                            style={[styles.selectorDropdown, { backgroundColor: theme.colors.backgroundSecondary, borderColor: theme.colors.border }]}
+                            onPress={() => {
+                                setShowPropertySwitchModal(true);
+                            }}
+                        >
+                            <Text style={[styles.selectorValue, { color: theme.colors.text }]} numberOfLines={1}>
+                                {property.title || property.property_title || 'Select'}
+                            </Text>
+                            <Ionicons name="chevron-down" size={16} color={theme.colors.textTertiary} />
+                        </TouchableOpacity>
+                    </View>
+                )}
+            </>
         )}
 
         {/* Refund Warning */}
@@ -1939,9 +2045,9 @@ export default function MyBookings() {
           </View>
         )}
 
-        {/* Main Property Card */}
-        <View style={[styles.bookingCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border, borderWidth: 1 }]}>
-          <View style={{ position: 'relative' }}>
+        {showActiveView && hasAvailableStays && (
+            <View style={[styles.bookingCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border, borderWidth: 1 }]}>
+                <View style={{ position: 'relative' }}>
             <Image
               source={getImageUrl(property.image)}
               style={styles.bookingImage}
@@ -2268,158 +2374,166 @@ export default function MyBookings() {
                 )}
               </View>
             )}
-          </View>
-        </View>
-
-        {/* Addons Section */}
-        <View style={styles.addonSection}>
-          <View style={styles.addonHeader}>
-            <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Add-ons & Extras</Text>
-            {!booking.isPending && (
-              <TouchableOpacity
-                style={[
-                  styles.stayHeaderBtn,
-                  {
-                    marginTop: 0, paddingHorizontal: 16, paddingVertical: 6, borderRadius: 8,
-                    backgroundColor: booking.paymentStatus === 'refunded' ? theme.colors.textTertiary : theme.colors.primary
-                  }
-                ]}
-                disabled={booking.paymentStatus === 'refunded'}
-                onPress={() => openAddonModal({ booking, property, addons })}
-              >
-                <Text style={styles.stayHeaderBtnText}>+ Request</Text>
-              </TouchableOpacity>
-            )}
-          </View>
-
-          {!booking.isPending ? (
-            (addons.active?.length > 0 || addons.pending?.length > 0) ? (
-              <>
-                {addons.active?.map((addon, idx) => (
-                  <View key={`active-${idx}`} style={[styles.addonItem, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border, borderWidth: 1 }]}>
-                    <View style={styles.addonInfo}>
-                      <View style={[styles.addonIconContainer, { backgroundColor: theme.colors.primaryLight }]}>
-                        <Ionicons name="sparkles" size={20} color={theme.colors.primary} />
-                      </View>
-                      <View>
-                        <Text style={[styles.addonName, { color: theme.colors.text }]}>{addon.name}</Text>
-                        <Text style={[styles.addonSubtext, { color: theme.colors.textSecondary }]}>{addon.priceTypeLabel}</Text>
-                      </View>
-                    </View>
-                    <Text style={[styles.addonPrice, { color: theme.colors.text }]}>{formatCurrency(resolveAddonDisplayPrice(addon))}</Text>
-                  </View>
-                ))}
-                {addons.pending?.map((addon, idx) => (
-                  <View key={`pending-${idx}`} style={[styles.addonItem, { backgroundColor: theme.isDark ? 'rgba(245,158,11,0.1)' : '#FFFBEB', borderColor: theme.isDark ? '#fbbf24' : '#FEF3C7', borderWidth: 1 }]}>
-                    <View style={styles.addonInfo}>
-                      <View style={[styles.addonIconContainer, { backgroundColor: theme.isDark ? 'rgba(245,158,11,0.2)' : '#FEF3C7' }]}>
-                        <Ionicons name="time" size={20} color={theme.isDark ? '#fbbf24' : '#D97706'} />
-                      </View>
-                      <View>
-                        <Text style={[styles.addonName, { color: theme.colors.text }]}>{addon.name}</Text>
-                        <Text style={[styles.addonSubtext, { color: theme.isDark ? '#fbbf24' : '#D97706' }]}>Pending Approval</Text>
-                      </View>
-                    </View>
-                    <Text style={[styles.addonPrice, { color: theme.colors.text }]}>{formatCurrency(resolveAddonDisplayPrice(addon))}</Text>
-                  </View>
-                ))}
-              </>
-            ) : (
-              <View style={{ paddingVertical: 24, alignItems: 'center' }}>
-                <Ionicons name="sparkles-outline" size={32} color={theme.colors.textTertiary} style={{ opacity: 0.5 }} />
-                <Text style={{ color: theme.colors.textTertiary, fontSize: 13, marginTop: 8 }}>No add-ons requested yet.</Text>
-              </View>
-            )
-          ) : (
-            <View style={{ paddingVertical: 24, alignItems: 'center', backgroundColor: theme.colors.backgroundSecondary, borderRadius: 12, borderStyle: 'dashed', borderWidth: 1, borderColor: theme.colors.border }}>
-              <Ionicons name="time-outline" size={32} color={theme.isDark ? '#fbbf24' : '#D97706'} style={{ opacity: 0.7 }} />
-              <Text style={{ color: theme.isDark ? '#fbbf24' : '#D97706', fontSize: 13, fontWeight: '700', marginTop: 8 }}>Booking Under Review</Text>
-              <Text style={{ color: theme.colors.textSecondary, fontSize: 11, marginTop: 8, textAlign: 'center', paddingHorizontal: 16 }}>
-                Add-ons will be available once your booking is confirmed.
-              </Text>
-            </View>
-          )}
-        </View>
-
-        {!booking.isPending && (
-          <View style={[styles.sectionCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border, borderWidth: 1 }]}>
-            <View style={styles.sectionHeader}>
-              <Ionicons name="wallet-outline" size={20} color={theme.colors.primary} />
-              <View>
-                <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Payment Summary</Text>
-                <Text style={[styles.paymentSummaryCycleText, { color: theme.colors.textTertiary }]}>{currentCycleLabel}</Text>
-              </View>
-            </View>
-
-            <View style={styles.paymentSummaryContent}>
-              <View style={styles.paymentSummaryRow}>
-                <Text style={[styles.paymentSummaryLabel, { color: theme.colors.textSecondary }]}>Total Charges (Rent & Add-ons)</Text>
-                <Text style={[styles.paymentSummaryValue, { color: theme.colors.text }]}>{formatPesoNoCents(totalCycleCharges)}</Text>
-              </View>
-              <View style={styles.paymentSummaryRow}>
-                <Text style={[styles.paymentSummaryLabel, { color: theme.colors.textSecondary }]}>Total Paid Amount</Text>
-                <Text style={[styles.paymentSummaryValue, { color: theme.colors.success }]}>-{formatPesoNoCents(totalPaidAmount)}</Text>
-              </View>
-
-              <View style={[styles.paymentSummaryDivider, { borderTopColor: theme.colors.border }]}>
-                <View style={styles.paymentSummaryRow}>
-                  <Text style={[styles.paymentSummaryTotalLabel, { color: theme.colors.text }]}>Remaining Balance</Text>
-                  <Text
-                    style={[
-                      styles.paymentSummaryTotalValue,
-                      { color: remainingBalanceAmount > 0 ? theme.colors.error : theme.colors.success },
-                    ]}
-                  >
-                    {formatPesoNoCents(remainingBalanceAmount)}
-                  </Text>
-                </View>
-
-                {remainingBalanceAmount > 0 ? (
-                  <TouchableOpacity
-                    style={[styles.paymentSummaryButton, { backgroundColor: theme.colors.primary }]}
-                    onPress={() => navigation.navigate('Payments')}
-                  >
-                    <Text style={styles.paymentSummaryButtonText}>Make a Payment</Text>
-                  </TouchableOpacity>
-                ) : (
-                  <View style={styles.paymentSummarySettledBadge}>
-                    <Ionicons name="checkmark-circle" size={16} color="#16A34A" />
-                    <Text style={styles.paymentSummarySettledText}>You are all caught up!</Text>
-                  </View>
-                )}
-              </View>
             </View>
           </View>
         )}
 
-        {/* Landlord Contact */}
-        <View style={[styles.sectionCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border, borderWidth: 1 }]}>
-          <View style={styles.sectionHeader}>
-            <Ionicons name="person-outline" size={20} color={theme.colors.primary} />
-            <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Property Manager</Text>
-          </View>
-          <View style={{ padding: 16, flexDirection: 'row', alignItems: 'center', gap: 16 }}>
-            <View style={[styles.avatarSmall, { backgroundColor: theme.colors.primaryLight }]}>
-              <Text style={[styles.avatarSmallText, { color: theme.colors.primary }]}>
-                {landlord?.name?.charAt(0) || landlord?.first_name?.charAt(0) || '?'}
-              </Text>
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.managerName, { color: theme.colors.text }]}>{landlord?.name || `${landlord?.first_name} ${landlord?.last_name}`}</Text>
-              <Text style={[styles.managerEmail, { color: theme.colors.textSecondary }]}>{landlord?.email}</Text>
-            </View>
-            <TouchableOpacity
-              style={{ padding: 8, backgroundColor: theme.colors.backgroundSecondary, borderRadius: 8 }}
-              onPress={() => navigation.navigate('Messages', {
-                startConversation: true,
-                recipient: landlord?.id ? { id: landlord.id } : null,
-                property: property?.id ? { id: property.id } : null,
-              })}
-            >
-              <Ionicons name="chatbubble-ellipses-outline" size={20} color={theme.colors.primary} />
-            </TouchableOpacity>
-          </View>
-        </View>
+        {/* Addons Section */}
+        {showActiveView && hasAvailableStays && (
+            <>
+                {/* Addons Section */}
+                <View style={styles.addonSection}>
+                    <View style={styles.addonHeader}>
+                        <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Add-ons & Extras</Text>
+                        {!booking.isPending && (
+                            <TouchableOpacity
+                                style={[
+                                    styles.stayHeaderBtn,
+                                    {
+                                        marginTop: 0, paddingHorizontal: 16, paddingVertical: 6, borderRadius: 8,
+                                        backgroundColor: booking.paymentStatus === 'refunded' ? theme.colors.textTertiary : theme.colors.primary
+                                    }
+                                ]}
+                                disabled={booking.paymentStatus === 'refunded'}
+                                onPress={() => openAddonModal({ booking, property, addons })}
+                            >
+                                <Text style={styles.stayHeaderBtnText}>+ Request</Text>
+                            </TouchableOpacity>
+                        )}
+                    </View>
+
+                    {!booking.isPending ? (
+                        (addons.active?.length > 0 || addons.pending?.length > 0) ? (
+                            <>
+                                {addons.active?.map((addon, idx) => (
+                                    <View key={`active-${idx}`} style={[styles.addonItem, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border, borderWidth: 1 }]}>
+                                        <View style={styles.addonInfo}>
+                                            <View style={[styles.addonIconContainer, { backgroundColor: theme.colors.primaryLight }]}>
+                                                <Ionicons name="sparkles" size={20} color={theme.colors.primary} />
+                                            </View>
+                                            <View>
+                                                <Text style={[styles.addonName, { color: theme.colors.text }]}>{addon.name}</Text>
+                                                <Text style={[styles.addonSubtext, { color: theme.colors.textSecondary }]}>{addon.priceTypeLabel}</Text>
+                                            </View>
+                                        </View>
+                                        <Text style={[styles.addonPrice, { color: theme.colors.text }]}>{formatCurrency(resolveAddonDisplayPrice(addon))}</Text>
+                                    </View>
+                                ))}
+                                {addons.pending?.map((addon, idx) => (
+                                    <View key={`pending-${idx}`} style={[styles.addonItem, { backgroundColor: theme.isDark ? 'rgba(245,158,11,0.1)' : '#FFFBEB', borderColor: theme.isDark ? '#fbbf24' : '#FEF3C7', borderWidth: 1 }]}>
+                                        <View style={styles.addonInfo}>
+                                            <View style={[styles.addonIconContainer, { backgroundColor: theme.isDark ? 'rgba(245,158,11,0.2)' : '#FEF3C7' }]}>
+                                                <Ionicons name="time" size={20} color={theme.isDark ? '#fbbf24' : '#D97706'} />
+                                            </View>
+                                            <View>
+                                                <Text style={[styles.addonName, { color: theme.colors.text }]}>{addon.name}</Text>
+                                                <Text style={[styles.addonSubtext, { color: theme.isDark ? '#fbbf24' : '#D97706' }]}>Pending Approval</Text>
+                                            </View>
+                                        </View>
+                                        <Text style={[styles.addonPrice, { color: theme.colors.text }]}>{formatCurrency(resolveAddonDisplayPrice(addon))}</Text>
+                                    </View>
+                                ))}
+                            </>
+                        ) : (
+                            <View style={{ paddingVertical: 24, alignItems: 'center' }}>
+                                <Ionicons name="sparkles-outline" size={32} color={theme.colors.textTertiary} style={{ opacity: 0.5 }} />
+                                <Text style={{ color: theme.colors.textTertiary, fontSize: 13, marginTop: 8 }}>No add-ons requested yet.</Text>
+                            </View>
+                        )
+                    ) : (
+                        <View style={{ paddingVertical: 24, alignItems: 'center', backgroundColor: theme.colors.backgroundSecondary, borderRadius: 12, borderStyle: 'dashed', borderWidth: 1, borderColor: theme.colors.border }}>
+                            <Ionicons name="time-outline" size={32} color={theme.isDark ? '#fbbf24' : '#D97706'} style={{ opacity: 0.7 }} />
+                            <Text style={{ color: theme.isDark ? '#fbbf24' : '#D97706', fontSize: 13, fontWeight: '700', marginTop: 8 }}>Booking Under Review</Text>
+                            <Text style={{ color: theme.colors.textSecondary, fontSize: 11, marginTop: 8, textAlign: 'center', paddingHorizontal: 16 }}>
+                                Add-ons will be available once your booking is confirmed.
+                            </Text>
+                        </View>
+                    )}
+                </View>
+
+                {!booking.isPending && (
+                  <View style={[styles.sectionCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border, borderWidth: 1 }]}>
+                    <View style={styles.sectionHeader}>
+                      <Ionicons name="wallet-outline" size={20} color={theme.colors.primary} />
+                      <View>
+                        <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Payment Summary</Text>
+                        <Text style={[styles.paymentSummaryCycleText, { color: theme.colors.textTertiary }]}>{currentCycleLabel}</Text>
+                      </View>
+                    </View>
+
+                    <View style={styles.paymentSummaryContent}>
+                      <View style={styles.paymentSummaryRow}>
+                        <Text style={[styles.paymentSummaryLabel, { color: theme.colors.textSecondary }]}>Total Charges (Rent & Add-ons)</Text>
+                        <Text style={[styles.paymentSummaryValue, { color: theme.colors.text }]}>{formatPesoNoCents(totalCycleCharges)}</Text>
+                      </View>
+                      <View style={styles.paymentSummaryRow}>
+                        <Text style={[styles.paymentSummaryLabel, { color: theme.colors.textSecondary }]}>Total Paid Amount</Text>
+                        <Text style={[styles.paymentSummaryValue, { color: theme.colors.success }]}>-{formatPesoNoCents(totalPaidAmount)}</Text>
+                      </View>
+
+                      <View style={[styles.paymentSummaryDivider, { borderTopColor: theme.colors.border }]}>
+                        <View style={styles.paymentSummaryRow}>
+                          <Text style={[styles.paymentSummaryTotalLabel, { color: theme.colors.text }]}>Remaining Balance</Text>
+                          <Text
+                            style={[
+                              styles.paymentSummaryTotalValue,
+                              { color: remainingBalanceAmount > 0 ? theme.colors.error : theme.colors.success },
+                            ]}
+                          >
+                            {formatPesoNoCents(remainingBalanceAmount)}
+                          </Text>
+                        </View>
+
+                        {remainingBalanceAmount > 0 ? (
+                          <TouchableOpacity
+                            style={[styles.paymentSummaryButton, { backgroundColor: theme.colors.primary }]}
+                            onPress={() => navigation.navigate('Payments')}
+                          >
+                            <Text style={styles.paymentSummaryButtonText}>Make a Payment</Text>
+                          </TouchableOpacity>
+                        ) : (
+                          <View style={styles.paymentSummarySettledBadge}>
+                            <Ionicons name="checkmark-circle" size={16} color="#16A34A" />
+                            <Text style={styles.paymentSummarySettledText}>You are all caught up!</Text>
+                          </View>
+                        )}
+                      </View>
+                    </View>
+                  </View>
+                )}
+
+                {/* Landlord Contact */}
+                <View style={[styles.sectionCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border, borderWidth: 1 }]}>
+                  <View style={styles.sectionHeader}>
+                    <Ionicons name="person-outline" size={20} color={theme.colors.primary} />
+                    <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Property Manager</Text>
+                  </View>
+                  <div style={{ paddingHorizontal: 16, paddingBottom: 16 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
+                        <View style={[styles.avatarSmall, { backgroundColor: theme.colors.primaryLight }]}>
+                        <Text style={[styles.avatarSmallText, { color: theme.colors.primary }]}>
+                            {landlord?.name?.charAt(0) || landlord?.first_name?.charAt(0) || '?'}
+                        </Text>
+                        </View>
+                        <View style={{ flex: 1 }}>
+                        <Text style={[styles.managerName, { color: theme.colors.text }]}>{landlord?.name || `${landlord?.first_name} ${landlord?.last_name}`}</Text>
+                        <Text style={[styles.managerEmail, { color: theme.colors.textSecondary }]}>{landlord?.email}</Text>
+                        </View>
+                        <TouchableOpacity
+                        style={{ padding: 8, backgroundColor: theme.colors.backgroundSecondary, borderRadius: 8 }}
+                        onPress={() => navigation.navigate('Messages', {
+                            startConversation: true,
+                            recipient: landlord?.id ? { id: landlord.id } : null,
+                            property: property?.id ? { id: property.id } : null,
+                        })}
+                        >
+                        <Ionicons name="chatbubble-ellipses-outline" size={20} color={theme.colors.primary} />
+                        </TouchableOpacity>
+                    </View>
+                  </div>
+                </View>
+            </>
+        )}
       </View>
     );
   };

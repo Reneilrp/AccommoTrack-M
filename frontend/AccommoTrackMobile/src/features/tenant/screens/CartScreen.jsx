@@ -258,7 +258,11 @@ export default function CartScreen() {
               }}
             >
               <Image
-                source={getImageUrl(item.room?.property?.image || item.room?.image)}
+                source={getImageUrl(
+                  item.room?.property?.image_url || 
+                  item.room?.property?.image || 
+                  (item.room?.images && item.room.images.length > 0 ? item.room.images[0].image_url : null)
+                )}
                 style={{ width: '100%', height: 150 }}
                 resizeMode="cover"
               />
