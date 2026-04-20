@@ -35,7 +35,7 @@ class PaymentLedgerService
 
         $booking = $invoice->booking ?: ($invoice->booking_id ? $invoice->booking()->first() : null);
         if ($booking) {
-            $booking->payment_status = $this->mapInvoiceStatusToBookingPaymentStatus($resolvedStatus);
+            $booking->payment_status = $this->resolveBookingPaymentStatus($booking);
             $booking->save();
         }
 
@@ -123,6 +123,47 @@ class PaymentLedgerService
                 })->orWhere('refunded_amount_cents', '>', 0);
             })
             ->exists();
+    }
+
+    public function resolveBookingPaymentStatus(\App\Models\Booking $booking): string
+    {
+        // Fetch all active, non-archived invoices for this booking
+        $invoices = $booking->invoices()
+            ->where('is_archived', false)
+            ->where('status', '!=', 'cancelled')
+            ->get();
+
+        if ($invoices->isEmpty()) {
+            return 'unpaid';
+        }
+
+        $allStatuses = $invoices->pluck('status')->map(fn($s) => strtolower((string)$s))->toArray();
+        $statusSet = new \Illuminate\Support\Collection($allStatuses);
+
+        // Priority 1: If anything is overdue, the booking is overdue
+        if ($statusSet->contains('overdue')) {
+            return 'overdue';
+        }
+
+        // Priority 2: If anything is partial or unpaid/pending, the booking is partial or unpaid
+        // We'll return 'partial' if at least one is paid but others are not, or 'unpaid' if none are paid.
+        $hasPaid = $statusSet->contains('paid') || $statusSet->contains('settled') || $statusSet->contains('succeeded');
+        $hasOpen = $statusSet->contains('pending') || $statusSet->contains('partial') || $statusSet->contains('unpaid') || $statusSet->contains('pending_verification');
+
+        if ($hasOpen) {
+            return $hasPaid ? 'partial' : 'unpaid';
+        }
+
+        // Priority 3: Only if ALL are paid/settled
+        if ($hasPaid) {
+            return 'paid';
+        }
+
+        if ($statusSet->contains('refunded')) {
+            return 'refunded';
+        }
+
+        return 'unpaid';
     }
 
     private function mapInvoiceStatusToBookingPaymentStatus(string $invoiceStatus): string

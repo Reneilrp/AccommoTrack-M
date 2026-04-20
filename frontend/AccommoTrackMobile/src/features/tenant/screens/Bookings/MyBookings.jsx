@@ -1409,15 +1409,19 @@ export default function MyBookings() {
     if (s.includes('confirm') || s.includes('active') || s.includes('complete')) return theme.colors.success; // Use success (green) for active
     if (s === 'reserved') return isDark ? '#2dd4bf' : '#0D9488';
     if (s === 'pending_reservation') return isDark ? '#fb923c' : '#EA580C';
-    if (s.includes('pending') || s.includes('partial')) return isDark ? '#fbbf24' : '#F59E0B';
+    if (s === 'partial') return isDark ? '#60a5fa' : '#3B82F6'; // Blue
+    if (s === 'unpaid') return isDark ? '#9ca3af' : '#6B7280'; // Gray
+    if (s.includes('pending')) return isDark ? '#fbbf24' : '#F59E0B';
     if (s.includes('cancel') || s.includes('reject')) return isDark ? '#f87171' : '#EF4444';
     return theme.colors.textSecondary;
   };
 
   const getStatusLabel = (status) => {
     const s = String(status || '').toLowerCase();
-    if (s === 'pending_reservation') return 'Awaiting Verification';
+    if (s === 'pending_verification') return 'Awaiting Verification';
     if (s === 'reserved') return 'Reserved';
+    if (s === 'partial') return 'Partially Paid';
+    if (s === 'paid') return 'Paid';
 
     return s
       .split(/[_-]+/)

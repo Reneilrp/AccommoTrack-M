@@ -154,9 +154,19 @@ const TenantDashboard = ({ user }) => {
     return new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' }).format(isNaN(val) ? 0 : val);
   };
 
-  const formatDate = (dateStr) => {
-    if (!dateStr) return '—';
-    return new Date(dateStr).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+  const formatDate = (dateString) => {
+    if (!dateString) return '—';
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffTime = Math.abs(now - date);
+    const diffMinutes = Math.floor(diffTime / (1000 * 60));
+    const diffHours = Math.floor(diffTime / (1000 * 60 * 60));
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+
+    if (diffMinutes < 60) return `${diffMinutes} minutes ago`;
+    if (diffHours < 24) return `${diffHours} hours ago`;
+    if (diffDays < 7) return `${diffDays} days ago`;
+    return date.toLocaleDateString();
   };
 
   const formatFloorLabel = (floor) => {
@@ -946,15 +956,15 @@ const TenantDashboard = ({ user }) => {
                       <div className="w-9 h-9 rounded-full bg-gray-100 dark:bg-[#252b3b] border border-gray-200 dark:border-[#303650] flex items-center justify-center flex-shrink-0">
                         <IconComp className="w-4 h-4 text-gray-500 dark:text-slate-400" />
                       </div>
-                      <div>
+                      <div className="flex-1 min-w-0">
                         <p className="text-[14.5px] text-gray-800 dark:text-slate-100 leading-snug">
                           {activity.action} {activity.description && <span className="text-gray-500 dark:text-slate-400 font-normal">— {activity.description}</span>}
                         </p>
-                        <p className="text-[13px] text-gray-500 dark:text-slate-500 mt-2">
-                          {new Date(activity.timestamp).toLocaleString('en-US', {
-                            month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true
-                          })}
-                        </p>
+                      </div>
+                      <div className="flex-shrink-0 text-right">
+                        <span className="text-[12px] font-medium text-gray-500 dark:text-slate-500">
+                          {formatDate(activity.timestamp)}
+                        </span>
                       </div>
                     </div>
                   );

@@ -1167,6 +1167,9 @@ class InvoiceController extends Controller
                 ]);
             }
 
+            // Invalidate tenant dashboard cache
+            \Illuminate\Support\Facades\Cache::forget("tenant_dashboard_{$tenantId}");
+
             DB::commit();
 
             return response()->json(['success' => true, 'transaction' => $tx->fresh(), 'invoice' => $invoice], 200);

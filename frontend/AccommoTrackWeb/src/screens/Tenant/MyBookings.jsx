@@ -1381,7 +1381,7 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
                         })()}
                         <StatCard
                           label="Status"
-                          value={(booking?.is_overdue || booking?.isOverdue) ? 'Overdue' : (booking?.paymentStatus || 'Active')}
+                          value={(booking?.is_overdue || booking?.isOverdue) ? 'Overdue' : (effectivePaymentStatus === 'paid' ? 'Paid' : (effectivePaymentStatus === 'partial' ? 'Partially Paid' : (effectivePaymentStatus.charAt(0).toUpperCase() + effectivePaymentStatus.slice(1))))}
                           tone="status"
                           statusKey={effectivePaymentStatus}
                           icon={CreditCard}
@@ -2101,23 +2101,23 @@ const PAYMENT_STATUS_THEME = {
     icon: 'text-amber-600 dark:text-amber-400',
     value: 'text-amber-700 dark:text-amber-400',
   },
+  partial: {
+    badge: 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400',
+    accent: 'bg-blue-500',
+    icon: 'text-blue-600 dark:text-blue-400',
+    value: 'text-blue-700 dark:text-blue-400',
+  },
   unpaid: {
-    badge: 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400',
-    accent: 'bg-red-500',
-    icon: 'text-red-600 dark:text-red-400',
-    value: 'text-red-700 dark:text-red-400',
+    badge: 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400',
+    accent: 'bg-gray-400',
+    icon: 'text-gray-500 dark:text-gray-400',
+    value: 'text-gray-600 dark:text-gray-400',
   },
   overdue: {
     badge: 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 animate-pulse',
     accent: 'bg-red-500 animate-pulse',
     icon: 'text-red-600 dark:text-red-400',
     value: 'text-red-700 dark:text-red-400',
-  },
-  partial: {
-    badge: 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400',
-    accent: 'bg-amber-500',
-    icon: 'text-amber-600 dark:text-amber-400',
-    value: 'text-amber-700 dark:text-amber-400',
   },
   cancelled: {
     badge: 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400',
@@ -2137,14 +2137,15 @@ const PAYMENT_STATUS_THEME = {
     icon: 'text-purple-600 dark:text-purple-400',
     value: 'text-purple-700 dark:text-purple-400',
   },
+  neutral: {
+    badge: 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400',
+    accent: 'bg-gray-400',
+    icon: 'text-gray-500 dark:text-gray-400',
+    value: 'text-gray-600 dark:text-gray-400',
+  },
   default: {
     badge: 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400',
     accent: 'bg-gray-400 dark:bg-gray-500',
-    icon: 'text-gray-600 dark:text-gray-400',
-    value: 'text-gray-900 dark:text-white',
-  },
-  neutral: {
-    accent: 'bg-gray-300 dark:bg-gray-600',
     icon: 'text-gray-600 dark:text-gray-400',
     value: 'text-gray-900 dark:text-white',
   },
