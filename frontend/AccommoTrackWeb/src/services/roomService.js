@@ -95,7 +95,10 @@ export const roomService = {
       const res = await api.post(`/rooms/${roomId}/extend`, payload);
       return { success: true, data: res.data?.data || res.data };
     } catch (err) {
-      return { success: false, error: err.response?.data?.message || err.message };
+      return { 
+        success: false, 
+        error: err.response?.data?.message || err.response?.data?.error || err.message 
+      };
     }
   },
 

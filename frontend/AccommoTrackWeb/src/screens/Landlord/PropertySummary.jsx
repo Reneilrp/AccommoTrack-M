@@ -12,6 +12,7 @@ import { useSidebar } from '../../contexts/SidebarContext';
 import { useUIState } from '../../contexts/UIStateContext';
 import { cacheManager } from '../../utils/cache';
 import { maintenanceService } from '../../services/maintenanceService';
+import roomService from '../../services/roomService';
 import AssignWorkerModal from '../../components/Maintenance/AssignWorkerModal';
 
 import { Swiper, SwiperSlide } from 'swiper/react';
@@ -1810,17 +1811,22 @@ export default function PropertySummary({ caretakerPermissions = null }) {
           room={selectedRoomDetails}
           isOpen={showRoomDetails}
           onClose={() => { setShowRoomDetails(false); setSelectedRoomDetails(null); }}
-          onExtend={async ({ roomId, days, months }) => {
+          onExtend={async ({ roomId, days, months, tenant_id }) => {
             if (!roomId) return;
             try {
               const payload = {};
               if (days) payload.days = days;
               if (months) payload.months = months;
-              await api.post(`/rooms/${roomId}/extend`, payload);
+              if (tenant_id) payload.tenant_id = tenant_id;
+              
+              const res = await roomService.extendStay(roomId, payload);
+              if (!res.success) {
+                throw new Error(res.error || 'Failed to extend stay');
+              }
               showSuccess('Stay extended successfully!');
             } catch (err) {
               console.error('Failed to extend stay', err);
-              showError(err.response?.data?.message || 'Failed to extend stay');
+              showError(err.response?.data?.message || err.message || 'Failed to extend stay');
             }
           }}
         />

@@ -322,13 +322,23 @@ class RoomController extends Controller
             $result = $this->roomService->extendStay($room, $validated['tenant_id'], $type, $value);
 
             return response()->json([
+                'success' => true,
                 'message' => 'Stay extended successfully',
                 'data' => $result,
             ]);
         } catch (AccessDeniedHttpException $e) {
-            return response()->json(['message' => $e->getMessage()], 403);
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage()
+            ], 403);
         } catch (\Exception $e) {
-            return response()->json(['message' => 'Failed to extend stay', 'error' => $e->getMessage()], 500);
+            // For business logic errors thrown from the service, return 400
+            // For actual server crashes, this might still catch them, but we prioritize the message
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+                'error' => $e->getMessage() // Keep error key for backward compatibility
+            ], 400);
         }
     }
 
