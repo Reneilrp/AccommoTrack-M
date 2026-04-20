@@ -174,6 +174,7 @@ class RefundService
                 TenantCredit::create([
                     'tenant_id' => $invoice->tenant_id,
                     'property_id' => $invoice->property_id,
+                    'room_id' => $invoice->booking?->room_id,
                     'amount_cents' => $excessCreditCents,
                     'type' => 'credit',
                     'description' => 'Excess transfer credit from invoice #'.$invoice->id,

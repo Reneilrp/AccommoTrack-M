@@ -73,10 +73,14 @@ const ProfileTab = ({ onUserUpdate }) => {
   const fetchProfile = useCallback(async () => {
     try {
       if (!cachedProfile) setLoading(true);
-      const data = await tenantService.getProfile();
+      const res = await tenantService.getProfile();
 
-      mapDataToForm(data);
-      updateData('profile', data);
+      if (res.success) {
+        mapDataToForm(res.data);
+        updateData('profile', res.data);
+      } else {
+        throw new Error(res.error || 'Failed to fetch profile');
+      }
 
     } catch (error) {
       console.error('Failed to load profile', error);
@@ -191,12 +195,12 @@ const ProfileTab = ({ onUserUpdate }) => {
         }
       });
 
-      const response = await tenantService.updateProfile(data);
+      const res = await tenantService.updateProfile(data);
 
       // Propagate the updated user up to App.jsx (updates header avatar, etc.)
-      // App.jsx's handleUserUpdate handles both setUser() and localStorage correctly.
-      if (onUserUpdate && response.user) {
-        onUserUpdate(response.user);
+      const updatedUser = res.data?.user || res.data;
+      if (onUserUpdate && updatedUser) {
+        onUserUpdate(updatedUser);
       }
 
       showSuccess('Profile updated successfully!');

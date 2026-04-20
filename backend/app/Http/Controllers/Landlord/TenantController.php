@@ -981,6 +981,7 @@ class TenantController extends Controller
                     TenantCredit::create([
                         'tenant_id' => $tenant->id,
                         'property_id' => $newRoom->property_id,
+                        'room_id' => $newRoom->id,
                         'amount_cents' => (int) round($creditAmount * 100),
                         'type' => 'credit',
                         'description' => 'Transfer credit (no pending invoice to apply)',
@@ -1010,6 +1011,7 @@ class TenantController extends Controller
                     TenantCredit::create([
                         'tenant_id' => $tenant->id,
                         'property_id' => $newRoom->property_id,
+                        'room_id' => $newRoom->id,
                         'amount_cents' => (int) round(abs($adj) * 100),
                         'type' => 'credit',
                         'description' => 'Room transfer rate adjustment credit',

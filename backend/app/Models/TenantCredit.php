@@ -18,6 +18,11 @@ class TenantCredit extends Model
         return $this->belongsTo(Property::class, 'property_id');
     }
 
+    public function room()
+    {
+        return $this->belongsTo(Room::class, 'room_id');
+    }
+
     public static function getBalance($tenantId, $propertyId = null)
     {
         $query = self::where('tenant_id', $tenantId);

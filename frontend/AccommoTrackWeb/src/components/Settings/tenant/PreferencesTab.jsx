@@ -47,10 +47,14 @@ const PreferencesTab = () => {
   const fetchPreferences = useCallback(async () => {
     try {
       if (!cachedProfile) setLoading(true);
-      const data = await tenantService.getProfile();
+      const res = await tenantService.getProfile();
 
-      mapDataToForm(data);
-      updateData("profile", data);
+      if (res.success) {
+        mapDataToForm(res.data);
+        updateData("profile", res.data);
+      } else {
+        throw new Error(res.error || "Failed to fetch profile");
+      }
     } catch (error) {
       console.error("Failed to load preferences", error);
       showError("Failed to load preferences.");

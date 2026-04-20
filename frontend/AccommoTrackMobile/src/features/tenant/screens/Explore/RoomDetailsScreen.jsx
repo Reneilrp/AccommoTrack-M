@@ -1379,12 +1379,11 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
           <View style={styles.priceContainer}>
             <Text style={styles.price}>
               ₱{(() => {
-                const isDaily = activeRoom.billing_policy === 'daily';
-                const rate = isDaily ? (activeRoom.daily_rate || Math.round(activeRoom.monthly_rate / 30)) : activeRoom.monthly_rate;
+                const rate = isDailyContract ? (activeRoom.daily_rate || Math.round(activeRoom.monthly_rate / 30)) : activeRoom.monthly_rate;
                 return (Number(rate) || 0).toLocaleString();
               })()}
             </Text>
-            <Text style={styles.priceLabel}>{activeRoom.billing_policy === 'daily' ? '/day' : '/month'}</Text>
+            <Text style={styles.priceLabel}>{isDailyContract ? '/day' : '/month'}</Text>
           </View>
 
           {/* Tenancy Reminder */}

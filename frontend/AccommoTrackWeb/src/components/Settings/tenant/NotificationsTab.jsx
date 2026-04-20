@@ -41,10 +41,14 @@ const NotificationsTab = ({ loading: initialLoading = false }) => {
 	const loadPrefs = useCallback(async () => {
 		try {
 			if (!cachedProfile) setLoading(true);
-			const profile = await tenantService.getProfile();
+			const res = await tenantService.getProfile();
 			
-			mapDataToSettings(profile);
-			updateData('profile', profile);
+			if (res.success) {
+				mapDataToSettings(res.data);
+				updateData('profile', res.data);
+			} else {
+				throw new Error(res.error || 'Failed to fetch profile');
+			}
 
 		} catch (error) {
 			console.error('Failed to load notification prefs', error);

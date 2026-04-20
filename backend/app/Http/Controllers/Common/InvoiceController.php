@@ -1119,6 +1119,7 @@ class InvoiceController extends Controller
             \App\Models\TenantCredit::create([
                 'tenant_id' => $tenantId,
                 'property_id' => $propertyId,
+                'room_id' => $invoice->booking?->room_id,
                 'amount_cents' => $validated['amount_cents'],
                 'type' => 'debit',
                 'description' => 'Applied to invoice #'.$invoice->id,

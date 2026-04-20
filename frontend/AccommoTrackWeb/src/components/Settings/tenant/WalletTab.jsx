@@ -119,13 +119,6 @@ const WalletTab = () => {
               return (
                 <div key={log.id} className="px-6 py-5 hover:bg-gray-50/50 dark:hover:bg-gray-700/20 transition-colors group">
                   <div className="flex items-center gap-4">
-                    <div className={`p-3 rounded-xl shrink-0 transition-colors ${
-                      isDebit 
-                        ? 'bg-amber-50 text-amber-600 dark:bg-amber-900/20 dark:text-amber-400 group-hover:bg-amber-100 dark:group-hover:bg-amber-900/30' 
-                        : 'bg-green-50 text-green-600 dark:bg-green-900/20 dark:text-green-400 group-hover:bg-green-100 dark:group-hover:bg-green-900/30'
-                    }`}>
-                      {isDebit ? <ArrowUpRight className="w-5 h-5" /> : <ArrowDownLeft className="w-5 h-5" />}
-                    </div>
                     
                     <div className="flex-1 min-w-0">
                       <div className="flex flex-col md:flex-row md:items-center justify-between gap-1">
@@ -145,7 +138,13 @@ const WalletTab = () => {
                         {log.property?.title && (
                           <div className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400 font-medium border-l border-gray-200 dark:border-gray-700 pl-3">
                             <span className="uppercase tracking-tight opacity-70">Property:</span>
-                            <span className="text-gray-700 dark:text-gray-300 font-bold">{log.property.title}</span>
+                            <span className="text-gray-700 dark:text-gray-300 font-bold truncate max-w-[120px]">{log.property.title}</span>
+                          </div>
+                        )}
+                        {log.room?.room_number && (
+                          <div className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400 font-medium border-l border-gray-200 dark:border-gray-700 pl-3">
+                            <span className="uppercase tracking-tight opacity-70">Room:</span>
+                            <span className="text-gray-700 dark:text-gray-300 font-bold">{log.room.room_number}</span>
                           </div>
                         )}
                       </div>

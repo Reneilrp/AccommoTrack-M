@@ -158,6 +158,7 @@ class TransactionController extends Controller
                 \App\Models\TenantCredit::create([
                     'tenant_id' => $tx->tenant_id,
                     'property_id' => $invoice->property_id,
+                    'room_id' => $invoice->booking?->room_id,
                     'amount_cents' => $refundAmount,
                     'type' => 'refund',
                     'description' => 'Refund for transaction #'.$tx->id.' from invoice #'.$invoice->id,
@@ -305,6 +306,7 @@ class TransactionController extends Controller
                 \App\Models\TenantCredit::create([
                     'tenant_id' => $invoice->tenant_id,
                     'property_id' => $invoice->property_id,
+                    'room_id' => $invoice->booking?->room_id,
                     'amount_cents' => $refundAmount,
                     'type' => 'refund',
                     'description' => 'Merged refund for invoice #'.$invoice->id,

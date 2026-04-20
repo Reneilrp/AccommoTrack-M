@@ -26,21 +26,6 @@ const TransactionItem = ({ item, theme }) => {
       borderBottomWidth: 1,
       borderBottomColor: theme.colors.border,
     }}>
-      <View style={{
-        width: 48,
-        height: 48,
-        borderRadius: 12,
-        backgroundColor: isDebit ? 'rgba(245, 158, 11, 0.1)' : 'rgba(16, 185, 129, 0.1)',
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginRight: 16,
-      }}>
-        <Ionicons 
-          name={isDebit ? "arrow-up-outline" : "arrow-down-outline"} 
-          size={22} 
-          color={isDebit ? "#D97706" : "#059669"} 
-        />
-      </View>
       
       <View style={{ flex: 1 }}>
         <Text style={{ 

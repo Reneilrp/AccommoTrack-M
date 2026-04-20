@@ -272,9 +272,14 @@ class TenantPaymentController extends Controller
         try {
             $tenantId = Auth::id();
 
-            $logs = \App\Models\TenantCredit::with(['property' => function ($q) {
-                $q->select('id', 'title');
-            }])
+            $logs = \App\Models\TenantCredit::with([
+                'property' => function ($q) {
+                    $q->select('id', 'title');
+                },
+                'room' => function ($q) {
+                    $q->select('id', 'room_number');
+                }
+            ])
                 ->where('tenant_id', $tenantId)
                 ->orderBy('created_at', 'desc')
                 ->paginate(20);
