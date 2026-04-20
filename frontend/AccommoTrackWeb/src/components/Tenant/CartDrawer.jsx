@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Trash2, ShoppingCart, Loader2 } from 'lucide-react';
+import { X, Trash2, BookOpen, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { showSuccess, showError } from '../../utils/toast';
 import { useCart } from '../../contexts/CartContext';
@@ -83,7 +83,7 @@ export default function CartDrawer({ isOpen, onClose, onEditItem }) {
       <div className="fixed inset-y-0 right-0 z-50 w-full max-w-sm bg-white dark:bg-gray-800 shadow-xl flex flex-col transition-transform transform translate-x-0 border-l border-gray-200 dark:border-gray-700">
         <div className="flex items-center justify-between px-4 py-4 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
           <div className="flex items-center gap-2">
-            <ShoppingCart className="w-5 h-5 text-gray-700 dark:text-gray-300" />
+            <BookOpen className="w-5 h-5 text-gray-700 dark:text-gray-300" />
             <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
               Add to Book ({getItemCount()})
             </h2>
@@ -110,7 +110,7 @@ export default function CartDrawer({ isOpen, onClose, onEditItem }) {
             </div>
           ) : !cart || !cart.items || cart.items.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-gray-500 text-center px-4">
-              <ShoppingCart className="w-16 h-16 mb-4 text-gray-300 dark:text-gray-600" />
+              <BookOpen className="w-16 h-16 mb-4 text-gray-300 dark:text-gray-600" />
               <p className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">Your book is empty</p>
               <p className="text-sm">Browse properties and add rooms to your book to book multiple rooms at once.</p>
               <button

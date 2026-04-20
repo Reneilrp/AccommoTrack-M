@@ -57,7 +57,7 @@ export default function CartIcon({ isGuest = false, onAuthRequired }) {
         padding: 8,
       }}
     >
-      <Ionicons name="cart-outline" size={24} color={theme.colors.text} />
+      <Ionicons name="book-outline" size={24} color={theme.colors.text} />
       {itemCount > 0 && (
         <View
           style={{

@@ -575,7 +575,7 @@ export default function Payments() {
     } finally {
       setLoading(false);
     }
-  }, [archiveFilter, getPaymentError, loadBookingDetails, loadSummary, statsRange, updateData, bookingsMap, uiState.data?.landlord_payments]);
+  }, [archiveFilter, getPaymentError, loadBookingDetails, loadSummary, statsRange, updateData, bookingsMap]);
 
   useEffect(() => {
     // Auto-collapse sidebar when entering payments for wider table area.

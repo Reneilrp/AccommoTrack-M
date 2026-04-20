@@ -203,7 +203,7 @@ export default function TenantManagement() {
       }
     };
     load();
-  }, [updateData, cachedProps]);
+  }, [updateData]);
 
   const loadTenants = useCallback(async () => {
     if (!selectedPropertyId) return;
@@ -235,7 +235,7 @@ export default function TenantManagement() {
     } finally {
       setLoading(false);
     }
-  }, [selectedPropertyId, updateData, getTenantActionError, uiState.data]);
+  }, [selectedPropertyId, updateData, getTenantActionError]);
 
   useEffect(() => {
     if (!selectedPropertyId) return;

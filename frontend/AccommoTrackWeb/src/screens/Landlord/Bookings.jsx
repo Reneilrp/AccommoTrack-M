@@ -212,7 +212,7 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
       if (err.response?.status === 404 || err.response?.status === 204) setBookings([]);
       else setError(err.response?.data?.message || 'Failed to fetch bookings');
     } finally { setLoading(false); }
-  }, [updateData, uiState.data?.landlord_bookings]);
+  }, [updateData]);
 
   const fetchStats = useCallback(async () => {
     try {

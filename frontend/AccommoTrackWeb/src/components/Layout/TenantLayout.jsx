@@ -7,13 +7,13 @@ import api, { getImageUrl } from '../../utils/api';
 import NotificationDropdown from '../Shared/NotificationDropdown';
 import { useCart } from '../../contexts/CartContext';
 import CartDrawer from '../Tenant/CartDrawer';
-import { 
-  LayoutDashboard, 
-  Search, 
-  Calendar, 
-  Wallet, 
-  MessageSquare, 
-  Wrench, 
+import {
+  LayoutDashboard,
+  Search,
+  Calendar,
+  Wallet,
+  MessageSquare,
+  Wrench,
   Settings as SettingsIcon,
   Menu,
   ChevronLeft,
@@ -22,7 +22,7 @@ import {
   Package,
   Star,
   HelpCircle,
-  ShoppingCart
+  BookOpen
 } from 'lucide-react';
 import RoomDetailsModal from '../Modals/RoomDetailsModal';
 import EditCartItemModal from '../Modals/EditCartItemModal';
@@ -135,8 +135,8 @@ export default function TenantLayout({ user, onLogout, children }) {
         `}
       >        {/* Logo & Toggle */}
         <div className="h-14 md:h-18 flex items-center justify-between px-4 border-b border-gray-200 dark:border-gray-700">
-          <div 
-            className="cursor-pointer" 
+          <div
+            className="cursor-pointer"
             onClick={() => navigate('/dashboard')}
             title="Go to Dashboard"
           >
@@ -149,7 +149,7 @@ export default function TenantLayout({ user, onLogout, children }) {
               <img src={Logo} alt="AccommoTrack" className="h-8 w-auto mx-auto" />
             )}
           </div>
-          
+
           <button
             onClick={() => setIsSidebarOpen(!isSidebarOpen)}
             className={`p-2.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors ${!isSidebarOpen && 'hidden'}`}
@@ -171,10 +171,10 @@ export default function TenantLayout({ user, onLogout, children }) {
         )}
 
         {/* User Profile Summary */}
-        <div 
-            className="p-4 border-b bg-gray-50 dark:bg-gray-800/50 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-            onClick={() => navigate('/settings')}
-            title="Go to Profile Settings"
+        <div
+          className="p-4 border-b bg-gray-50 dark:bg-gray-800/50 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+          onClick={() => navigate('/settings')}
+          title="Go to Profile Settings"
         >
           <div className={`flex items-center gap-4 ${!isSidebarOpen && 'justify-center'}`}>
             <img
@@ -199,8 +199,8 @@ export default function TenantLayout({ user, onLogout, children }) {
               to={item.path}
               className={({ isActive }) => `
                 w-full flex items-center gap-4 px-4 py-4 transition-colors relative
-                ${isActive 
-                  ? 'bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400 border-r-4 border-green-600 dark:border-green-500' 
+                ${isActive
+                  ? 'bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400 border-r-4 border-green-600 dark:border-green-500'
                   : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white'}
                 ${!isSidebarOpen && 'justify-center'}
               `}
@@ -211,9 +211,8 @@ export default function TenantLayout({ user, onLogout, children }) {
               )}
               {item.path === '/messages' && messageUnreadCount > 0 && (
                 <span
-                  className={`inline-flex items-center justify-center rounded-full bg-red-600 text-white text-[10px] font-bold leading-none h-5 min-w-[20px] px-1.5 ${
-                    isSidebarOpen ? 'ml-auto' : 'absolute top-2 right-2'
-                  }`}
+                  className={`inline-flex items-center justify-center rounded-full bg-red-600 text-white text-[10px] font-bold leading-none h-5 min-w-[20px] px-1.5 ${isSidebarOpen ? 'ml-auto' : 'absolute top-2 right-2'
+                    }`}
                 >
                   {messageUnreadCount > 99 ? '99+' : messageUnreadCount}
                 </span>
@@ -226,9 +225,8 @@ export default function TenantLayout({ user, onLogout, children }) {
         <div className="p-4 border-t border-gray-200 dark:border-gray-700 mt-auto">
           <button
             onClick={() => setShowLogoutModal(true)}
-            className={`w-full flex items-center gap-4 px-4 py-4 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors ${
-              !isSidebarOpen && 'justify-center'
-            }`}
+            className={`w-full flex items-center gap-4 px-4 py-4 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors ${!isSidebarOpen && 'justify-center'
+              }`}
           >
             <LogOut className="w-5 h-5" />
             {isSidebarOpen && <span className="font-medium">Log out</span>}
@@ -271,7 +269,7 @@ export default function TenantLayout({ user, onLogout, children }) {
                 onClick={() => setIsCartOpen(true)}
                 className="relative p-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors"
               >
-                <ShoppingCart className="w-5 h-5" />
+                <BookOpen className="w-5 h-5" />
                 {getItemCount() > 0 && (
                   <span className="absolute top-0 right-0 inline-flex items-center justify-center w-4 h-4 text-[10px] font-bold text-white bg-red-500 border-2 border-white dark:border-gray-800 rounded-full -mt-1 -mr-1">
                     {getItemCount()}
@@ -287,7 +285,7 @@ export default function TenantLayout({ user, onLogout, children }) {
         )}
 
         {/* Page Content */}
-        <div 
+        <div
           className={`flex-1 overflow-y-auto bg-transparent dark:bg-gray-900 ${(location.pathname.startsWith('/property/') || suppressHeader) ? '' : 'p-4 lg:p-8'}`}
           style={{ scrollbarGutter: 'stable' }}
         >
@@ -296,7 +294,7 @@ export default function TenantLayout({ user, onLogout, children }) {
       </main>
 
       {/* Logout Confirmation Modal */}
-      <LogoutConfirmModal 
+      <LogoutConfirmModal
         isOpen={showLogoutModal}
         onClose={() => setShowLogoutModal(false)}
         onConfirm={() => {
@@ -304,10 +302,10 @@ export default function TenantLayout({ user, onLogout, children }) {
           onLogout();
         }}
       />
-      
-      <CartDrawer 
-        isOpen={isCartOpen} 
-        onClose={() => setIsCartOpen(false)} 
+
+      <CartDrawer
+        isOpen={isCartOpen}
+        onClose={() => setIsCartOpen(false)}
         onEditItem={(item) => {
           setEditingItem(item);
           setIsEditModalOpen(true);

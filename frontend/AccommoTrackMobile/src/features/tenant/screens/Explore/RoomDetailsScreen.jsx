@@ -1214,20 +1214,8 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
               navigateToCart();
             }, 300);
           } else {
-            showSuccess(
-              'Added to Book',
-              'Room added to your book successfully!',
-              [
-                { text: 'Continue Exploring', onPress: () => setBookingModalVisible(false) },
-                {
-                  text: 'Go to Book',
-                  onPress: () => {
-                    setBookingModalVisible(false);
-                    navigateToCart();
-                  },
-                }
-              ]
-            );
+            showSuccess('Added to Book', 'Room added to your book successfully!');
+            setBookingModalVisible(false);
           }
         } else {
           const validationMessage = formatBookingValidationError(result.details || result.errors);
@@ -1636,7 +1624,7 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
                   ]}
                   onPress={() => handleBook(true)}
                 >
-                  <Ionicons name="cart-outline" size={24} color={theme.colors.primary} />
+                  <Ionicons name="book-outline" size={24} color={theme.colors.primary} />
                 </TouchableOpacity>
               )}
             </View>

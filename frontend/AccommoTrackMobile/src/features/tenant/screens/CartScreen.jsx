@@ -113,7 +113,7 @@ export default function CartScreen() {
 
     if (result.success) {
       DeviceEventEmitter.emit('accommo:cart-updated');
-      
+
       const resInvoice = result.data?.reservation_invoice;
       const checkoutUrl = resInvoice?.checkout_url;
 
@@ -122,8 +122,8 @@ export default function CartScreen() {
           'Bookings Created',
           'Your bookings have been created. Proceed to payment to confirm your reservations?',
           [
-            { 
-              text: 'Pay Now', 
+            {
+              text: 'Pay Now',
               onPress: async () => {
                 await Linking.openURL(checkoutUrl);
                 navigation.navigate('MyBookings');
@@ -207,7 +207,7 @@ export default function CartScreen() {
           <Text style={{ fontSize: 20, fontWeight: 'bold', color: theme.colors.text }}>Add to Book</Text>
         </View>
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 32 }}>
-          <Ionicons name="cart-outline" size={64} color={theme.colors.textTertiary} />
+          <Ionicons name="book-outline" size={64} color={theme.colors.textTertiary} />
           <Text style={{ fontSize: 18, fontWeight: '600', color: theme.colors.text, marginTop: 16 }}>
             Your book is empty
           </Text>
@@ -274,8 +274,8 @@ export default function CartScreen() {
             >
               <Image
                 source={getImageUrl(
-                  item.room?.property?.image || 
-                  item.room?.property?.image_url || 
+                  item.room?.property?.image ||
+                  item.room?.property?.image_url ||
                   (item.room?.images && item.room.images.length > 0 ? item.room.images[0] : null)
                 )}
                 style={{ width: '100%', height: 150 }}
@@ -294,8 +294,8 @@ export default function CartScreen() {
                     <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                       <Text style={{ fontSize: 12, color: theme.colors.textSecondary }}>Beds</Text>
                       <Text style={{ fontSize: 12, fontWeight: '600', color: theme.colors.text }}>
-                        {item.bed_numbers 
-                          ? item.bed_numbers.split(',').map(n => `Bed ${n}`).join(', ') 
+                        {item.bed_numbers
+                          ? item.bed_numbers.split(',').map(n => `Bed ${n}`).join(', ')
                           : item.bed_count}
                       </Text>
                     </View>
@@ -339,7 +339,7 @@ export default function CartScreen() {
                     <Text style={{ fontSize: 13, fontWeight: '700', color: theme.colors.text }}>Item Total</Text>
                     <Text style={{ fontSize: 15, fontWeight: '700', color: theme.colors.primary }}>
                       {formatCurrency(
-                        parseFloat(item.price_snapshot || 0) + 
+                        parseFloat(item.price_snapshot || 0) +
                         (item.addons_details || []).reduce((sum, a) => sum + parseFloat(a.price || 0), 0)
                       )}
                     </Text>
