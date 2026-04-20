@@ -256,7 +256,7 @@ class TenantDashboardController extends Controller
                 'property_id' => $b->property_id,
                 'propertyId' => $b->property_id,
                 'status' => $b->status,
-                'isOverdue' => true,
+                'isOverdue' => $daysOverdue > 0,
             ];
         });
 

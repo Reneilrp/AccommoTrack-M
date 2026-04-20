@@ -41,4 +41,14 @@ return Application::configure(basePath: dirname(__DIR__))
 
             return null;
         });
+
+        $exceptions->render(function (\DomainException $exception, $request) {
+            if ($request->is('api/*') || $request->expectsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $exception->getMessage(),
+                    'errors' => ['general' => [$exception->getMessage()]],
+                ], 422);
+            }
+        });
     })->create();

@@ -56,11 +56,12 @@ const shouldRetryWithProductionHost = (error) => {
 // Create axios instance
 const api = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 60000, // 60 second timeout
+  timeout: 120000, // 120 second timeout for heavy booking/upload tasks
   headers: {
     'Accept': 'application/json',
     'Content-Type': 'application/json',
     'X-Client-Platform': 'mobile',
+    'X-Requested-With': 'XMLHttpRequest',
   },
 });
 

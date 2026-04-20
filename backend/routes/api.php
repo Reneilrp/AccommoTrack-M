@@ -356,7 +356,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::get('/bookings', [LandlordBookingController::class, 'index']);
     Route::get('/bookings/bundle', [LandlordBookingController::class, 'getBookingBundle']);
-    Route::post('/bookings', [LandlordBookingController::class, 'store'])->middleware('throttle:5,1');
+    Route::post('/bookings', [LandlordBookingController::class, 'store']);
     Route::get('/bookings/stats', [LandlordBookingController::class, 'getStats']);
     Route::get('/bookings/{id}', [LandlordBookingController::class, 'show']);
     Route::patch('/bookings/{id}/status', [LandlordBookingController::class, 'updateStatus']);

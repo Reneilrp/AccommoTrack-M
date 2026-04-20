@@ -669,75 +669,90 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
   const hasStays = stays && stays.length > 0;
   const hasPending = (pendingBookings && pendingBookings.length > 0) || (pendingCheckIns && pendingCheckIns.length > 0);
   const totalPendingCount = (pendingBookings?.length || 0) + (pendingCheckIns?.length || 0);
-  const [viewMode, setViewMode] = useState(hasStays ? 'active' : 'pending');
-  const [overdueTab, setOverdueTab] = useState('active');
-
   const hasOverdueStays = (stays || []).some((stay) =>
     Boolean(stay?.booking?.is_overdue || stay?.booking?.isOverdue),
   );
   const hasOverduePendingBookings = (pendingBookings || []).some((bookingEntry) =>
     Boolean(bookingEntry?.is_overdue || bookingEntry?.isOverdue),
   );
-  const hasOverduePendingCheckIns = (pendingCheckIns || []).length > 0;
+  const hasOverduePendingCheckIns = (pendingCheckIns || []).some(pc => pc.isOverdue || pc.daysOverdue > 0);
   const hasAnyOverdue = hasOverdueStays || hasOverduePendingBookings || hasOverduePendingCheckIns;
+
+  const [viewMode, setViewMode] = useState(() => {
+    const nonOverdueStays = (stays || []).filter(s => !(s?.booking?.is_overdue || s?.booking?.isOverdue));
+    const nonOverduePendingBookings = (pendingBookings || []).filter(b => !(b?.is_overdue || b?.isOverdue));
+    const nonOverdueCheckIns = (pendingCheckIns || []).filter(pc => !(pc.isOverdue || pc.daysOverdue > 0));
+
+    if (nonOverdueStays.length > 0) return 'active';
+    if (nonOverduePendingBookings.length > 0 || nonOverdueCheckIns.length > 0) return 'pending';
+    if (hasAnyOverdue) return 'overdue';
+    return 'active';
+  });
 
   const filteredStays = React.useMemo(() => {
     const source = Array.isArray(stays) ? stays : [];
-    if (!hasAnyOverdue) return source;
-
-    if (overdueTab === 'active') {
+    if (viewMode === 'active') {
       return source.filter((stay) => !(stay?.booking?.is_overdue || stay?.booking?.isOverdue));
     }
-
-    if (overdueTab === 'pending') {
-      return [];
+    if (viewMode === 'overdue') {
+      return source.filter((stay) => stay?.booking?.is_overdue || stay?.booking?.isOverdue);
     }
-
-    return source.filter((stay) => stay?.booking?.is_overdue || stay?.booking?.isOverdue);
-  }, [stays, hasAnyOverdue, overdueTab]);
+    return [];
+  }, [stays, viewMode]);
 
   const filteredPendingBookings = React.useMemo(() => {
     const source = Array.isArray(pendingBookings) ? pendingBookings : [];
-    if (!hasAnyOverdue) return source;
-
-    if (overdueTab === 'active') {
+    if (viewMode === 'pending') {
       return source.filter((bookingEntry) => !(bookingEntry?.is_overdue || bookingEntry?.isOverdue));
     }
-
-    if (overdueTab === 'pending') {
-      return source.filter((bookingEntry) => !(bookingEntry?.is_overdue || bookingEntry?.isOverdue));
+    if (viewMode === 'overdue') {
+      return source.filter((bookingEntry) => bookingEntry?.is_overdue || bookingEntry?.isOverdue);
     }
-
-    return source.filter((bookingEntry) => bookingEntry?.is_overdue || bookingEntry?.isOverdue);
-  }, [pendingBookings, hasAnyOverdue, overdueTab]);
+    return [];
+  }, [pendingBookings, viewMode]);
 
   const filteredPendingCheckIns = React.useMemo(() => {
     const source = Array.isArray(pendingCheckIns) ? pendingCheckIns : [];
-    if (!hasAnyOverdue) return source;
-
-    if (overdueTab === 'pending') {
-      return [];
+    if (viewMode === 'pending') {
+      return source.filter(pc => !(pc.isOverdue || pc.daysOverdue > 0));
     }
-
-    return source;
-  }, [pendingCheckIns, hasAnyOverdue, overdueTab]);
+    if (viewMode === 'overdue') {
+      return source.filter(pc => pc.isOverdue || pc.daysOverdue > 0);
+    }
+    return [];
+  }, [pendingCheckIns, viewMode]);
 
   useEffect(() => {
-    if (hasStays && !hasPending && viewMode !== 'active') {
-      setViewMode('active');
-      return;
-    }
+    const nonOverdueStaysCount = (stays || []).filter(s => !(s?.booking?.is_overdue || s?.booking?.isOverdue)).length;
+    const nonOverduePendingBookingsCount = (pendingBookings || []).filter(b => !(b?.is_overdue || b?.isOverdue)).length;
+    const nonOverdueCheckInsCount = (pendingCheckIns || []).filter(pc => !(pc.isOverdue || pc.daysOverdue > 0)).length;
+    const nonOverduePendingCount = nonOverduePendingBookingsCount + nonOverdueCheckInsCount;
+    
+    const overduePendingCheckInsCount = (pendingCheckIns || []).filter(pc => pc.isOverdue || pc.daysOverdue > 0).length;
+    const overdueCount = ((stays || []).length - nonOverdueStaysCount) + ((pendingBookings || []).length - nonOverduePendingBookingsCount) + overduePendingCheckInsCount;
 
-    if (!hasStays && hasPending && viewMode !== 'pending') {
-      setViewMode('pending');
+    if (viewMode === 'active' && nonOverdueStaysCount === 0) {
+      if (nonOverduePendingCount > 0) setViewMode('pending');
+      else if (overdueCount > 0) setViewMode('overdue');
+    } else if (viewMode === 'pending' && nonOverduePendingCount === 0) {
+      if (nonOverdueStaysCount > 0) setViewMode('active');
+      else if (overdueCount > 0) setViewMode('overdue');
+    } else if (viewMode === 'overdue' && overdueCount === 0) {
+      if (nonOverdueStaysCount > 0) setViewMode('active');
+      else if (nonOverduePendingCount > 0) setViewMode('pending');
     }
-  }, [hasStays, hasPending, viewMode]);
+  }, [stays, pendingBookings, pendingCheckIns, viewMode]);
 
-  const showActiveView = hasStays && (viewMode === 'active' || !hasPending);
-  const showPendingView = hasPending && (viewMode === 'pending' || !hasStays);
-  const displayedStays = showActiveView ? filteredStays : [];
-  const displayedPendingBookings = showPendingView ? filteredPendingBookings : [];
-  const displayedPendingCheckIns = showPendingView ? filteredPendingCheckIns : [];
+  const showActiveView = viewMode === 'active' || viewMode === 'overdue';
+  const showPendingView = viewMode === 'pending' || viewMode === 'overdue';
+  const displayedStays = filteredStays;
+  const displayedPendingBookings = filteredPendingBookings;
+  const displayedPendingCheckIns = filteredPendingCheckIns;
+
+  // Reset selected index when switching view modes to avoid out-of-bounds issues
+  useEffect(() => {
+    onSelectStay(0);
+  }, [viewMode, onSelectStay]);
 
   const formatDate = (dateString) => {
     if (!dateString) return 'N/A';
@@ -983,91 +998,89 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
       {/* Tab Header Row */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         {/* View Toggle */}
-        {hasStays && hasPending ? (
-          <div className="relative flex bg-gray-100 dark:bg-gray-900/50 p-2 rounded-xl w-full max-w-sm border border-gray-300 dark:border-gray-700 shadow-inner">
-            {/* Sliding Indicator */}
-            <div
-              className={`absolute top-1 bottom-1 left-1 w-[calc(50%-4px)] rounded-lg shadow-md transition-all duration-300 ease-out ${viewMode === 'active' ? 'bg-green-600 shadow-green-500/20' : 'bg-amber-600 shadow-amber-500/20'
-                }`}
-              style={{ transform: viewMode === 'active' ? 'translateX(0)' : 'translateX(calc(100% + 4px))' }}
-            />
+        {(() => {
+          const availableTabs = [];
+          const nonOverdueStaysCount = (stays || []).filter(s => !(s?.booking?.is_overdue || s?.booking?.isOverdue)).length;
+          const nonOverduePendingBookingsCount = (pendingBookings || []).filter(b => !(b?.is_overdue || b?.isOverdue)).length;
+          const nonOverdueCheckInsCount = (pendingCheckIns || []).filter(pc => !(pc.isOverdue || pc.daysOverdue > 0)).length;
+          const nonOverduePendingCount = nonOverduePendingBookingsCount + nonOverdueCheckInsCount;
+          
+          const overduePendingCheckInsCount = (pendingCheckIns || []).filter(pc => pc.isOverdue || pc.daysOverdue > 0).length;
+          const overdueCount = ((stays || []).length - nonOverdueStaysCount) + ((pendingBookings || []).length - nonOverduePendingBookingsCount) + overduePendingCheckInsCount;
 
-            <button
-              onClick={() => setViewMode('active')}
-              className={`relative z-10 flex-1 py-2 text-sm font-bold rounded-lg transition-colors duration-300 ${viewMode === 'active'
-                ? 'text-white'
-                : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
+          if (nonOverdueStaysCount > 0) availableTabs.push({ id: 'active', label: 'Active Stays', count: nonOverdueStaysCount, color: 'bg-green-600 shadow-green-500/20' });
+          if (nonOverduePendingCount > 0) availableTabs.push({ id: 'pending', label: 'Pending', count: nonOverduePendingCount, color: 'bg-amber-600 shadow-amber-500/20' });
+          if (overdueCount > 0) availableTabs.push({ id: 'overdue', label: 'Overdue', count: overdueCount, color: 'bg-red-600 shadow-red-500/20' });
+
+
+          if (availableTabs.length <= 1) return <div />;
+
+          const activeTabIndex = availableTabs.findIndex(t => t.id === viewMode);
+          const tabWidth = 100 / availableTabs.length;
+
+          return (
+            <div className="relative flex bg-gray-100 dark:bg-gray-900/50 p-1.5 rounded-xl w-full max-w-md border border-gray-300 dark:border-gray-700 shadow-inner">
+              {/* Sliding Indicator */}
+              <div
+                className={`absolute top-1.5 bottom-1.5 left-1.5 rounded-lg shadow-md transition-all duration-300 ease-out ${
+                  availableTabs[activeTabIndex]?.color || 'bg-green-600'
                 }`}
-            >
-              Active Stays ({stays.length})
-            </button>
-            <button
-              onClick={() => setViewMode('pending')}
-              className={`relative z-10 flex-1 py-2 text-sm font-bold rounded-lg transition-colors duration-300 ${viewMode === 'pending'
-                ? 'text-white'
-                : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
-                }`}
-            >
-              Pending ({totalPendingCount})
-            </button>
-          </div>
-        ) : <div />}
+                style={{ 
+                  width: `calc(${tabWidth}% - 3px)`,
+                  transform: `translateX(calc(${activeTabIndex * 100}% + ${activeTabIndex * 3}px))` 
+                }}
+              />
+
+              {availableTabs.map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => setViewMode(tab.id)}
+                  className={`relative z-10 flex-1 py-2 text-sm font-bold rounded-lg transition-colors duration-300 ${
+                    viewMode === tab.id
+                      ? 'text-white'
+                      : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
+                  }`}
+                >
+                  {tab.label} ({tab.count})
+                </button>
+              ))}
+            </div>
+          );
+        })()}
 
         {/* Adaptive Stay Selector */}
-        {showActiveView && (
+        {(viewMode === 'active' || viewMode === 'overdue') && displayedStays.length > 1 && (
           <StaySelector
-            stays={stays}
+            stays={displayedStays}
             selectedIndex={selectedIndex}
             onSelect={onSelectStay}
           />
         )}
       </div>
 
-      {hasAnyOverdue && (
-        <div className="flex flex-wrap gap-2">
-          <button
-            onClick={() => setOverdueTab('active')}
-            className={`px-4 py-2 rounded-lg text-xs font-bold border transition-all ${overdueTab === 'active'
-              ? 'bg-emerald-600 text-white border-emerald-600'
-              : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border-gray-300 dark:border-gray-700'
-              }`}
-          >
-            Active
-          </button>
-          <button
-            onClick={() => setOverdueTab('pending')}
-            className={`px-4 py-2 rounded-lg text-xs font-bold border transition-all ${overdueTab === 'pending'
-              ? 'bg-amber-600 text-white border-amber-600'
-              : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border-gray-300 dark:border-gray-700'
-              }`}
-          >
-            Pending
-          </button>
-          <button
-            onClick={() => setOverdueTab('overdue')}
-            className={`px-4 py-2 rounded-lg text-xs font-bold border transition-all ${overdueTab === 'overdue'
-              ? 'bg-red-600 text-white border-red-600'
-              : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border-gray-300 dark:border-gray-700'
-              }`}
-          >
-            Overdue
-          </button>
-        </div>
-      )}
-
       {/* PENDING VIEW */}
       {showPendingView && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {displayedPendingCheckIns.map(pc => (
             <div key={pc.id} className="py-8 bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-300 dark:border-gray-700 px-4">
-              <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4 animate-pulse" />
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2 text-center">Check-in Overdue</h3>
-              <p className="text-sm text-gray-500 dark:text-gray-400 mb-6 text-center">Action required: finalize your move-in with the landlord.</p>
+              {pc.isOverdue || Number(pc.daysOverdue) > 0 ? (
+                <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4 animate-pulse" />
+              ) : (
+                <Calendar className="w-12 h-12 text-amber-500 mx-auto mb-4 animate-pulse" />
+              )}
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2 text-center">
+                {pc.isOverdue || Number(pc.daysOverdue) > 0 ? 'Check-in Overdue' : 'Check-in Pending'}
+              </h3>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mb-6 text-center">
+                {pc.isOverdue || Number(pc.daysOverdue) > 0 
+                  ? 'Action required: finalize your move-in with the landlord.' 
+                  : 'Your move-in date has arrived! Finalize your check-in with the landlord.'}
+              </p>
 
-              <div className="bg-red-50 dark:bg-red-900/10 text-red-800 dark:text-red-400 p-6 rounded-2xl border border-red-100 dark:border-red-900/20 shadow-sm mb-6">
+              <div className={`${pc.isOverdue || Number(pc.daysOverdue) > 0 ? 'bg-red-50 dark:bg-red-900/10 text-red-800 dark:text-red-400 border-red-100 dark:border-red-900/20' : 'bg-amber-50 dark:bg-amber-900/10 text-amber-800 dark:text-amber-400 border-amber-100 dark:border-amber-900/20'} p-6 rounded-2xl border shadow-sm mb-6`}>
                 <div className="flex items-center gap-4">
                   <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm">
-                    <Home className="w-5 h-5 text-red-600" />
+                    <Home className={`w-5 h-5 ${pc.isOverdue || Number(pc.daysOverdue) > 0 ? 'text-red-600' : 'text-amber-600'}`} />
                   </div>
                   <div className="text-left flex-1">
                     <p className="font-bold text-base leading-tight">{pc.property}</p>
@@ -1078,7 +1091,7 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
                     <p className="text-xs font-bold uppercase mt-1">
                       {Number(pc.daysOverdue) > 0
                         ? `${Math.max(0, Math.round(Number(pc.daysOverdue)))} day${Math.round(Number(pc.daysOverdue)) === 1 ? '' : 's'} overdue`
-                        : 'Overdue'}
+                        : (pc.isOverdue || Number(pc.daysOverdue) > 0 ? 'Overdue' : 'Check-in Today')}
                     </p>
                   </div>
                 </div>
