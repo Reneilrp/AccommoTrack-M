@@ -4,12 +4,12 @@ class BookingService {
 
   async searchGuests(query) {
     try {
-      const response = await api.get('/users/search', {
-        params: { query },
+      const response = await api.get('/landlord/tenants', {
+        params: { search: query },
       });
       return {
         success: true,
-        data: response.data?.users || [],
+        data: Array.isArray(response.data) ? response.data : [],
       };
     } catch (error) {
       console.error('Error searching guests:', error);
@@ -28,7 +28,6 @@ class BookingService {
   async createBooking(bookingData) {
     try {
       console.log('Sending booking data:', bookingData);
-      const isFormData = bookingData instanceof FormData;
       const response = await api.post(
         `/bookings`,
         bookingData,
@@ -134,7 +133,7 @@ class BookingService {
   async convertOccupantToTenant(bookingId, occupantId, data) {
     try {
       const response = await api.post(
-        `/landlord/bookings/${bookingId}/occupants/${occupantId}/convert-to-tenant`,
+        `/bookings/${bookingId}/occupants/${occupantId}/convert-to-tenant`,
         data
       );
       return { success: true, data: response.data?.data || response.data, message: response.data?.message };

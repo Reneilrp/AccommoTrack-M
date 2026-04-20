@@ -113,6 +113,12 @@ class LandlordBookingController extends Controller
      */
     public function store(StoreBookingRequest $request)
     {
+        Log::info('Booking request reaching controller', [
+            'raw_input' => $request->all(),
+            'platform' => $request->header('X-Client-Platform'),
+            'content_type' => $request->header('Content-Type'),
+        ]);
+
         try {
             $validated = $request->validated();
             Log::info('Booking request received', $validated);

@@ -56,7 +56,7 @@ const shouldRetryWithProductionHost = (error) => {
 // Create axios instance
 const api = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 60000, // Increased to 60 seconds to accommodate slow backend processes
+  timeout: 60000, // 60 second timeout
   headers: {
     'Accept': 'application/json',
     'Content-Type': 'application/json',
@@ -210,14 +210,10 @@ api.interceptors.request.use(async (config) => {
       if (isJsonContentType) {
         if (typeof config.headers?.delete === 'function') {
           config.headers.delete('Content-Type');
-        } else if (config.headers) {
+        } else {
           delete config.headers['Content-Type'];
           delete config.headers['content-type'];
         }
-      }
-
-      if (__DEV__) {
-        console.log('[api] FormData payload detected, conditional Content-Type removal applied.');
       }
     }
 
@@ -270,7 +266,16 @@ api.interceptors.request.use(async (config) => {
 
     if (__DEV__) {
       const method = (config.method || 'get').toUpperCase();
-      console.log('[api] Request:', method, buildRequestUrl(config.baseURL, config.url));
+      const url = buildRequestUrl(config.baseURL, config.url);
+      console.log(`[api] Request: ${method} ${url}`);
+      if (config.data) {
+        // Log keys only for large payloads like FormData
+        if (config.data instanceof FormData) {
+          console.log('[api] Payload (FormData keys):', Object.keys(config.data?._parts || []).map(k => config.data._parts[k][0]));
+        } else {
+          console.log('[api] Payload:', JSON.stringify(config.data).substring(0, 500));
+        }
+      }
     }
   } catch (error) {
     console.error('Error getting token:', error);
