@@ -192,14 +192,14 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
 
   const fetchBookings = useCallback(async () => {
     try {
-      if (!cachedData) setLoading(true);
+      if (!uiState.data?.landlord_bookings) setLoading(true);
       const response = await bookingService.getBookings();
       if (response.success) {
         const list = Array.isArray(response.data)
           ? response.data
           : (Array.isArray(response.data?.data) ? response.data.data : []);
         setBookings(list);
-        updateData('landlord_bookings', { ...uiState.data?.landlord_bookings, bookings: list });
+        updateData('landlord_bookings', prev => ({ ...prev, bookings: list }));
         setError(null);
       } else if (response.status === 404 || response.status === 204) {
         setBookings([]);
@@ -212,7 +212,7 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
       if (err.response?.status === 404 || err.response?.status === 204) setBookings([]);
       else setError(err.response?.data?.message || 'Failed to fetch bookings');
     } finally { setLoading(false); }
-  }, [cachedData, updateData, uiState.data?.landlord_bookings]);
+  }, [updateData]);
 
   const fetchStats = useCallback(async () => {
     try {
@@ -220,10 +220,10 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
       if (response.success) {
         const data = response.data || { total: 0, confirmed: 0, pending: 0, completed: 0 };
         setStats(data);
-        updateData('landlord_bookings', { ...uiState.data?.landlord_bookings, stats: data });
+        updateData('landlord_bookings', prev => ({ ...prev, stats: data }));
       }
     } catch (err) { console.error('Error fetching stats:', err); }
-  }, [updateData, uiState.data?.landlord_bookings]);
+  }, [updateData]);
 
   const fetchExtensions = useCallback(async () => {
     try {

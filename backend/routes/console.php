@@ -15,3 +15,6 @@ Schedule::command('invoices:update-overdue')->daily();
 Schedule::command('invoices:generate-monthly')->daily();
 Schedule::command('bookings:notify-extension-reminders')->daily();
 Schedule::command('properties:cleanup-archived')->daily();
+
+// Batch Cloudflare cache purges every 5 minutes to prevent queue flooding
+Schedule::call(fn() => \App\Jobs\PurgeCloudflareCacheJob::dispatchIfPending())->everyFiveMinutes();

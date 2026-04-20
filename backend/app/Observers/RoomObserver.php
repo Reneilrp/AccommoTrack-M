@@ -12,7 +12,7 @@ class RoomObserver
      */
     public function saved(Room $room): void
     {
-        PurgeCloudflareCacheJob::dispatch();
+        PurgeCloudflareCacheJob::markAsPending();
     }
 
     /**
@@ -20,7 +20,7 @@ class RoomObserver
      */
     public function deleted(Room $room): void
     {
-        PurgeCloudflareCacheJob::dispatch();
+        PurgeCloudflareCacheJob::markAsPending();
     }
 
     /**
@@ -28,7 +28,7 @@ class RoomObserver
      */
     public function restored(Room $room): void
     {
-        PurgeCloudflareCacheJob::dispatch();
+        PurgeCloudflareCacheJob::markAsPending();
     }
 
     /**
@@ -36,6 +36,6 @@ class RoomObserver
      */
     public function forceDeleted(Room $room): void
     {
-        PurgeCloudflareCacheJob::dispatch();
+        PurgeCloudflareCacheJob::markAsPending();
     }
 }

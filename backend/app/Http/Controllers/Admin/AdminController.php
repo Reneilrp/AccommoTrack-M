@@ -110,7 +110,7 @@ class AdminController extends Controller
         }
 
         // Purge global cache so toggles update on the edge immediately
-        \App\Jobs\PurgeCloudflareCacheJob::dispatch();
+        \App\Jobs\PurgeCloudflareCacheJob::markAsPending();
 
         // Automatically purge Cloudflare cache for the APK if mobile settings are updated
         if (isset($validated['mobile_download_url']) || isset($validated['mobile_latest_version'])) {

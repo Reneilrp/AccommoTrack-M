@@ -443,8 +443,8 @@ export default function Payments() {
 
       const data = response.data || null;
       setSummary(data);
-      updateData("landlord_payments", {
-        ...(uiState.data?.landlord_payments || {}),
+      updateData("landlord_payments", prev => ({
+        ...(prev || {}),
         summary: data,
       });
     } catch (err) {
@@ -522,7 +522,7 @@ export default function Payments() {
 
   const loadInvoices = useCallback(async () => {
     try {
-      if (!cachedData) setLoading(true);
+      if (!uiState.data?.landlord_payments) setLoading(true);
       setError(null);
       const response = await invoiceService.getInvoices({
         exclude_invoice_type: "subscription",
@@ -548,8 +548,8 @@ export default function Payments() {
       setInvoices(list);
 
       // Update global context
-      updateData("landlord_payments", {
-        ...(uiState.data?.landlord_payments || {}),
+      updateData("landlord_payments", prev => ({
+        ...(prev || {}),
         invoices: list,
         bookingsMap: finalBookingsMap,
       });
@@ -571,7 +571,7 @@ export default function Payments() {
     } finally {
       setLoading(false);
     }
-  }, [archiveFilter, bookingsMap, cachedData, getPaymentError, loadBookingDetails, loadSummary, statsRange, updateData]);
+  }, [archiveFilter, getPaymentError, loadBookingDetails, loadSummary, statsRange, updateData]);
 
   useEffect(() => {
     // Auto-collapse sidebar when entering payments for wider table area.

@@ -12,7 +12,7 @@ class PropertyObserver
      */
     public function saved(Property $property): void
     {
-        PurgeCloudflareCacheJob::dispatch();
+        PurgeCloudflareCacheJob::markAsPending();
     }
 
     /**
@@ -39,7 +39,7 @@ class PropertyObserver
      */
     public function deleted(Property $property): void
     {
-        PurgeCloudflareCacheJob::dispatch();
+        PurgeCloudflareCacheJob::markAsPending();
     }
 
     /**
@@ -47,7 +47,7 @@ class PropertyObserver
      */
     public function restored(Property $property): void
     {
-        PurgeCloudflareCacheJob::dispatch();
+        PurgeCloudflareCacheJob::markAsPending();
     }
 
     /**
@@ -55,6 +55,6 @@ class PropertyObserver
      */
     public function forceDeleted(Property $property): void
     {
-        PurgeCloudflareCacheJob::dispatch();
+        PurgeCloudflareCacheJob::markAsPending();
     }
 }
