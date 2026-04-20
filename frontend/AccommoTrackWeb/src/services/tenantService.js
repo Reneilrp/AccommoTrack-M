@@ -186,6 +186,91 @@ export const tenantService = {
     },
 
     /**
+     * Tenant: send OTP to start enabling 2FA
+     */
+    async sendTenantTwoFactorOtp() {
+        try {
+            const response = await api.post('/tenant/security/two-factor/send-otp');
+            return {
+                success: true,
+                data: response.data?.user || null,
+                twoFactor: response.data?.two_factor || null,
+                message: response.data?.message || 'Verification code sent to your email address.',
+            };
+        } catch (_err) {
+            console.error('Error sending tenant 2FA OTP:', _err);
+            return {
+                success: false,
+                error: _err?.response?.data?.message || _err.message,
+            };
+        }
+    },
+
+    /**
+     * Tenant: verify 2FA enable OTP
+     */
+    async verifyTenantTwoFactorOtp(emailOtpCode) {
+        try {
+            const response = await api.post('/tenant/security/two-factor/verify-otp', {
+                email_otp_code: emailOtpCode,
+            });
+            return {
+                success: true,
+                data: response.data?.user || null,
+                twoFactor: response.data?.two_factor || null,
+                message: response.data?.message || 'Two-factor authentication enabled successfully.',
+            };
+        } catch (_err) {
+            console.error('Error verifying tenant 2FA OTP:', _err);
+            return {
+                success: false,
+                error: _err?.response?.data?.message || _err.message,
+            };
+        }
+    },
+
+    /**
+     * Tenant: disable 2FA
+     */
+    async disableTenantTwoFactor() {
+        try {
+            const response = await api.post('/tenant/security/two-factor/disable');
+            return {
+                success: true,
+                data: response.data?.user || null,
+                twoFactor: response.data?.two_factor || null,
+                message: response.data?.message || 'Two-factor authentication has been disabled.',
+            };
+        } catch (_err) {
+            console.error('Error disabling tenant 2FA:', _err);
+            return {
+                success: false,
+                error: _err?.response?.data?.message || _err.message,
+            };
+        }
+    },
+
+    /**
+     * Tenant: fetch 2FA status
+     */
+    async getTenantTwoFactorStatus() {
+        try {
+            const response = await api.get('/tenant/security/two-factor');
+            return {
+                success: true,
+                twoFactor: response.data?.two_factor || null,
+                message: response.data?.message || 'Two-factor authentication status retrieved successfully.',
+            };
+        } catch (_err) {
+            console.error('Error fetching tenant 2FA status:', _err);
+            return {
+                success: false,
+                error: _err?.response?.data?.message || _err.message,
+            };
+        }
+    },
+
+    /**
      * Get available add-ons for active booking
      */
     async getAvailableAddons() {

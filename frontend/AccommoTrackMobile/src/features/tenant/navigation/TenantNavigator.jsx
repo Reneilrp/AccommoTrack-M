@@ -8,6 +8,7 @@ import ChatScreen from '../screens/Messages/ChatScreen.jsx';
 import AccommodationDetails from '../screens/Explore/PropertyDetailsScreen.jsx';
 import ProfilePage from '../screens/Profile/ProfilePage.jsx';
 import UpdatePassword from '../screens/Profile/UpdatePassword.jsx';
+import AccountSecurity from '../screens/Profile/AccountSecurity.jsx';
 import NotificationPreferences from '../screens/Settings/NotificationPreferences.jsx';
 import PreferencesLifestyle from '../screens/Settings/PreferencesLifestyle.jsx';
 import MyBookings from '../screens/Bookings/MyBookings.jsx';
@@ -60,8 +61,8 @@ function TenantMain({ onLogout, isGuest = false, onAuthRequired }) {
       >
         <MainStack.Screen name="TenantHome" options={{ animation: 'none' }}>
           {(props) => (
-            <TenantHomePage 
-              {...props} 
+            <TenantHomePage
+              {...props}
               onLogout={onLogout}
               isGuest={isGuest}
               onAuthRequired={onAuthRequired}
@@ -71,7 +72,7 @@ function TenantMain({ onLogout, isGuest = false, onAuthRequired }) {
 
         <MainStack.Screen name="AccommodationDetails" options={{ animation: 'none' }}>
           {(props) => (
-            <AccommodationDetails 
+            <AccommodationDetails
               {...props}
               isGuest={isGuest}
               onAuthRequired={onAuthRequired}
@@ -81,7 +82,7 @@ function TenantMain({ onLogout, isGuest = false, onAuthRequired }) {
 
         <MainStack.Screen name="RoomsList" options={{ animation: 'none' }}>
           {(props) => (
-            <RoomListScreen 
+            <RoomListScreen
               {...props}
               isGuest={isGuest}
             />
@@ -90,7 +91,7 @@ function TenantMain({ onLogout, isGuest = false, onAuthRequired }) {
 
         <MainStack.Screen name="RoomDetails" options={{ animation: 'none' }}>
           {(props) => (
-            <RoomDetailsScreen 
+            <RoomDetailsScreen
               {...props}
               isGuest={isGuest}
               onAuthRequired={onAuthRequired}
@@ -101,8 +102,8 @@ function TenantMain({ onLogout, isGuest = false, onAuthRequired }) {
         {/* Settings - Available for both guests and authenticated users */}
         <MainStack.Screen name="Settings" options={{ animation: 'none' }}>
           {(props) => (
-            <Settings 
-              {...props} 
+            <Settings
+              {...props}
               onLogout={onLogout}
               isGuest={isGuest}
               onLoginPress={onAuthRequired}
@@ -114,7 +115,7 @@ function TenantMain({ onLogout, isGuest = false, onAuthRequired }) {
         <MainStack.Screen name="VerificationStatus" component={VerificationStatus} options={{ animation: 'none' }} />
         <MainStack.Screen name="LandlordRegister" component={LandlordRegisterScreen} options={{ animation: 'none' }} />
         <MainStack.Screen name="UpdateDetails" component={UpdateDetails} options={{ animation: 'none' }} />
-        
+
         <MainStack.Screen name="Messages" options={{ animation: 'none' }}>
           {(props) => (
             <MessagesPage {...props} />
@@ -135,6 +136,7 @@ function TenantMain({ onLogout, isGuest = false, onAuthRequired }) {
             <MainStack.Screen name="UnitHub" component={UnitHubScreen} options={{ animation: 'none' }} />
             <MainStack.Screen name="Notifications" component={Notifications} options={{ animation: 'none' }} />
             <MainStack.Screen name="Profile" component={ProfilePage} options={{ animation: 'none' }} />
+            <MainStack.Screen name="AccountSecurity" component={AccountSecurity} options={{ animation: 'none' }} />
             <MainStack.Screen name="NotificationPreferences" component={NotificationPreferences} options={{ animation: 'none' }} />
             <MainStack.Screen name="PreferencesLifestyle" component={PreferencesLifestyle} options={{ animation: 'none' }} />
             <MainStack.Screen name="UpdatePassword" component={UpdatePassword} options={{ animation: 'none' }} />

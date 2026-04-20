@@ -33,6 +33,10 @@ class AuthController extends Controller
 
     private const LANDLORD_EMAIL_RECOVERY_OTP_TTL_MINUTES = 10;
 
+    private const TENANT_TWO_FACTOR_OTP_TTL_MINUTES = 10;
+
+    private const DEVICE_FINGERPRINT_HEADER = 'X-Device-Fingerprint';
+
     protected AuthService $authService;
 
     protected LegalConsentService $legalConsentService;
@@ -97,6 +101,103 @@ class AuthController extends Controller
         }
 
         return filter_var($headerValue, FILTER_VALIDATE_BOOL);
+    }
+
+    protected function getDeviceFingerprintFromRequest(Request $request): ?string
+    {
+        $fingerprint = trim((string) $request->header(self::DEVICE_FINGERPRINT_HEADER, ''));
+
+        if ($fingerprint === '') {
+            return null;
+        }
+
+        return substr($fingerprint, 0, 120);
+    }
+
+    protected function shouldRequireTenantTwoFactorChallenge(Request $request, User $user): bool
+    {
+        if ($user->role !== 'tenant') {
+            return false;
+        }
+
+        $securityPreferences = $this->getNormalizedSecurityPreferences($user);
+        $isTwoFactorEnabled = (bool) $securityPreferences['twoFactorAuth'];
+        $isTwoFactorVerified = ! empty($securityPreferences['twoFactorVerifiedAt']);
+
+        if (! $isTwoFactorEnabled || ! $isTwoFactorVerified) {
+            return false;
+        }
+
+        $storedIp = $securityPreferences['twoFactorLastIp'] ?: null;
+        $storedDeviceFingerprint = $securityPreferences['twoFactorLastDeviceFingerprint'] ?: null;
+
+        $currentIp = (string) $request->ip();
+        $currentDeviceFingerprint = $this->getDeviceFingerprintFromRequest($request);
+
+        // If there is no trusted context yet, force an OTP challenge once.
+        if (! $storedIp && ! $storedDeviceFingerprint) {
+            return true;
+        }
+
+        if ($storedIp && $currentIp && $storedIp !== $currentIp) {
+            return true;
+        }
+
+        if ($storedDeviceFingerprint && ! $currentDeviceFingerprint) {
+            return true;
+        }
+
+        if ($storedDeviceFingerprint && $currentDeviceFingerprint && ! hash_equals($storedDeviceFingerprint, $currentDeviceFingerprint)) {
+            return true;
+        }
+
+        return false;
+    }
+
+    protected function sendTenantTwoFactorLoginChallengeOtp(Request $request, User $user): bool
+    {
+        $otp = (string) random_int(100000, 999999);
+
+        $preferences = is_array($user->preferences) ? $user->preferences : [];
+        $securityPreferences = $this->getNormalizedSecurityPreferences($user);
+
+        $securityPreferences['twoFactorPendingLogin'] = true;
+        $securityPreferences['twoFactorEnrollmentPending'] = false;
+
+        $preferences['security'] = $securityPreferences;
+
+        $user->forceFill([
+            'email_otp_code' => Hash::make($otp),
+            'email_otp_expires_at' => Carbon::now()->addMinutes(self::TENANT_TWO_FACTOR_OTP_TTL_MINUTES),
+            'preferences' => $preferences,
+        ])->save();
+
+        try {
+            Mail::to($user->email)->send(new EmailOtpMail($otp));
+        } catch (\Throwable $mailException) {
+            Log::warning('Tenant two-factor OTP send failed during login challenge', [
+                'user_id' => $user->id,
+                'email' => $user->email,
+                'error' => $mailException->getMessage(),
+            ]);
+
+            return false;
+        }
+
+        return true;
+    }
+
+    protected function markTenantTwoFactorTrustedContext(Request $request, User $user): User
+    {
+        $securityPreferences = $this->getNormalizedSecurityPreferences($user);
+
+        $securityPreferences['twoFactorPendingLogin'] = false;
+        $securityPreferences['twoFactorEnrollmentPending'] = false;
+        $securityPreferences['twoFactorLastIp'] = (string) $request->ip();
+        $securityPreferences['twoFactorLastDeviceFingerprint'] = $this->getDeviceFingerprintFromRequest($request);
+        $securityPreferences['twoFactorLastVerifiedAt'] = now()->toIso8601String();
+
+        return $this->persistSecurityPreferences($user, $securityPreferences);
     }
 
     protected function resolveAccessTokenTtlMinutes(Request $request, User $user): int
@@ -391,14 +492,37 @@ class AuthController extends Controller
             return response()->json(['message' => 'Invalid verification code.'], 422);
         }
 
-        $user->forceFill([
-            'email_verified_at' => now(),
-            'is_verified' => true,
+        $securityPreferences = $this->getNormalizedSecurityPreferences($user);
+        $isTenantTwoFactorLoginVerification = $user->role === 'tenant'
+            && (bool) $securityPreferences['twoFactorAuth']
+            && ! empty($securityPreferences['twoFactorVerifiedAt'])
+            && (bool) $securityPreferences['twoFactorPendingLogin'];
+
+        $updates = [
             'email_otp_code' => null,
             'email_otp_expires_at' => null,
-        ])->save();
+        ];
 
-        return $this->buildAuthResponse($request, $user, 'Email verified successfully. You are now logged in.');
+        if (! $user->is_verified) {
+            $updates['email_verified_at'] = now();
+            $updates['is_verified'] = true;
+        }
+
+        $user->forceFill($updates)->save();
+
+        $user = $user->fresh();
+
+        if ($isTenantTwoFactorLoginVerification) {
+            $user = $this->markTenantTwoFactorTrustedContext($request, $user);
+        }
+
+        return $this->buildAuthResponse(
+            $request,
+            $user,
+            $isTenantTwoFactorLoginVerification
+                ? 'Two-factor verification successful. You are now logged in.'
+                : 'Email verified successfully. You are now logged in.'
+        );
     }
 
     public function resendEmailOtp(Request $request)
@@ -471,6 +595,32 @@ class AuthController extends Controller
                 $verification = $user->landlordVerification;
                 $responseData['verification_status'] = $verification ? $verification->status : 'not_submitted';
                 $responseData['rejection_reason'] = $verification ? $verification->rejection_reason : null;
+            }
+
+            if ($this->shouldRequireTenantTwoFactorChallenge($request, $user)) {
+                $otpSent = $this->sendTenantTwoFactorLoginChallengeOtp($request, $user);
+
+                if (! $otpSent) {
+                    return response()->json([
+                        'message' => 'Login requires two-factor authentication, but we could not send the verification code. Please try again.',
+                    ], 500);
+                }
+
+                return response()->json([
+                    'status' => 'pending_verification',
+                    'message' => 'Two-factor authentication required. A verification code has been sent to your email.',
+                    'otp_resent' => true,
+                    'requires_email_otp' => true,
+                ], 403);
+            }
+
+            $tenantSecurityPreferences = $this->getNormalizedSecurityPreferences($user);
+            $isTenantTwoFactorEnabledAndVerified = $user->role === 'tenant'
+                && (bool) $tenantSecurityPreferences['twoFactorAuth']
+                && ! empty($tenantSecurityPreferences['twoFactorVerifiedAt']);
+
+            if ($isTenantTwoFactorEnabledAndVerified) {
+                $user = $this->markTenantTwoFactorTrustedContext($request, $user);
             }
 
             return $this->buildAuthResponse($request, $user, 'Login successful', $responseData);
@@ -882,6 +1032,171 @@ class AuthController extends Controller
         ]);
     }
 
+    public function getTenantTwoFactorStatus(Request $request): JsonResponse
+    {
+        $user = $request->user();
+
+        if (! $user || $user->role !== 'tenant') {
+            return response()->json([
+                'message' => 'This feature is available for tenant accounts only.',
+            ], 403);
+        }
+
+        return response()->json([
+            'message' => 'Two-factor authentication status retrieved successfully.',
+            'two_factor' => $this->extractTenantTwoFactorStatus($user),
+        ]);
+    }
+
+    public function sendTenantTwoFactorOtp(Request $request): JsonResponse
+    {
+        $user = $request->user();
+
+        if (! $user || $user->role !== 'tenant') {
+            return response()->json([
+                'message' => 'This feature is available for tenant accounts only.',
+            ], 403);
+        }
+
+        $securityPreferences = $this->getNormalizedSecurityPreferences($user);
+
+        if ((bool) $securityPreferences['twoFactorAuth'] && ! empty($securityPreferences['twoFactorVerifiedAt'])) {
+            return response()->json([
+                'message' => 'Two-factor authentication is already enabled.',
+            ], 422);
+        }
+
+        $otp = (string) random_int(100000, 999999);
+
+        $securityPreferences['twoFactorEnrollmentPending'] = true;
+        $securityPreferences['twoFactorPendingLogin'] = false;
+
+        $preferences = is_array($user->preferences) ? $user->preferences : [];
+        $preferences['security'] = $securityPreferences;
+
+        $user->forceFill([
+            'email_otp_code' => Hash::make($otp),
+            'email_otp_expires_at' => Carbon::now()->addMinutes(self::TENANT_TWO_FACTOR_OTP_TTL_MINUTES),
+            'preferences' => $preferences,
+        ])->save();
+
+        try {
+            Mail::to($user->email)->send(new EmailOtpMail($otp));
+        } catch (\Throwable $mailException) {
+            Log::warning('Tenant two-factor enrollment OTP send failed', [
+                'user_id' => $user->id,
+                'email' => $user->email,
+                'error' => $mailException->getMessage(),
+            ]);
+
+            return response()->json([
+                'message' => 'Failed to send verification code. Please try again later.',
+            ], 500);
+        }
+
+        $user = $user->fresh();
+
+        return response()->json([
+            'message' => 'Verification code sent to your email address.',
+            'user' => $user,
+            'two_factor' => $this->extractTenantTwoFactorStatus($user),
+        ]);
+    }
+
+    public function verifyTenantTwoFactorOtp(Request $request): JsonResponse
+    {
+        $user = $request->user();
+
+        if (! $user || $user->role !== 'tenant') {
+            return response()->json([
+                'message' => 'This feature is available for tenant accounts only.',
+            ], 403);
+        }
+
+        $validated = $request->validate([
+            'email_otp_code' => 'required|digits:6',
+        ]);
+
+        if (! $user->email_otp_code || ! $user->email_otp_expires_at) {
+            return response()->json([
+                'message' => 'Verification code not found. Please request a new code from Settings.',
+            ], 404);
+        }
+
+        if (Carbon::now()->isAfter($user->email_otp_expires_at)) {
+            return response()->json([
+                'message' => 'Verification code has expired. Please request a new code.',
+            ], 422);
+        }
+
+        if (! Hash::check($validated['email_otp_code'], $user->email_otp_code)) {
+            return response()->json([
+                'message' => 'Invalid verification code.',
+            ], 422);
+        }
+
+        $securityPreferences = $this->getNormalizedSecurityPreferences($user);
+
+        $securityPreferences['twoFactorAuth'] = true;
+        $securityPreferences['twoFactorVerifiedAt'] = now()->toIso8601String();
+        $securityPreferences['twoFactorEnrollmentPending'] = false;
+        $securityPreferences['twoFactorPendingLogin'] = false;
+        $securityPreferences['twoFactorLastIp'] = (string) $request->ip();
+        $securityPreferences['twoFactorLastDeviceFingerprint'] = $this->getDeviceFingerprintFromRequest($request);
+        $securityPreferences['twoFactorLastVerifiedAt'] = now()->toIso8601String();
+
+        $preferences = is_array($user->preferences) ? $user->preferences : [];
+        $preferences['security'] = $securityPreferences;
+
+        $user->forceFill([
+            'email_otp_code' => null,
+            'email_otp_expires_at' => null,
+            'preferences' => $preferences,
+        ])->save();
+
+        $user = $user->fresh();
+
+        return response()->json([
+            'message' => 'Two-factor authentication enabled successfully.',
+            'user' => $user,
+            'two_factor' => $this->extractTenantTwoFactorStatus($user),
+        ]);
+    }
+
+    public function disableTenantTwoFactor(Request $request): JsonResponse
+    {
+        $user = $request->user();
+
+        if (! $user || $user->role !== 'tenant') {
+            return response()->json([
+                'message' => 'This feature is available for tenant accounts only.',
+            ], 403);
+        }
+
+        $securityPreferences = $this->getNormalizedSecurityPreferences($user);
+
+        $securityPreferences['twoFactorAuth'] = false;
+        $securityPreferences['twoFactorVerifiedAt'] = null;
+        $securityPreferences['twoFactorEnrollmentPending'] = false;
+        $securityPreferences['twoFactorPendingLogin'] = false;
+        $securityPreferences['twoFactorLastIp'] = null;
+        $securityPreferences['twoFactorLastDeviceFingerprint'] = null;
+        $securityPreferences['twoFactorLastVerifiedAt'] = null;
+
+        $user->forceFill([
+            'email_otp_code' => null,
+            'email_otp_expires_at' => null,
+        ])->save();
+
+        $user = $this->persistSecurityPreferences($user, $securityPreferences);
+
+        return response()->json([
+            'message' => 'Two-factor authentication has been disabled.',
+            'user' => $user,
+            'two_factor' => $this->extractTenantTwoFactorStatus($user),
+        ]);
+    }
+
     public function verifyLandlordEmailRecoveryOtp(Request $request): JsonResponse
     {
         $user = $request->user();
@@ -962,14 +1277,20 @@ class AuthController extends Controller
         ];
     }
 
-    private function persistLandlordEmailRecoverySecurityState(User $user, bool $enabled, ?string $verifiedAt): User
+    private function extractTenantTwoFactorStatus(User $user): array
     {
-        $preferences = is_array($user->preferences) ? $user->preferences : [];
         $securityPreferences = $this->getNormalizedSecurityPreferences($user);
 
-        $securityPreferences['emailRecoveryEnabled'] = $enabled;
-        $securityPreferences['emailRecoveryVerifiedAt'] = $verifiedAt;
+        return [
+            'enabled' => (bool) $securityPreferences['twoFactorAuth'],
+            'verified_at' => $securityPreferences['twoFactorVerifiedAt'] ?: null,
+            'enrollment_pending' => (bool) $securityPreferences['twoFactorEnrollmentPending'],
+        ];
+    }
 
+    private function persistSecurityPreferences(User $user, array $securityPreferences): User
+    {
+        $preferences = is_array($user->preferences) ? $user->preferences : [];
         $preferences['security'] = $securityPreferences;
 
         $user->forceFill([
@@ -977,6 +1298,16 @@ class AuthController extends Controller
         ])->save();
 
         return $user->fresh();
+    }
+
+    private function persistLandlordEmailRecoverySecurityState(User $user, bool $enabled, ?string $verifiedAt): User
+    {
+        $securityPreferences = $this->getNormalizedSecurityPreferences($user);
+
+        $securityPreferences['emailRecoveryEnabled'] = $enabled;
+        $securityPreferences['emailRecoveryVerifiedAt'] = $verifiedAt;
+
+        return $this->persistSecurityPreferences($user, $securityPreferences);
     }
 
     private function getNormalizedSecurityPreferences(User $user): array
@@ -990,6 +1321,12 @@ class AuthController extends Controller
 
         return [
             'twoFactorAuth' => (bool) ($security['twoFactorAuth'] ?? false),
+            'twoFactorVerifiedAt' => ! empty($security['twoFactorVerifiedAt']) ? (string) $security['twoFactorVerifiedAt'] : null,
+            'twoFactorEnrollmentPending' => (bool) ($security['twoFactorEnrollmentPending'] ?? false),
+            'twoFactorPendingLogin' => (bool) ($security['twoFactorPendingLogin'] ?? false),
+            'twoFactorLastIp' => ! empty($security['twoFactorLastIp']) ? (string) $security['twoFactorLastIp'] : null,
+            'twoFactorLastDeviceFingerprint' => ! empty($security['twoFactorLastDeviceFingerprint']) ? (string) $security['twoFactorLastDeviceFingerprint'] : null,
+            'twoFactorLastVerifiedAt' => ! empty($security['twoFactorLastVerifiedAt']) ? (string) $security['twoFactorLastVerifiedAt'] : null,
             'loginAlerts' => array_key_exists('loginAlerts', $security) ? (bool) $security['loginAlerts'] : true,
             'emailRecoveryEnabled' => (bool) ($security['emailRecoveryEnabled'] ?? false),
             'emailRecoveryVerifiedAt' => ! empty($security['emailRecoveryVerifiedAt']) ? (string) $security['emailRecoveryVerifiedAt'] : null,

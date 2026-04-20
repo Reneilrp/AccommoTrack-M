@@ -8,6 +8,8 @@ const CLIENT_PLATFORM_HEADER = "X-Client-Platform";
 const AUTH_MODE_STORAGE_KEY = "authMode";
 export const TRUSTED_DEVICE_STORAGE_KEY = "trustedDevice";
 export const TRUSTED_DEVICE_HEADER = "X-Device-Trusted";
+export const DEVICE_FINGERPRINT_STORAGE_KEY = "deviceFingerprint";
+export const DEVICE_FINGERPRINT_HEADER = "X-Device-Fingerprint";
 export const ACCESS_TOKEN_STORAGE_KEY = "authToken";
 export const REFRESH_TOKEN_STORAGE_KEY = "refreshToken";
 export const ACCESS_TOKEN_EXPIRES_AT_STORAGE_KEY = "authTokenExpiresAt";
@@ -55,6 +57,34 @@ const parseTrustedDevicePreference = (value) => {
   return null;
 };
 
+const createDeviceFingerprint = () => {
+  try {
+    if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+      return `web-${crypto.randomUUID()}`;
+    }
+  } catch {
+    // Fall through to timestamp/random fallback.
+  }
+
+  return `web-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`;
+};
+
+export const getOrCreateDeviceFingerprint = () => {
+  try {
+    const existing = localStorage.getItem(DEVICE_FINGERPRINT_STORAGE_KEY);
+    if (existing) {
+      return existing;
+    }
+
+    const generated = createDeviceFingerprint();
+    localStorage.setItem(DEVICE_FINGERPRINT_STORAGE_KEY, generated);
+
+    return generated;
+  } catch {
+    return null;
+  }
+};
+
 export const getTrustedDevicePreference = () => {
   try {
     return parseTrustedDevicePreference(localStorage.getItem(TRUSTED_DEVICE_STORAGE_KEY));
@@ -92,6 +122,26 @@ const applyTrustedDeviceHeader = (headers) => {
   ) {
     headers[TRUSTED_DEVICE_HEADER] = trustedDevice ? "true" : "false";
   }
+};
+
+const applyDeviceFingerprintHeader = (headers) => {
+  if (!headers) {
+    return;
+  }
+
+  if (
+    headers[DEVICE_FINGERPRINT_HEADER] !== undefined ||
+    headers[DEVICE_FINGERPRINT_HEADER.toLowerCase()] !== undefined
+  ) {
+    return;
+  }
+
+  const fingerprint = getOrCreateDeviceFingerprint();
+  if (!fingerprint) {
+    return;
+  }
+
+  headers[DEVICE_FINGERPRINT_HEADER] = fingerprint;
 };
 
 export const shouldUseBearerForRequest = () => {
@@ -355,6 +405,11 @@ const requestNewAccessToken = async () => {
     [CLIENT_PLATFORM_HEADER]: "web",
   };
 
+  const deviceFingerprint = getOrCreateDeviceFingerprint();
+  if (deviceFingerprint) {
+    refreshHeaders[DEVICE_FINGERPRINT_HEADER] = deviceFingerprint;
+  }
+
   if (trustedDevice !== null) {
     refreshHeaders[TRUSTED_DEVICE_HEADER] = trustedDevice ? "true" : "false";
   }
@@ -393,6 +448,7 @@ api.interceptors.request.use(
     }
 
     applyTrustedDeviceHeader(config.headers);
+    applyDeviceFingerprintHeader(config.headers);
 
     if (!config.headers?.["X-Requested-With"]) {
       config.headers["X-Requested-With"] = "XMLHttpRequest";

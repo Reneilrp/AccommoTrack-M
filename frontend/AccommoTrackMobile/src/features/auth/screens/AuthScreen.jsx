@@ -29,11 +29,13 @@ import { showSuccess, showError } from '../../../utils/toast.js';
 import { useTheme } from '../../../contexts/ThemeContext.jsx';
 import { useAuthStore } from '../../../stores/auth/authStore.js';
 import { useUIState } from '../../../contexts/UIStateContext.jsx';
+import { getOrCreateDeviceFingerprint } from '../../../utils/deviceFingerprint.js';
 
 import { UNIFIED_TERMS_AND_CONDITIONS } from '../../../shared/LegalContent.js';
 
 const TRUSTED_DEVICE_STORAGE_KEY = 'trusted_device';
 const TRUSTED_DEVICE_HEADER = 'X-Device-Trusted';
+const DEVICE_FINGERPRINT_HEADER = 'X-Device-Fingerprint';
 
 const TermsModal = ({ visible, onClose, theme }) => {
   const styles = getStyles(theme);
@@ -973,6 +975,8 @@ export default function AuthScreen({ onLoginSuccess, onClose, onContinueAsGuest 
     setError('');
 
     try {
+      const deviceFingerprint = await getOrCreateDeviceFingerprint();
+
       const response = await fetch(`${API_URL}/login`, {
         method: 'POST',
         headers: {
@@ -980,6 +984,7 @@ export default function AuthScreen({ onLoginSuccess, onClose, onContinueAsGuest 
           'Accept': 'application/json',
           'X-Client-Platform': 'mobile',
           [TRUSTED_DEVICE_HEADER]: rememberDevice ? 'true' : 'false',
+          ...(deviceFingerprint ? { [DEVICE_FINGERPRINT_HEADER]: deviceFingerprint } : {}),
         },
         body: JSON.stringify({
           email: formData.email,

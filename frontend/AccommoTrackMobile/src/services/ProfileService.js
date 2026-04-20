@@ -208,6 +208,91 @@ const ProfileService = {
   },
 
   /**
+   * Tenant: send OTP to enable two-factor authentication
+   */
+  async sendTenantTwoFactorOtp() {
+    try {
+      const response = await api.post('/tenant/security/two-factor/send-otp');
+      return {
+        success: true,
+        data: response.data.user || null,
+        twoFactor: response.data.two_factor || null,
+        message: response.data.message || 'Verification code sent to your email address.',
+      };
+    } catch (error) {
+      console.error('Error sending tenant 2FA OTP:', error);
+      return {
+        success: false,
+        error: error.response?.data?.message || 'Failed to send verification code',
+      };
+    }
+  },
+
+  /**
+   * Tenant: verify two-factor authentication OTP
+   */
+  async verifyTenantTwoFactorOtp(emailOtpCode) {
+    try {
+      const response = await api.post('/tenant/security/two-factor/verify-otp', {
+        email_otp_code: emailOtpCode,
+      });
+      return {
+        success: true,
+        data: response.data.user || null,
+        twoFactor: response.data.two_factor || null,
+        message: response.data.message || 'Two-factor authentication enabled successfully.',
+      };
+    } catch (error) {
+      console.error('Error verifying tenant 2FA OTP:', error);
+      return {
+        success: false,
+        error: error.response?.data?.message || 'Failed to verify code',
+      };
+    }
+  },
+
+  /**
+   * Tenant: disable two-factor authentication
+   */
+  async disableTenantTwoFactor() {
+    try {
+      const response = await api.post('/tenant/security/two-factor/disable');
+      return {
+        success: true,
+        data: response.data.user || null,
+        twoFactor: response.data.two_factor || null,
+        message: response.data.message || 'Two-factor authentication has been disabled.',
+      };
+    } catch (error) {
+      console.error('Error disabling tenant 2FA:', error);
+      return {
+        success: false,
+        error: error.response?.data?.message || 'Failed to disable two-factor authentication',
+      };
+    }
+  },
+
+  /**
+   * Tenant: get two-factor authentication status
+   */
+  async getTenantTwoFactorStatus() {
+    try {
+      const response = await api.get('/tenant/security/two-factor');
+      return {
+        success: true,
+        twoFactor: response.data.two_factor || null,
+        message: response.data.message || 'Two-factor authentication status retrieved successfully.',
+      };
+    } catch (error) {
+      console.error('Error fetching tenant 2FA status:', error);
+      return {
+        success: false,
+        error: error.response?.data?.message || 'Failed to fetch two-factor status',
+      };
+    }
+  },
+
+  /**
    * Landlord only: send email recovery OTP from Settings > Security
    */
   async sendLandlordEmailRecoveryOtp() {

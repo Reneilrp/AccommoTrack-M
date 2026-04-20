@@ -37,6 +37,7 @@ import {
 // ---------------------------------------------------------------------------
 const isLandlordLevelPermission = (key) => LANDLORD_LEVEL_PERMISSION_KEYS.has(key);
 const STORAGE_KEY = 'ACCOMMOTRACK_CARETAKER_DRAFT';
+const getPropertyDisplayName = (property) => property?.name || property?.title || 'Property';
 
 
 
@@ -301,21 +302,6 @@ export default function CareTakerAccess({
     }
     applyBulkPermissions(keys, nextState, target);
     markCurrentRoleTemplateAsCustom();
-  };
-
-  const handleGrantAllPermissions = (target, currentState) => {
-    const allKeys = CARETAKER_PERMISSION_FIELDS.map((f) => f.key);
-    const sensitiveKeys = allKeys.filter(
-      (k) => isLandlordLevelPermission(k) && !currentState[k],
-    );
-
-    if (sensitiveKeys.length > 0) {
-      setPermissionPrompt({ open: true, key: null, target, isBulk: true, keys: allKeys });
-      return;
-    }
-
-    applyBulkPermissions(allKeys, true, target);
-    setRoleTemplateForTarget(target, 'admin');
   };
 
   const handleRevokeAllPermissions = (target) => {
@@ -700,6 +686,29 @@ export default function CareTakerAccess({
   // Active permissions/props for the current modal mode
   const activePermissions = modalMode === 'create' ? safePermissions : editFormData.permissions;
   const isModalOpen = modalMode !== 'closed';
+  const selectedCaretakerProperties = useMemo(
+    () => (Array.isArray(selectedCaretaker?.assigned_properties) ? selectedCaretaker.assigned_properties : []),
+    [selectedCaretaker],
+  );
+  const selectedCaretakerPermissionGroups = useMemo(() => {
+    const permissions = selectedCaretaker?.permissions || {};
+    return MODULE_GROUPS.map((group) => {
+      const fields = CARETAKER_PERMISSION_FIELDS.filter((field) => group.keys.includes(field.key));
+      const activeCount = fields.filter((field) => !!permissions[field.key]).length;
+      return {
+        ...group,
+        fields,
+        activeCount,
+      };
+    }).filter((group) => group.fields.length > 0);
+  }, [selectedCaretaker]);
+  const selectedCaretakerPermissionColumns = useMemo(() => {
+    const columns = [[], [], []];
+    selectedCaretakerPermissionGroups.forEach((group, index) => {
+      columns[index % 3].push(group);
+    });
+    return columns;
+  }, [selectedCaretakerPermissionGroups]);
 
   const renderPermissionSection = () => {
     const activeGroup = MODULE_GROUPS[activeModuleTab] || MODULE_GROUPS[0] || null;
@@ -730,15 +739,6 @@ export default function CareTakerAccess({
           {/* Sidebar */}
           <div className="w-full md:w-64 border-r border-gray-100 dark:border-gray-700 bg-gray-50/20 dark:bg-gray-900/10 flex flex-col h-full">
             <div className="p-4 space-y-6 flex-1">
-              <button
-                type="button"
-                onClick={() => handleGrantAllPermissions(target, activePermissions)}
-                className="w-full flex items-center justify-center gap-2 p-2.5 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-all border border-emerald-200 dark:border-emerald-800/40 text-emerald-700 dark:text-emerald-300 bg-emerald-50/70 dark:bg-emerald-900/15 hover:bg-emerald-100 dark:hover:bg-emerald-900/25"
-              >
-                <CheckCircle2 className="w-3.5 h-3.5" />
-                Grant All Access
-              </button>
-
               <div className="space-y-2">
                 <label className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest ml-1">
                   Role Template
@@ -1394,131 +1394,177 @@ export default function CareTakerAccess({
       {/* ── Caretaker Details Modal ─────────────────────── */}
       {selectedCaretaker && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100000] p-4 overflow-y-auto">
-          <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-2xl w-[70%] max-w-none overflow-hidden animate-in zoom-in-95 duration-200 max-h-[92vh] flex flex-col">
-            <div className="p-8 space-y-8 overflow-y-auto custom-scrollbar">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-0 bg-gray-50/50 dark:bg-gray-900/10 rounded-[2rem] border border-gray-100 dark:border-gray-700 overflow-hidden">
-                <div className="flex flex-col items-center justify-center p-8 bg-white dark:bg-gray-800 border-r border-gray-100 dark:border-gray-700">
-                  <div className="relative">
+          <div className="relative bg-white dark:bg-gray-800 rounded-3xl shadow-2xl w-[70%] max-w-none overflow-hidden animate-in zoom-in-95 duration-200 max-h-[92vh] flex flex-col text-[11px]">
+            <button
+              type="button"
+              onClick={() => setSelectedCaretaker(null)}
+              className="absolute top-4 right-4 z-20 p-2 rounded-xl border border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-300 bg-white/90 dark:bg-gray-800/90 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all"
+              aria-label="Close caretaker modal"
+            >
+              <XCircle className="w-4 h-4" />
+            </button>
+
+            <div className="p-6 space-y-6 overflow-y-auto custom-scrollbar flex-1">
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 px-1">
+                  <Users className="w-3.5 h-3.5 text-gray-400" />
+                  <h3 className="text-[9px] font-black text-gray-500 uppercase tracking-widest">CareTaker Account</h3>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-0 bg-gray-50/50 dark:bg-gray-900/10 rounded-[2rem] border border-gray-100 dark:border-gray-700 overflow-hidden">
+                  <div className="flex items-center justify-center p-6 bg-white dark:bg-gray-800 border-r border-gray-100 dark:border-gray-700">
                     {selectedCaretaker.caretaker?.profile_image ? (
                       <img
                         src={selectedCaretaker.caretaker.profile_image}
-                        className="w-32 h-32 rounded-2xl object-cover border-4 border-gray-50 dark:border-gray-700 shadow-sm"
+                        className="w-28 h-28 rounded-2xl object-cover border-4 border-gray-50 dark:border-gray-700 shadow-sm"
                         alt="Profile"
                       />
                     ) : (
-                      <div className="w-32 h-32 bg-gray-100 dark:bg-gray-700 rounded-2xl flex items-center justify-center text-gray-400 text-4xl font-black">
+                      <div className="w-28 h-28 bg-gray-100 dark:bg-gray-700 rounded-2xl flex items-center justify-center text-gray-400 text-3xl font-black">
                         {selectedCaretaker.caretaker?.first_name?.[0]}
                       </div>
                     )}
                   </div>
-                  <div className="mt-6 text-center">
-                    <h3 className="text-xl font-black text-gray-900 dark:text-white leading-tight">
-                      {selectedCaretaker.caretaker?.first_name} {selectedCaretaker.caretaker?.last_name}
-                    </h3>
-                    <p className="text-[10px] text-gray-500 uppercase tracking-widest mt-1 font-bold">Caretaker Account</p>
-                  </div>
-                </div>
 
-                <div className="flex flex-col justify-center p-8 space-y-4">
-                  {[
-                    { icon: <Mail className="w-4 h-4" />, label: 'Email', value: selectedCaretaker.caretaker?.email },
-                    { icon: <Phone className="w-4 h-4" />, label: 'Phone', value: selectedCaretaker.caretaker?.phone || 'N/A' },
-                    {
-                      icon: <Shield className="w-4 h-4" />,
-                      label: 'Assigned Role',
-                      value: getRoleLabel(selectedCaretaker.permissions, selectedCaretaker.custom_role_name)
-                    },
-                  ].map(({ icon, label, value }) => (
-                    <div key={label} className="flex items-center justify-between pb-3 border-b border-gray-100 dark:border-gray-700 last:border-0 last:pb-0">
-                      <div className="flex items-center gap-3">
-                        <div className="text-gray-400">{icon}</div>
-                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{label}</span>
-                      </div>
-                      <span className="text-[11px] font-bold text-gray-900 dark:text-gray-200 truncate ml-4">
-                        {value}
+                  <div className="flex flex-col justify-center p-6 space-y-3.5">
+                    <div className="flex items-center justify-between pb-3 border-b border-gray-100 dark:border-gray-700">
+                      <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider">Name</span>
+                      <span className="text-[10px] font-bold text-gray-900 dark:text-gray-200 truncate ml-4">
+                        {selectedCaretaker.caretaker?.first_name} {selectedCaretaker.caretaker?.last_name}
                       </span>
                     </div>
-                  ))}
-                </div>
-              </div>
 
-              <div className="space-y-4">
-                <div className="flex items-center gap-2 px-1">
-                  <Building2 className="w-3.5 h-3.5 text-gray-400" />
-                  <h3 className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Managed Properties</h3>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {Array.isArray(selectedCaretaker.assigned_properties) &&
-                    selectedCaretaker.assigned_properties.length > 0 ? (
-                    selectedCaretaker.assigned_properties.map((p) => (
-                      <div
-                        key={p.id}
-                        className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-full text-[11px] font-bold text-gray-700 dark:text-gray-300 shadow-sm"
-                      >
-                        <Building2 className="w-3 h-3 text-gray-400" />
-                        {p.name || p.title}
+                    <div className="flex items-center justify-between pb-3 border-b border-gray-100 dark:border-gray-700">
+                      <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider">Email</span>
+                      <span className="text-[10px] font-bold text-gray-900 dark:text-gray-200 truncate ml-4">
+                        {selectedCaretaker.caretaker?.email}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center justify-between pb-3 border-b border-gray-100 dark:border-gray-700">
+                      <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider">Phone</span>
+                      <span className="text-[10px] font-bold text-gray-900 dark:text-gray-200 truncate ml-4">
+                        {selectedCaretaker.caretaker?.phone || 'N/A'}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center justify-between pb-3 border-b border-gray-100 dark:border-gray-700">
+                      <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider">Assigned Role</span>
+                      <span className="text-[10px] font-bold text-gray-900 dark:text-gray-200 truncate ml-4">
+                        {getRoleLabel(selectedCaretaker.permissions, selectedCaretaker.custom_role_name)}
+                      </span>
+                    </div>
+
+                    <div className="flex items-start justify-between">
+                      <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider pt-1">Managed Properties</span>
+                      <div className="text-[10px] font-bold text-gray-900 dark:text-gray-200 ml-4 max-w-[230px] text-right">
+                        {selectedCaretakerProperties.length === 0 && (
+                          <span className="text-amber-600">Unassigned</span>
+                        )}
+                        {selectedCaretakerProperties.length === 1 && (
+                          <span>{getPropertyDisplayName(selectedCaretakerProperties[0])}</span>
+                        )}
+                        {selectedCaretakerProperties.length > 1 && (
+                          <details className="group inline-block text-left">
+                            <summary className="cursor-pointer list-none inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400 text-[10px]">
+                              {selectedCaretakerProperties.length} properties assigned
+                              <ChevronDown className="w-3 h-3 transition-transform group-open:rotate-180" />
+                            </summary>
+                            <div className="mt-2 space-y-1 max-h-28 overflow-y-auto rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-2 min-w-[180px]">
+                              {selectedCaretakerProperties.map((property) => (
+                                <div key={property.id} className="text-[9px] font-semibold text-gray-600 dark:text-gray-300 text-left">
+                                  {getPropertyDisplayName(property)}
+                                </div>
+                              ))}
+                            </div>
+                          </details>
+                        )}
                       </div>
-                    ))
-                  ) : (
-                    <p className="text-[11px] text-amber-600 font-bold italic px-1">No properties assigned.</p>
-                  )}
+                    </div>
+                  </div>
                 </div>
               </div>
 
               <div className="space-y-4">
                 <div className="flex items-center gap-2 px-1">
                   <Shield className="w-3.5 h-3.5 text-gray-400" />
-                  <h3 className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Access Permissions</h3>
+                  <h3 className="text-[9px] font-black text-gray-500 uppercase tracking-widest">Access Permission</h3>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-                  {CARETAKER_PERMISSION_FIELDS.map((field) => {
-                    const val = !!(selectedCaretaker.permissions || {})[field.key];
-                    return (
-                      <div
-                        key={field.key}
-                        className={`flex items-center justify-between p-3 rounded-xl border transition-all ${val
-                          ? 'bg-emerald-50/40 dark:bg-emerald-900/10 border-emerald-100 dark:border-emerald-800 text-emerald-700 dark:text-emerald-400'
-                          : 'bg-white dark:bg-gray-800 border-gray-100 dark:border-gray-700 text-gray-400'
-                          }`}
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className="p-1.5 rounded-lg bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-700">
-                            {React.cloneElement(field.icon, { className: 'w-3 h-3' })}
+
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
+                  {selectedCaretakerPermissionColumns.map((column, columnIndex) => (
+                    <div key={`column-${columnIndex}`} className="space-y-3">
+                      {column.map((group) => (
+                        <div
+                          key={group.title}
+                          className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-3"
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-2">
+                              <div className="p-1.5 rounded-lg bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-700 text-gray-500 dark:text-gray-300">
+                                {React.cloneElement(group.icon, { className: 'w-3.5 h-3.5' })}
+                              </div>
+                              <h4 className="text-[9px] font-black text-gray-600 dark:text-gray-300 uppercase tracking-wider">
+                                {group.title}
+                              </h4>
+                            </div>
+                            <span className="text-[8px] font-bold text-gray-400">
+                              {group.activeCount}/{group.fields.length}
+                            </span>
                           </div>
-                          <span className="text-[11px] font-bold">{field.label}</span>
+
+                          <div className="mt-3 space-y-2">
+                            {group.fields.map((field) => {
+                              const isEnabled = !!(selectedCaretaker.permissions || {})[field.key];
+                              return (
+                                <div
+                                  key={field.key}
+                                  className={`flex items-center justify-between px-2.5 py-2 rounded-lg border ${isEnabled
+                                    ? 'bg-emerald-50/40 dark:bg-emerald-900/10 border-emerald-100 dark:border-emerald-800 text-emerald-700 dark:text-emerald-400'
+                                    : 'bg-white dark:bg-gray-800 border-gray-100 dark:border-gray-700 text-gray-400'
+                                    }`}
+                                >
+                                  <div className="flex items-center gap-2 min-w-0">
+                                    <div className="text-current">
+                                      {React.cloneElement(field.icon, { className: 'w-3 h-3' })}
+                                    </div>
+                                    <span className="text-[9px] font-bold truncate">{field.label}</span>
+                                  </div>
+                                  {isEnabled ? <Check className="w-3 h-3 shrink-0" /> : <XCircle className="w-3 h-3 opacity-20 shrink-0" />}
+                                </div>
+                              );
+                            })}
+                          </div>
                         </div>
-                        {val ? <Check className="w-3 h-3" /> : <XCircle className="w-3 h-3 opacity-20" />}
-                      </div>
-                    );
-                  })}
+                      ))}
+                    </div>
+                  ))}
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-6 border-t border-gray-50 dark:border-gray-700/50">
-                {[
-                  { label: 'Message', icon: <Mail className="w-4 h-4" />, onClick: () => handleMessageCaretaker(selectedCaretaker), cls: 'border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800' },
-                  { label: 'Reset Key', icon: <Key className="w-4 h-4" />, onClick: () => handleResetPassword(selectedCaretaker), cls: 'border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800' },
-                  { label: 'Edit Access', icon: <KeyRound className="w-4 h-4" />, onClick: () => handleEditClick(selectedCaretaker), cls: 'border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800' },
-                  { label: 'Revoke Access', icon: <Trash2 className="w-4 h-4" />, onClick: () => setRevocationModal({ show: true, caretaker: selectedCaretaker, reason: '' }), cls: 'border border-gray-200 dark:border-gray-700 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/10' },
-                ].map(({ label, icon, onClick, cls }) => (
-                  <button
-                    key={label}
-                    onClick={onClick}
-                    className={`py-3 px-1 rounded-xl font-bold transition-all flex items-center justify-center gap-2 ${cls}`}
-                  >
-                    {icon}
-                    <span className="text-[9px] uppercase tracking-widest">{label}</span>
-                  </button>
-                ))}
-              </div>
+            </div>
 
-              <button
-                onClick={() => setSelectedCaretaker(null)}
-                className="w-full py-4 mt-4 bg-gray-900 dark:bg-green-600 text-white font-bold rounded-2xl hover:bg-black dark:hover:bg-green-700 transition-all shadow-lg flex items-center justify-center gap-2"
-              >
-                <XCircle className="w-4 h-4" />
-                <span className="text-[10px] uppercase tracking-widest">Close Overview</span>
-              </button>
+            <div className="px-6 py-4 border-t border-gray-100 dark:border-gray-700 bg-white/90 dark:bg-gray-800/90">
+              <div className="overflow-x-auto no-scrollbar">
+                <div className="min-w-[760px] grid grid-cols-5 gap-3">
+                  {[
+                    { label: 'Revoke Access', icon: <Trash2 className="w-4 h-4" />, onClick: () => setRevocationModal({ show: true, caretaker: selectedCaretaker, reason: '' }), cls: 'border border-gray-200 dark:border-gray-700 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/10' },
+                    { label: 'Message', icon: <Mail className="w-4 h-4" />, onClick: () => handleMessageCaretaker(selectedCaretaker), cls: 'border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800' },
+                    { label: 'Reset Key', icon: <Key className="w-4 h-4" />, onClick: () => handleResetPassword(selectedCaretaker), cls: 'border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800' },
+                    { label: 'Edit Access', icon: <KeyRound className="w-4 h-4" />, onClick: () => handleEditClick(selectedCaretaker), cls: 'border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800' },
+                    { label: 'Close', icon: <XCircle className="w-4 h-4" />, onClick: () => setSelectedCaretaker(null), cls: 'border border-gray-900 dark:border-green-600 bg-gray-900 dark:bg-green-600 text-white hover:bg-black dark:hover:bg-green-700' },
+                  ].map(({ label, icon, onClick, cls }) => (
+                    <button
+                      key={label}
+                      onClick={onClick}
+                      className={`py-2.5 px-2 rounded-xl font-bold transition-all flex items-center justify-center gap-2 ${cls}`}
+                    >
+                      {icon}
+                      <span className="text-[8px] uppercase tracking-widest">{label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
           </div>
         </div>

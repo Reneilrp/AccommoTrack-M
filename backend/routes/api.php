@@ -179,6 +179,10 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/profile', [TenantSettingsController::class, 'getProfile']);
         Route::put('/profile', [TenantSettingsController::class, 'updateProfile']);
         Route::post('/change-password', [TenantSettingsController::class, 'changePassword']);
+        Route::get('/security/two-factor', [AuthController::class, 'getTenantTwoFactorStatus']);
+        Route::post('/security/two-factor/send-otp', [AuthController::class, 'sendTenantTwoFactorOtp'])->middleware('throttle:auth-attempts');
+        Route::post('/security/two-factor/verify-otp', [AuthController::class, 'verifyTenantTwoFactorOtp'])->middleware('throttle:auth-attempts');
+        Route::post('/security/two-factor/disable', [AuthController::class, 'disableTenantTwoFactor']);
         // Tenant: cancel own booking
         Route::patch('/bookings/{id}/cancel', [TenantBookingController::class, 'cancel']);
         // Tenant: request move-out notice for active stay

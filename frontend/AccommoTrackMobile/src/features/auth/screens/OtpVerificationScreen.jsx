@@ -14,6 +14,9 @@ import { getStyles } from '../../../styles/AuthScreen.styles.js';
 import { API_BASE_URL as API_URL } from '../../../config/index.js';
 import { showSuccess } from '../../../utils/toast.js';
 import { useTheme } from '../../../contexts/ThemeContext.jsx';
+import { getOrCreateDeviceFingerprint } from '../../../utils/deviceFingerprint.js';
+
+const DEVICE_FINGERPRINT_HEADER = 'X-Device-Fingerprint';
 
 export default function OtpVerificationScreen({ navigation, route }) {
   const { theme, isDarkMode } = useTheme();
@@ -105,11 +108,14 @@ export default function OtpVerificationScreen({ navigation, route }) {
     setLoading(true);
     setError('');
     try {
+      const deviceFingerprint = await getOrCreateDeviceFingerprint();
+
       const response = await fetch(`${API_URL}/verify-email-otp`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
+          ...(deviceFingerprint ? { [DEVICE_FINGERPRINT_HEADER]: deviceFingerprint } : {}),
         },
         body: JSON.stringify({
           email: email,
@@ -139,11 +145,14 @@ export default function OtpVerificationScreen({ navigation, route }) {
     setLoading(true);
     setError('');
     try {
+      const deviceFingerprint = await getOrCreateDeviceFingerprint();
+
       const response = await fetch(`${API_URL}/resend-email-otp`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
+          ...(deviceFingerprint ? { [DEVICE_FINGERPRINT_HEADER]: deviceFingerprint } : {}),
         },
         body: JSON.stringify({ email }),
       });

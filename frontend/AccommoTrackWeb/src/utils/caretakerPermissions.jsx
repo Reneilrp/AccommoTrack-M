@@ -187,8 +187,8 @@ export const ROLE_PRESETS = [
   },
   {
     id: 'admin',
-    label: 'General Manager',
-    description: 'Full access to all landlord modules.',
+    label: 'Proxy Landlord',
+    description: 'Full access to all landlord modules (landlord-like access).',
     permissions: CARETAKER_PERMISSION_FIELDS.map(f => f.key),
   },
 ];
@@ -251,7 +251,7 @@ export function identifyRole(permissionsObject) {
 
   // We find a match if ALL keys in the preset are active, AND NO OTHER keys are active.
   const activeKeys = Object.keys(permissionsObject).filter((k) => !!permissionsObject[k]);
-  
+
   return ROLE_PRESETS.find((role) => {
     if (activeKeys.length !== role.permissions.length) return false;
     return role.permissions.every((k) => activeKeys.includes(k));
@@ -266,7 +266,7 @@ export function getRoleLabel(permissionsObject, customRoleName) {
   if (customRoleName && customRoleName.trim()) {
     return customRoleName;
   }
-  
+
   const matchedRole = identifyRole(permissionsObject);
   return matchedRole ? matchedRole.label : 'Custom Access';
 }

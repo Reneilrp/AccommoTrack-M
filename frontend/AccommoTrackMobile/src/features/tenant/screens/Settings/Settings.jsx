@@ -220,7 +220,7 @@ export default function Settings({ onLogout, isGuest, onLoginPress }) {
         // Scroll to notifications or navigate if separate
         break;
       case "Account Security":
-        rootNavigate('UpdatePassword');
+        rootNavigate('AccountSecurity');
         break;
       case "My Wallet & Credits":
         rootNavigate('MyWallet');

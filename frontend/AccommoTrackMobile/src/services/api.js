@@ -3,10 +3,12 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { API_BASE_URL } from '../config/index.js';
 import { triggerForcedLogout } from '../navigation/RootNavigation.js';
 import { useAuthStore } from '../stores/auth/authStore.js';
+import { getOrCreateDeviceFingerprint } from '../utils/deviceFingerprint.js';
 
 const PRODUCTION_API_BASE_URL = 'https://accommotrack.me/api';
 const REFRESH_ENDPOINT_PATH = '/refresh-token';
 const TRUSTED_DEVICE_HEADER = 'X-Device-Trusted';
+const DEVICE_FINGERPRINT_HEADER = 'X-Device-Fingerprint';
 const TRUSTED_DEVICE_STORAGE_KEY = 'trusted_device';
 
 const buildRequestUrl = (baseURL, url) => {
@@ -160,6 +162,11 @@ const requestNewAccessToken = async () => {
     'X-Skip-Auth-Redirect': '1',
   };
 
+  const deviceFingerprint = await getOrCreateDeviceFingerprint();
+  if (deviceFingerprint) {
+    refreshHeaders[DEVICE_FINGERPRINT_HEADER] = deviceFingerprint;
+  }
+
   if (trustedDevice !== null) {
     refreshHeaders[TRUSTED_DEVICE_HEADER] = trustedDevice ? 'true' : 'false';
   }
@@ -256,6 +263,11 @@ api.interceptors.request.use(async (config) => {
     const trustedDevice = await getTrustedDevicePreference(legacyUser);
     if (trustedDevice !== null) {
       config.headers[TRUSTED_DEVICE_HEADER] = trustedDevice ? 'true' : 'false';
+    }
+
+    const deviceFingerprint = await getOrCreateDeviceFingerprint();
+    if (deviceFingerprint) {
+      config.headers[DEVICE_FINGERPRINT_HEADER] = deviceFingerprint;
     }
 
     if (token) {
