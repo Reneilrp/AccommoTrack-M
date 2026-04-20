@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Common;
 
 use App\Events\MessageSent;
 use App\Events\MessageRead;
+use App\Events\UnreadCountUpdated;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Permission\ResolvesLandlordAccess;
 use App\Http\Resources\ConversationResource;
@@ -183,6 +184,16 @@ class MessageController extends Controller
             broadcast(new MessageSent($message))->toOthers();
         } catch (\Exception $e) {
             \Log::error('Broadcasting failed: '.$e->getMessage());
+        }
+
+        // Broadcast the unread count update to the recipient
+        try {
+            $unreadCount = Message::where('receiver_id', $recipientId)
+                ->where('is_read', false)
+                ->count();
+            broadcast(new UnreadCountUpdated($recipientId, $unreadCount))->toOthers();
+        } catch (\Exception $e) {
+            \Log::error('Unread count broadcast failed: '.$e->getMessage());
         }
 
         return response()->json(new MessageResource($message));
@@ -427,6 +438,11 @@ class MessageController extends Controller
         if ($updated > 0) {
             try {
                 broadcast(new MessageRead($id, $ownerId))->toOthers();
+                
+                $unreadCount = Message::where('receiver_id', $ownerId)
+                    ->where('is_read', false)
+                    ->count();
+                broadcast(new UnreadCountUpdated($ownerId, $unreadCount))->toOthers();
             } catch (\Exception $e) {
                 \Log::error('Broadcasting message read failed: '.$e->getMessage());
             }

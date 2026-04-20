@@ -23,6 +23,8 @@ import {
   useTenantFocusRefetch,
   useTenantRefreshHandler,
 } from '../../hooks/useTenantQueryHelpers.js';
+import { useAuthStore } from '../../../../stores/auth/authStore.js';
+import createEcho from '../../../../services/echo.js';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -173,7 +175,7 @@ const DashboardScreen = () => {
       return response.data;
     },
     retry: false,
-    staleTime: 30 * 1000,
+    staleTime: 600 * 1000, // 10 minutes (we rely on real-time invalidation)
     onError: (error) => {
       console.error('Dashboard bundle error:', error);
       if (error.response?.status === 401 || error.response?.status === 403) {
@@ -181,6 +183,34 @@ const DashboardScreen = () => {
       }
     },
   });
+
+  // Real-time Dashboard Updates
+  useEffect(() => {
+    let echoInstance = null;
+    const userId = useAuthStore.getState().userId;
+
+    const setupEcho = async () => {
+      if (userId) {
+        try {
+          echoInstance = await createEcho();
+          echoInstance.private(`user.${userId}`)
+            .listen('.dashboard.updated', () => {
+              console.log('[Dashboard] Data change detected, refetching...');
+              bundleQuery.refetch();
+            });
+        } catch (error) {
+          console.warn('[Dashboard] Echo setup failed:', error);
+        }
+      }
+    };
+
+    setupEcho();
+    return () => {
+      if (echoInstance && userId) {
+        echoInstance.leave(`user.${userId}`);
+      }
+    };
+  }, [bundleQuery]);
 
   const dashboardRefetchers = useMemo(() => [bundleQuery.refetch], [bundleQuery.refetch]);
 

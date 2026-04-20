@@ -252,20 +252,25 @@ class Room extends Model
         // 1. Sum bed_count for all active tenants in this room (registered users)
         $occupiedByTenants = array_key_exists('occupied_tenant_beds', $this->attributes)
             ? (int) $this->attributes['occupied_tenant_beds']
-            : (int) $this->tenants()->sum('room_tenant_assignments.bed_count');
+            : (int) ($this->relationLoaded('tenants') ? $this->tenants->sum('pivot.bed_count') : $this->tenants()->sum('room_tenant_assignments.bed_count'));
 
         // 2. Add beds from confirmed walk-in guests (who don't have a tenant_id/user account yet)
         $occupiedByWalkins = array_key_exists('occupied_walkin_beds', $this->attributes)
             ? (int) $this->attributes['occupied_walkin_beds']
-            : (int) Booking::where('room_id', $this->id)
-                ->whereIn('status', ['confirmed', 'completed', 'partial-completed'])
-                ->whereNull('tenant_id')
-                ->where('start_date', '<=', now())
-                ->where(function ($query) {
-                    $query->whereNull('end_date')
-                        ->orWhere('end_date', '>=', now());
-                })
-                ->sum('bed_count');
+            : (int) ($this->relationLoaded('bookings')
+                ? $this->bookings->whereIn('status', ['confirmed', 'completed', 'partial-completed'])
+                    ->whereNull('tenant_id')
+                    ->filter(fn($b) => (!$b->start_date || $b->start_date->startOfDay() <= now()->startOfDay()) && (!$b->end_date || $b->end_date->startOfDay() >= now()->startOfDay()))
+                    ->sum('bed_count')
+                : Booking::where('room_id', $this->id)
+                    ->whereIn('status', ['confirmed', 'completed', 'partial-completed'])
+                    ->whereNull('tenant_id')
+                    ->where('start_date', '<=', now())
+                    ->where(function ($query) {
+                        $query->whereNull('end_date')
+                            ->orWhere('end_date', '>=', now());
+                    })
+                    ->sum('bed_count'));
 
         $totalOccupied = $occupiedByTenants + $occupiedByWalkins;
 
@@ -285,9 +290,11 @@ class Room extends Model
         $names = collect();
 
         // Add registered tenants
-        $this->tenants->each(function ($tenant) use ($names) {
-            $names->push($tenant->first_name.' '.$tenant->last_name);
-        });
+        if ($this->relationLoaded('tenants')) {
+            $this->tenants->each(function ($tenant) use ($names) {
+                $names->push($tenant->first_name.' '.$tenant->last_name);
+            });
+        }
 
         // Add walk-in guests (confirmed active bookings with no tenant_id)
         if ($this->relationLoaded('bookings')) {
@@ -316,7 +323,7 @@ class Room extends Model
         }
 
         // Fallback to current_tenant_id for legacy support
-        if ($this->currentTenant) {
+        if ($this->relationLoaded('currentTenant') && $this->currentTenant) {
             return $this->currentTenant->first_name.' '.$this->currentTenant->last_name;
         }
 

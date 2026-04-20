@@ -8,6 +8,10 @@ use App\Models\Room;
 use App\Observers\PropertyObserver;
 use App\Observers\ReviewObserver;
 use App\Observers\RoomObserver;
+use App\Observers\TenantDashboardObserver;
+use App\Models\Booking;
+use App\Models\Invoice;
+use App\Models\PaymentTransaction;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
@@ -42,5 +46,10 @@ class AppServiceProvider extends ServiceProvider
         Property::observe(PropertyObserver::class);
         Room::observe(RoomObserver::class);
         Review::observe(ReviewObserver::class);
+
+        // Dashboard Cache Invalidation
+        Booking::observe(TenantDashboardObserver::class);
+        Invoice::observe(TenantDashboardObserver::class);
+        PaymentTransaction::observe(TenantDashboardObserver::class);
     }
 }

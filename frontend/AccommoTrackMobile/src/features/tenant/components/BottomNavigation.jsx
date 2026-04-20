@@ -8,6 +8,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { navigationRef, navigate as rootNavigate } from '../../../navigation/RootNavigation.js';
 import { useTheme } from '../../../contexts/ThemeContext.jsx';
 import { getStyles } from '../../../styles/Tenant/HomePage.js';
+import { useAuthStore } from '../../../stores/auth/authStore.js';
+import createEcho from '../../../services/echo.js';
 
 export default function BottomNavigation({ activeTab: propActiveTab, onTabPress, isGuest, onAuthRequired, currentRouteName: propRouteName }) {
   const { theme } = useTheme();
@@ -16,18 +18,42 @@ export default function BottomNavigation({ activeTab: propActiveTab, onTabPress,
   const [isNavigating, setIsNavigating] = useState(false);
   const [unreadCount, setUnreadCount] = React.useState(0);
 
-  // Poll for unread count
+  // Real-time unread count via Echo
   React.useEffect(() => {
-    const checkUnreadCount = async () => {
+    let echoInstance = null;
+    const userId = useAuthStore.getState().userId;
+
+    const setupEcho = async () => {
+      // 1. Initial load from storage
       try {
         const count = await AsyncStorage.getItem('messages_unread_count');
-        setUnreadCount(parseInt(count || '0', 10));
+        if (count) setUnreadCount(parseInt(count, 10));
       } catch (_e) {}
+
+      // 2. Listen for real-time updates if logged in
+      if (userId) {
+        try {
+          echoInstance = await createEcho();
+          echoInstance.private(`user.${userId}`)
+            .listen('.unread.updated', (data) => {
+              console.log('[BottomNav] Unread count update received:', data);
+              const newCount = parseInt(data.unreadCount || 0, 10);
+              setUnreadCount(newCount);
+              AsyncStorage.setItem('messages_unread_count', String(newCount)).catch(() => {});
+            });
+        } catch (error) {
+          console.error('[BottomNav] Echo setup failed:', error);
+        }
+      }
     };
     
-    checkUnreadCount();
-    const interval = setInterval(checkUnreadCount, 2000);
-    return () => clearInterval(interval);
+    setupEcho();
+
+    return () => {
+      if (echoInstance && userId) {
+        echoInstance.leave(`user.${userId}`);
+      }
+    };
   }, []);
 
   // Determine current route name. Prefer propRouteName (provided by layout),

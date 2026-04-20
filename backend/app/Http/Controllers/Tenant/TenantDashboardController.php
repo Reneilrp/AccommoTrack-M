@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Services\TenantDashboardService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 
 class TenantDashboardController extends Controller
 {
@@ -180,42 +181,47 @@ class TenantDashboardController extends Controller
     {
         try {
             $tenantId = Auth::id();
+            $cacheKey = "tenant_dashboard_{$tenantId}";
 
-            // 1. Core dashboard stats
-            $stats = $this->dashboardService->getStats($tenantId);
+            $bundle = Cache::remember($cacheKey, 600, function () use ($tenantId, $request) {
+                // 1. Core dashboard stats
+                $stats = $this->dashboardService->getStats($tenantId);
 
-            // 2. Recent activities
-            $recentBookings = $this->dashboardService->getRecentActivities($tenantId);
-            $activities = collect($recentBookings)->map(function ($booking) {
+                // 2. Recent activities
+                $recentBookings = $this->dashboardService->getRecentActivities($tenantId);
+                $activities = collect($recentBookings)->map(function ($booking) {
+                    return [
+                        'id' => $booking->id, 'type' => 'booking', 'action' => 'Booking update',
+                        'description' => 'Your booking for '.$booking->property->title.' - Room '.$booking->room->room_number.' is '.$booking->status,
+                        'status' => $booking->status, 'timestamp' => $booking->created_at, 'icon' => 'calendar',
+                        'color' => $booking->status === 'pending' ? 'yellow' : ($booking->status === 'confirmed' ? 'green' : 'gray'),
+                    ];
+                })->values();
+
+                // 3. Upcoming payments/check-ins
+                $upcomingRaw = $this->dashboardService->getUpcomingPayments($tenantId);
+                $upcoming = $this->formatUpcomingPayments($upcomingRaw);
+
+                // 4. Stay details (Consolidated)
+                $stayData = $this->getStayDetailsInternal($tenantId);
+
+                // 5. Payment breakdown (Invoke standalone controller method)
+                $paymentController = app(\App\Http\Controllers\Tenant\TenantPaymentController::class);
+                $breakdownResponse = $paymentController->getBreakdown($request);
+                $breakdown = $breakdownResponse->getData(true);
+
                 return [
-                    'id' => $booking->id, 'type' => 'booking', 'action' => 'Booking update',
-                    'description' => 'Your booking for '.$booking->property->title.' - Room '.$booking->room->room_number.' is '.$booking->status,
-                    'status' => $booking->status, 'timestamp' => $booking->created_at, 'icon' => 'calendar',
-                    'color' => $booking->status === 'pending' ? 'yellow' : ($booking->status === 'confirmed' ? 'green' : 'gray'),
-                ];
-            })->values();
-
-            // 3. Upcoming payments/check-ins
-            $upcomingRaw = $this->dashboardService->getUpcomingPayments($tenantId);
-            $upcoming = $this->formatUpcomingPayments($upcomingRaw);
-
-            // 4. Stay details (Consolidated)
-            $stayData = $this->getStayDetailsInternal($tenantId);
-
-            // 5. Payment breakdown (Invoke standalone controller method)
-            $paymentController = app(\App\Http\Controllers\Tenant\TenantPaymentController::class);
-            $breakdownResponse = $paymentController->getBreakdown($request);
-            $breakdown = $breakdownResponse->getData(true);
-
-            return response()->json([
-                'success' => true,
-                'data' => [
                     'stats' => $stats,
                     'activities' => $activities,
                     'upcoming' => $upcoming,
                     'stay' => $stayData,
                     'breakdown' => $breakdown['data'] ?? ['upcoming_months' => []],
-                ]
+                ];
+            });
+
+            return response()->json([
+                'success' => true,
+                'data' => $bundle,
             ], 200);
         } catch (\Exception $e) {
             return response()->json(['message' => 'Failed to fetch dashboard bundle', 'error' => $e->getMessage()], 500);

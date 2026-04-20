@@ -314,7 +314,7 @@ class Property extends Model
 
     public function getImageUrlAttribute()
     {
-        $firstImage = $this->images()->where('media_type', 'image')->first();
+        $firstImage = $this->images->where('media_type', 'image')->first();
 
         return $firstImage ? \Illuminate\Support\Facades\Storage::url($firstImage->image_url) : null;
     }
