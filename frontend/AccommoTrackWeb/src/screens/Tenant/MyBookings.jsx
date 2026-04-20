@@ -13,7 +13,7 @@ import ImagePlaceholder from '../../components/Shared/ImagePlaceholder';
 import { SkeletonMyBookings, SkeletonFinancials, SkeletonHistory } from '../../components/Shared/Skeleton';
 import ReviewModal from '../../components/Modals/ReviewModal';
 import { useUIState } from "../../contexts/UIStateContext";
-import toast from 'react-hot-toast';
+import { showSuccess, showError } from '../../utils/toast';
 import {
   Home,
   Calendar,
@@ -163,13 +163,13 @@ const MyBookings = () => {
     setExtendingStay(true);
     try {
       await api.post(`/bookings/${payload.booking_id}/extend`, payload);
-      toast.success('Extension request sent to landlord');
+      showSuccess('Extension request sent to landlord');
       invalidateTenantStayCache();
       fetchData();
       setShowExtensionModal(false);
     } catch (err) {
       console.error('Failed to request extension:', err);
-      toast.error(err.response?.data?.message || 'Failed to request extension');
+      showError(err.response?.data?.message || 'Failed to request extension');
     } finally {
       setExtendingStay(false);
     }
@@ -180,14 +180,14 @@ const MyBookings = () => {
     setRequestingTransfer(true);
     try {
       await api.post('/tenant/transfers', payload);
-      toast.success('Room transfer request sent to landlord');
+      showSuccess('Room transfer request sent to landlord');
       invalidateTenantStayCache();
 
       fetchData();
       setShowTransferModal(false);
     } catch (err) {
       console.error('Failed to request transfer:', err);
-      toast.error(err.response?.data?.message || 'Failed to request transfer');
+      showError(err.response?.data?.message || 'Failed to request transfer');
     } finally {
       setRequestingTransfer(false);
     }
@@ -197,13 +197,13 @@ const MyBookings = () => {
     setRequestingMoveOut(true);
     try {
       await tenantService.requestMoveOut(payload.booking_id, payload.move_out_date, payload.reason || '');
-      toast.success('Move-out request submitted');
+      showSuccess('Move-out request submitted');
       invalidateTenantStayCache();
       fetchData();
       setShowMoveOutModal(false);
     } catch (err) {
       console.error('Failed to request move-out:', err);
-      toast.error(err.response?.data?.message || 'Failed to request move-out');
+      showError(err.response?.data?.message || 'Failed to request move-out');
     } finally {
       setRequestingMoveOut(false);
     }
@@ -215,12 +215,12 @@ const MyBookings = () => {
     setCancellingTransferRequestId(transferRequestId);
     try {
       await api.patch(`/tenant/transfers/${transferRequestId}/cancel`);
-      toast.success('Transfer request cancelled successfully');
+      showSuccess('Transfer request cancelled successfully');
       invalidateTenantStayCache();
       fetchData();
     } catch (err) {
       console.error('Failed to cancel transfer request:', err);
-      toast.error(err.response?.data?.message || 'Failed to cancel transfer request');
+      showError(err.response?.data?.message || 'Failed to cancel transfer request');
     } finally {
       setCancellingTransferRequestId(null);
     }
@@ -291,12 +291,12 @@ const MyBookings = () => {
     setCancelConfirmModal(null);
     try {
       await tenantService.cancelBooking(bookingId, 'Tenant cancelled the booking');
-      toast.success('Booking cancelled successfully');
+      showSuccess('Booking cancelled successfully');
       invalidateTenantStayCache();
       fetchData();
     } catch (err) {
       console.error('Failed to cancel booking:', err);
-      toast.error(err.response?.data?.message || 'Failed to cancel booking');
+      showError(err.response?.data?.message || 'Failed to cancel booking');
     } finally {
       setCancellingBooking(null);
     }
@@ -312,7 +312,7 @@ const MyBookings = () => {
       setShowAddonModal(false);
     } catch (err) {
       console.error('Failed to request addon:', err);
-      toast.error(err.response?.data?.message || 'Failed to request addon');
+      showError(err.response?.data?.message || 'Failed to request addon');
     } finally {
       setRequestingAddon(null);
     }
@@ -322,12 +322,12 @@ const MyBookings = () => {
     try {
       const response = await tenantService.cancelAddonRequest(addonId);
       const message = response?.message || response?.data?.message || 'Add-on request updated';
-      toast.success(message);
+      showSuccess(message);
       invalidateTenantStayCache();
       fetchData();
     } catch (err) {
       console.error('Failed to cancel addon request:', err);
-      toast.error('Failed to cancel request');
+      showError('Failed to cancel request');
     }
   };
 
@@ -1399,7 +1399,7 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
                                       onClick={() => {
                                         if (isPendingForThisBooking) return;
                                         if (limitReached) {
-                                          toast.error(`Transfer limit reached. You can request again in ${daysUntilTransferReset} day${daysUntilTransferReset === 1 ? '' : 's'}.`);
+                                          showError(`Transfer limit reached. You can request again in ${daysUntilTransferReset} day${daysUntilTransferReset === 1 ? '' : 's'}.`);
                                           return;
                                         }
                                         onRequestTransfer?.();
@@ -2473,14 +2473,14 @@ const ExtensionModal = ({ booking, room, onClose, onSubmit, loading }) => {
     e.preventDefault();
 
     if (!hasCurrentEndDate) {
-      toast.error('This stay is open-ended and does not need an extension request.');
+      showError('This stay is open-ended and does not need an extension request.');
       return;
     }
 
     const finalEndDate = type === 'monthly' ? nextMonthStr : customDate;
 
     if (!finalEndDate) {
-      toast.error('Please select an end date');
+      showError('Please select an end date');
       return;
     }
 
@@ -2604,7 +2604,7 @@ const MoveOutModal = ({ booking, onClose, onSubmit, loading }) => {
     e.preventDefault();
 
     if (!moveOutDate) {
-      toast.error('Please select your move-out date.');
+      showError('Please select your move-out date.');
       return;
     }
 
@@ -2762,11 +2762,11 @@ const TransferRequestModal = ({ booking, property, onClose, onSubmit, loading })
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!formData.requested_room_id || !formData.reason || !formData.booking_id || !formData.property_id) {
-      toast.error('Please select a room and provide a reason');
+      showError('Please select a room and provide a reason');
       return;
     }
     if (leaseDurationPreference === 'new_lease' && !newEndDate) {
-      toast.error('Please select a new lease end date');
+      showError('Please select a new lease end date');
       return;
     }
 

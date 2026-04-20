@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import {
   View,
   Text,
@@ -7,7 +7,10 @@ import {
   ScrollView,
   StyleSheet,
   Image,
+  Animated,
+  useWindowDimensions,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../../../contexts/ThemeContext.jsx";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -73,6 +76,10 @@ export default function MenuDrawer({
   onLogout,
 }) {
   const { theme } = useTheme();
+  const insets = useSafeAreaInsets();
+  const { width: viewportWidth } = useWindowDimensions();
+  const drawerWidth = useMemo(() => Math.min(viewportWidth * 0.8, 320), [viewportWidth]);
+
   const [userName, setUserName] = useState("User");
   const [userEmail, setUserEmail] = useState("");
   const [userRole, setUserRole] = useState("landlord");
@@ -83,11 +90,45 @@ export default function MenuDrawer({
     actionTitle: "",
   });
 
+  const [modalVisible, setModalVisible] = useState(false);
+  const slideAnim = useRef(new Animated.Value(-drawerWidth)).current;
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+
   useEffect(() => {
     if (visible) {
+      setModalVisible(true);
       loadUserData();
+      // Slide in from left
+      Animated.parallel([
+        Animated.timing(slideAnim, {
+          toValue: 0,
+          duration: 250,
+          useNativeDriver: true,
+        }),
+        Animated.timing(fadeAnim, {
+          toValue: 1,
+          duration: 250,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    } else {
+      // Slide out to left
+      Animated.parallel([
+        Animated.timing(slideAnim, {
+          toValue: -drawerWidth,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+        Animated.timing(fadeAnim, {
+          toValue: 0,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+      ]).start(() => {
+        setModalVisible(false);
+      });
     }
-  }, [visible]);
+  }, [visible, drawerWidth, fadeAnim, slideAnim]);
 
   const loadUserData = async () => {
     try {
@@ -172,16 +213,52 @@ export default function MenuDrawer({
 
   return (
     <Modal
-      animationType="fade"
+      animationType="none"
       transparent={true}
-      visible={visible}
+      visible={modalVisible}
       onRequestClose={onClose}
       statusBarTranslucent={true}
       navigationBarTranslucent={true}
       presentationStyle="overFullScreen"
     >
-      <View style={styles.modalOverlay}>
-        <View style={styles.menuDrawer}>
+      <View style={styles.fullFlex}>
+        {/* Backdrop with fade animation */}
+        <Animated.View
+          style={[
+            styles.menuBackdrop,
+            {
+              opacity: fadeAnim,
+              backgroundColor: "rgba(0,0,0,0.5)",
+              position: "absolute",
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+            },
+          ]}
+        >
+          <TouchableOpacity
+            style={styles.fullFlex}
+            activeOpacity={1}
+            onPress={onClose}
+          />
+        </Animated.View>
+
+        {/* Drawer with slide animation */}
+        <Animated.View
+          style={[
+            styles.menuDrawer,
+            {
+              transform: [{ translateX: slideAnim }],
+              width: drawerWidth,
+              top: insets.top > 0 ? insets.top : 8,
+              bottom: insets.bottom > 0 ? insets.bottom : 8,
+              borderTopRightRadius: 24,
+              borderBottomRightRadius: 24,
+              overflow: 'hidden',
+            },
+          ]}
+        >
           {/* Menu Header */}
           <View style={styles.menuHeader}>
             <View style={styles.menuUserInfo}>
@@ -201,8 +278,8 @@ export default function MenuDrawer({
                 )}
               </View>
               <View style={styles.userTextContainer}>
-                <Text style={styles.menuUserName}>{userName}</Text>
-                <Text style={styles.menuUserEmail}>{userEmail}</Text>
+                <Text style={styles.menuUserName} numberOfLines={1}>{userName}</Text>
+                <Text style={styles.menuUserEmail} numberOfLines={1} ellipsizeMode="tail">{userEmail}</Text>
                 <View
                   style={[
                     styles.roleBadge,
@@ -226,7 +303,7 @@ export default function MenuDrawer({
               </View>
             </View>
             <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-              <Ionicons name="close" size={28} color="#111827" />
+              <Ionicons name="close" size={24} color="#111827" />
             </TouchableOpacity>
           </View>
 
@@ -247,7 +324,7 @@ export default function MenuDrawer({
                   color={item.id === 1 ? theme.colors.primary : item.color}
                 />
                 <Text style={styles.menuItemText}>{item.title}</Text>
-                <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+                <Ionicons name="chevron-forward" size={18} color="#9CA3AF" />
               </TouchableOpacity>
             ))}
           </ScrollView>
@@ -263,19 +340,14 @@ export default function MenuDrawer({
               color={logoutItem.color}
             />
             <Text style={styles.logoutText}>{logoutItem.title}</Text>
-            <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+            <Ionicons name="chevron-forward" size={18} color="#9CA3AF" />
           </TouchableOpacity>
 
           {/* Footer */}
           <View style={styles.menuFooter}>
             <Text style={styles.footerText}>AccommoTrack v1.0.0</Text>
           </View>
-        </View>
-        <TouchableOpacity
-          style={styles.menuBackdrop}
-          activeOpacity={1}
-          onPress={onClose}
-        />
+        </Animated.View>
       </View>
       <PermissionBlockedModal
         visible={permissionModal.visible}
@@ -287,32 +359,29 @@ export default function MenuDrawer({
 }
 
 const styles = StyleSheet.create({
-  modalOverlay: {
+  fullFlex: {
     flex: 1,
-    flexDirection: "row",
-    backgroundColor: "rgba(0,0,0,0.5)",
   },
   menuBackdrop: {
     flex: 1,
   },
   menuDrawer: {
-    width: "80%",
-    maxWidth: 320,
+    position: "absolute",
+    left: 0,
     backgroundColor: "#FFFFFF",
-    height: "100%",
     shadowColor: "#000",
     shadowOffset: { width: 2, height: 0 },
     shadowOpacity: 0.25,
     shadowRadius: 10,
-    elevation: 10,
+    elevation: 20,
   },
   menuHeader: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 16,
-    paddingTop: 50,
-    paddingBottom: 16,
+    paddingTop: 24,
+    paddingBottom: 24,
     backgroundColor: "#F0FDF4",
     borderBottomWidth: 1,
     borderBottomColor: "#E5E7EB",
@@ -331,7 +400,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   userTextContainer: {
-    marginLeft: 16,
+    marginLeft: 12,
     flex: 1,
   },
   menuUserName: {
@@ -357,11 +426,11 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
   },
   closeButton: {
-    padding: 8,
+    padding: 4,
   },
   menuItems: {
     flex: 1,
-    paddingTop: 16,
+    paddingTop: 8,
   },
   menuItem: {
     flexDirection: "row",
@@ -383,26 +452,26 @@ const styles = StyleSheet.create({
   menuItemText: {
     flex: 1,
     marginLeft: 16,
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: "500",
     color: "#374151",
   },
   logoutText: {
     flex: 1,
     marginLeft: 16,
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: "500",
     color: "#EF4444",
   },
   menuFooter: {
-    paddingVertical: 16,
+    paddingVertical: 12,
     paddingHorizontal: 16,
     borderTopWidth: 1,
     borderTopColor: "#E5E7EB",
     alignItems: "center",
   },
   footerText: {
-    fontSize: 12,
+    fontSize: 11,
     color: "#9CA3AF",
   },
 });

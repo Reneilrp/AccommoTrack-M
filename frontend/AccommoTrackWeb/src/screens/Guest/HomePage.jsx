@@ -66,7 +66,7 @@ const HomePage = ({ onGetStarted }) => {
             </span>
           </h1>
           <p className="text-sm md:text-xl text-gray-500 dark:text-gray-400 max-w-[600px] mx-auto mb-8 md:mb-12 leading-relaxed">
-            Discover and book student-friendly dorms, apartments, and boarding houses. Verified landlords, secure payments, and zero hassle.
+            Discover and book reliable dorms, apartments, and boarding houses. Verified landlords, secure payments, and zero hassle.
           </p>
           <div className="flex flex-col sm:flex-row justify-center gap-4 w-full max-w-xs md:max-w-lg mx-auto relative">
             <button
@@ -109,16 +109,7 @@ const HomePage = ({ onGetStarted }) => {
           </div>
         </div>
 
-        {/* University Logos */}
-        <div className="w-full pb-10 md:pb-12 flex-none">
-          <p className="text-center text-[10px] md:text-xs font-bold uppercase mb-6 text-gray-500 dark:text-gray-500">Built for students from</p>
-          <div className="flex justify-center gap-6 md:gap-16 flex-wrap">
-            <span className="text-lg md:text-xl font-bold text-[#DC143C] dark:text-red-400">WMSU</span>
-            <span className="text-lg md:text-xl font-bold text-sky-500 dark:text-sky-400">ADZU</span>
-            <span className="text-lg md:text-xl font-bold text-green-600 dark:text-green-400">UZ</span>
-            <span className="text-lg md:text-xl font-bold text-[#800000] dark:text-red-500">ZPPSU</span>
-          </div>
-        </div>
+
 
         </div>
       </section>
@@ -131,7 +122,7 @@ const HomePage = ({ onGetStarted }) => {
               Why use AccommoTrack?
             </h2>
             <p className="text-lg text-gray-500 dark:text-gray-400 max-w-2xl mx-auto">
-              We provide the tools you need to find a safe, affordable, and convenient place to stay while you focus on your studies.
+              We provide the tools you need to find a safe, affordable, and convenient place to stay.
             </p>
           </div>
           <div className="flex-1 flex flex-col items-center md:pb-20 w-full">
@@ -141,9 +132,9 @@ const HomePage = ({ onGetStarted }) => {
                   <div className="bg-green-100 dark:bg-green-900/30 w-12 h-12 md:w-14 md:h-14 rounded-xl flex items-center justify-center mb-6">
                     <MapPin className="w-6 h-6 md:w-7 md:h-7 text-green-600" />
                   </div>
-                  <h3 className="text-xl font-bold mb-4 text-gray-900 dark:text-white">Near Campus</h3>
+                  <h3 className="text-xl font-bold mb-4 text-gray-900 dark:text-white">Prime Locations</h3>
                   <p className="text-gray-500 dark:text-gray-400 leading-relaxed text-sm md:text-base">
-                    Filter properties by distance to WMSU, Ateneo, and other major universities to save on commute time.
+                    Filter properties by distance to key landmarks and offices to save on commute time.
                   </p>
                 </div>
               </div>

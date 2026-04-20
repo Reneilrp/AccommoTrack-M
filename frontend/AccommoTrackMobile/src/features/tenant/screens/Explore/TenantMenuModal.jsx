@@ -2,14 +2,10 @@ import React from 'react';
 import { View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import MenuDrawer from '../../components/MenuDrawer.jsx';
-import homeStyles from '../../../../styles/Tenant/HomePage.js';
-import { useTheme } from '../../../../contexts/ThemeContext.jsx';
 import { navigate as rootNavigate } from '../../../../navigation/RootNavigation.js';
 
 export default function TenantMenuModal({ isGuest = false, onAuthRequired, onLogout }) {
   const navigation = useNavigation();
-  const { theme } = useTheme();
-  const styles = React.useMemo(() => homeStyles(theme), [theme]);
 
   const handleClose = () => {
     navigation.goBack();
@@ -73,7 +69,7 @@ export default function TenantMenuModal({ isGuest = false, onAuthRequired, onLog
   };
 
   return (
-    <View style={styles.container}>
+    <View style={{ flex: 1, backgroundColor: 'transparent' }}>
       <MenuDrawer
         visible={true}
         onClose={handleClose}

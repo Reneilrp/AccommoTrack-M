@@ -41,7 +41,7 @@ function Counter({ target, suffix = '', duration = 1200 }) {
 }
 
 const FEATURES = [
-  { icon: MapPin, title: 'Zamboanga Dorm Finder', desc: 'Discover boarding houses and apartments near WMSU, ADZU, and every major campus landmark — filtered by price, distance, and availability.' },
+  { icon: MapPin, title: 'Zamboanga Property Finder', desc: 'Discover boarding houses and apartments near major city landmarks — filtered by price, distance, and availability.' },
   { icon: MessageCircle, title: 'Real-Time Messaging', desc: 'Chat directly with landlords or caretakers. Ask questions about bookings or discuss circumstances instantly without leaving the app.' },
   { icon: Wrench, title: 'Direct Maintenance', desc: 'Submit repair requests and monitor progress in real-time. No more chasing your landlord through text.' },
   { icon: Bell, title: 'Real-time Alerts', desc: 'Push notifications the moment your landlord replies, an invoice drops, or a maintenance update posts.' },
@@ -235,7 +235,7 @@ const MobileAppPage = () => {
 
               <p className="text-sm md:text-base text-gray-500 dark:text-gray-400 mb-8 max-w-md mx-auto lg:mx-0 leading-relaxed anim-fade-up"
                 style={{ animationDelay: '160ms' }}>
-                Browse properties near WMSU, ADZU, and other Zamboanga City campuses on the go.
+                Browse properties across Zamboanga City on the go.
                 Integrated payments, direct chat, and real-time tracking — all in one place.
               </p>
 
@@ -390,15 +390,15 @@ const MobileAppPage = () => {
       <div ref={statsRef} className="py-14 border-y border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900">
         <div className="max-w-5xl mx-auto px-6 grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
           {[
-            { n: 2400, suffix: '+', label: 'Active tenants' },
-            { n: 380, suffix: '+', label: 'Listed properties' },
-            { n: 98, suffix: '%', label: 'Satisfaction rate' },
-            { n: 4, suffix: ' campuses', label: 'Covered in Zamboanga' },
+            { n: "Growing", label: 'Community of Tenants' },
+            { n: "Exclusive", label: 'Verified Properties' },
+            { n: "100%", label: 'Focus on Security' },
+            { n: "Prime", label: 'Locations in Zamboanga' },
           ].map((s, i) => (
             <div key={i} className={`transition-all duration-700 ${statsVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-6'}`}
               style={{ transitionDelay: `${i * 100}ms` }}>
               <p className="text-3xl md:text-4xl font-bold text-green-600">
-                {statsVisible ? <Counter target={s.n} suffix={s.suffix} duration={1200} /> : `0${s.suffix}`}
+                {s.n}
               </p>
               <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{s.label}</p>
             </div>
@@ -413,7 +413,7 @@ const MobileAppPage = () => {
             Everything in <span className="text-green-600 italic">one app</span>
           </h2>
           <p className="text-gray-500 dark:text-gray-400 max-w-xl mx-auto text-sm leading-relaxed">
-            AccommoTrack is a dual-mode platform for students finding homes and landlords managing properties across Zamboanga City.
+            AccommoTrack is a dual-mode platform for tenants finding homes and landlords managing properties across Zamboanga City.
           </p>
         </div>
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
@@ -473,7 +473,7 @@ const MobileAppPage = () => {
             <div className="text-amber-500 font-bold text-lg leading-none pt-0.5">!</div>
             <p className="text-xs text-amber-800 dark:text-amber-300 leading-relaxed">
               Since this app is distributed as an APK outside the Google Play Store, your device may show a "Play Protect" warning.
-              This is normal for student-led projects — tap <strong className="font-semibold">"Google Scan Protect and then Install"</strong> to proceed safely.
+              This is normal for beta apps — tap <strong className="font-semibold">"Google Scan Protect and then Install"</strong> to proceed safely.
             </p>
           </div>
         </div>

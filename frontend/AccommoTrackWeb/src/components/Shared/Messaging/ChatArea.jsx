@@ -38,6 +38,7 @@ const ChatArea = ({
   const textareaRef = useRef(null);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [viewingHistory, setViewingHistory] = useState(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
 
   // Auto-focus textarea when replying or editing
   React.useEffect(() => {
@@ -139,6 +140,16 @@ const ChatArea = ({
           </div>
         </div>
         <div className="flex gap-2">
+          {(normalizedRole === 'tenant' || normalizedRole === 'landlord') && (
+            <button
+              onClick={() => setShowDeleteModal(true)}
+              className="p-2.5 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors text-gray-500 dark:text-gray-400 hover:text-red-500"
+              aria-label="Delete conversation"
+              title="Delete conversation"
+            >
+              <Trash2 className="w-5 h-5" />
+            </button>
+          )}
           <button
             onClick={() => setIsDetailsOpen((prev) => !prev)}
             className="p-2.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors text-gray-500 dark:text-gray-400"
@@ -611,14 +622,11 @@ const ChatArea = ({
               <section className="rounded-2xl border border-red-200 dark:border-red-900/40 bg-red-50/60 dark:bg-red-950/20 p-4">
                 <button
                   type="button"
-                  onClick={() => {
-                    if (window.confirm('Delete this conversation from your inbox only?')) {
-                      handleDeleteConversation();
-                    }
-                  }}
+                  onClick={() => setShowDeleteModal(true)}
                   disabled={deletingConversation}
-                  className="w-full text-left text-sm font-semibold text-red-600 dark:text-red-400 disabled:opacity-60"
+                  className="w-full text-left text-sm font-semibold text-red-600 dark:text-red-400 disabled:opacity-60 flex items-center gap-2"
                 >
+                  <Trash2 className="w-4 h-4" />
                   {deletingConversation ? 'Deleting conversation...' : 'Delete Conversation'}
                 </button>
                 <p className="text-xs mt-1 text-red-500/80 dark:text-red-300/70">
@@ -629,6 +637,46 @@ const ChatArea = ({
           </div>
         </div>
       </aside>
+
+      {/* Delete Conversation Confirmation Modal */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl w-full max-w-md overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200">
+            <div className="p-6 text-center">
+              <div className="w-16 h-16 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Trash2 className="w-8 h-8 text-red-600 dark:text-red-400" />
+              </div>
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Delete Conversation?</h3>
+              <p className="text-gray-500 dark:text-gray-400 text-sm leading-relaxed">
+                Are you sure you want to delete this conversation from your inbox? This action only removes it from your view and cannot be undone.
+              </p>
+            </div>
+            <div className="p-4 bg-gray-50 dark:bg-gray-900/40 border-t border-gray-200 dark:border-gray-700 flex gap-3">
+              <button
+                onClick={() => setShowDeleteModal(false)}
+                className="flex-1 px-4 py-3 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 rounded-xl text-sm font-bold shadow-sm hover:bg-gray-50 dark:hover:bg-gray-600 transition-all active:scale-95"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={async () => {
+                  await handleDeleteConversation();
+                  setShowDeleteModal(false);
+                }}
+                disabled={deletingConversation}
+                className="flex-1 px-4 py-3 bg-red-600 hover:bg-red-700 text-white rounded-xl text-sm font-bold shadow-md active:scale-95 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+              >
+                {deletingConversation ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Trash2 className="w-4 h-4" />
+                )}
+                {deletingConversation ? 'Deleting...' : 'Yes, Delete'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Message History Modal */}
       {

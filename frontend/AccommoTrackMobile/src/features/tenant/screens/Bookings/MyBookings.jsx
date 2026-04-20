@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, Image, RefreshControl, Alert, Animated, Modal, TextInput, Platform, useWindowDimensions } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Ionicons } from '@expo/vector-icons';
@@ -366,6 +366,129 @@ const buildDefaultMoveOutDate = (booking) => {
   return defaultDate;
 };
 
+// ==================== Ellipsis Menu Component ====================
+const EllipsisMenu = ({ booking, property, room, reviewAlreadySubmitted, onReview, onMaintenance, onReport, theme }) => {
+  const [menuVisible, setMenuVisible] = useState(false);
+
+  return (
+    <>
+      {menuVisible && (
+        <TouchableOpacity
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            zIndex: 10,
+          }}
+          activeOpacity={1}
+          onPress={() => setMenuVisible(false)}
+        />
+      )}
+      <View style={{ position: 'relative', zIndex: 20 }}>
+        <TouchableOpacity
+          style={{
+            backgroundColor: 'rgba(0, 0, 0, 0.6)',
+            borderRadius: 20,
+            width: 36,
+            height: 36,
+            alignItems: 'center',
+            justifyContent: 'center',
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.25,
+            shadowRadius: 3.84,
+            elevation: 5,
+          }}
+          onPress={() => setMenuVisible(!menuVisible)}
+        >
+          <Ionicons name="ellipsis-horizontal" size={20} color="#FFFFFF" />
+        </TouchableOpacity>
+
+        {menuVisible && (
+          <View
+            style={{
+              position: 'absolute',
+              top: 44,
+              right: 0,
+              backgroundColor: theme.colors.surface,
+              borderRadius: 12,
+              borderWidth: 1,
+              borderColor: theme.colors.border,
+              minWidth: 180,
+              overflow: 'hidden',
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 4 },
+              shadowOpacity: 0.3,
+              shadowRadius: 8,
+              elevation: 8,
+              zIndex: 30,
+            }}
+          >
+            <TouchableOpacity
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                paddingHorizontal: 16,
+                paddingVertical: 14,
+                gap: 12,
+                borderBottomWidth: 1,
+                borderBottomColor: theme.colors.border,
+              }}
+              onPress={() => {
+                setMenuVisible(false);
+                onMaintenance();
+              }}
+            >
+              <Ionicons name="construct-outline" size={20} color="#F97316" />
+              <Text style={{ fontSize: 14, fontWeight: '600', color: theme.colors.text }}>Maintenance</Text>
+            </TouchableOpacity>
+
+            {!reviewAlreadySubmitted && (
+              <TouchableOpacity
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  paddingHorizontal: 16,
+                  paddingVertical: 14,
+                  gap: 12,
+                  borderBottomWidth: 1,
+                  borderBottomColor: theme.colors.border,
+                }}
+                onPress={() => {
+                  setMenuVisible(false);
+                  onReview();
+                }}
+              >
+                <Ionicons name="star-outline" size={20} color="#F59E0B" />
+                <Text style={{ fontSize: 14, fontWeight: '600', color: theme.colors.text }}>Review</Text>
+              </TouchableOpacity>
+            )}
+
+            <TouchableOpacity
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                paddingHorizontal: 16,
+                paddingVertical: 14,
+                gap: 12,
+              }}
+              onPress={() => {
+                setMenuVisible(false);
+                onReport();
+              }}
+            >
+              <Ionicons name="shield-outline" size={20} color="#DC2626" />
+              <Text style={{ fontSize: 14, fontWeight: '600', color: '#DC2626' }}>Report</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+      </View>
+    </>
+  );
+};
+
 export default function MyBookings() {
 
   const navigation = useNavigation();
@@ -652,17 +775,34 @@ export default function MyBookings() {
 
   const loading = myBookingsBundleQuery.isLoading && !myBookingsBundleQuery.data;
 
-  useEffect(() => {
-    let target = 0;
-    if (viewMode === 'pending') target = 1;
-    else if (viewMode === 'overdue') target = 2;
+  const tabs = useMemo(() => {
+    const hasStays = (stayData?.stays || []).length > 0;
+    const hasPending = (pendingBookings || []).length > 0 || (pendingCheckIns || []).length > 0;
+    const overdueStays = (stayData?.stays || []).filter(s => s?.booking?.is_overdue || s?.booking?.isOverdue);
+    const overduePendingBookings = (pendingBookings || []).filter(b => b?.is_overdue || b?.isOverdue);
+    const overdueCheckIns = (pendingCheckIns || []).filter(pc => pc.isOverdue || pc.daysOverdue > 0);
+    const hasAnyOverdue = overdueStays.length > 0 || overduePendingBookings.length > 0 || overdueCheckIns.length > 0;
 
-    Animated.timing(slideAnim, {
-      toValue: target,
-      duration: 300,
-      useNativeDriver: false,
-    }).start();
-  }, [viewMode, slideAnim]);
+    const list = [];
+    if (hasStays || hasAnyOverdue) list.push({ id: 'active', label: 'Active', color: theme.colors.success });
+    if (hasPending || hasAnyOverdue) list.push({ id: 'pending', label: 'Pending', color: '#F59E0B' });
+    if (hasAnyOverdue) list.push({ id: 'overdue', label: 'Overdue', color: theme.colors.error });
+    return list;
+  }, [stayData, pendingBookings, pendingCheckIns, theme.colors.success, theme.colors.error]);
+
+  useEffect(() => {
+    if (tabs.length <= 1) return;
+
+    const targetIndex = tabs.findIndex(tab => tab.id === viewMode);
+    if (targetIndex !== -1) {
+      Animated.spring(slideAnim, {
+        toValue: targetIndex,
+        useNativeDriver: true,
+        tension: 50,
+        friction: 8
+      }).start();
+    }
+  }, [viewMode, slideAnim, tabs]);
 
 
   useEffect(() => {
@@ -1168,11 +1308,12 @@ export default function MyBookings() {
     setCancelBookingContext(null);
   };
 
-  const handleCancelBooking = async () => {
-    if (!cancelBookingContext?.id || cancellingBookingId) return;
+  const handleCancelBooking = async (bookingArg) => {
+    const booking = bookingArg || cancelBookingContext;
+    if (!booking?.id || cancellingBookingId) return;
 
-    setCancellingBookingId(cancelBookingContext.id);
-    const result = await BookingService.cancelBooking(cancelBookingContext.id, {
+    setCancellingBookingId(booking.id);
+    const result = await BookingService.cancelBooking(booking.id, {
       reason: 'Tenant cancelled the booking',
     });
 
@@ -1438,129 +1579,6 @@ export default function MyBookings() {
   };
 
   // ==================== Sub-components for Tabs ====================
-
-  // ==================== Ellipsis Menu Component ====================
-  const EllipsisMenu = ({ booking, property, room, reviewAlreadySubmitted, onReview, onMaintenance, onReport, theme }) => {
-    const [menuVisible, setMenuVisible] = useState(false);
-
-    return (
-      <>
-        {menuVisible && (
-          <TouchableOpacity
-            style={{
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              zIndex: 10,
-            }}
-            activeOpacity={1}
-            onPress={() => setMenuVisible(false)}
-          />
-        )}
-        <View style={{ position: 'relative', zIndex: 20 }}>
-          <TouchableOpacity
-            style={{
-              backgroundColor: 'rgba(0, 0, 0, 0.6)',
-              borderRadius: 20,
-              width: 36,
-              height: 36,
-              alignItems: 'center',
-              justifyContent: 'center',
-              shadowColor: '#000',
-              shadowOffset: { width: 0, height: 2 },
-              shadowOpacity: 0.25,
-              shadowRadius: 3.84,
-              elevation: 5,
-            }}
-            onPress={() => setMenuVisible(!menuVisible)}
-          >
-            <Ionicons name="ellipsis-horizontal" size={20} color="#FFFFFF" />
-          </TouchableOpacity>
-
-          {menuVisible && (
-            <View
-              style={{
-                position: 'absolute',
-                top: 44,
-                right: 0,
-                backgroundColor: theme.colors.surface,
-                borderRadius: 12,
-                borderWidth: 1,
-                borderColor: theme.colors.border,
-                minWidth: 180,
-                overflow: 'hidden',
-                shadowColor: '#000',
-                shadowOffset: { width: 0, height: 4 },
-                shadowOpacity: 0.3,
-                shadowRadius: 8,
-                elevation: 8,
-                zIndex: 30,
-              }}
-            >
-              <TouchableOpacity
-                style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  paddingHorizontal: 16,
-                  paddingVertical: 14,
-                  gap: 12,
-                  borderBottomWidth: 1,
-                  borderBottomColor: theme.colors.border,
-                }}
-                onPress={() => {
-                  setMenuVisible(false);
-                  onMaintenance();
-                }}
-              >
-                <Ionicons name="construct-outline" size={20} color="#F97316" />
-                <Text style={{ fontSize: 14, fontWeight: '600', color: theme.colors.text }}>Maintenance</Text>
-              </TouchableOpacity>
-
-              {!reviewAlreadySubmitted && (
-                <TouchableOpacity
-                  style={{
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    paddingHorizontal: 16,
-                    paddingVertical: 14,
-                    gap: 12,
-                    borderBottomWidth: 1,
-                    borderBottomColor: theme.colors.border,
-                  }}
-                  onPress={() => {
-                    setMenuVisible(false);
-                    onReview();
-                  }}
-                >
-                  <Ionicons name="star-outline" size={20} color="#F59E0B" />
-                  <Text style={{ fontSize: 14, fontWeight: '600', color: theme.colors.text }}>Review</Text>
-                </TouchableOpacity>
-              )}
-
-              <TouchableOpacity
-                style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  paddingHorizontal: 16,
-                  paddingVertical: 14,
-                  gap: 12,
-                }}
-                onPress={() => {
-                  setMenuVisible(false);
-                  onReport();
-                }}
-              >
-                <Ionicons name="shield-outline" size={20} color="#DC2626" />
-                <Text style={{ fontSize: 14, fontWeight: '600', color: '#DC2626' }}>Report</Text>
-              </TouchableOpacity>
-            </View>
-          )}
-        </View>
-      </>
-    );
-  };
 
   const renderTabs = () => (
     <View style={styles.tabsContainer}>
@@ -1880,18 +1898,20 @@ export default function MyBookings() {
               </View>
             </View>
 
-            <View style={{ marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: theme.isDark ? 'rgba(245,158,11,0.2)' : '#FEF3C7', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-              <View>
+            <View style={{ marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: theme.isDark ? 'rgba(245,158,11,0.2)' : '#FEF3C7', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
+              <View style={{ flex: 1 }}>  {/* <-- add flex: 1 so price doesn't bleed into button */}
                 <Text style={{ fontSize: 10, fontWeight: 'bold', color: theme.colors.textTertiary, textTransform: 'uppercase' }}>
                   {pb?.billing_policy === 'daily' ? 'Daily' : 'Monthly'}
                 </Text>
-                <Text style={{ fontSize: 16, fontWeight: 'bold', color: theme.colors.text }}>{formatPesoNoCents(pb?.unit_price || pb?.monthly_rent || 0)}</Text>
+                <Text style={{ fontSize: 16, fontWeight: 'bold', color: theme.colors.text }} numberOfLines={1}>
+                  {formatPesoNoCents(pb?.unit_price || pb?.monthly_rent || 0)}
+                </Text>
               </View>
               <TouchableOpacity
-                style={[styles.actionBtn, { backgroundColor: theme.colors.error, paddingHorizontal: 12, minHeight: 36 }]}
+                style={{ backgroundColor: theme.colors.error, paddingHorizontal: 16, paddingVertical: 10, borderRadius: 8, minWidth: 80, alignItems: 'center' }}
                 onPress={() => handleCancelBooking(pb)}
               >
-                <Text style={styles.actionBtnText}>Cancel</Text>
+                <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 13 }}>Cancel</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -1908,11 +1928,6 @@ export default function MyBookings() {
         </View>
       );
     };
-
-    const tabs = [];
-    if (hasStays || hasAnyOverdue) tabs.push({ id: 'active', label: 'Active', color: theme.colors.success });
-    if (hasPending || hasAnyOverdue) tabs.push({ id: 'pending', label: 'Pending', color: '#F59E0B' });
-    if (hasAnyOverdue) tabs.push({ id: 'overdue', label: 'Overdue', color: theme.colors.error });
 
     const translateX = tabs.length > 1
       ? slideAnim.interpolate({
@@ -1956,19 +1971,11 @@ export default function MyBookings() {
               elevation: 3
             }}
           />
-          {tabs.map((tab, index) => (
+          {tabs.map((tab) => (
             <TouchableOpacity
               key={tab.id}
               style={{ flex: 1, alignItems: 'center', justifyContent: 'center', zIndex: 1 }}
-              onPress={() => {
-                setViewMode(tab.id);
-                Animated.spring(slideAnim, {
-                  toValue: index,
-                  useNativeDriver: true,
-                  tension: 50,
-                  friction: 8
-                }).start();
-              }}
+              onPress={() => setViewMode(tab.id)}
             >
               <Text style={{
                 fontWeight: '700',

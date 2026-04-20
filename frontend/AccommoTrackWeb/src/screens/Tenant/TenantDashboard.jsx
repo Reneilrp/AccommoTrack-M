@@ -895,9 +895,9 @@ const TenantDashboard = ({ user }) => {
 
         {/* Left Column: Recent Activity (70%) */}
         <div className="lg:col-span-7 h-full">
-          <div className="bg-white dark:bg-[#1e2332] border border-gray-200 dark:border-[#2a3045] rounded-[16px] overflow-hidden flex flex-col h-full">
-            <div className="px-6 py-6 border-b border-gray-100 dark:border-[#2a3045] flex items-center justify-between">
-              <h3 className="text-[16px] font-bold text-gray-900 dark:text-slate-100">Recent Activity</h3>
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-400/50 dark:border-gray-700 p-6 flex flex-col h-full">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-bold text-gray-900 dark:text-white">Recent Activity</h2>
               <button
                 onClick={() => navigate('/notifications')}
                 className="text-[13px] text-gray-500 dark:text-slate-500 font-medium hover:text-gray-700 dark:hover:text-slate-200 transition-colors"
@@ -905,9 +905,11 @@ const TenantDashboard = ({ user }) => {
                 View All
               </button>
             </div>
-            <div className="px-6 py-2 flex-1">
-              {activities.length > 0 ? (
-                activities.map((activity, idx) => {
+            <div className="space-y-4 flex-1">
+              {activities.length === 0 ? (
+                <p className="text-center py-8 text-gray-500 italic">No recent activities</p>
+              ) : (
+                activities.slice(0, 6).map((activity, idx) => {
                   const iconMap = {
                     booking: Calendar,
                     payment: CreditCard,
@@ -921,29 +923,65 @@ const TenantDashboard = ({ user }) => {
                   };
                   const IconComp = iconMap[activity.type] || Activity;
 
+                  // Resolve icon badge color (mirrors DashboardPage.getActivityColor)
+                  const resolveColor = (a) => {
+                    const explicit = String(a?.color || '').toLowerCase();
+                    if (['green', 'blue', 'yellow', 'red', 'gray'].includes(explicit)) return explicit;
+                    const s = String(a?.status || '').toLowerCase();
+                    const t = String(a?.type || '').toLowerCase();
+                    if (t === 'room' && s === 'occupied') return 'blue';
+                    if (['cancelled', 'canceled', 'rejected', 'failed', 'declined', 'overdue', 'refunded'].includes(s)) return 'red';
+                    if (['pending', 'pending_offline', 'in_progress', 'partial', 'processing'].includes(s)) return 'yellow';
+                    if (['notified', 'received', 'submitted'].includes(s)) return 'blue';
+                    if (['confirmed', 'completed', 'paid', 'approved', 'active', 'resolved', 'verified'].includes(s)) return 'green';
+                    if (['inactive', 'maintenance', 'draft'].includes(s)) return 'gray';
+                    return 'gray';
+                  };
+
+                  const iconColorMap = {
+                    green: 'bg-green-100 text-green-600',
+                    blue: 'bg-blue-100 text-blue-600',
+                    yellow: 'bg-yellow-100 text-yellow-600',
+                    red: 'bg-red-100 text-red-600',
+                    gray: 'bg-gray-100 text-gray-600',
+                  };
+
+                  const statusColorMap = {
+                    green: 'bg-green-100 text-green-600',
+                    blue: 'bg-blue-100 text-blue-600',
+                    yellow: 'bg-yellow-100 text-yellow-600',
+                    red: 'bg-red-100 text-red-600',
+                    gray: 'bg-gray-100 text-gray-600',
+                  };
+
+                  const resolvedColor = resolveColor(activity);
+                  const iconColorClass = iconColorMap[resolvedColor] || iconColorMap.gray;
+                  const statusColorClass = statusColorMap[resolvedColor] || statusColorMap.gray;
+
                   return (
-                    <div key={idx} className="flex items-start gap-4 py-4 border-b border-gray-100 dark:border-[#2a3045] last:border-b-0">
-                      <div className="w-9 h-9 rounded-full bg-gray-100 dark:bg-[#252b3b] border border-gray-200 dark:border-[#303650] flex items-center justify-center flex-shrink-0">
-                        <IconComp className="w-4 h-4 text-gray-500 dark:text-slate-400" />
+                    <button
+                      key={idx}
+                      onClick={() => navigate('/notifications')}
+                      className="w-full flex items-start gap-4 pb-4 border-b border-gray-100 dark:border-gray-700 last:border-0 text-left hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors rounded-lg px-2 py-2 -mx-2"
+                    >
+                      <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${iconColorClass}`}>
+                        <IconComp className="w-5 h-5" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-[14.5px] text-gray-800 dark:text-slate-100 leading-snug">
-                          {activity.action} {activity.description && <span className="text-gray-500 dark:text-slate-400 font-normal">— {activity.description}</span>}
-                        </p>
+                        <p className="text-sm font-semibold text-gray-900 dark:text-white">{activity.action}</p>
+                        {activity.description && (
+                          <p className="text-sm text-gray-600 dark:text-gray-300 mt-2">{activity.description}</p>
+                        )}
+                        <p className="text-xs text-gray-500 mt-2">{formatDate(activity.timestamp)}</p>
                       </div>
-                      <div className="flex-shrink-0 text-right">
-                        <span className="text-[12px] font-medium text-gray-500 dark:text-slate-500">
-                          {formatDate(activity.timestamp)}
+                      {activity.status && (
+                        <span className={`px-2 py-1 text-xs font-medium rounded-full capitalize flex-shrink-0 ${statusColorClass}`}>
+                          {activity.status}
                         </span>
-                      </div>
-                    </div>
+                      )}
+                    </button>
                   );
                 })
-              ) : (
-                <div className="py-8 flex flex-col items-center justify-center text-center">
-                  <Activity className="w-10 h-10 text-gray-200 dark:text-[#303650] mb-4" />
-                  <p className="text-[14px] text-gray-500 dark:text-slate-500">No recent activities to show.</p>
-                </div>
               )}
             </div>
           </div>

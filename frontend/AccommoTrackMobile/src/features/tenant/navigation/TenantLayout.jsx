@@ -47,16 +47,23 @@ export default function TenantLayout({ onLogout, isGuest = false, onAuthRequired
     const unsubscribe = addNavigationStateListener((route) => {
       // Prefer navigationRef.getCurrentRoute() for the most up-to-date deepest route
       const currentRoute = navigationRef.isReady() ? navigationRef.getCurrentRoute() : null;
-      
+
       // Fallback to the route object passed to the listener if it looks like a route (has a name)
       const target = currentRoute || (route && typeof route === 'object' && route.name ? route : null);
 
       if (target) {
+        // Ignore MenuModal (drawer) so the header title and icons stay fixed to the screen beneath
+        if (target.name === 'MenuModal') return;
+
         setActiveRouteName(target.name);
         setActiveRouteParams(target.params || {});
       } else {
         // If we only have a state object, drill down to find the deepest name
         const deepestName = getDeepest(navigationRef.isReady() && navigationRef.getRootState ? navigationRef.getRootState() : route);
+        
+        // Ignore MenuModal here too
+        if (deepestName === 'MenuModal') return;
+
         setActiveRouteName(deepestName);
         setActiveRouteParams({});
       }
@@ -66,19 +73,19 @@ export default function TenantLayout({ onLogout, isGuest = false, onAuthRequired
 
   // Hide header/bottom nav on routes that implement their own header/navigation
   const hideHeaderRoutes = new Set([
-    'Profile', 
+    'Profile',
     'MyWallet',
     'PreferencesLifestyle',
     'VerificationStatus',
-    'UpdatePassword', 
-    'NotificationPreferences', 
-    'HelpSupport', 
-    'AccommodationDetails', 
-    'RoomsList', 
-    'RoomDetails', 
-    'Chat', 
-    'CreateMaintenanceRequest', 
-    'Addons', 
+    'UpdatePassword',
+    'NotificationPreferences',
+    'HelpSupport',
+    'AccommodationDetails',
+    'RoomsList',
+    'RoomDetails',
+    'Chat',
+    'CreateMaintenanceRequest',
+    'Addons',
     'BookingDetails',
     'ReportProperty',
     'LeaveReview',
@@ -89,20 +96,20 @@ export default function TenantLayout({ onLogout, isGuest = false, onAuthRequired
     'Messages',
     'Cart'
   ]);
-  
+
   const hideBottomRoutes = new Set([
-    'Profile', 
+    'Profile',
     'PreferencesLifestyle',
     'VerificationStatus',
-    'UpdatePassword', 
-    'NotificationPreferences', 
-    'HelpSupport', 
-    'AccommodationDetails', 
-    'RoomsList', 
-    'RoomDetails', 
-    'Chat', 
-    'CreateMaintenanceRequest', 
-    'Addons', 
+    'UpdatePassword',
+    'NotificationPreferences',
+    'HelpSupport',
+    'AccommodationDetails',
+    'RoomsList',
+    'RoomDetails',
+    'Chat',
+    'CreateMaintenanceRequest',
+    'Addons',
     'BookingDetails',
     'ReportProperty',
     'LeaveReview',
@@ -112,15 +119,19 @@ export default function TenantLayout({ onLogout, isGuest = false, onAuthRequired
     'Notifications',
     'Cart'
   ]);
-  
+
   // Also respect explicit route param hideLayout=true
   const liveCurrentRoute = navigationRef?.isReady() && navigationRef.getCurrentRoute
     ? navigationRef.getCurrentRoute()
     : null;
-  const effectiveRouteName = liveCurrentRoute?.name || activeRouteName;
+  
+  // Ignore MenuModal (drawer) in live route tracking to keep header state consistent with the underlying screen
+  const filteredLiveRoute = liveCurrentRoute?.name !== 'MenuModal' ? liveCurrentRoute : null;
+  
+  const effectiveRouteName = filteredLiveRoute?.name || activeRouteName;
   const effectiveRouteParams =
-    liveCurrentRoute?.name === effectiveRouteName
-      ? (liveCurrentRoute?.params || activeRouteParams || {})
+    filteredLiveRoute?.name === effectiveRouteName
+      ? (filteredLiveRoute?.params || activeRouteParams || {})
       : (activeRouteParams || {});
 
   const hideLayoutParam = effectiveRouteParams?.hideLayout === true;
@@ -130,7 +141,7 @@ export default function TenantLayout({ onLogout, isGuest = false, onAuthRequired
   // Defensive: treat any route name containing "detail", "chat", "maintenance", or "addon" (case-insensitive)
   // as a full-screen route to ensure layout elements are hidden.
   const isFullScreenRoute = typeof effectiveRouteName === 'string' && /(detail|chat|maintenance|addon)/i.test(effectiveRouteName);
-  
+
   const canShowHeader = !hideHeaderRoutes.has(effectiveRouteName) && !hideLayoutParam && !hideLayoutChromeParam && !isFullScreenRoute;
   const animateHeaderVisibility = effectiveRouteName === 'TenantHome' && canShowHeader;
   const showHeader = canShowHeader && (!animateHeaderVisibility || !hideTopHeaderParam);
@@ -208,23 +219,15 @@ export default function TenantLayout({ onLogout, isGuest = false, onAuthRequired
   const isProfileRoute = effectiveRouteName === 'TenantHome' || effectiveRouteName === 'Messages';
   const isPaymentsRoute = effectiveRouteName === 'Payments';
   const isDashboardRoute = effectiveRouteName === 'Dashboard';
-  const showRightHeaderIcon = isProfileRoute || isPaymentsRoute || isDashboardRoute;
-  const rightHeaderIcon = isProfileRoute
-    ? 'person-outline'
-    : isPaymentsRoute
-      ? 'time-outline'
-      : isDashboardRoute
-        ? 'notifications-outline'
-        : null;
-  
+  const showRightHeaderIcon = isPaymentsRoute || isDashboardRoute;
+  const rightHeaderIcon = isPaymentsRoute
+    ? 'time-outline'
+    : isDashboardRoute
+      ? 'notifications-outline'
+      : null;
+
   const handleRightPress = React.useCallback(() => {
-    if (isProfileRoute) {
-      if (isGuest) {
-        onAuthRequired?.();
-      } else {
-        navigate('Profile');
-      }
-    } else if (isPaymentsRoute) {
+    if (isPaymentsRoute) {
       if (isGuest) {
         onAuthRequired?.();
       } else {
@@ -238,12 +241,12 @@ export default function TenantLayout({ onLogout, isGuest = false, onAuthRequired
         navigate('Notifications');
       }
     }
-  }, [isProfileRoute, isGuest, onAuthRequired, isPaymentsRoute, isDashboardRoute]);
+  }, [isGuest, onAuthRequired, isPaymentsRoute, isDashboardRoute]);
 
-  // Build custom right actions for header (cart icon + profile/notifications)
+  // Build custom right actions for header (book icon + contextual shortcuts)
   const rightActions = React.useMemo(() => {
     const actions = [];
-    
+
     // Add cart icon for TenantHome and Messages routes
     if (isProfileRoute) {
       actions.push({
@@ -251,8 +254,8 @@ export default function TenantLayout({ onLogout, isGuest = false, onAuthRequired
         key: 'cart',
       });
     }
-    
-    // Add profile/notification icon
+
+    // Add contextual icon shortcuts (payments history / notifications)
     if (showRightHeaderIcon) {
       actions.push({
         icon: rightHeaderIcon,
@@ -261,7 +264,7 @@ export default function TenantLayout({ onLogout, isGuest = false, onAuthRequired
         key: 'right-icon',
       });
     }
-    
+
     return actions;
   }, [isProfileRoute, showRightHeaderIcon, rightHeaderIcon, isGuest, onAuthRequired, handleRightPress]);
 
@@ -272,13 +275,13 @@ export default function TenantLayout({ onLogout, isGuest = false, onAuthRequired
           style={
             animateHeaderVisibility
               ? {
-                  height: headerVisibility.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [0, headerMeasuredHeight || 1],
-                  }),
-                  opacity: headerVisibility,
-                  overflow: 'hidden',
-                }
+                height: headerVisibility.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [0, headerMeasuredHeight || 1],
+                }),
+                opacity: headerVisibility,
+                overflow: 'hidden',
+              }
               : undefined
           }
           pointerEvents={showHeader ? 'auto' : 'none'}

@@ -9,7 +9,7 @@ import {
   Image,
   useWindowDimensions,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { getStyles } from "../../../styles/Tenant/HomePage.js";
@@ -24,8 +24,25 @@ export default function MenuDrawer({
   isGuest,
 }) {
   const { width: viewportWidth } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
   const { theme } = useTheme();
-  const styles = React.useMemo(() => getStyles(theme), [theme]);
+  const styles = React.useMemo(() => {
+    const base = getStyles(theme);
+    return {
+      ...base,
+      menuFooter: {
+        paddingVertical: 12,
+        paddingHorizontal: 16,
+        borderTopWidth: 1,
+        borderTopColor: theme.colors.border || "#E5E7EB",
+        alignItems: "center",
+      },
+      footerText: {
+        fontSize: 11,
+        color: "#9CA3AF",
+      },
+    };
+  }, [theme]);
   const drawerWidth = React.useMemo(() => Math.min(viewportWidth * 0.8, 360), [viewportWidth]);
 
   const [userName, setUserName] = useState("Guest User");
@@ -243,6 +260,11 @@ export default function MenuDrawer({
             {
               transform: [{ translateX: slideAnim }],
               width: drawerWidth,
+              top: insets.top > 0 ? insets.top : 8,
+              bottom: insets.bottom > 0 ? insets.bottom : 8,
+              borderTopRightRadius: 24,
+              borderBottomRightRadius: 24,
+              overflow: 'hidden',
             },
           ]}
         >
@@ -305,8 +327,7 @@ export default function MenuDrawer({
           </ScrollView>
 
           {/* Footer actions: show Settings (only for auth users) and Logout (only for auth users) */}
-          <SafeAreaView
-            edges={["bottom"]}
+          <View
             style={[
               styles.drawerFooter,
               { borderTopColor: theme.colors.border },
@@ -350,7 +371,12 @@ export default function MenuDrawer({
                 </Text>
               </TouchableOpacity>
             )}
-          </SafeAreaView>
+          </View>
+
+          {/* Version Footer */}
+          <View style={styles.menuFooter}>
+            <Text style={styles.footerText}>AccommoTrack v1.0.0</Text>
+          </View>
         </Animated.View>
 
         {showLogoutConfirm && (
