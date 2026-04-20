@@ -96,6 +96,15 @@ export default function CartScreen() {
     );
   };
 
+  const handleEditItem = (item) => {
+    navigation.navigate('RoomDetails', {
+      room: item.room,
+      property: item.room?.property,
+      cartItem: item,
+      isEditing: true
+    });
+  };
+
   const handleCheckout = async () => {
     if (!cart?.id) return;
 
@@ -329,21 +338,35 @@ export default function CartScreen() {
                   </View>
                 </View>
 
-                <TouchableOpacity
-                  style={{
-                    marginTop: 12,
-                    backgroundColor: removingItemId === item.id ? theme.colors.textTertiary : theme.colors.error,
-                    paddingVertical: 10,
-                    borderRadius: 8,
-                    alignItems: 'center',
-                  }}
-                  onPress={() => handleRemoveItem(item.id)}
-                  disabled={removingItemId === item.id}
-                >
-                  <Text style={{ color: '#fff', fontWeight: '600', fontSize: 14 }}>
-                    {removingItemId === item.id ? 'Removing...' : 'Remove'}
-                  </Text>
-                </TouchableOpacity>
+                <View style={{ flexDirection: 'row', gap: 10, marginTop: 12 }}>
+                  <TouchableOpacity
+                    style={{
+                      flex: 1,
+                      backgroundColor: theme.colors.primary,
+                      paddingVertical: 10,
+                      borderRadius: 8,
+                      alignItems: 'center',
+                    }}
+                    onPress={() => handleEditItem(item)}
+                  >
+                    <Text style={{ color: '#fff', fontWeight: '600', fontSize: 14 }}>Edit</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={{
+                      flex: 1,
+                      backgroundColor: removingItemId === item.id ? theme.colors.textTertiary : theme.colors.error,
+                      paddingVertical: 10,
+                      borderRadius: 8,
+                      alignItems: 'center',
+                    }}
+                    onPress={() => handleRemoveItem(item.id)}
+                    disabled={removingItemId === item.id}
+                  >
+                    <Text style={{ color: '#fff', fontWeight: '600', fontSize: 14 }}>
+                      {removingItemId === item.id ? 'Removing...' : 'Remove'}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
               </View>
             </View>
           ))}

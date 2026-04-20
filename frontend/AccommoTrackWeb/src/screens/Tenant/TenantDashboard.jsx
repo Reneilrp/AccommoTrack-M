@@ -294,6 +294,87 @@ const TenantDashboard = ({ user }) => {
       return a.sortDueDate - b.sortDueDate;
     });
 
+  const activeAlerts = React.useMemo(() => {
+    const alerts = [];
+
+    // 1. Overdue Balance
+    if (!dismissedNotifications.overdueBalance && stats?.payments?.hasOverdueInvoices && Number(unpaidBalance) > 0) {
+      alerts.push({
+        id: 'overdue-balance',
+        priority: 'high',
+        type: 'payment',
+        title: 'Action Required: Balance Overdue',
+        message: `You have an outstanding balance of ${formatCurrency(unpaidBalance)} that is past its due date. Please settle it immediately.`,
+        actionText: !tenantPaymentsTempDisabled ? 'Pay Now' : null,
+        target: '/payments',
+        originalType: 'overdueBalance'
+      });
+    }
+
+    // 2. Balance Due (Not yet overdue)
+    if (!dismissedNotifications.balanceDue && Number(unpaidBalance) > 0 && !stats?.payments?.hasOverdueInvoices) {
+      alerts.push({
+        id: 'balance-due',
+        priority: 'normal',
+        type: 'payment',
+        title: 'Action Required: Balance Due',
+        message: `You have an outstanding balance of ${formatCurrency(unpaidBalance)}. Please settle it to avoid late fees.`,
+        actionText: !tenantPaymentsTempDisabled ? 'Pay Now' : null,
+        target: '/payments',
+        originalType: 'balanceDue'
+      });
+    }
+
+    // 3. Pending Check-ins (Today or Overdue)
+    const safeCheckIns = Array.isArray(pendingCheckIns) ? pendingCheckIns : [];
+    safeCheckIns.forEach(pending => {
+      const isOverdue = Boolean(pending?.isOverdue || (Number(pending?.daysOverdue) > 0));
+      const hasAction = !dismissedNotifications[`pending-checkin-${pending.id}`];
+      
+      if (hasAction) {
+        alerts.push({
+          id: `pending-checkin-${pending.id}`,
+          type: 'booking',
+          priority: isOverdue ? 'high' : 'medium',
+          title: pending.status === 'confirmed' ? 'Action Required: Check-in Overdue' : 'Stay Starting: Approval Pending',
+          message: isOverdue 
+            ? `Your check-in for ${pending.property || 'your stay'} was scheduled for ${formatDate(pending.startDate)}. Please contact the landlord.`
+            : `Your check-in for ${pending.property || 'your stay'} is scheduled for today.`,
+          actionText: 'View Booking',
+          target: '/bookings',
+          originalType: 'pendingCheckIn'
+        });
+      }
+    });
+
+    // 4. Upcoming Booking (Not yet today)
+    if (upcomingBooking && !dismissedNotifications.upcomingStay) {
+      alerts.push({
+        id: 'upcoming-stay',
+        type: 'booking',
+        priority: 'low',
+        title: 'Upcoming Stay Confirmed',
+        message: `Stay at ${upcomingBooking.property || 'property'} begins on ${formatDate(upcomingBooking.startDate)}`,
+        actionText: 'View',
+        target: '/bookings',
+        originalType: 'upcomingStay'
+      });
+    }
+
+    return alerts;
+  }, [
+    dismissedNotifications, stats, unpaidBalance, pendingCheckIns,
+    upcomingBooking, tenantPaymentsTempDisabled, formatCurrency, formatDate
+  ]);
+
+  const handleAlertDismiss = (alert) => {
+    dismissNotification(alert.originalType, alert.originalId);
+  };
+
+  const handleAlertAction = (alert) => {
+    if (alert.target) navigate(alert.target);
+  };
+
   // ── Loading State ──
   if (loading) {
     return (
@@ -420,86 +501,6 @@ const TenantDashboard = ({ user }) => {
     }
   };
 
-  const activeAlerts = React.useMemo(() => {
-    const alerts = [];
-
-    // 1. Overdue Balance
-    if (!dismissedNotifications.overdueBalance && stats?.payments?.hasOverdueInvoices && Number(unpaidBalance) > 0) {
-      alerts.push({
-        id: 'overdue-balance',
-        priority: 'high',
-        type: 'payment',
-        title: 'Action Required: Balance Overdue',
-        message: `You have an outstanding balance of ${formatCurrency(unpaidBalance)} that is past its due date. Please settle it immediately.`,
-        actionText: !tenantPaymentsTempDisabled ? 'Pay Now' : null,
-        target: '/payments',
-        originalType: 'overdueBalance'
-      });
-    }
-
-    // 2. Balance Due (Not yet overdue)
-    if (!dismissedNotifications.balanceDue && Number(unpaidBalance) > 0 && !stats?.payments?.hasOverdueInvoices) {
-      alerts.push({
-        id: 'balance-due',
-        priority: 'normal',
-        type: 'payment',
-        title: 'Action Required: Balance Due',
-        message: `You have an outstanding balance of ${formatCurrency(unpaidBalance)}. Please settle it to avoid late fees.`,
-        actionText: !tenantPaymentsTempDisabled ? 'Pay Now' : null,
-        target: '/payments',
-        originalType: 'balanceDue'
-      });
-    }
-
-    // 3. Pending Check-ins (Today or Overdue)
-    const safeCheckIns = Array.isArray(pendingCheckIns) ? pendingCheckIns : [];
-    safeCheckIns.forEach(pending => {
-      const isOverdue = Boolean(pending?.isOverdue || (Number(pending?.daysOverdue) > 0));
-      const hasAction = !dismissedNotifications[`pending-checkin-${pending.id}`];
-      
-      if (hasAction) {
-        alerts.push({
-          id: `pending-checkin-${pending.id}`,
-          type: 'booking',
-          priority: isOverdue ? 'high' : 'medium',
-          title: pending.status === 'confirmed' ? 'Action Required: Check-in Overdue' : 'Stay Starting: Approval Pending',
-          message: isOverdue 
-            ? `Your check-in for ${pending.property || 'your stay'} was scheduled for ${formatDate(pending.startDate)}. Please contact the landlord.`
-            : `Your check-in for ${pending.property || 'your stay'} is scheduled for today.`,
-          actionText: 'View Booking',
-          target: '/bookings',
-          originalType: 'pendingCheckIn'
-        });
-      }
-    });
-
-    // 4. Upcoming Booking (Not yet today)
-    if (upcomingBooking && !dismissedNotifications.upcomingStay) {
-      alerts.push({
-        id: 'upcoming-stay',
-        type: 'booking',
-        priority: 'low',
-        title: 'Upcoming Stay Confirmed',
-        message: `Stay at ${upcomingBooking.property || 'property'} begins on ${formatDate(upcomingBooking.startDate)}`,
-        actionText: 'View',
-        target: '/bookings',
-        originalType: 'upcomingStay'
-      });
-    }
-
-    return alerts;
-  }, [
-    dismissedNotifications, stats, unpaidBalance, pendingCheckIns,
-    upcomingBooking, tenantPaymentsTempDisabled, formatCurrency, formatDate
-  ]);
-
-  const handleAlertDismiss = (alert) => {
-    dismissNotification(alert.originalType, alert.originalId);
-  };
-
-  const handleAlertAction = (alert) => {
-    if (alert.target) navigate(alert.target);
-  };
 
   // ════════════════════════════════════════════════════════════════════════════
   // RENDER

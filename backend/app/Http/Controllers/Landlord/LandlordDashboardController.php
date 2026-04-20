@@ -26,7 +26,7 @@ class LandlordDashboardController extends Controller
             $assignedPropertyIds = ($isCaretaker && $context['assignment']) ? $context['assignment']->getAssignedPropertyIds() : null;
 
             // Cache the dashboard bundle for 60 seconds to prevent CPU spikes from rapid refreshes
-            $cacheKey = "landlord_dashboard_bundle_{$context['landlord_id']}_" . ($isCaretaker ? 'caretaker' : 'landlord');
+            $cacheKey = "landlord_dashboard_bundle_{$context['landlord_id']}_{$context['user']->id}";
             
             return \Illuminate\Support\Facades\Cache::remember($cacheKey, 60, function() use ($request, $context, $isCaretaker, $assignedPropertyIds) {
                 // Run all heavy data fetching in one bundled request
@@ -102,10 +102,6 @@ class LandlordDashboardController extends Controller
 
     private function getRecentActivitiesInternal(Request $request, array $context)
     {
-        if ($context['is_caretaker'] && $context['assignment'] && ! $context['assignment']->can_view_audit_logs) {
-            return [];
-        }
-
         $assignedPropertyIds = ($context['is_caretaker'] && $context['assignment']) ? $context['assignment']->getAssignedPropertyIds() : null;
         $propertyId = $request->query('property_id');
         $roomId = $request->query('room_id');
@@ -119,7 +115,8 @@ class LandlordDashboardController extends Controller
             $assignedPropertyIds,
             $context['is_caretaker'],
             $propertyId,
-            $roomId
+            $roomId,
+            $context['assignment'] ?? null
         );
 
         $limit = $propertyId ? 50 : 20;
@@ -440,7 +437,12 @@ class LandlordDashboardController extends Controller
     {
         $assignedPropertyIds = ($context['is_caretaker'] && $context['assignment']) ? $context['assignment']->getAssignedPropertyIds() : null;
 
-        $data = $this->dashboardService->getUpcomingPayments($context['landlord_id'], $assignedPropertyIds, $context['is_caretaker']);
+        $data = $this->dashboardService->getUpcomingPayments(
+            $context['landlord_id'],
+            $assignedPropertyIds,
+            $context['is_caretaker'],
+            $context['assignment'] ?? null
+        );
 
         $upcomingCheckouts = $data['upcomingCheckouts']->map(function ($booking) {
             $daysLeft = now()->diffInDays($booking->end_date, false);

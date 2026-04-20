@@ -24,12 +24,15 @@ import {
   HelpCircle,
   ShoppingCart
 } from 'lucide-react';
+import RoomDetailsModal from '../Modals/RoomDetailsModal';
 
 export default function TenantLayout({ user, onLogout, children }) {
   const { isSidebarOpen, setIsSidebarOpen, asideRef } = useSidebar();
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [messageUnreadCount, setMessageUnreadCount] = useState(0);
   const [isCartOpen, setIsCartOpen] = useState(false);
+  const [editingItem, setEditingItem] = useState(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const { getItemCount } = useCart();
   const location = useLocation();
   const navigate = useNavigate();
@@ -301,7 +304,29 @@ export default function TenantLayout({ user, onLogout, children }) {
         }}
       />
       
-      <CartDrawer isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} />
+      <CartDrawer 
+        isOpen={isCartOpen} 
+        onClose={() => setIsCartOpen(false)} 
+        onEditItem={(item) => {
+          setEditingItem(item);
+          setIsEditModalOpen(true);
+        }}
+      />
+
+      {isEditModalOpen && (
+        <RoomDetailsModal
+          room={editingItem?.room}
+          property={editingItem?.room?.property}
+          isOpen={isEditModalOpen}
+          onClose={() => {
+            setIsEditModalOpen(false);
+            setEditingItem(null);
+          }}
+          isAuthenticated={!!user}
+          isEditing={true}
+          cartItem={editingItem}
+        />
+      )}
     </div>
   );
 }

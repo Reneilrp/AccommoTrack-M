@@ -107,64 +107,77 @@ class LandlordDashboardService
     }
 
 
-    public function getRecentActivities(int $landlordId, ?array $assignedPropertyIds, bool $isCaretaker, ?int $propertyId, ?int $roomId = null): \Illuminate\Support\Collection
-    {
+    public function getRecentActivities(
+        int $landlordId,
+        ?array $assignedPropertyIds,
+        bool $isCaretaker,
+        ?int $propertyId,
+        ?int $roomId = null,
+        ?\App\Models\CaretakerAssignment $assignment = null
+    ): \Illuminate\Support\Collection {
         $activities = collect();
 
-        $recentBookingsQuery = Booking::where('landlord_id', $landlordId)->with(['tenant', 'property', 'room'])->orderBy('created_at', 'desc');
-        if ($roomId) {
-            $recentBookingsQuery->where('room_id', $roomId);
-        } elseif ($propertyId) {
-            $recentBookingsQuery->where('property_id', $propertyId);
-        } elseif ($assignedPropertyIds) {
-            $recentBookingsQuery->whereIn('property_id', $assignedPropertyIds);
-        }
-        $activities = $activities->merge($recentBookingsQuery->limit(20)->get());
-
-        $moveOutNoticesQuery = Booking::where('landlord_id', $landlordId)
-            ->whereNotNull('notice_given_at')
-            ->with(['tenant', 'property', 'room'])
-            ->orderBy('notice_given_at', 'desc');
-        if ($roomId) {
-            $moveOutNoticesQuery->where('room_id', $roomId);
-        } elseif ($propertyId) {
-            $moveOutNoticesQuery->where('property_id', $propertyId);
-        } elseif ($assignedPropertyIds) {
-            $moveOutNoticesQuery->whereIn('property_id', $assignedPropertyIds);
-        }
-
-        $moveOutNotices = $moveOutNoticesQuery->limit(10)->get();
-        foreach ($moveOutNotices as $noticeBooking) {
-            $activities->push([
-                'id' => $noticeBooking->id,
-                'type' => 'booking',
-                'action' => 'Move-out Notice Submitted',
-                'description' => ($noticeBooking->tenant->first_name ?? 'Tenant').' submitted a move-out notice for '.($noticeBooking->property->title ?? 'Property').' - Room '.($noticeBooking->room->room_number ?? 'N/A'),
-                'status' => 'notified',
-                'timestamp' => $noticeBooking->notice_given_at,
-                'created_at' => $noticeBooking->notice_given_at,
-                'icon' => 'log-out-outline',
-                'color' => 'blue',
-                'booking_id' => $noticeBooking->id,
-            ]);
-        }
-
-        $roomsQuery = Room::whereHas('property', function ($query) use ($landlordId, $propertyId, $assignedPropertyIds) {
-            $query->where('landlord_id', $landlordId);
-            if ($propertyId) {
-                $query->where('id', $propertyId);
+        // 1. Bookings & Move-out Notices (Landlord or Caretaker with can_view_bookings)
+        if (!$isCaretaker || ($assignment && $assignment->can_view_bookings)) {
+            $recentBookingsQuery = Booking::where('landlord_id', $landlordId)->with(['tenant', 'property', 'room'])->orderBy('created_at', 'desc');
+            if ($roomId) {
+                $recentBookingsQuery->where('room_id', $roomId);
+            } elseif ($propertyId) {
+                $recentBookingsQuery->where('property_id', $propertyId);
             } elseif ($assignedPropertyIds) {
-                $query->whereIn('id', $assignedPropertyIds);
+                $recentBookingsQuery->whereIn('property_id', $assignedPropertyIds);
             }
-        });
-        if ($roomId) {
-            $roomsQuery->where('id', $roomId);
+            $activities = $activities->merge($recentBookingsQuery->limit(20)->get());
+
+            $moveOutNoticesQuery = Booking::where('landlord_id', $landlordId)
+                ->whereNotNull('notice_given_at')
+                ->with(['tenant', 'property', 'room'])
+                ->orderBy('notice_given_at', 'desc');
+            if ($roomId) {
+                $moveOutNoticesQuery->where('room_id', $roomId);
+            } elseif ($propertyId) {
+                $moveOutNoticesQuery->where('property_id', $propertyId);
+            } elseif ($assignedPropertyIds) {
+                $moveOutNoticesQuery->whereIn('property_id', $assignedPropertyIds);
+            }
+
+            $moveOutNotices = $moveOutNoticesQuery->limit(10)->get();
+            foreach ($moveOutNotices as $noticeBooking) {
+                $activities->push([
+                    'id' => $noticeBooking->id,
+                    'type' => 'booking',
+                    'action' => 'Move-out Notice Submitted',
+                    'description' => ($noticeBooking->tenant->first_name ?? 'Tenant').' submitted a move-out notice for '.($noticeBooking->property->title ?? 'Property').' - Room '.($noticeBooking->room->room_number ?? 'N/A'),
+                    'status' => 'notified',
+                    'timestamp' => $noticeBooking->notice_given_at,
+                    'created_at' => $noticeBooking->notice_given_at,
+                    'icon' => 'log-out-outline',
+                    'color' => 'blue',
+                    'booking_id' => $noticeBooking->id,
+                ]);
+            }
         }
 
-        $activities = $activities->merge((clone $roomsQuery)->where('updated_at', '>=', now()->subDays(10))->with(['property', 'currentTenant'])->orderBy('updated_at', 'desc')->limit(10)->get());
-        $activities = $activities->merge((clone $roomsQuery)->where('created_at', '>=', now()->subDays(10))->with(['property'])->orderBy('created_at', 'desc')->limit(10)->get());
+        // 2. Room Updates (Landlord or Caretaker with can_view_rooms)
+        if (!$isCaretaker || ($assignment && $assignment->can_view_rooms)) {
+            $roomsQuery = Room::whereHas('property', function ($query) use ($landlordId, $propertyId, $assignedPropertyIds) {
+                $query->where('landlord_id', $landlordId);
+                if ($propertyId) {
+                    $query->where('id', $propertyId);
+                } elseif ($assignedPropertyIds) {
+                    $query->whereIn('id', $assignedPropertyIds);
+                }
+            });
+            if ($roomId) {
+                $roomsQuery->where('id', $roomId);
+            }
 
-        // Add Caretaker Property Reports
+            $activities = $activities->merge((clone $roomsQuery)->where('updated_at', '>=', now()->subDays(10))->with(['property', 'currentTenant'])->orderBy('updated_at', 'desc')->limit(10)->get());
+            $activities = $activities->merge((clone $roomsQuery)->where('created_at', '>=', now()->subDays(10))->with(['property'])->orderBy('created_at', 'desc')->limit(10)->get());
+        }
+
+        // 3. Caretaker Property Reports & Audit Logs
+        // Reports are generally visible to landlords and the assigned caretakers (filtered by property assignments above)
         $auditQuery = \App\Models\AuditLog::where('domain', 'caretaker_report')->where('landlord_id', $landlordId)->with('actor')->orderBy('created_at', 'desc');
         if ($propertyId) {
             $auditQuery->where('property_id', $propertyId);
@@ -173,15 +186,19 @@ class LandlordDashboardService
         }
         $activities = $activities->merge($auditQuery->limit(15)->get());
 
-        if (! $isCaretaker) {
-            if (! $roomId) {
+        // 4. Property Detail Updates (Landlord or Caretaker with can_view_properties)
+        if (!$isCaretaker || ($assignment && $assignment->can_view_properties)) {
+            if (!$roomId) {
                 $propertyUpdatesQuery = Property::where('landlord_id', $landlordId)->where('updated_at', '>=', now()->subDays(10))->orderBy('updated_at', 'desc');
                 if ($propertyId) {
                     $propertyUpdatesQuery->where('id', $propertyId);
                 }
                 $activities = $activities->merge($propertyUpdatesQuery->limit(5)->get());
             }
+        }
 
+        // 5. Invoices & Payments (Landlord or Caretaker with can_manage_payments)
+        if (!$isCaretaker || ($assignment && ($assignment->can_manage_payments || $assignment->can_record_payments))) {
             $invoiceQuery = Invoice::where('landlord_id', $landlordId)->where('updated_at', '>=', now()->subDays(10))->with(['property', 'booking.room'])->orderBy('updated_at', 'desc');
             if ($roomId) {
                 $invoiceQuery->whereHas('booking', function ($q) use ($roomId) {
@@ -203,8 +220,10 @@ class LandlordDashboardService
                 }
             })->with(['invoice.booking.room', 'tenant'])->orderBy('created_at', 'desc');
             $activities = $activities->merge($paymentsQuery->limit(15)->get());
+        }
 
-            // Add Maintenance Requests
+        // 6. Maintenance Requests (Landlord or Caretaker with can_manage_maintenance)
+        if (!$isCaretaker || ($assignment && $assignment->can_manage_maintenance)) {
             $maintenanceQuery = \App\Models\MaintenanceRequest::where('landlord_id', $landlordId)->with(['property', 'tenant', 'booking.room'])->orderBy('created_at', 'desc');
             if ($roomId) {
                 $maintenanceQuery->whereHas('booking', function ($q) use ($roomId) {
@@ -214,8 +233,10 @@ class LandlordDashboardService
                 $maintenanceQuery->where('property_id', $propertyId);
             }
             $activities = $activities->merge($maintenanceQuery->limit(10)->get());
+        }
 
-            // Add Transfer Requests
+        // 7. Transfer Requests (Landlord or Caretaker with can_view_bookings)
+        if (!$isCaretaker || ($assignment && $assignment->can_view_bookings)) {
             $transferQuery = \App\Models\TransferRequest::where('landlord_id', $landlordId)
                 ->with(['tenant', 'currentRoom', 'requestedRoom'])
                 ->orderBy('created_at', 'desc');
@@ -231,8 +252,10 @@ class LandlordDashboardService
                 });
             }
             $activities = $activities->merge($transferQuery->limit(10)->get());
+        }
 
-            // Add Addon Requests (from booking_addons)
+        // 8. Addon Requests (Landlord or Caretaker with can_manage_add_ons)
+        if (!$isCaretaker || ($assignment && $assignment->can_manage_add_ons)) {
             $addonQuery = DB::table('booking_addons')
                 ->join('addons', 'booking_addons.addon_id', '=', 'addons.id')
                 ->join('properties', 'addons.property_id', '=', 'properties.id')
@@ -258,22 +281,18 @@ class LandlordDashboardService
 
             $addons = $addonQuery->orderBy('booking_addons.updated_at', 'desc')->limit(10)->get();
             foreach ($addons as $addon) {
-                // Extract suggested price from request_note if present
                 $requestNote = $addon->request_note ?? '';
                 $suggestedPrice = null;
                 if (preg_match('/suggested\s+price\s*:\s*₱?\s*([\d,]+(?:\.\d+)?)/i', $requestNote, $matches)) {
                     $suggestedPrice = (float) str_replace(',', '', $matches[1]);
                 }
 
-                // Use suggested price if available, otherwise use addon price or price_at_booking
                 $displayPrice = $suggestedPrice ?? ($addon->price_at_booking ?? $addon->addon_price ?? null);
-
                 $description = "{$addon->first_name} requested {$addon->addon_name}";
                 if ($displayPrice !== null) {
                     $description .= ' (₱'.number_format($displayPrice, 2).')';
                 }
 
-                // Use updated_at as timestamp so status changes move activity to top
                 $timestamp = $addon->updated_at ?? $addon->created_at;
 
                 $activities->push([
@@ -293,8 +312,12 @@ class LandlordDashboardService
         return $activities->sortByDesc('created_at')->values();
     }
 
-    public function getUpcomingPayments(int $landlordId, ?array $assignedPropertyIds, bool $isCaretaker)
-    {
+    public function getUpcomingPayments(
+        int $landlordId,
+        ?array $assignedPropertyIds,
+        bool $isCaretaker,
+        ?\App\Models\CaretakerAssignment $assignment = null
+    ) {
         $checkoutsQuery = Booking::where('landlord_id', $landlordId)
             ->where('status', 'confirmed')
             ->whereBetween('end_date', [now(), now()->addDays(30)])
@@ -329,7 +352,9 @@ class LandlordDashboardService
         $unpaidBookings = [];
         $overdueInvoices = collect();
         $dueSoonInvoices = collect();
-        if (! $isCaretaker) {
+
+        // 1. Invoices & Payments (Landlord or Caretaker with can_manage_payments)
+        if (!$isCaretaker || ($assignment && ($assignment->can_manage_payments || $assignment->can_record_payments))) {
             $unpaidBookings = Booking::where('landlord_id', $landlordId)
                 ->where('status', 'confirmed')
                 ->whereIn('payment_status', ['unpaid', 'partial'])

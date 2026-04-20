@@ -31,10 +31,12 @@ export default function RoomDetailsModal({
   initialView,
   onBookingSuccess,
   bookingService,
+  isEditing = false,
+  cartItem = null,
 }) {
   const PROXY_MINIMUM_AGE = 18;
   const navigate = useNavigate();
-  const { addToCart, addItem } = useCart();
+  const { addToCart, addItem, updateItem } = useCart();
   const [viewMode, setViewMode] = useState(initialView || "details"); // 'details' | 'booking'
   const [isCartMode, setIsCartMode] = useState(false);
   const [bedCount, setBedCount] = useState(1);
@@ -393,6 +395,21 @@ export default function RoomDetailsModal({
 
   // Initialize dates
   useEffect(() => {
+    if (isEditing && cartItem) {
+      setStartDate(cartItem.start_date || new Date().toISOString().split("T")[0]);
+      setEndDate(cartItem.end_date || "");
+      setBedCount(cartItem.bed_count || 1);
+      setNotes(cartItem.notes || "");
+      setPaymentPlan(cartItem.payment_plan || "monthly");
+      setContractMode(cartItem.contract_mode || "monthly");
+      setBookingMode(cartItem.occupants?.length > 0 ? "proxy" : "normal");
+      setProxyOccupants(cartItem.occupants || []);
+      setSelectedBedNumbers(cartItem.bed_numbers ? (typeof cartItem.bed_numbers === 'string' ? cartItem.bed_numbers.split(',') : cartItem.bed_numbers) : []);
+      setIsCartMode(true);
+      setViewMode("booking");
+      return;
+    }
+
     const today = new Date();
 
     setStartDate(today.toISOString().split("T")[0]);
@@ -405,7 +422,7 @@ export default function RoomDetailsModal({
     } else {
       setEndDate("");
     }
-  }, [isDailyContract]);
+  }, [isDailyContract, isEditing, cartItem]);
 
   // Fetch pricing whenever dates change
   useEffect(() => {
@@ -812,34 +829,20 @@ export default function RoomDetailsModal({
           payload.bed_number = selectedBedNumbers[0];
         }
 
-        try {
-          const addToCartAction = typeof addToCart === "function" ? addToCart : addItem;
-          if (typeof addToCartAction !== "function") {
-            showError("Selection is not ready. Please refresh and try again.");
-            setIsSubmitting(false);
-            return;
-          }
+        let result;
+        if (isEditing && cartItem?.id) {
+          result = await updateItem(cartItem.id, payload);
+        } else {
+          result = await addItem(payload);
+        }
 
-          const result = await addToCartAction(payload);
-          if (result && result.success) {
-            window.dispatchEvent(new CustomEvent('accommo:cart-updated'));
-            showSuccess("Room added to your book successfully!");
-            onClose();
-          } else {
-            const validationMessage = formatApiValidationMessage(result?.details || result?.errors);
-            showError(
-              validationMessage
-              || result?.message
-              || "Failed to add room to your book.",
-            );
-          }
-        } catch (error) {
-          const validationMessage = formatApiValidationMessage(error?.response?.data?.errors);
-          showError(
-            validationMessage
-            || error?.response?.data?.message
-            || "Failed to add room to cart.",
-          );
+        if (result.success) {
+          showSuccess(isEditing ? "Selection updated successfully!" : "Room added to your book!");
+          if (onBookingSuccess) onBookingSuccess(result.data);
+          onClose();
+        } else {
+          const validationMessage = formatApiValidationMessage(result.details || result.errors);
+          showError(validationMessage || result.error || (isEditing ? "Failed to update item" : "Failed to add to book"));
         }
         setIsSubmitting(false);
         return;
@@ -1314,7 +1317,7 @@ export default function RoomDetailsModal({
                   <ArrowLeft className="w-5 h-5 text-gray-600 dark:text-gray-400 group-hover:text-gray-900 dark:group-hover:text-white" />
                 </button>
                 <h2 className="text-xl font-bold text-gray-900 dark:text-white">
-                  {isCartMode ? 'Add to Book' : 'Book Now'}
+                  {isCartMode ? (isEditing ? "Update Selection" : "Add to Book") : "Submit Booking"}
                 </h2>
               </div>
               <button

@@ -164,14 +164,25 @@ export default function CartDrawer({ isOpen, onClose }) {
                       </div>
                     </div>
 
-                    <button
-                      onClick={() => handleRemoveItem(item.id)}
-                      disabled={removingItemId === item.id}
-                      className="mt-4 w-full flex items-center justify-center gap-2 py-2 border border-red-200 dark:border-red-900/50 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors text-sm font-medium disabled:opacity-50"
-                    >
-                      {removingItemId === item.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
-                      {removingItemId === item.id ? 'Removing...' : 'Remove'}
-                    </button>
+                    <div className="flex gap-2 mt-4">
+                      <button
+                        onClick={() => {
+                          onClose();
+                          if (onEditItem) onEditItem(item);
+                        }}
+                        className="flex-1 flex items-center justify-center gap-2 py-2 border border-green-600 dark:border-green-500 text-green-600 dark:text-green-500 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-lg transition-colors text-sm font-medium"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => handleRemoveItem(item.id)}
+                        disabled={removingItemId === item.id}
+                        className="flex-1 flex items-center justify-center gap-2 py-2 border border-red-200 dark:border-red-900/50 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors text-sm font-medium disabled:opacity-50"
+                      >
+                        {removingItemId === item.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                        {removingItemId === item.id ? 'Removing...' : 'Remove'}
+                      </button>
+                    </div>
                   </div>
                 </div>
               ))}

@@ -67,7 +67,7 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
   const { width: viewportWidth } = useWindowDimensions();
   const { theme } = useTheme();
   const styles = React.useMemo(() => getStyles(theme, viewportWidth), [theme, viewportWidth]);
-  const { room, property } = route.params;
+  const { room, property, cartItem, isEditing = false } = route.params;
 
   const toBooleanFlag = (value) => {
     if (value === undefined || value === null) return null;
@@ -423,6 +423,49 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
   const occupantLimit = Math.max(1, Number(activeRoom?.available_slots ?? activeRoom?.capacity ?? 1));
   const supportsContractModeSwitch = roomBillingPolicy === 'monthly_with_daily';
   const isDailyContract = roomBillingPolicy === 'daily' || (supportsContractModeSwitch && bookingData.contract_mode === 'daily');
+
+  useEffect(() => {
+    if (isEditing && cartItem) {
+      console.log('✏️ Edit mode detected for cart item:', cartItem.id);
+      
+      // 1. Initialize booking mode
+      const isProxy = cartItem.occupants && cartItem.occupants.length > 0;
+      setBookingMode(isProxy ? 'proxy' : 'normal');
+      
+      // 2. Initialize booking data
+      const startDate = new Date(cartItem.start_date);
+      const endDate = cartItem.end_date ? new Date(cartItem.end_date) : null;
+      
+      setBookingData({
+        start_date: startDate,
+        end_date: endDate,
+        contract_mode: cartItem.contract_mode || 'monthly',
+        notes: cartItem.notes || '',
+        payment_method: cartItem.payment_method || 'cash',
+        payment_plan: cartItem.payment_plan || 'monthly',
+      });
+      
+      // 3. Initialize addons
+      setSelectedAddons(cartItem.addons || []);
+      
+      // 4. Initialize bed numbers
+      const bedNums = cartItem.bed_numbers 
+        ? (typeof cartItem.bed_numbers === 'string' ? cartItem.bed_numbers.split(',') : cartItem.bed_numbers)
+        : [];
+      setSelectedBedNumbers(bedNums);
+      
+      // 5. Initialize proxy occupants
+      if (isProxy) {
+        setProxyOccupants(cartItem.occupants);
+      }
+      
+      // 6. Set flags
+      setIsCartMode(true);
+      
+      // 7. Auto-open modal
+      setBookingModalVisible(true);
+    }
+  }, [isEditing, cartItem]);
 
   useEffect(() => {
     if (bookingMode !== 'proxy') return;
@@ -1106,26 +1149,42 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
         }));
       }
       if (isCartMode) {
-        const result = await CartService.addToCart(payload);
+        let result;
+        if (isEditing && cartItem?.id) {
+          result = await CartService.updateCartItem(cartItem.id, payload);
+        } else {
+          result = await CartService.addToCart(payload);
+        }
+
         if (result.success) {
           DeviceEventEmitter.emit('accommo:cart-updated');
-          showSuccess(
-            'Added to Book',
-            'Room added to your book successfully!',
-            [
-              { text: 'Continue Exploring', onPress: () => setBookingModalVisible(false) },
-              {
-                text: 'Go to Book',
-                onPress: () => {
-                  setBookingModalVisible(false);
-                  navigateToCart();
-                },
-              }
-            ]
-          );
+          
+          if (isEditing) {
+            showSuccess('Updated', 'Your selection has been updated successfully.');
+            setBookingModalVisible(false);
+            // Wait a tiny bit for the toast/modal to start closing then navigate back
+            setTimeout(() => {
+              navigateToCart();
+            }, 300);
+          } else {
+            showSuccess(
+              'Added to Book',
+              'Room added to your book successfully!',
+              [
+                { text: 'Continue Exploring', onPress: () => setBookingModalVisible(false) },
+                {
+                  text: 'Go to Book',
+                  onPress: () => {
+                    setBookingModalVisible(false);
+                    navigateToCart();
+                  },
+                }
+              ]
+            );
+          }
         } else {
           const validationMessage = formatBookingValidationError(result.details || result.errors);
-          showError('Failed to Add', validationMessage || result.error || 'Something went wrong.');
+          showError('Failed to Save', validationMessage || result.error || 'Something went wrong.');
         }
         setIsSubmitting(false);
         return;
