@@ -76,7 +76,9 @@ class BookingService
                 }
             }
 
+            // [DEFERRED] Consolidated reservation fee invoice creation moved to approval/confirmation stage.
             $reservationInvoice = null;
+            /*
             if ($totalReservationFee > 0) {
                 $reference = 'RES-'.$bookingGroupReference;
                 $firstBooking = $bookings[0];
@@ -108,6 +110,7 @@ class BookingService
                     'summary' => 'Consolidated Group Reservation fee invoice generated.',
                 ]);
             }
+            */
 
             DB::commit();
 
@@ -468,7 +471,8 @@ class BookingService
                 }
             }
 
-            // GENERATE RESERVATION FEE INVOICE IF REQUIRED
+            // [DEFERRED] Reservation fee invoice generation moved to approval/confirmation stage.
+            /*
             if ($requiresReservationFee && empty($data['skip_reservation_invoice'])) {
                 $reference = 'RES-'.date('Ymd').'-'.strtoupper(Str::random(6));
 
@@ -504,6 +508,7 @@ class BookingService
                     ],
                 ]);
             }
+            */
 
             // Update property stats
             $room->property->updateAvailableRooms();
@@ -601,8 +606,17 @@ class BookingService
             $booking->status = $newStatus;
 
             switch ($newStatus) {
+                case 'reserved':
+                case 'pending_reservation':
                 case 'confirmed':
-                    $this->handleConfirmation($booking, $data);
+                    // Trigger invoice generation when moving out of 'pending'
+                    if ($oldStatus === 'pending') {
+                        $this->ensureInitialInvoicesAreGenerated($booking);
+                    }
+                    
+                    if ($newStatus === 'confirmed') {
+                        $this->handleConfirmation($booking, $data);
+                    }
                     break;
 
                 case 'completed':
@@ -668,6 +682,9 @@ class BookingService
         try {
             $booking->status = 'reserved';
             $booking->save();
+
+            // Ensure invoices exist (if they weren't generated because booking was pending)
+            $this->ensureInitialInvoicesAreGenerated($booking);
 
             $resolvedActorId = $actorUserId ?? auth()->id();
 
@@ -1142,6 +1159,7 @@ class BookingService
 
             $invoice->status = 'cancelled';
             $invoice->description = $description;
+            $invoice->is_archived = true;
             $invoice->save();
 
             $cancelledInvoiceIds[] = (int) $invoice->id;
@@ -1580,5 +1598,73 @@ class BookingService
 
             return ['user' => $user, 'tenantProfile' => $tenantProfile];
         });
+    }
+
+    /**
+     * Ensure all required initial invoices (reservation fee, etc.) are generated
+     * when a booking moves from pending to an approved/active status.
+     */
+    public function ensureInitialInvoicesAreGenerated(Booking $booking): void
+    {
+        $room = $booking->room;
+        if (! $room) {
+            return;
+        }
+
+        // 1. CHECK RESERVATION FEE
+        $reservationFeeTemporarilyDisabled = SystemToggle::getBool(
+            'reservation_fee_disabled',
+            (bool) config('app.reservation_fee_disabled', false)
+        );
+        $reservationFeeEnabled = ! $reservationFeeTemporarilyDisabled
+            && (bool) ($room->property->require_reservation_fee ?? false);
+        $reservationFeeAmount = (float) ($room->property->reservation_fee ?? 0);
+        
+        $moveInDate = Carbon::parse($booking->move_in_date ?? $booking->start_date);
+        $daysUntilMoveIn = max(0, Carbon::today()->diffInDays($moveInDate, false));
+        $reservationFeeThresholdDays = max(0, (int) ($room->property->reservation_fee_gap_days ?? 3));
+        
+        $requiresReservationFee = $reservationFeeEnabled
+            && $reservationFeeAmount > 0
+            && $daysUntilMoveIn > $reservationFeeThresholdDays;
+
+        if ($requiresReservationFee) {
+            $existingReservationInvoice = $booking->invoices()
+                ->where('invoice_type', 'reservation_fee')
+                ->where('status', '!=', 'cancelled')
+                ->exists();
+
+            if (! $existingReservationInvoice) {
+                $reference = 'RES-'.date('Ymd').'-'.strtoupper(Str::random(6));
+                $reservationInvoice = \App\Models\Invoice::create([
+                    'reference' => $reference,
+                    'landlord_id' => $booking->landlord_id,
+                    'property_id' => $booking->property_id,
+                    'booking_id' => $booking->id,
+                    'tenant_id' => $booking->tenant_id,
+                    'description' => 'Reservation Fee for booking '.$booking->booking_reference,
+                    'invoice_type' => 'reservation_fee',
+                    'amount_cents' => (int) round($reservationFeeAmount * 100),
+                    'currency' => 'PHP',
+                    'status' => 'pending',
+                    'issued_at' => now(),
+                    'due_date' => now()->addHours(24),
+                    'booking_group_reference' => $booking->booking_group_reference,
+                ]);
+
+                $this->auditLogService->invoiceEvent('invoice.created', [
+                    'subject_type' => 'invoice',
+                    'subject_id' => $reservationInvoice->id,
+                    'booking_id' => $booking->id,
+                    'invoice_id' => $reservationInvoice->id,
+                    'property_id' => $booking->property_id,
+                    'tenant_id' => $booking->tenant_id,
+                    'landlord_id' => $booking->landlord_id,
+                    'status_before' => null,
+                    'status_after' => $reservationInvoice->status,
+                    'summary' => 'Reservation fee invoice generated upon approval.',
+                ]);
+            }
+        }
     }
 }

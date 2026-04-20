@@ -9,7 +9,7 @@ import PaymentService from '../../../../services/PaymentService.js';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { tenantQueryKeys } from '../../hooks/useTenantQueryHelpers.js';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import getStyles from '../../../styles/Tenant/WalletStyles.js';
+import { getStyles } from '../../../../styles/Tenant/WalletStyles.js';
 
 const TransactionItem = ({ item, theme }) => {
   const isDebit = item.type === 'debit';

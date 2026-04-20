@@ -82,13 +82,18 @@ class InvoiceController extends Controller
         }
 
         if ($request->query('archive_filter') === 'archived') {
-            $query->whereIn('status', ['paid', 'succeeded'])
-                ->where('updated_at', '<', now()->subDays(30));
-        } elseif ($request->query('archive_filter') === 'active') {
             $query->where(function ($q) {
-                $q->whereNotIn('status', ['paid', 'succeeded'])
-                    ->orWhere('updated_at', '>=', now()->subDays(30));
+                $q->where('is_archived', true)
+                  ->orWhere('status', 'cancelled')
+                  ->orWhere('status', 'voided');
             });
+        } elseif ($request->query('archive_filter') === 'active') {
+            $query->where('is_archived', false)
+                ->whereNotIn('status', ['cancelled', 'voided'])
+                ->where(function ($q) {
+                    $q->whereNotIn('status', ['paid', 'succeeded'])
+                        ->orWhere('updated_at', '>=', now()->subDays(30));
+                });
         }
 
         $invoices = $query->with(['transactions', 'booking.room', 'property', 'tenant'])

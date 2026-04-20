@@ -162,6 +162,7 @@ class TenantBookingController extends Controller
 
             $invoice->status = 'cancelled';
             $invoice->description = $description;
+            $invoice->is_archived = true;
             $invoice->save();
 
             $cancelledInvoiceIds[] = (int) $invoice->id;

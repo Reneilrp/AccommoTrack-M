@@ -29,7 +29,8 @@ class TenantPaymentController extends Controller
             if ($request->query('archive_filter') === 'archived') {
                 $query->where('is_archived', true);
             } elseif ($request->query('archive_filter') === 'active') {
-                $query->where('is_archived', false);
+                $query->where('is_archived', false)
+                    ->whereNotIn('status', ['cancelled', 'voided']);
             }
 
             $invoices = $query->orderBy('created_at', 'desc')
@@ -134,6 +135,7 @@ class TenantPaymentController extends Controller
             $pendingInvoices = Invoice::with('transactions')
                 ->where('tenant_id', $tenantId)
                 ->whereIn('status', ['pending', 'partial', 'unpaid', 'overdue'])
+                ->where('is_archived', false)
                 ->get();
 
             $pendingAmountCents = 0;
@@ -192,6 +194,8 @@ class TenantPaymentController extends Controller
 
             $invoices = Invoice::with(['booking.room', 'transactions'])
                 ->where('tenant_id', $tenantId)
+                ->whereNotIn('status', ['cancelled', 'voided'])
+                ->where('is_archived', false)
                 ->whereNotNull('due_date')
                 ->whereDate('due_date', '<=', $windowEnd)
                 ->orderBy('due_date', 'asc')

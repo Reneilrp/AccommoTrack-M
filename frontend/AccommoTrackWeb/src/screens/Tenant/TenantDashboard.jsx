@@ -921,137 +921,142 @@ const TenantDashboard = ({ user }) => {
       )}
 
       {/* ── Bottom Row: Activity, Schedule & Simplified Payment Summary ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-8 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-10 gap-6 mt-8 items-start">
 
-        {/* Recent Activity */}
-        <div className="bg-white dark:bg-[#1e2332] border border-gray-200 dark:border-[#2a3045] rounded-[16px] overflow-hidden flex flex-col lg:col-span-1">
-          <div className="px-6 py-6 border-b border-gray-100 dark:border-[#2a3045] flex items-center justify-between">
-            <h3 className="text-[16px] font-bold text-gray-900 dark:text-slate-100">Recent Activity</h3>
-            <button
-              onClick={() => navigate('/notifications')}
-              className="text-[13px] text-gray-500 dark:text-slate-500 font-medium hover:text-gray-700 dark:hover:text-slate-200 transition-colors"
-            >
-              View All
-            </button>
-          </div>
-          <div className="px-6 py-2 flex-1">
-            {activities.length > 0 ? (
-              activities.map((activity, idx) => {
-                const iconMap = { booking: Calendar, payment: CreditCard, room: Home, message: MessageSquare };
-                const IconComp = iconMap[activity.type] || Activity;
-
-                return (
-                  <div key={idx} className="flex items-start gap-4 py-4 border-b border-gray-100 dark:border-[#2a3045] last:border-b-0">
-                    <div className="w-9 h-9 rounded-full bg-gray-100 dark:bg-[#252b3b] border border-gray-200 dark:border-[#303650] flex items-center justify-center flex-shrink-0">
-                      <IconComp className="w-4 h-4 text-gray-500 dark:text-slate-400" />
-                    </div>
-                    <div>
-                      <p className="text-[14.5px] text-gray-800 dark:text-slate-100 leading-snug">
-                        {activity.action} {activity.description && <span className="text-gray-500 dark:text-slate-400 font-normal">— {activity.description}</span>}
-                      </p>
-                      <p className="text-[13px] text-gray-500 dark:text-slate-500 mt-2">
-                        {new Date(activity.timestamp).toLocaleString('en-US', {
-                          month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true
-                        })}
-                      </p>
-                    </div>
-                  </div>
-                );
-              })
-            ) : (
-              <div className="py-8 flex flex-col items-center justify-center text-center">
-                <Activity className="w-10 h-10 text-gray-200 dark:text-[#303650] mb-4" />
-                <p className="text-[14px] text-gray-500 dark:text-slate-500">No recent activities to show.</p>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Upcoming Payment Schedule */}
-        <div className="bg-white dark:bg-[#1e2332] border border-gray-200 dark:border-[#2a3045] rounded-[16px] overflow-hidden flex flex-col lg:col-span-1">
-          <div className="px-6 py-6 border-b border-gray-100 dark:border-[#2a3045]">
-            <h3 className="text-[16px] font-bold text-gray-900 dark:text-slate-100">Payment Schedule</h3>
-            <p className="text-[13px] text-gray-500 dark:text-slate-500 mt-0.5">Estimated lease dues</p>
-          </div>
-          <div className="px-6 py-6 flex-1 flex flex-col">
-            {upcomingSchedule.length > 0 ? (
-              <div className="space-y-0 relative">
-                {upcomingSchedule.map((schedule, idx) => {
-                  const scheduleDate = new Date(schedule.due_date || schedule.dueDate);
-                  const isNext = idx === 0;
-                  return (
-                    <div key={idx} className="flex gap-4">
-                      <div className="flex flex-col items-center">
-                        <div className={`w-3.5 h-3.5 rounded-full mt-2.5 flex-shrink-0 relative z-10 ${isNext ? 'bg-orange-500 shadow-[0_0_0_4px_rgba(249,115,22,0.15)] dark:shadow-[0_0_0_4px_rgba(249,115,22,0.2)]' : 'bg-gray-300 dark:bg-[#4a5578]'}`}></div>
-                        {idx !== upcomingSchedule.length - 1 && <div className="w-[2px] min-h-[40px] h-full bg-gray-200 dark:bg-[#2a3045] my-2 flex-1"></div>}
-                      </div>
-                      <div className="pb-6">
-                        <p className={`text-[15px] font-bold leading-tight ${isNext ? 'text-gray-900 dark:text-slate-100' : 'text-gray-600 dark:text-slate-400'}`}>
-                          {scheduleDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
-                        </p>
-                        <div className="flex items-center gap-2 mt-2">
-                          <span className="text-[14px] font-semibold text-gray-500 dark:text-slate-500">
-                            {formatCurrency(schedule.month_total || schedule.amount)}
-                          </span>
-                          {isNext && <span className="text-[10px] font-black tracking-wider uppercase px-2 py-0.5 rounded bg-orange-100/80 text-orange-700 dark:bg-orange-500/20 dark:text-orange-400">Next Due</span>}
-                        </div>
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            ) : (
-              <div className="py-8 flex flex-col items-center justify-center text-center h-full">
-                <CalendarClock className="w-10 h-10 text-gray-200 dark:text-[#303650] mb-4" />
-                <p className="text-[14px] text-gray-500 dark:text-slate-500">No upcoming scheduled payments.</p>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Simplified Payment Summary */}
-        <div className="bg-white dark:bg-[#1e2332] border border-gray-200 dark:border-[#2a3045] rounded-[16px] overflow-hidden flex flex-col lg:col-span-1">
-          <div className="px-6 py-6 border-b border-gray-100 dark:border-[#2a3045]">
-            <h3 className="text-[16px] font-bold text-gray-900 dark:text-slate-100">Current Payment Cycle</h3>
-            <p className="text-[13px] text-gray-500 dark:text-slate-500 mt-0.5">{new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</p>
-          </div>
-          <div className="px-6 py-6 flex-1 flex flex-col">
-
-            <div className="space-y-4 mb-6">
-              <div className="flex justify-between items-center">
-                <span className="text-[15px] text-gray-500 dark:text-slate-400">Total Charges (Rent & Add-ons)</span>
-                <span className="text-[15px] font-semibold text-gray-900 dark:text-slate-100">{formatCurrency(totalMonthlySummary)}</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-[15px] text-gray-500 dark:text-slate-400">Total Paid Amount</span>
-                <span className="text-[15px] font-semibold text-green-600 dark:text-green-400">−{formatCurrency(totalPaid)}</span>
-              </div>
+        {/* Left Column: Recent Activity (70%) */}
+        <div className="lg:col-span-7 h-full">
+          <div className="bg-white dark:bg-[#1e2332] border border-gray-200 dark:border-[#2a3045] rounded-[16px] overflow-hidden flex flex-col h-full">
+            <div className="px-6 py-6 border-b border-gray-100 dark:border-[#2a3045] flex items-center justify-between">
+              <h3 className="text-[16px] font-bold text-gray-900 dark:text-slate-100">Recent Activity</h3>
+              <button
+                onClick={() => navigate('/notifications')}
+                className="text-[13px] text-gray-500 dark:text-slate-500 font-medium hover:text-gray-700 dark:hover:text-slate-200 transition-colors"
+              >
+                View All
+              </button>
             </div>
+            <div className="px-6 py-2 flex-1">
+              {activities.length > 0 ? (
+                activities.map((activity, idx) => {
+                  const iconMap = { booking: Calendar, payment: CreditCard, room: Home, message: MessageSquare };
+                  const IconComp = iconMap[activity.type] || Activity;
 
-            <div className="pt-6 border-t border-gray-100 dark:border-[#2a3045]">
-              <div className="flex justify-between items-center mb-6">
-                <span className="text-[16px] font-bold text-gray-900 dark:text-slate-100">Remaining Balance</span>
-                <span className={`text-[20px] font-bold ${unpaidBalance > 0 ? 'text-red-500 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}>
-                  {formatCurrency(unpaidBalance)}
-                </span>
-              </div>
-
-              {unpaidBalance > 0 ? (
-                <button
-                  onClick={() => navigate('/payments')}
-                  className="w-full py-4.5 bg-gray-100 dark:bg-[#252b3b] border border-gray-200 dark:border-[#303650] text-gray-900 dark:text-slate-100 rounded-xl text-[15px] font-semibold hover:bg-gray-200 dark:hover:bg-[#303650] transition-colors"
-                >
-                  Make a Payment
-                </button>
+                  return (
+                    <div key={idx} className="flex items-start gap-4 py-4 border-b border-gray-100 dark:border-[#2a3045] last:border-b-0">
+                      <div className="w-9 h-9 rounded-full bg-gray-100 dark:bg-[#252b3b] border border-gray-200 dark:border-[#303650] flex items-center justify-center flex-shrink-0">
+                        <IconComp className="w-4 h-4 text-gray-500 dark:text-slate-400" />
+                      </div>
+                      <div>
+                        <p className="text-[14.5px] text-gray-800 dark:text-slate-100 leading-snug">
+                          {activity.action} {activity.description && <span className="text-gray-500 dark:text-slate-400 font-normal">— {activity.description}</span>}
+                        </p>
+                        <p className="text-[13px] text-gray-500 dark:text-slate-500 mt-2">
+                          {new Date(activity.timestamp).toLocaleString('en-US', {
+                            month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true
+                          })}
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })
               ) : (
-                <div className="w-full py-4.5 bg-green-50 dark:bg-green-500/10 border border-green-200 dark:border-green-500/20 text-green-700 dark:text-green-400 rounded-xl text-[15px] font-semibold text-center flex items-center justify-center gap-2">
-                  <CheckCircle2 className="w-5 h-5" /> You are all caught up!
+                <div className="py-8 flex flex-col items-center justify-center text-center">
+                  <Activity className="w-10 h-10 text-gray-200 dark:text-[#303650] mb-4" />
+                  <p className="text-[14px] text-gray-500 dark:text-slate-500">No recent activities to show.</p>
                 </div>
               )}
             </div>
-
           </div>
         </div>
+
+        {/* Right Column: Payment Components (30%) */}
+        <div className="lg:col-span-3 flex flex-col gap-6">
+          
+          {/* Current Payment Cycle */}
+          <div className="bg-white dark:bg-[#1e2332] border border-gray-200 dark:border-[#2a3045] rounded-[16px] overflow-hidden flex flex-col">
+            <div className="px-6 py-6 border-b border-gray-100 dark:border-[#2a3045]">
+              <h3 className="text-[16px] font-bold text-gray-900 dark:text-slate-100">Current Payment Cycle</h3>
+              <p className="text-[13px] text-gray-500 dark:text-slate-500 mt-0.5">{new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</p>
+            </div>
+            <div className="px-6 py-6 flex-1 flex flex-col">
+              <div className="space-y-4 mb-6">
+                <div className="flex justify-between items-center">
+                  <span className="text-[15px] text-gray-500 dark:text-slate-400">Total Charges</span>
+                  <span className="text-[15px] font-semibold text-gray-900 dark:text-slate-100">{formatCurrency(totalMonthlySummary)}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-[15px] text-gray-500 dark:text-slate-400">Total Paid</span>
+                  <span className="text-[15px] font-semibold text-green-600 dark:text-green-400">−{formatCurrency(totalPaid)}</span>
+                </div>
+              </div>
+
+              <div className="pt-6 border-t border-gray-100 dark:border-[#2a3045]">
+                <div className="flex justify-between items-center mb-6">
+                  <span className="text-[16px] font-bold text-gray-900 dark:text-slate-100">Balance</span>
+                  <span className={`text-[20px] font-bold ${unpaidBalance > 0 ? 'text-red-500 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}>
+                    {formatCurrency(unpaidBalance)}
+                  </span>
+                </div>
+
+                {unpaidBalance > 0 ? (
+                  <button
+                    onClick={() => navigate('/payments')}
+                    className="w-full py-4.5 bg-gray-100 dark:bg-[#252b3b] border border-gray-200 dark:border-[#303650] text-gray-900 dark:text-slate-100 rounded-xl text-[15px] font-semibold hover:bg-gray-200 dark:hover:bg-[#303650] transition-colors"
+                  >
+                    Make a Payment
+                  </button>
+                ) : (
+                  <div className="w-full py-4.5 bg-green-50 dark:bg-green-500/10 border border-green-200 dark:border-green-500/20 text-green-700 dark:text-green-400 rounded-xl text-[15px] font-semibold text-center flex items-center justify-center gap-2">
+                    <CheckCircle2 className="w-5 h-5" /> You are all caught up!
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Payment Schedule */}
+          <div className="bg-white dark:bg-[#1e2332] border border-gray-200 dark:border-[#2a3045] rounded-[16px] overflow-hidden flex flex-col">
+            <div className="px-6 py-6 border-b border-gray-100 dark:border-[#2a3045]">
+              <h3 className="text-[16px] font-bold text-gray-900 dark:text-slate-100">Payment Schedule</h3>
+              <p className="text-[13px] text-gray-500 dark:text-slate-500 mt-0.5">Estimated lease dues</p>
+            </div>
+            <div className="px-6 py-6 flex-1 flex flex-col">
+              {upcomingSchedule.length > 0 ? (
+                <div className="space-y-0 relative">
+                  {upcomingSchedule.map((schedule, idx) => {
+                    const scheduleDate = new Date(schedule.due_date || schedule.dueDate);
+                    const isNext = idx === 0;
+                    return (
+                      <div key={idx} className="flex gap-4">
+                        <div className="flex flex-col items-center">
+                          <div className={`w-3.5 h-3.5 rounded-full mt-2.5 flex-shrink-0 relative z-10 ${isNext ? 'bg-orange-500 shadow-[0_0_0_4px_rgba(249,115,22,0.15)] dark:shadow-[0_0_0_4px_rgba(249,115,22,0.2)]' : 'bg-gray-300 dark:bg-[#4a5578]'}`}></div>
+                          {idx !== upcomingSchedule.length - 1 && <div className="w-[2px] min-h-[40px] h-full bg-gray-200 dark:bg-[#2a3045] my-2 flex-1"></div>}
+                        </div>
+                        <div className="pb-6">
+                          <p className={`text-[15px] font-bold leading-tight ${isNext ? 'text-gray-900 dark:text-slate-100' : 'text-gray-600 dark:text-slate-400'}`}>
+                            {scheduleDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+                          </p>
+                          <div className="flex items-center gap-2 mt-2">
+                            <span className="text-[14px] font-semibold text-gray-500 dark:text-slate-500">
+                              {formatCurrency(schedule.month_total || schedule.amount)}
+                            </span>
+                            {isNext && <span className="text-[10px] font-black tracking-wider uppercase px-2 py-0.5 rounded bg-orange-100/80 text-orange-700 dark:bg-orange-500/20 dark:text-orange-400">Next Due</span>}
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              ) : (
+                <div className="py-8 flex flex-col items-center justify-center text-center h-full">
+                  <CalendarClock className="w-10 h-10 text-gray-200 dark:text-[#303650] mb-4" />
+                  <p className="text-[14px] text-gray-500 dark:text-slate-500">No upcoming scheduled payments.</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
 
       </div>
     </div>
