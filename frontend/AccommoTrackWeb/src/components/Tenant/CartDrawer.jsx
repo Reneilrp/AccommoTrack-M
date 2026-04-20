@@ -146,10 +146,12 @@ export default function CartDrawer({ isOpen, onClose, onEditItem }) {
                     </p>
 
                     <div className="mt-4 space-y-2 text-sm">
-                      <div className="flex justify-between">
-                        <span className="text-gray-500 dark:text-gray-400">Beds</span>
-                        <span className="font-medium text-gray-900 dark:text-white">{item.bed_count}</span>
-                      </div>
+                      {item.occupants?.length > 0 && (
+                        <div className="flex justify-between">
+                          <span className="text-gray-500 dark:text-gray-400">Beds</span>
+                          <span className="font-medium text-gray-900 dark:text-white">{item.bed_numbers ? item.bed_numbers.split(',').map(n => `Bed ${n}`).join(', ') : item.bed_count}</span>
+                        </div>
+                      )}
                       <div className="flex justify-between">
                         <span className="text-gray-500 dark:text-gray-400">Check-in</span>
                         <span className="font-medium text-gray-900 dark:text-white">{formatDate(item.start_date)}</span>
@@ -193,10 +195,12 @@ export default function CartDrawer({ isOpen, onClose, onEditItem }) {
         {cart && cart.items?.length > 0 && (
           <div className="p-4 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
             <div className="space-y-2 mb-4">
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-500 dark:text-gray-400">Total Beds</span>
-                <span className="font-medium text-gray-900 dark:text-white">{getTotalBedCount()}</span>
-              </div>
+              {cart.items.some(item => item.occupants?.length > 0) && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-500 dark:text-gray-400">Total Beds</span>
+                  <span className="font-medium text-gray-900 dark:text-white">{getTotalBedCount()}</span>
+                </div>
+              )}
               <div className="flex justify-between text-lg font-bold">
                 <span className="text-gray-900 dark:text-white">Total</span>
                 <span className="text-green-600 dark:text-green-400">{formatCurrency(getTotalPrice())}</span>

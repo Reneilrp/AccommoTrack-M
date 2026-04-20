@@ -1506,7 +1506,7 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
             <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: theme.colors.backgroundSecondary || '#f1f5f9', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, gap: 6 }}>
               <Ionicons name="people-outline" size={14} color={theme.colors.textSecondary} />
               <Text style={{ fontSize: 12, color: theme.colors.textSecondary, fontWeight: '600' }}>
-                {activeRoom.occupied || 0} / {activeRoom.capacity} Occupied
+                {(activeRoom.capacity || 0) - (activeRoom.occupied || 0)} Beds Remaining
               </Text>
             </View>
 
@@ -1732,10 +1732,10 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
                 )}
               </View>
 
-              {activeRoom.pricing_model === 'per_bed' && bookingMode === 'normal' && (
+              {activeRoom.pricing_model === 'per_bed' && bookingMode === 'proxy' && (
                 <View style={styles.inputContainer}>
                   <Text style={styles.inputLabel}>Select Bed(s)</Text>
-                  <Text style={styles.summaryNote}>Available beds in this room. Capacity: {activeRoom.capacity}</Text>
+                  <Text style={styles.summaryNote}>Beds Remaining: {(activeRoom.capacity || 0) - (activeRoom.occupied || 0)}</Text>
                   <View style={styles.bedGrid}>
                     {(activeRoom.available_bed_numbers || []).map((bedNum) => {
                       const isSelected = selectedBedNumbers.includes(bedNum);

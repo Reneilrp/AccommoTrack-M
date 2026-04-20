@@ -27,13 +27,9 @@ class TenantPaymentController extends Controller
             }
 
             if ($request->query('archive_filter') === 'archived') {
-                $query->whereIn('status', ['paid', 'succeeded'])
-                    ->where('updated_at', '<', now()->subDays(30));
+                $query->where('is_archived', true);
             } elseif ($request->query('archive_filter') === 'active') {
-                $query->where(function ($q) {
-                    $q->whereNotIn('status', ['paid', 'succeeded'])
-                        ->orWhere('updated_at', '>=', now()->subDays(30));
-                });
+                $query->where('is_archived', false);
             }
 
             $invoices = $query->orderBy('created_at', 'desc')
@@ -294,6 +290,30 @@ class TenantPaymentController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'message' => 'Failed to fetch wallet logs',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Archive/Unarchive a single invoice for the tenant
+     */
+    public function archive($id)
+    {
+        try {
+            $invoice = Invoice::where('tenant_id', Auth::id())->findOrFail($id);
+            $invoice->is_archived = !$invoice->is_archived;
+            $invoice->save();
+
+            return response()->json([
+                'success' => true,
+                'is_archived' => $invoice->is_archived,
+                'message' => $invoice->is_archived ? 'Invoice archived successfully' : 'Invoice restored to active list'
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to update invoice archive status',
                 'error' => $e->getMessage(),
             ], 500);
         }

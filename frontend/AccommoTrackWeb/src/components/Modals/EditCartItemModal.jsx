@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { X, Loader2, Calendar, Bed, ClipboardList } from 'lucide-react';
+import { X, Loader2, Calendar, Bed, ClipboardList, Plus, Minus } from 'lucide-react';
 import api from '../../utils/api';
 import { useCart } from '../../contexts/CartContext';
 import { showSuccess, showError } from '../../utils/toast';
@@ -12,7 +12,7 @@ export default function EditCartItemModal({ item, isOpen, onClose }) {
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [loadingPricing, setLoadingPricing] = useState(false);
-  
+
   // State from item
   const [startDate, setStartDate] = useState(item?.start_date || '');
   const [endDate, setEndDate] = useState(item?.end_date || '');
@@ -20,13 +20,39 @@ export default function EditCartItemModal({ item, isOpen, onClose }) {
   const [notes, setNotes] = useState(item?.notes || '');
   const [paymentPlan, setPaymentPlan] = useState(item?.payment_plan || 'monthly');
   const [contractMode, setContractMode] = useState(item?.contract_mode || 'monthly');
-  const [selectedBedNumbers, setSelectedBedNumbers] = useState(
-    item?.bed_numbers ? (typeof item.bed_numbers === 'string' ? item.bed_numbers.split(',') : item.bed_numbers) : []
-  );
-  
-  const [totalPrice, setTotalPrice] = useState(Number(item?.price_snapshot || 0));
+  const [selectedBedNumbers, setSelectedBedNumbers] = useState([]);
+  const [totalPrice, setTotalPrice] = useState(0);
   const [pricingPreview, setPricingPreview] = useState(null);
-  
+
+  // Sync state when item changes
+  useEffect(() => {
+    if (item && isOpen) {
+      // Ensure date strings are in YYYY-MM-DD format for input[type="date"]
+      // Split by space or 'T' to get just the date part
+      setStartDate(item.start_date ? item.start_date.split(/[\sT]/)[0] : '');
+      setEndDate(item.end_date ? item.end_date.split(/[\sT]/)[0] : '');
+      setBedCount(item.bed_count || 1);
+      setNotes(item.notes || '');
+      setPaymentPlan(item.payment_plan || 'monthly');
+      setContractMode(item.contract_mode || 'monthly');
+      
+      const beds = item.bed_numbers 
+        ? (typeof item.bed_numbers === 'string' ? item.bed_numbers.split(',') : item.bed_numbers) 
+        : [];
+      setSelectedBedNumbers(beds);
+      setTotalPrice(Number(item.price_snapshot || 0));
+      setPricingPreview(null);
+    }
+  }, [item, isOpen]);
+
+  const isProxy = useMemo(() => (item?.occupants?.length || 0) > 0, [item?.occupants]);
+  const pricingModel = room?.pricing_model || 'full_room';
+  const showBedCountSelector = (pricingModel === 'per_bed' || pricingModel === 'per_pax') && isProxy;
+
+  const resolvedCapacity = parseInt(room?.capacity || 0, 10);
+  const resolvedOccupied = parseInt(room?.occupied_count || room?.occupied || 0, 10);
+  const bedsRemaining = Math.max(0, resolvedCapacity - resolvedOccupied);
+
   const isDailyContract = contractMode === 'daily';
 
   // Fetch Pricing logic (Debounced)
@@ -68,7 +94,7 @@ export default function EditCartItemModal({ item, isOpen, onClose }) {
         setLoadingPricing(false);
       }
     };
-    
+
     const timer = setTimeout(fetchPricing, 400);
     return () => clearTimeout(timer);
   }, [room?.id, startDate, endDate, bedCount, isDailyContract]);
@@ -155,37 +181,46 @@ export default function EditCartItemModal({ item, isOpen, onClose }) {
             </div>
           </div>
 
-          {/* Bed Count */}
-          <div className="space-y-3">
-            <label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider flex items-center gap-2">
-              <Bed className="w-3.5 h-3.5" />
-              Number of Beds
-            </label>
-            <div className="flex items-center gap-4 bg-gray-50 dark:bg-gray-900/50 p-2 rounded-2xl w-fit border border-gray-100 dark:border-gray-800">
-              <button
-                onClick={() => setBedCount(Math.max(1, bedCount - 1))}
-                className="w-10 h-10 flex items-center justify-center bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-                disabled={bedCount <= 1}
-              >
-                <Minus className="w-4 h-4 text-gray-600 dark:text-gray-300" />
-              </button>
-              <span className="text-xl font-bold text-gray-900 dark:text-white w-8 text-center">{bedCount}</span>
-              <button
-                onClick={() => setBedCount(Math.min(room?.total_beds || 99, bedCount + 1))}
-                className="w-10 h-10 flex items-center justify-center bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-                disabled={bedCount >= (room?.total_beds || room?.available_beds || 99)}
-              >
-                <Plus className="w-4 h-4 text-gray-600 dark:text-gray-300" />
-              </button>
-            </div>
+          {/* Bed Count Info */}
+          <div className="space-y-4">
+            <p className="text-sm font-medium text-gray-600 dark:text-gray-400 flex items-center gap-2">
+              <Bed className="w-4 h-4" />
+              Beds Remaining: <span className="text-green-600 dark:text-green-400 font-bold">{bedsRemaining}</span>
+            </p>
+
+            {showBedCountSelector && (
+              <div className="space-y-3">
+                <label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider flex items-center gap-2">
+                  <Bed className="w-3.5 h-3.5" />
+                  Number of Beds
+                </label>
+                <div className="flex items-center gap-4 bg-gray-50 dark:bg-gray-900/50 p-2 rounded-2xl w-fit border border-gray-100 dark:border-gray-800">
+                  <button
+                    onClick={() => setBedCount(Math.max(1, bedCount - 1))}
+                    className="w-10 h-10 flex items-center justify-center bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                    disabled={bedCount <= 1}
+                  >
+                    <Minus className="w-4 h-4 text-gray-600 dark:text-gray-300" />
+                  </button>
+                  <span className="text-xl font-bold text-gray-900 dark:text-white w-8 text-center">{bedCount}</span>
+                  <button
+                    onClick={() => setBedCount(Math.min(room?.total_beds || 99, bedCount + 1))}
+                    className="w-10 h-10 flex items-center justify-center bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                    disabled={bedCount >= (room?.total_beds || room?.available_beds || 99)}
+                  >
+                    <Plus className="w-4 h-4 text-gray-600 dark:text-gray-300" />
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Notes */}
           <div className="space-y-1.5">
-              <label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider flex items-center gap-2">
-                <ClipboardList className="w-3.5 h-3.5" />
-                Notes to Landlord
-              </label>
+            <label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider flex items-center gap-2">
+              <ClipboardList className="w-3.5 h-3.5" />
+              Notes to Landlord
+            </label>
             <textarea
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
@@ -241,23 +276,5 @@ export default function EditCartItemModal({ item, isOpen, onClose }) {
         </div>
       </div>
     </div>
-  );
-}
-
-// Minimal Minus icon since lucide might not have been imported correctly in my thought
-function Minus(props) {
-  return (
-    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
-      <line x1="5" y1="12" x2="19" y2="12"></line>
-    </svg>
-  );
-}
-
-function Plus(props) {
-  return (
-    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
-      <line x1="12" y1="5" x2="12" y2="19"></line>
-      <line x1="5" y1="12" x2="19" y2="12"></line>
-    </svg>
   );
 }

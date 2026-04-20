@@ -290,14 +290,16 @@ export default function CartScreen() {
                 </Text>
 
                 <View style={{ marginTop: 12, gap: 8 }}>
-                  <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                    <Text style={{ fontSize: 12, color: theme.colors.textSecondary }}>Beds</Text>
-                    <Text style={{ fontSize: 12, fontWeight: '600', color: theme.colors.text }}>
-                      {item.bed_numbers 
-                        ? item.bed_numbers.split(',').map(n => `Bed ${n}`).join(', ') 
-                        : item.bed_count}
-                    </Text>
-                  </View>
+                  {item.occupants?.length > 0 && (
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                      <Text style={{ fontSize: 12, color: theme.colors.textSecondary }}>Beds</Text>
+                      <Text style={{ fontSize: 12, fontWeight: '600', color: theme.colors.text }}>
+                        {item.bed_numbers 
+                          ? item.bed_numbers.split(',').map(n => `Bed ${n}`).join(', ') 
+                          : item.bed_count}
+                      </Text>
+                    </View>
+                  )}
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                     <Text style={{ fontSize: 12, color: theme.colors.textSecondary }}>Check-in</Text>
                     <Text style={{ fontSize: 12, fontWeight: '600', color: theme.colors.text }}>
@@ -389,10 +391,12 @@ export default function CartScreen() {
         }}
       >
         <View style={{ marginBottom: 12, gap: 6 }}>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-            <Text style={{ fontSize: 14, color: theme.colors.textSecondary }}>Total Beds</Text>
-            <Text style={{ fontSize: 14, fontWeight: '600', color: theme.colors.text }}>{getTotalBeds()}</Text>
-          </View>
+          {cart.items.some(item => item.occupants?.length > 0) && (
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+              <Text style={{ fontSize: 14, color: theme.colors.textSecondary }}>Total Beds</Text>
+              <Text style={{ fontSize: 14, fontWeight: '600', color: theme.colors.text }}>{getTotalBeds()}</Text>
+            </View>
+          )}
           <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
             <Text style={{ fontSize: 16, fontWeight: '700', color: theme.colors.text }}>Total Price</Text>
             <Text style={{ fontSize: 18, fontWeight: '700', color: theme.colors.primary }}>

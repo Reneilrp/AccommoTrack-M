@@ -163,6 +163,26 @@ export const paymentService = {
     },
 
     /**
+     * Toggle archive status for a single invoice
+     * @param {number} invoiceId 
+     */
+    async archiveInvoice(invoiceId) {
+        try {
+            const response = await api.patch(`/tenant/invoices/${invoiceId}/archive`);
+            return {
+                success: true,
+                data: response.data
+            };
+        } catch (error) {
+            console.error('Error archiving invoice:', error);
+            return {
+                success: false,
+                error: error.response?.data?.message || 'Failed to archive invoice'
+            };
+        }
+    },
+
+    /**
      * Format amount to Philippine Peso
      * @param {number} amount 
      */

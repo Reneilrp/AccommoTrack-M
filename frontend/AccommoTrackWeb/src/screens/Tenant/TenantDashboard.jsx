@@ -279,7 +279,7 @@ const TenantDashboard = ({ user }) => {
             roomNumber,
             roomColor,
             description: invoice?.description || `Invoice #${invoice?.id}`,
-            dueDate: invoice?.dueDate || '—',
+            dueDate: formatDate(invoice?.dueDate),
             sortDueDate: invoice?.dueDate ? new Date(invoice.dueDate).getTime() : Number.MAX_SAFE_INTEGER,
             amount: status === 'partial' && remainingAmount > 0 ? remainingAmount : invoiceAmount,
             status,

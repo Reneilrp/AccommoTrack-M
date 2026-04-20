@@ -12,6 +12,17 @@ import systemToggleService from '../../services/systemToggleService';
 
 const DEFAULT_TOGGLES = systemToggleService.getDefaults();
 
+const formatDate = (date) => {
+  if (!date) return '—';
+  try {
+    const d = new Date(date);
+    if (isNaN(d.getTime())) return '—';
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  } catch (_e) {
+    return '—';
+  }
+};
+
 export default function TenantPayments({ user }) {
   const navigate = useNavigate();
   const { uiState, updateScreenState, updateData } = useUIState();
@@ -612,8 +623,8 @@ export default function TenantPayments({ user }) {
                             {payment.roomNumber || (payment.room && payment.room.roomNumber) || 'N/A'}
                           </td>
                           <td className="px-6 py-4 text-sm font-semibold text-gray-900 dark:text-white">{paymentService.formatAmount(payment.amount)}</td>
-                          <td className="px-6 py-4 text-sm text-gray-700 dark:text-gray-300">{payment.date}</td>
-                          <td className="px-6 py-4 text-sm text-gray-700 dark:text-gray-300">{payment.dueDate || '-'}</td>
+                          <td className="px-6 py-4 text-sm text-gray-700 dark:text-gray-300">{formatDate(payment.date)}</td>
+                          <td className="px-6 py-4 text-sm text-gray-700 dark:text-gray-300">{formatDate(payment.dueDate)}</td>
                           <td className="px-6 py-4">
                             <span className={`px-4 py-2 inline-flex text-xs leading-5 font-semibold rounded-full whitespace-nowrap ${paymentService.getStatusColor(payment.status)}`}>
                               {payment.status}
@@ -680,13 +691,12 @@ export default function TenantPayments({ user }) {
                           <p className="text-base font-bold text-gray-900 dark:text-white">{paymentService.formatAmount(payment.amount)}</p>
                         </div>
                         <div className="text-right">
-                          <p className="text-[11px] text-gray-500 dark:text-gray-500 uppercase font-bold">Date</p>
-                          <p className="text-sm text-gray-700 dark:text-gray-300">{payment.date}</p>
+                          <p className="text-sm text-gray-700 dark:text-gray-300">{formatDate(payment.date)}</p>
                         </div>
                         {payment.dueDate && (
                           <div className="text-right">
                             <p className="text-[11px] text-gray-500 dark:text-gray-500 uppercase font-bold">Due</p>
-                            <p className="text-sm text-gray-700 dark:text-gray-300">{payment.dueDate}</p>
+                            <p className="text-sm text-gray-700 dark:text-gray-300">{formatDate(payment.dueDate)}</p>
                           </div>
                         )}
                       </div>
@@ -760,12 +770,12 @@ export default function TenantPayments({ user }) {
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Date</span>
-                    <span className="text-sm text-gray-700 dark:text-gray-300">{selectedPayment.date}</span>
+                    <span className="text-sm text-gray-700 dark:text-gray-300">{formatDate(selectedPayment.date)}</span>
                   </div>
                   {selectedPayment.dueDate && (
                     <div className="flex justify-between items-center">
                       <span className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Due Date</span>
-                      <span className="text-sm text-gray-700 dark:text-gray-300">{selectedPayment.dueDate}</span>
+                      <span className="text-sm text-gray-700 dark:text-gray-300">{formatDate(selectedPayment.dueDate)}</span>
                     </div>
                   )}
                   {selectedPayment.referenceNo && (

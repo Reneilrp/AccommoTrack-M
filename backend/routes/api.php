@@ -166,6 +166,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/payments/stats', [TenantPaymentController::class, 'getStats']);
         Route::get('/payments/breakdown', [TenantPaymentController::class, 'getBreakdown']);
         Route::get('/payments/{id}', [TenantPaymentController::class, 'show']);
+        Route::patch('/invoices/{id}/archive', [TenantPaymentController::class, 'archive']);
         Route::get('/wallet-credit/logs', [TenantPaymentController::class, 'getWalletLogs']);
         Route::post('/invoices/{id}/record-offline', [InvoiceController::class, 'recordOfflineForTenant']);
         Route::post('/invoices/{id}/apply-wallet-credit', [InvoiceController::class, 'applyWalletCreditForTenant']);

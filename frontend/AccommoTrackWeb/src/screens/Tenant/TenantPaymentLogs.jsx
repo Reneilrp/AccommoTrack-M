@@ -2,9 +2,14 @@ import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   ArrowLeft, Search, RefreshCw, Loader2, Receipt, ChevronDown, ChevronUp,
-  Archive, FileText, CheckCircle, Clock, AlertTriangle, XCircle, RotateCcw, Eye
+  Archive, FileText, CheckCircle, Clock, AlertTriangle, XCircle, RotateCcw, Eye, X, Calendar
 } from 'lucide-react';
 import { paymentService } from '../../services/paymentService';
+import { invoiceService } from '../../services/invoiceService';
+import systemToggleService from '../../services/systemToggleService';
+import { showSuccess, showError } from '../../utils/toast';
+
+const DEFAULT_TOGGLES = systemToggleService.getDefaults();
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -60,11 +65,7 @@ function PaymentRow({ payment, navigate, onViewProof }) {
   return (
     <tr
       className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors cursor-pointer"
-      onClick={() => {
-        if (payment.invoiceId || payment.invoice_id || payment.id) {
-          navigate(`/checkout/${payment.invoiceId || payment.invoice_id || payment.id}`);
-        }
-      }}
+      onClick={() => onViewProof(payment)}
     >
       <td className="px-4 py-3 text-sm font-medium text-gray-800 dark:text-gray-100 max-w-[150px] truncate">
         {payment.propertyName || '—'}
@@ -79,7 +80,7 @@ function PaymentRow({ payment, navigate, onViewProof }) {
         {formatDate(payment.date)}
       </td>
       <td className="px-4 py-3 text-sm text-gray-500 dark:text-gray-400 whitespace-nowrap">
-        {payment.dueDate || '—'}
+        {formatDate(payment.dueDate)}
       </td>
       <td className="px-4 py-3 text-sm text-gray-500 dark:text-gray-400 max-w-[120px] truncate">
         {payment.referenceNo || '—'}
@@ -130,7 +131,10 @@ export default function TenantPaymentLogs({ _user }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [activeTab, setActiveTab] = useState('logs'); // 'logs' or 'archive'
-  const [proofModal, setProofModal] = useState({ open: false, payment: null });
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [selectedPayment, setSelectedPayment] = useState(null);
+  const [tenantPaymentsTempDisabled, setTenantPaymentsTempDisabled] = useState(DEFAULT_TOGGLES.tenantPaymentsDisabled);
+  const [processingPaymentKey, setProcessingPaymentKey] = useState(null);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -154,6 +158,130 @@ export default function TenantPaymentLogs({ _user }) {
   }, []);
 
   useEffect(() => { loadData(); }, [loadData]);
+
+  useEffect(() => {
+    let mounted = true;
+    systemToggleService.getToggles().then((result) => {
+      if (!mounted || !result?.data) return;
+      setTenantPaymentsTempDisabled(Boolean(result.data.tenantPaymentsDisabled));
+    });
+    return () => { mounted = false; };
+  }, []);
+
+  const resolvePaymentEntryKey = useCallback((payment) => {
+    if (!payment || typeof payment !== 'object') return null;
+    return payment?.id || payment?.invoice_id || payment?.invoiceId || payment?.booking_id || payment?.bookingId || null;
+  }, []);
+
+  const resolveNearestInvoiceId = useCallback((payload) => {
+    const created = Array.isArray(payload?.created) ? payload.created : [];
+    const existing = Array.isArray(payload?.existing) ? payload.existing : [];
+    const invoices = [...created, ...existing]
+      .filter((invoice) => invoice && invoice.id)
+      .sort((a, b) => {
+        const aDate = new Date(a?.due_date || a?.billing_period_start || a?.created_at || 0).getTime();
+        const bDate = new Date(b?.due_date || b?.billing_period_start || b?.created_at || 0).getTime();
+        return aDate - bDate;
+      });
+    return invoices.length > 0 ? invoices[0].id : null;
+  }, []);
+
+  const openCheckout = useCallback(async (payment, options = {}) => {
+    if (processingPaymentKey) return;
+    const startFrom = options?.startFrom === 'next' ? 'next' : 'current';
+    const monthsCount = Math.max(1, Math.min(Number(options?.monthsCount) || 1, 2));
+
+    if (tenantPaymentsTempDisabled) {
+      showError('Tenant payments are temporarily unavailable.');
+      return;
+    }
+
+    const bookingId = payment?.bookingId || payment?.booking_id || null;
+    let invoiceId = payment?.invoiceId || payment?.invoice_id || payment?.id || null;
+    const entryKey = resolvePaymentEntryKey(payment) || bookingId || invoiceId;
+
+    try {
+      setProcessingPaymentKey(entryKey);
+      if (startFrom === 'next') {
+        if (!bookingId) {
+          showError('This payment has no booking link for advance generation.');
+          return;
+        }
+        const response = await paymentService.createAdvanceBookingInvoices(bookingId, monthsCount);
+        if (!response.success || !response.data) {
+          showError(response.error || 'Failed to prepare advance invoice checkout.');
+          return;
+        }
+        invoiceId = resolveNearestInvoiceId(response.data);
+        if (!invoiceId) {
+          showError('No payable advance invoice was generated for this booking.');
+          return;
+        }
+        navigate(`/checkout/${invoiceId}`);
+        return;
+      }
+
+      if (!invoiceId) {
+        if (!bookingId) {
+          showError('No booking or invoice linked to this payment.');
+          return;
+        }
+        const response = await paymentService.createBookingInvoice(bookingId);
+        if (!response.success || !response.data) {
+          showError(response.error || 'Failed to prepare invoice checkout.');
+          return;
+        }
+        invoiceId = response.data?.id || response.data?.data?.id || null;
+      }
+
+      if (!invoiceId) {
+        showError('Unable to resolve invoice checkout for this payment.');
+        return;
+      }
+      navigate(`/checkout/${invoiceId}`);
+    } catch (err) {
+      console.error('Checkout resolution error:', err);
+      showError(startFrom === 'next' ? 'Failed to prepare advance invoice checkout.' : 'Failed to prepare invoice checkout.');
+    } finally {
+      setProcessingPaymentKey(null);
+    }
+  }, [navigate, resolveNearestInvoiceId, resolvePaymentEntryKey, tenantPaymentsTempDisabled, processingPaymentKey]);
+
+  const handlePrintReceipt = (payment) => {
+    if (!payment) return;
+    const invoiceId = payment.id || payment.invoice_id;
+    if (!invoiceId) {
+      showError('Unable to find invoice reference for this payment.');
+      return;
+    }
+    const url = invoiceService.getReceiptUrl(invoiceId);
+    window.open(url, "_blank");
+  };
+
+  const handleArchivePayment = async (payment) => {
+    if (!payment) return;
+    const invoiceId = payment.id || payment.invoice_id;
+    if (!invoiceId) {
+      showError('Unable to find invoice reference for this payment.');
+      return;
+    }
+
+    try {
+      showLoading('Updating archive status...');
+      const res = await paymentService.archiveInvoice(invoiceId);
+      if (res.success) {
+        showSuccess(res.data?.message || 'Archive status updated successfully');
+        setShowPaymentModal(false);
+        setSelectedPayment(null);
+        loadData(); // Refresh list to reflect moving between tabs
+      } else {
+        showError(res.error || 'Failed to update archive status');
+      }
+    } catch (err) {
+      console.error('Archive error:', err);
+      showError('An unexpected error occurred while archiving.');
+    }
+  };
 
   const applyFilter = useCallback((list) => {
     const q = (searchQuery || '').trim().toLowerCase();
@@ -336,7 +464,10 @@ export default function TenantPaymentLogs({ _user }) {
                         key={p.id}
                         payment={p}
                         navigate={navigate}
-                        onViewProof={(payment) => setProofModal({ open: true, payment })}
+                        onViewProof={(payment) => {
+                          setSelectedPayment(payment);
+                          setShowPaymentModal(true);
+                        }}
                       />
                     ))}
                   </tbody>
@@ -361,7 +492,10 @@ export default function TenantPaymentLogs({ _user }) {
                         key={p.id}
                         payment={p}
                         navigate={navigate}
-                        onViewProof={(payment) => setProofModal({ open: true, payment })}
+                        onViewProof={(payment) => {
+                          setSelectedPayment(payment);
+                          setShowPaymentModal(true);
+                        }}
                       />
                     ))}
                   </tbody>
@@ -374,43 +508,128 @@ export default function TenantPaymentLogs({ _user }) {
         <div className="h-8" />
       </div>
 
-      {/* Proof Modal */}
-      {proofModal.open && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-          <div
-            className="bg-white dark:bg-gray-800 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between">
+      {/* Payment Details Modal */}
+      {showPaymentModal && selectedPayment && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-xl max-w-md w-full max-h-[90vh] overflow-y-auto shadow-2xl animate-in fade-in zoom-in duration-200">
+            <div className="p-6 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center bg-white dark:bg-gray-800 sticky top-0 z-10">
               <div>
-                <h3 className="text-lg font-bold text-gray-900 dark:text-white uppercase tracking-tight">Proof of Payment</h3>
-                <p className="text-xs text-gray-500 dark:text-gray-400 font-bold mt-1">
-                  {proofModal.payment?.referenceNo || 'Transaction Reference'}
+                <h3 className="text-xl font-bold dark:text-white text-gray-900 uppercase tracking-tight">
+                  Payment #{selectedPayment.invoiceNumber || selectedPayment.invoiceNo || selectedPayment.referenceNo || selectedPayment.id}
+                </h3>
+                <p className="text-xs font-bold text-gray-500 dark:text-gray-400 mt-2">
+                  {selectedPayment.propertyName}
                 </p>
               </div>
-              <button
-                onClick={() => setProofModal({ open: false, payment: null })}
-                className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
-              >
-                <XCircle className="w-5 h-5 text-gray-400" />
-              </button>
+              <div className="flex items-center gap-2">
+                {['paid', 'partially_refunded'].includes(selectedPayment.status?.toLowerCase()) && (
+                  <button
+                    onClick={() => handlePrintReceipt(selectedPayment)}
+                    className="p-2.5 bg-green-50 hover:bg-green-100 text-green-600 dark:bg-green-900/20 dark:hover:bg-green-900/40 dark:text-green-400 rounded-lg transition-colors border border-green-100 dark:border-green-800"
+                    title="Print Official Receipt"
+                  >
+                    <FileText className="w-5 h-5" />
+                  </button>
+                )}
+                <button
+                  onClick={() => {
+                    setShowPaymentModal(false);
+                    setSelectedPayment(null);
+                  }}
+                  className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors"
+                >
+                  <X className="w-5 h-5 text-gray-500" />
+                </button>
+              </div>
             </div>
-            <div className="p-6 bg-gray-50 dark:bg-gray-900/30 flex items-center justify-center min-h-[300px]">
-              <img
-                src={proofModal.payment?.proofImage || proofModal.payment?.proof_image || proofModal.payment?.proof_url}
-                alt="Proof of Payment"
-                className="max-w-full max-h-[60vh] object-contain rounded-lg shadow-lg"
-                onError={(e) => {
-                  e.target.src = 'https://placehold.co/400x600?text=Image+Not+Found';
+
+            <div className="p-6 space-y-6">
+              {/* Payment Info */}
+              <div className="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg space-y-3">
+                <div className="flex justify-between items-center">
+                  <span className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Amount</span>
+                  <span className="text-lg font-bold text-gray-900 dark:text-white">{paymentService.formatAmount(selectedPayment.amount)}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Status</span>
+                  <span className={`px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${paymentService.getStatusColor(selectedPayment.status)}`}>
+                    {selectedPayment.status}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Date</span>
+                  <span className="text-sm text-gray-700 dark:text-gray-300">{formatDate(selectedPayment.date)}</span>
+                </div>
+                {selectedPayment.dueDate && (
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Due Date</span>
+                    <span className="text-sm text-gray-700 dark:text-gray-300">{formatDate(selectedPayment.dueDate)}</span>
+                  </div>
+                )}
+                {selectedPayment.referenceNo && (
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Reference</span>
+                    <span className="text-sm text-gray-700 dark:text-gray-300">{selectedPayment.referenceNo}</span>
+                  </div>
+                )}
+                <div className="flex justify-between items-center">
+                  <span className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Room</span>
+                  <span className="text-sm text-gray-700 dark:text-gray-300">{selectedPayment.roomNumber || (selectedPayment.room && selectedPayment.room.roomNumber) || 'N/A'}</span>
+                </div>
+              </div>
+
+              {/* Proof of Payment (if exists) */}
+              {(selectedPayment.proofImage || selectedPayment.proof_image || selectedPayment.proof_url) && (
+                <div className="space-y-3">
+                  <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Proof of Payment</p>
+                  <div className="p-2 bg-gray-50 dark:bg-gray-900/30 rounded-lg border border-gray-200 dark:border-gray-700">
+                    <img
+                      src={selectedPayment.proofImage || selectedPayment.proof_image || selectedPayment.proof_url}
+                      alt="Proof"
+                      className="w-full max-h-48 object-contain rounded-md cursor-pointer hover:opacity-90 transition-opacity"
+                      onClick={() => window.open(selectedPayment.proofImage || selectedPayment.proof_image || selectedPayment.proof_url, '_blank')}
+                      onError={(e) => { e.target.src = 'https://placehold.co/400x600?text=Image+Not+Found'; }}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Action Buttons */}
+              {!tenantPaymentsTempDisabled && ['pending', 'unpaid', 'partial', 'overdue'].includes(selectedPayment.status?.toLowerCase()) && (
+                <div className="pt-4">
+                  <button
+                    onClick={() => {
+                      setShowPaymentModal(false);
+                      openCheckout(selectedPayment);
+                    }}
+                    disabled={processingPaymentKey === resolvePaymentEntryKey(selectedPayment)}
+                    className="w-full flex items-center justify-center gap-2 py-4 bg-green-600 hover:bg-green-700 text-white rounded-xl font-bold transition-all shadow-md disabled:opacity-50"
+                  >
+                    <Receipt className="w-5 h-5" />
+                    Pay Now
+                  </button>
+                </div>
+              )}
+            </div>
+
+            <div className="p-6 bg-gray-50 dark:bg-gray-700/30 flex justify-end gap-3">
+              {['paid', 'partially_refunded', 'refunded'].includes(selectedPayment.status?.toLowerCase()) && (
+                <button
+                  onClick={() => handleArchivePayment(selectedPayment)}
+                  className="px-6 py-2.5 bg-gray-100 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-200 rounded-xl font-bold hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors shadow-sm flex items-center gap-2"
+                >
+                  <Archive className="w-4 h-4" />
+                  {selectedPayment.is_archived || selectedPayment.isArchived ? 'Restore' : 'Archive'}
+                </button>
+              )}
+              <button
+                onClick={() => {
+                  setShowPaymentModal(false);
+                  setSelectedPayment(null);
                 }}
-              />
-            </div>
-            <div className="px-6 py-4 bg-gray-50 dark:bg-gray-800/80 border-t border-gray-100 dark:border-gray-700 flex justify-end">
-              <button
-                onClick={() => setProofModal({ open: false, payment: null })}
-                className="px-6 py-2 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl text-sm font-bold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
+                className="px-6 py-2.5 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 rounded-xl font-bold hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors shadow-sm"
               >
-                Close Preview
+                Close
               </button>
             </div>
           </div>

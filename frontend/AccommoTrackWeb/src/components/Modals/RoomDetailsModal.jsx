@@ -326,7 +326,7 @@ export default function RoomDetailsModal({
       resolvedAvailableSlots >= 0 ? resolvedAvailableSlots : resolvedCapacity,
     )
     : 1;
-  const showBedCountSelector = pricingModel === "per_bed";
+  const showBedCountSelector = pricingModel === "per_bed" && bookingMode === "proxy";
   const roomGender = normalizeRoomRestriction(room?.sex_restriction);
   const requiredProxyGender = roomGender === "male" || roomGender === "female"
     ? roomGender
@@ -1461,6 +1461,11 @@ export default function RoomDetailsModal({
 
                   {/* Date Selection */}
                   <div className="space-y-4">
+                    <p className="text-sm font-medium text-gray-600 dark:text-gray-400 flex items-center gap-2">
+                       <BedDouble className="w-4 h-4" />
+                       Beds Remaining: <span className="text-green-600 dark:text-green-400 font-bold">{resolvedCapacity - resolvedOccupiedCount}</span>
+                    </p>
+
                     {showBedCountSelector && (
                       <div className="space-y-4">
                         <div>
@@ -1490,9 +1495,6 @@ export default function RoomDetailsModal({
                               1 Bed
                             </div>
                           )}
-                          <p className="text-xs text-gray-500 dark:text-gray-400 mt-2 font-medium">
-                            Occupied: {resolvedOccupiedCount} / {resolvedCapacity}
-                          </p>
                         </div>
 
                         {bookingMode === "normal" && room.available_bed_numbers?.length > 0 && (
