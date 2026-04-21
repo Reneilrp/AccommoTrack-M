@@ -1,7 +1,11 @@
 import api from "./api.js";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { getImageUrl } from "../utils/imageUtils.js";
-import { extractErrorMessage, normalizeActionError } from "../utils/error.js";
+import {
+  extractErrorMessage,
+  normalizeActionError,
+  normalizeExtendStayError,
+} from "../utils/error.js";
 import cacheStore from "../utils/cache.js";
 
 const cacheManager = cacheStore;
@@ -1674,7 +1678,7 @@ const PropertyService = {
       return {
         success: false,
         data: null,
-        error: extractErrorMessage(error),
+        error: normalizeExtendStayError(error),
       };
     }
   },

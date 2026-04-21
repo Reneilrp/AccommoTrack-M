@@ -38,6 +38,7 @@ import {
 } from "../../hooks/useLandlordQueryHelpers.js";
 import { showError, showSuccess, showWarning } from "../../../../utils/toast.js";
 import { hasPermission as checkPermission } from "../../../../utils/permissionHelpers.js";
+import { normalizeExtendStayError } from "../../../../utils/error.js";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const FILTERS = [
@@ -542,7 +543,7 @@ export default function RoomManagementScreen({ navigation, route }) {
       const hasSelectedProperty = properties.some(
         (property) => normalizeId(property.id) === normalizeId(prevId),
       );
-      
+
       if (!hasSelectedProperty) {
         return normalizeId(properties[0].id);
       }
@@ -2684,13 +2685,20 @@ export default function RoomManagementScreen({ navigation, route }) {
                       await refetchLandlordQueries(roomRefetchers);
                       showSuccess('Success', 'Stay extended successfully.');
                     } else {
-                      const errorMsg = res.error || 'Failed to extend stay.';
+                      const errorMsg = normalizeExtendStayError(
+                        res.error,
+                        'Unable to extend stay right now. Please make sure this tenant has an active booking with a move-out date, then try again.',
+                      );
                       setActionError(errorMsg);
-                      showError('Error', errorMsg);
+                      showError('Unable to Extend Stay', errorMsg);
                     }
-                  } catch (_err) {
-                    setActionError('An unexpected error occurred.');
-                    showError('Error', 'An unexpected error occurred.');
+                  } catch (err) {
+                    const errorMsg = normalizeExtendStayError(
+                      err,
+                      'Unable to extend stay right now. Please make sure this tenant has an active booking with a move-out date, then try again.',
+                    );
+                    setActionError(errorMsg);
+                    showError('Unable to Extend Stay', errorMsg);
                   } finally {
                     setExtending(false);
                   }

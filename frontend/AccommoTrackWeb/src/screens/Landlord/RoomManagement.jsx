@@ -4,6 +4,7 @@ import api, { getImageUrl } from '../../utils/api';
 import roomService from '../../services/roomService';
 import landlordService from '../../services/landlordService';
 import { showSuccess, showError } from '../../utils/toast';
+import { normalizeExtendStayError } from '../../utils/error';
 import AddRoomModal from './AddRoom';
 import RoomCard from '../../components/Rooms/RoomCard';
 import RoomDetails from '../../components/Rooms/RoomDetails';
@@ -356,7 +357,7 @@ export default function RoomManagement() {
         handleOpenRoomDetails(targetRoom);
         return true;
       }
-      
+
       return false;
     });
   }, [location.search, rooms, handleOpenRoomDetails]);
@@ -1499,7 +1500,12 @@ export default function RoomManagement() {
             showSuccess('Stay extended successfully!');
           } catch (err) {
             console.error('Failed to extend stay', err);
-            showError(err.response?.data?.message || err.message || 'Failed to extend stay');
+            showError(
+              normalizeExtendStayError(
+                err,
+                'Unable to extend stay right now. Please make sure this tenant has an active booking with a move-out date, then try again.',
+              ),
+            );
             throw err;
           }
         }}

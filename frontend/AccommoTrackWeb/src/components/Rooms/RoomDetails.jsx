@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { X, Users, List, CreditCard, CalendarDays, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import api from '../../utils/api';
+import { showError } from '../../utils/toast';
 
 export default function RoomDetails({ room, isOpen, onClose, onExtend, propertyType }) {
   const [showActivity, setShowActivity] = useState(false);
@@ -55,13 +56,12 @@ export default function RoomDetails({ room, isOpen, onClose, onExtend, propertyT
             <div className="flex items-center gap-2">
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{room.title || `Room ${room.room_number}`}</h3>
               {showGenderBadge && (
-                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border ${
-                  room.sex_restriction === 'male' 
-                    ? 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-800' 
+                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border ${room.sex_restriction === 'male'
+                    ? 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-800'
                     : room.sex_restriction === 'female'
-                    ? 'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-900/20 dark:text-rose-400 dark:border-rose-800'
-                    : 'bg-gray-100 text-gray-700 border-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600'
-                }`}>
+                      ? 'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-900/20 dark:text-rose-400 dark:border-rose-800'
+                      : 'bg-gray-100 text-gray-700 border-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600'
+                  }`}>
                   {room.sex_restriction === 'male' ? 'Boys' : room.sex_restriction === 'female' ? 'Girls' : 'Mixed'}
                 </span>
               )}
@@ -72,7 +72,7 @@ export default function RoomDetails({ room, isOpen, onClose, onExtend, propertyT
           <div className="flex items-center gap-2">
             <button
               onClick={() => setShowActivity(s => !s)}
-              className={`px-4 py-2.5 rounded-md text-sm flex items-center gap-2 ${showActivity ? 'bg-green-600 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'}`} 
+              className={`px-4 py-2.5 rounded-md text-sm flex items-center gap-2 ${showActivity ? 'bg-green-600 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'}`}
               title="Activity logs"
               aria-pressed={showActivity}
             >
@@ -204,6 +204,10 @@ export default function RoomDetails({ room, isOpen, onClose, onExtend, propertyT
                               disabled={extending}
                               onClick={async () => {
                                 if (!onExtend) return;
+                                if (!tenantId) {
+                                  showError('Cannot extend this stay because no tenant account is linked to this room occupant yet.');
+                                  return;
+                                }
                                 const days = extensionValues[idKey] ?? 1;
 
                                 if (!window.confirm(`Extend stay for ${days} days? This will generate an invoice.`)) return;
@@ -225,6 +229,10 @@ export default function RoomDetails({ room, isOpen, onClose, onExtend, propertyT
                               disabled={extending}
                               onClick={async () => {
                                 if (!onExtend) return;
+                                if (!tenantId) {
+                                  showError('Cannot extend this stay because no tenant account is linked to this room occupant yet.');
+                                  return;
+                                }
                                 const months = extensionValues[idKey] ?? 1;
 
                                 if (!window.confirm(`Extend stay for ${months} month(s)? This will generate an invoice.`)) return;
@@ -312,12 +320,11 @@ export default function RoomDetails({ room, isOpen, onClose, onExtend, propertyT
                       <div className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">{a.description || a.details}</div>
                       {a.status && (
                         <div className="mt-2">
-                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
-                            a.color === 'green' ? 'bg-green-100 text-green-700' :
-                            a.color === 'yellow' ? 'bg-yellow-100 text-yellow-700' :
-                            a.color === 'red' ? 'bg-red-100 text-red-700' :
-                            'bg-gray-100 text-gray-700'
-                          }`}>
+                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${a.color === 'green' ? 'bg-green-100 text-green-700' :
+                              a.color === 'yellow' ? 'bg-yellow-100 text-yellow-700' :
+                                a.color === 'red' ? 'bg-red-100 text-red-700' :
+                                  'bg-gray-100 text-gray-700'
+                            }`}>
                             {a.status}
                           </span>
                         </div>

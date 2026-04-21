@@ -14,6 +14,7 @@ import { cacheManager } from '../../utils/cache';
 import { maintenanceService } from '../../services/maintenanceService';
 import roomService from '../../services/roomService';
 import AssignWorkerModal from '../../components/Maintenance/AssignWorkerModal';
+import { normalizeExtendStayError } from '../../utils/error';
 
 import { Swiper, SwiperSlide } from 'swiper/react';
 import { Navigation, Pagination, Autoplay, Keyboard, A11y } from 'swiper/modules';
@@ -1884,7 +1885,7 @@ export default function PropertySummary({ caretakerPermissions = null }) {
               if (days) payload.days = days;
               if (months) payload.months = months;
               if (tenant_id) payload.tenant_id = tenant_id;
-              
+
               const res = await roomService.extendStay(roomId, payload);
               if (!res.success) {
                 throw new Error(res.error || 'Failed to extend stay');
@@ -1892,7 +1893,12 @@ export default function PropertySummary({ caretakerPermissions = null }) {
               showSuccess('Stay extended successfully!');
             } catch (err) {
               console.error('Failed to extend stay', err);
-              showError(err.response?.data?.message || err.message || 'Failed to extend stay');
+              showError(
+                normalizeExtendStayError(
+                  err,
+                  'Unable to extend stay right now. Please make sure this tenant has an active booking with a move-out date, then try again.',
+                ),
+              );
             }
           }}
         />

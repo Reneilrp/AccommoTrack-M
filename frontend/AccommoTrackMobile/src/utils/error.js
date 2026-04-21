@@ -83,3 +83,49 @@ export const normalizeActionError = (
 
     return rawMessage;
 };
+
+/**
+ * Normalize extend-stay errors with clearer, action-oriented guidance.
+ * Falls back to normalizeActionError for generic transport/auth handling.
+ *
+ * @param {any} errorOrMessage
+ * @param {string} fallbackMessage
+ * @returns {string}
+ */
+export const normalizeExtendStayError = (
+    errorOrMessage,
+    fallbackMessage = "Unable to extend stay right now. Please make sure this tenant has an active booking with a move-out date, then try again.",
+) => {
+    const rawMessage = normalizeWhitespace(
+        typeof errorOrMessage === 'string'
+            ? errorOrMessage
+            : extractErrorMessage(errorOrMessage),
+    );
+
+    if (!rawMessage) {
+        return fallbackMessage;
+    }
+
+    if (/(no active booking found for this tenant in this room)/i.test(rawMessage)) {
+        return "No active booking was found for this tenant in this room. Confirm the booking first, then try extending the stay again.";
+    }
+
+    if (/(open-ended monthly stay does not need extension|does not need extension)/i.test(rawMessage)) {
+        return "This is an open-ended monthly stay and does not need an extension. Submit a move-out notice when the tenant plans to leave.";
+    }
+
+    if (/(cannot extend a stay without an existing move-out date|without a current move-out date)/i.test(rawMessage)) {
+        return "Cannot extend this stay because no move-out date is set yet. Set or confirm the move-out date first, then try again.";
+    }
+
+    if (/(tenant_id|tenant id field is required|could not identify the active tenant|tenant not found)/i.test(rawMessage)) {
+        return "Could not identify the active tenant account for this room. Refresh the room list and try again.";
+    }
+
+    const normalized = normalizeActionError(rawMessage, fallbackMessage);
+    if (/^server error\./i.test(normalized)) {
+        return fallbackMessage;
+    }
+
+    return normalized;
+};

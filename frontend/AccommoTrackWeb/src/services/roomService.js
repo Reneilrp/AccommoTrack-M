@@ -1,4 +1,5 @@
 import api from '../utils/api';
+import { normalizeExtendStayError } from '../utils/error';
 
 /**
  * Room CRUD and management operations.
@@ -97,7 +98,7 @@ export const roomService = {
     } catch (err) {
       return { 
         success: false, 
-        error: err.response?.data?.message || err.response?.data?.error || err.message 
+        error: normalizeExtendStayError(err),
       };
     }
   },
