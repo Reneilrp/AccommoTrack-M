@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
-import { 
-  useTenantStayBundle, 
-  useTenantHistory, 
+import {
+  useTenantStayBundle,
+  useTenantHistory,
   useTenantTransfers,
-  tenantQueryKeys 
+  tenantQueryKeys
 } from '../../hooks/useTenantQueries';
 import { tenantService } from '../../services/tenantService';
 import api, { getImageUrl } from '../../utils/api';
@@ -653,7 +653,7 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
     const nonOverduePendingBookingsCount = (pendingBookings || []).filter(b => !(b?.is_overdue || b?.isOverdue)).length;
     const nonOverdueCheckInsCount = (pendingCheckIns || []).filter(pc => !(pc.isOverdue || pc.daysOverdue > 0)).length;
     const nonOverduePendingCount = nonOverduePendingBookingsCount + nonOverdueCheckInsCount;
-    
+
     const overduePendingCheckInsCount = (pendingCheckIns || []).filter(pc => pc.isOverdue || pc.daysOverdue > 0).length;
     const overdueCount = ((stays || []).length - nonOverdueStaysCount) + ((pendingBookings || []).length - nonOverduePendingBookingsCount) + overduePendingCheckInsCount;
 
@@ -933,7 +933,7 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
           const nonOverduePendingBookingsCount = (pendingBookings || []).filter(b => !(b?.is_overdue || b?.isOverdue)).length;
           const nonOverdueCheckInsCount = (pendingCheckIns || []).filter(pc => !(pc.isOverdue || pc.daysOverdue > 0)).length;
           const nonOverduePendingCount = nonOverduePendingBookingsCount + nonOverdueCheckInsCount;
-          
+
           const overduePendingCheckInsCount = (pendingCheckIns || []).filter(pc => pc.isOverdue || pc.daysOverdue > 0).length;
           const overdueCount = ((stays || []).length - nonOverdueStaysCount) + ((pendingBookings || []).length - nonOverduePendingBookingsCount) + overduePendingCheckInsCount;
 
@@ -951,12 +951,11 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
             <div className="relative flex bg-gray-100 dark:bg-gray-900/50 p-1.5 rounded-xl w-full max-w-md border border-gray-300 dark:border-gray-700 shadow-inner">
               {/* Sliding Indicator */}
               <div
-                className={`absolute top-1.5 bottom-1.5 left-1.5 rounded-lg shadow-md transition-all duration-300 ease-out ${
-                  availableTabs[activeTabIndex]?.color || 'bg-green-600'
-                }`}
-                style={{ 
+                className={`absolute top-1.5 bottom-1.5 left-1.5 rounded-lg shadow-md transition-all duration-300 ease-out ${availableTabs[activeTabIndex]?.color || 'bg-green-600'
+                  }`}
+                style={{
                   width: `calc(${tabWidth}% - 3px)`,
-                  transform: `translateX(calc(${activeTabIndex * 100}% + ${activeTabIndex * 3}px))` 
+                  transform: `translateX(calc(${activeTabIndex * 100}% + ${activeTabIndex * 3}px))`
                 }}
               />
 
@@ -964,11 +963,10 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
                 <button
                   key={tab.id}
                   onClick={() => setViewMode(tab.id)}
-                  className={`relative z-10 flex-1 py-2 text-sm font-bold rounded-lg transition-colors duration-300 ${
-                    viewMode === tab.id
+                  className={`relative z-10 flex-1 py-2 text-sm font-bold rounded-lg transition-colors duration-300 ${viewMode === tab.id
                       ? 'text-white'
                       : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
-                  }`}
+                    }`}
                 >
                   {tab.label} ({tab.count})
                 </button>
@@ -1001,8 +999,8 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
                 {pc.isOverdue || Number(pc.daysOverdue) > 0 ? 'Check-in Overdue' : 'Check-in Pending'}
               </h3>
               <p className="text-sm text-gray-500 dark:text-gray-400 mb-6 text-center">
-                {pc.isOverdue || Number(pc.daysOverdue) > 0 
-                  ? 'Action required: finalize your move-in with the landlord.' 
+                {pc.isOverdue || Number(pc.daysOverdue) > 0
+                  ? 'Action required: finalize your move-in with the landlord.'
                   : 'Your move-in date has arrived! Finalize your check-in with the landlord.'}
               </p>
 
@@ -1172,18 +1170,18 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
             const effectivePaymentStatus = (booking?.is_overdue || booking?.isOverdue) ? 'overdue' : (booking?.paymentStatus || 'unknown');
             const hasCheckoutDate = Boolean(booking?.endDate || booking?.end_date);
             const isMonthlyBilling = String(booking?.billing_policy || booking?.billingPolicy || 'monthly').toLowerCase() === 'monthly';
-            
+
             const invoiceList = Array.isArray(data?.financials?.invoices)
               ? data.financials.invoices
               : Array.isArray(booking?.financials?.invoices)
                 ? booking.financials.invoices
                 : [];
-            
+
             const shouldUsePaymentCountdown = isMonthlyBilling && !hasCheckoutDate;
             const paymentCountdown = shouldUsePaymentCountdown
               ? resolveMonthlyPaymentCountdown(booking, invoiceList)
               : null;
-            
+
             const resolvedBedCount = Math.max(1, toWholeNumber(booking?.bed_count ?? booking?.bedCount, 1));
             const resolvedOccupantCount = Math.max(
               1,
@@ -1351,31 +1349,33 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
                           <div className="flex flex-col items-start md:items-end gap-2">
                             <div className="flex items-center gap-2 flex-wrap">
                               {/* Extend Stay button — only if expiring within 30 days */}
-                                {(() => {
-                                  const contractMode = String(booking?.contract_mode || booking?.contractMode || '').toLowerCase();
-                                  const isOpenEndedMonthly = contractMode === 'monthly' && !booking?.endDate;
-                                  if (isOpenEndedMonthly || !booking?.endDate) return null;
-                                  const end = new Date(booking.endDate);
-                                  const today = new Date();
-                                  const daysLeft = Math.ceil((end - today) / (1000 * 60 * 60 * 24));
-                                  if (daysLeft > 30) return null;
-                                  return (
-                                    <button
-                                      onClick={onRequestExtension}
-                                      className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-bold shadow-md shadow-blue-500/20 transition-all active:scale-95"
-                                    >
-                                      <CalendarDays className="w-4 h-4" />
-                                      Extend Stay
-                                    </button>
-                                  );
-                                })()}
+                              {(() => {
+                                const hasNotice = !!(booking.notice_given_at || booking.noticeGivenAt);
+                                if (hasNotice) return null;
+                                const contractMode = String(booking?.contract_mode || booking?.contractMode || '').toLowerCase();
+                                const isOpenEndedMonthly = contractMode === 'monthly' && !booking?.endDate;
+                                if (isOpenEndedMonthly || !booking?.endDate) return null;
+                                const end = new Date(booking.endDate);
+                                const today = new Date();
+                                const daysLeft = Math.ceil((end - today) / (1000 * 60 * 60 * 24));
+                                if (daysLeft > 30) return null;
+                                return (
+                                  <button
+                                    onClick={onRequestExtension}
+                                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-bold shadow-md shadow-blue-500/20 transition-all active:scale-95"
+                                  >
+                                    <CalendarDays className="w-4 h-4" />
+                                    Extend Stay
+                                  </button>
+                                );
+                              })()}
 
                               {/* Transfer button */}
                               {(() => {
-                                  const isPendingForThisBooking = booking?.id ? pendingTransferBookingIds.includes(booking.id) : false;
-                                  const pendingRequestForThisBooking = booking?.id ? pendingTransferRequests.find(
-                                    (request) => Number(request.booking_id) === Number(booking.id),
-                                  ) : null;
+                                const isPendingForThisBooking = booking?.id ? pendingTransferBookingIds.includes(booking.id) : false;
+                                const pendingRequestForThisBooking = booking?.id ? pendingTransferRequests.find(
+                                  (request) => Number(request.booking_id) === Number(booking.id),
+                                ) : null;
                                 const limitReached = monthlyTransferCount >= 2;
                                 const now = new Date();
                                 const nextMonthStart = new Date(now.getFullYear(), now.getMonth() + 1, 1);
@@ -1456,8 +1456,8 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
                                     disabled={!isCurrentMonthPaid}
                                     title={!isCurrentMonthPaid ? 'Move-out is available only when current month status is Paid.' : ''}
                                     className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold shadow-md transition-all active:scale-95 ${!isCurrentMonthPaid
-                                        ? 'bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed shadow-none'
-                                        : 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-indigo-500/20'
+                                      ? 'bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed shadow-none'
+                                      : 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-indigo-500/20'
                                       }`}
                                   >
                                     <DoorOpen className="w-4 h-4" />
@@ -1567,18 +1567,18 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
                       </div>
                     </div>
                     <div className="space-y-4">
-                        <a href={`mailto:${landlord?.email || ''}`} className="flex items-center gap-4 text-sm text-gray-600 dark:text-gray-300 hover:text-green-600 dark:hover:text-green-400 transition-colors">
-                          <div className="w-10 h-10 rounded-xl bg-gray-100 dark:bg-gray-700 flex items-center justify-center text-gray-500 dark:text-gray-400 shrink-0">
-                            <Mail className="w-5 h-5" />
-                          </div>
-                          {landlord?.email || 'N/A'}
-                        </a>
-                        <a href={`tel:${landlord?.phone || ''}`} className="flex items-center gap-4 text-sm text-gray-600 dark:text-gray-300 hover:text-green-600 dark:hover:text-green-400 transition-colors">
-                          <div className="w-10 h-10 rounded-xl bg-gray-100 dark:bg-gray-700 flex items-center justify-center text-gray-500 dark:text-gray-400 shrink-0">
-                            <Phone className="w-5 h-5" />
-                          </div>
-                          {landlord?.phone || 'N/A'}
-                        </a>
+                      <a href={`mailto:${landlord?.email || ''}`} className="flex items-center gap-4 text-sm text-gray-600 dark:text-gray-300 hover:text-green-600 dark:hover:text-green-400 transition-colors">
+                        <div className="w-10 h-10 rounded-xl bg-gray-100 dark:bg-gray-700 flex items-center justify-center text-gray-500 dark:text-gray-400 shrink-0">
+                          <Mail className="w-5 h-5" />
+                        </div>
+                        {landlord?.email || 'N/A'}
+                      </a>
+                      <a href={`tel:${landlord?.phone || ''}`} className="flex items-center gap-4 text-sm text-gray-600 dark:text-gray-300 hover:text-green-600 dark:hover:text-green-400 transition-colors">
+                        <div className="w-10 h-10 rounded-xl bg-gray-100 dark:bg-gray-700 flex items-center justify-center text-gray-500 dark:text-gray-400 shrink-0">
+                          <Phone className="w-5 h-5" />
+                        </div>
+                        {landlord?.phone || 'N/A'}
+                      </a>
                       <button
                         onClick={() => navigate('/messages', {
                           state: {
@@ -2899,9 +2899,9 @@ const TransferRequestModal = ({ booking, property, onClose, onSubmit, loading })
                                 <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Excess Credit Preference *</label>
                                 <div className="space-y-2">
                                   <label className="flex items-start gap-3 p-3 border border-gray-200 dark:border-gray-700 rounded-xl cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 transition" onClick={() => setRefundPreference('wallet')}>
-                                    <input 
-                                      type="radio" 
-                                      name="refundPreference" 
+                                    <input
+                                      type="radio"
+                                      name="refundPreference"
                                       value="wallet"
                                       checked={refundPreference === 'wallet'}
                                       onChange={() => setRefundPreference('wallet')}
@@ -2913,9 +2913,9 @@ const TransferRequestModal = ({ booking, property, onClose, onSubmit, loading })
                                     </div>
                                   </label>
                                   <label className="flex items-start gap-3 p-3 border border-gray-200 dark:border-gray-700 rounded-xl cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 transition" onClick={() => setRefundPreference('cash')}>
-                                    <input 
-                                      type="radio" 
-                                      name="refundPreference" 
+                                    <input
+                                      type="radio"
+                                      name="refundPreference"
                                       value="cash"
                                       checked={refundPreference === 'cash'}
                                       onChange={() => setRefundPreference('cash')}

@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -36,13 +36,30 @@ const formatRelativeTime = (timestamp) => {
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 };
 
+const resolveNotificationType = (rawType = '') => {
+  const type = String(rawType || '').toLowerCase();
+  if (type.includes('transfer')) return 'transfer';
+  if (type.includes('move_out')) return 'move_out';
+  if (type.includes('extension')) return 'extension';
+  if (type.includes('addon')) return 'addon';
+  if (type.includes('maintenance')) return 'maintenance';
+  if (type.includes('message')) return 'message';
+  if (type.includes('booking')) return 'booking';
+  if (type.includes('payment') || type.includes('billing') || type === 'rent_paid' || type === 'cash_payment_verified') return 'payment';
+  if (type.includes('room')) return 'room';
+  if (type.includes('tenant')) return 'tenant';
+  return 'default';
+};
+
 const mapNotification = (notification) => ({
   id: notification.id,
-  type: String(notification.type || 'default'),
+  rawType: String(notification.type || 'default'),
+  type: resolveNotificationType(notification.data?.type || notification.type),
   title: notification.data?.title || 'Notification',
   message: notification.data?.message || notification.data?.description || '',
   timestamp: notification.created_at,
   read: Boolean(notification.is_read || notification.read_at),
+  data: notification.data || {},
 });
 
 const notificationTypeMap = {
@@ -51,6 +68,7 @@ const notificationTypeMap = {
   message: { icon: 'chatbubble-outline', color: '#9C27B0', bg: '#F3E8FF' },
   maintenance: { icon: 'construct-outline', color: '#FF9800', bg: '#FEF3C7' },
   alert: { icon: 'warning-outline', color: '#F44336', bg: '#FEE2E2' },
+  move_out: { icon: 'log-out-outline', color: '#EF4444', bg: '#FEE2E2' },
   move_out_notice: { icon: 'log-out-outline', color: '#EF4444', bg: '#FEE2E2' },
   'App\\Notifications\\LandlordApprovedNotification': { icon: 'checkmark-circle', color: '#16a34a', bg: '#DCFCE7' },
   'App\\Notifications\\LandlordRejectedNotification': { icon: 'close-circle', color: '#EF4444', bg: '#FEE2E2' },
@@ -143,6 +161,66 @@ export default function NotificationsScreen({ navigation }) {
     }
   };
 
+  const openNotificationTarget = useCallback((notification) => {
+    const type = resolveNotificationType(notification?.type || notification?.rawType);
+    const bookingId = notification?.data?.booking_id || notification?.data?.bookingId || null;
+    const invoiceId = notification?.data?.invoice_id || notification?.data?.invoiceId || null;
+
+    if (type === 'booking' || type === 'move_out' || type === 'extension') {
+      navigation.navigate('Bookings', {
+        focusBookingId: bookingId,
+        drilldownToken: Date.now(),
+      });
+      return;
+    }
+
+    if (type === 'payment') {
+      navigation.navigate('Payments', {
+        focusInvoiceId: invoiceId,
+        drilldownToken: Date.now(),
+      });
+      return;
+    }
+
+    if (type === 'message') {
+      navigation.navigate('Messages');
+      return;
+    }
+
+    if (type === 'maintenance') {
+      navigation.navigate('MaintenanceRequests', {
+        focusRequestId: notification?.data?.request_id || notification?.data?.requestId || null,
+        drilldownToken: Date.now(),
+      });
+      return;
+    }
+
+    if (type === 'transfer') {
+      navigation.navigate('TransferRequests', {
+        focusTransferId: notification?.data?.transfer_id || notification?.data?.transferId || null,
+        drilldownToken: Date.now(),
+      });
+      return;
+    }
+
+    if (type === 'addon') {
+      navigation.navigate('AddonManagement', {
+        focusRequestId: notification?.data?.request_id || notification?.data?.requestId || null,
+        drilldownToken: Date.now(),
+      });
+    }
+  }, [navigation]);
+
+  const handleNotificationPress = useCallback((notification) => {
+    if (!notification) return;
+
+    if (!notification.read) {
+      markAsRead(notification.id);
+    }
+
+    openNotificationTarget(notification);
+  }, [markAsRead, openNotificationTarget]);
+
   const unreadCount = notifications.filter((n) => !n.read).length;
 
   if (loading && notifications.length === 0) {
@@ -212,17 +290,12 @@ export default function NotificationsScreen({ navigation }) {
           </View>
         ) : (
           notifications.map((notification) => {
-            // Map backend types if complex
-            let simpleType = 'default';
-            if (notification.type.includes('Approved')) simpleType = 'App\\Notifications\\LandlordApprovedNotification';
-            else if (notification.type.includes('Rejected')) simpleType = 'App\\Notifications\\LandlordRejectedNotification';
-            else if (notification.type.toLowerCase().includes('booking')) simpleType = 'booking';
-            else if (notification.type.toLowerCase().includes('payment')) simpleType = 'payment';
-            else if (notification.type.toLowerCase().includes('message')) simpleType = 'message';
-            else if (notification.type.toLowerCase().includes('maintenance')) simpleType = 'maintenance';
-            else if (notification.type.toLowerCase().includes('move_out_notice')) simpleType = 'move_out_notice';
+            let displayType = notification.type;
+            const rawType = String(notification.rawType || '').toLowerCase();
+            if (rawType.includes('approved')) displayType = 'App\\Notifications\\LandlordApprovedNotification';
+            else if (rawType.includes('rejected')) displayType = 'App\\Notifications\\LandlordRejectedNotification';
 
-            const typeConfig = notificationTypeMap[simpleType] || notificationTypeMap[notification.type] || notificationTypeMap.default;
+            const typeConfig = notificationTypeMap[displayType] || notificationTypeMap.default;
 
             return (
               <TouchableOpacity
@@ -231,7 +304,7 @@ export default function NotificationsScreen({ navigation }) {
                   styles.notificationItem,
                   !notification.read && styles.notificationUnread,
                 ]}
-                onPress={() => markAsRead(notification.id)}
+                onPress={() => handleNotificationPress(notification)}
                 activeOpacity={0.7}
               >
                 <View style={[styles.iconContainer, { backgroundColor: typeConfig.bg }]}>

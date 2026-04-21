@@ -1,11 +1,15 @@
 import React from 'react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import MyBookings from '../MyBookings.jsx';
 
 const mockNavigate = jest.fn();
 const mockUpdateScreenState = jest.fn();
 const mockUpdateData = jest.fn();
 const mockInvalidateData = jest.fn();
+const mockUseTenantStayBundle = jest.fn();
+const mockUseTenantTransfers = jest.fn();
+const mockUseTenantHistory = jest.fn();
 
 jest.mock('react-router-dom', () => ({
   useNavigate: () => mockNavigate,
@@ -21,6 +25,16 @@ jest.mock('../../../contexts/UIStateContext', () => ({
     updateData: mockUpdateData,
     invalidateData: mockInvalidateData,
   }),
+}));
+
+jest.mock('../../../hooks/useTenantQueries', () => ({
+  useTenantStayBundle: () => mockUseTenantStayBundle(),
+  useTenantTransfers: () => mockUseTenantTransfers(),
+  useTenantHistory: () => mockUseTenantHistory(),
+  tenantQueryKeys: {
+    dashboardBundle: () => ['tenant-dashboard-bundle'],
+    transfers: () => ['tenant-transfers'],
+  },
 }));
 
 jest.mock('../../../services/tenantService', () => ({
@@ -56,6 +70,22 @@ jest.mock('react-hot-toast', () => ({
 
 const { tenantService } = jest.requireMock('../../../services/tenantService');
 const api = jest.requireMock('../../../utils/api').default;
+
+const renderWithQueryClient = (ui) => {
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      queries: {
+        retry: false,
+        gcTime: 0,
+      },
+      mutations: {
+        retry: false,
+      },
+    },
+  });
+
+  return render(<QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>);
+};
 
 const buildIsoDate = (offsetDays) => {
   const date = new Date();
@@ -116,19 +146,30 @@ describe('MyBookings transfer/extend submit flows (web)', () => {
 
     mockStay = buildStay();
 
-    tenantService.getCurrentStay.mockResolvedValue({
-      stays: [mockStay],
-      pendingCheckIns: [],
-      upcomingBooking: null,
+    mockUseTenantStayBundle.mockReturnValue({
+      data: {
+        stays: [mockStay],
+        bookingsList: [],
+        pendingCheckIns: [],
+        upcomingBooking: null,
+      },
+      isLoading: false,
+      refetch: jest.fn().mockResolvedValue({}),
+      error: null,
     });
 
-    tenantService.getBookings.mockResolvedValue({
-      bookings: [],
+    mockUseTenantTransfers.mockReturnValue({
+      data: [],
+      isLoading: false,
+      refetch: jest.fn().mockResolvedValue({}),
     });
 
-    tenantService.getHistory.mockResolvedValue({
-      bookings: [],
-      pagination: null,
+    mockUseTenantHistory.mockReturnValue({
+      data: {
+        bookings: [],
+        pagination: null,
+      },
+      isFetching: false,
     });
 
     api.get.mockImplementation((url) => {
@@ -159,7 +200,7 @@ describe('MyBookings transfer/extend submit flows (web)', () => {
   });
 
   it('submits extend-stay request payload from Extension modal', async () => {
-    render(<MyBookings />);
+    renderWithQueryClient(<MyBookings />);
 
     const extendButton = await screen.findByRole('button', { name: 'Extend Stay' });
     fireEvent.click(extendButton);
@@ -183,11 +224,19 @@ describe('MyBookings transfer/extend submit flows (web)', () => {
 
     const extensionPayload = api.post.mock.calls.find(([url]) => url === '/bookings/11/extend')?.[1];
     expect(extensionPayload?.requested_end_date).toBe(expectedDate.toISOString().split('T')[0]);
-    expect(mockInvalidateData).toHaveBeenCalledWith(['dashboard', 'bookings']);
+  });
+
+  it('hides extend-stay action when move-out notice is already submitted', async () => {
+    mockStay.booking.notice_given_at = buildIsoDate(-1);
+
+    renderWithQueryClient(<MyBookings />);
+
+    await screen.findByText('Notice Submitted');
+    expect(screen.queryByRole('button', { name: 'Extend Stay' })).not.toBeInTheDocument();
   });
 
   it('submits transfer request payload from Transfer modal', async () => {
-    render(<MyBookings />);
+    renderWithQueryClient(<MyBookings />);
 
     const transferButton = await screen.findByRole('button', { name: 'Transfer' });
     fireEvent.click(transferButton);
@@ -218,7 +267,5 @@ describe('MyBookings transfer/extend submit flows (web)', () => {
         }),
       );
     });
-
-    expect(mockInvalidateData).toHaveBeenCalledWith(['dashboard', 'bookings']);
   });
 });

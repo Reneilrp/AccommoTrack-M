@@ -825,8 +825,12 @@ export default function MyBookings() {
         const bookingContractMode = String(
           bookingEntry.contract_mode || bookingEntry.contractMode || '',
         ).toLowerCase();
+        const hasMoveOutNotice = Boolean(bookingEntry.notice_given_at || bookingEntry.noticeGivenAt);
 
-        const canRequestExtension = !(bookingContractMode === 'monthly' && !hasScheduledEndDate) && hasScheduledEndDate;
+        const canRequestExtension =
+          !(bookingContractMode === 'monthly' && !hasScheduledEndDate) &&
+          hasScheduledEndDate &&
+          !hasMoveOutNotice;
         if (!canRequestExtension) continue;
 
         let daysRemaining = Number(bookingEntry.daysRemaining ?? bookingEntry.days_remaining);
@@ -1713,7 +1717,11 @@ export default function MyBookings() {
     const reservationPolicy = currentData?.reservation_policy || booking?.reservation_policy;
     const bookingContractMode = String(booking.contract_mode || booking.contractMode || '').toLowerCase();
     const hasScheduledEndDate = Boolean(booking.endDate || booking.end_date);
-    const canRequestExtension = !booking.isPending && !(bookingContractMode === 'monthly' && !hasScheduledEndDate) && hasScheduledEndDate;
+    const canRequestExtension =
+      !booking.isPending &&
+      !(bookingContractMode === 'monthly' && !hasScheduledEndDate) &&
+      hasScheduledEndDate &&
+      !Boolean(booking.notice_given_at || booking.noticeGivenAt);
     const pendingTransferForBooking = pendingTransferRequests.find(
       (item) => Number(item?.booking_id) === Number(booking.id),
     );

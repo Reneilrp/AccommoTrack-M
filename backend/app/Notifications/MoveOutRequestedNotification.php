@@ -35,7 +35,7 @@ class MoveOutRequestedNotification extends Notification
         $roomNumber = optional($this->booking->room)->room_number ?? 'Unknown Room';
 
         return [
-            'type' => 'move_out_notice',
+            'type' => 'move_out',
             'title' => 'Move-Out Notice Submitted',
             'message' => "{$tenantName} (Room {$roomNumber}) has submitted a move-out notice for {$this->booking->end_date}.",
             'booking_id' => $this->booking->id,

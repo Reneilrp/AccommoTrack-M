@@ -13,6 +13,8 @@ const FILTERS = [
 
 const TYPE_CONFIG = {
   booking: { icon: Calendar, color: 'text-blue-600 dark:text-blue-400', bg: 'bg-blue-100 dark:bg-blue-900/30' },
+  move_out: { icon: Home, color: 'text-rose-600 dark:text-rose-400', bg: 'bg-rose-100 dark:bg-rose-900/30' },
+  extension: { icon: Calendar, color: 'text-cyan-600 dark:text-cyan-400', bg: 'bg-cyan-100 dark:bg-cyan-900/30' },
   payment: { icon: CreditCard, color: 'text-green-600 dark:text-green-400', bg: 'bg-green-100 dark:bg-green-900/30' },
   maintenance: { icon: AlertCircle, color: 'text-amber-600 dark:text-amber-400', bg: 'bg-amber-100 dark:bg-amber-900/30' },
   message: { icon: Bell, color: 'text-purple-600 dark:text-purple-400', bg: 'bg-purple-100 dark:bg-purple-900/30' },
@@ -23,14 +25,20 @@ const TYPE_CONFIG = {
 const DEFAULT_CONFIG = { icon: Bell, color: 'text-gray-500 dark:text-gray-400', bg: 'bg-gray-100 dark:bg-gray-700' };
 
 function inferType(notification) {
-  const t = (notification.type || '').toLowerCase();
-  const dataType = (notification.data?.type || '').toLowerCase();
-  if (t.includes('booking') || dataType === 'booking') return 'booking';
-  if (t.includes('payment') || dataType === 'payment') return 'payment';
-  if (t.includes('maintenance') || dataType === 'maintenance') return 'maintenance';
-  if (t.includes('message') || dataType === 'message') return 'message';
-  if (t.includes('tenant') || dataType === 'tenant') return 'tenant';
-  if (t.includes('room') || dataType === 'room') return 'room';
+  const rawType = String(notification?.type || '').toLowerCase();
+  const dataType = String(notification?.data?.type || '').toLowerCase();
+  const type = `${rawType} ${dataType}`;
+
+  if (type.includes('transfer')) return 'transfer';
+  if (type.includes('move_out')) return 'move_out';
+  if (type.includes('extension')) return 'extension';
+  if (type.includes('addon')) return 'addon';
+  if (type.includes('maintenance')) return 'maintenance';
+  if (type.includes('message')) return 'message';
+  if (type.includes('booking')) return 'booking';
+  if (type.includes('payment') || type.includes('billing') || type.includes('rent_paid') || type.includes('cash_payment_verified')) return 'payment';
+  if (type.includes('tenant')) return 'tenant';
+  if (type.includes('room')) return 'room';
   return 'default';
 }
 
@@ -103,7 +111,7 @@ export default function NotificationsPage() {
       const safeActs = (Array.isArray(rawActs) ? rawActs : []).slice(0, 20).map(a => ({
         id: `act-${a.id || a.timestamp}`,
         _kind: 'activity',
-        type: a.type || 'default',
+        type: inferType({ type: a.type, data: a.data }),
         title: a.action || 'Activity',
         message: a.description || '',
         timestamp: a.timestamp,
@@ -155,7 +163,10 @@ export default function NotificationsPage() {
 
   const handleClick = (n) => {
     if (n._kind === 'notification' && !n.read) markAsRead(n.id);
-    if (n.type === 'booking') navigate('/bookings');
+    if (n.type === 'booking' || n.type === 'move_out' || n.type === 'extension') {
+      const bookingId = n.data?.booking_id || n.data?.bookingId || n.data?.id;
+      navigate(bookingId ? `/bookings?bookingId=${bookingId}` : '/bookings');
+    }
     else if (n.type === 'payment') {
       const params = new URLSearchParams();
       const payload = n._kind === 'activity' ? (n.data || {}) : (n.data || {});
@@ -173,6 +184,8 @@ export default function NotificationsPage() {
 
       navigate(`/payments?${params.toString()}`);
     }
+    else if (n.type === 'transfer') navigate('/transfers');
+    else if (n.type === 'addon') navigate('/addons');
     else if (n.type === 'maintenance') navigate('/maintenance');
     else if (n.type === 'message') navigate('/messages');
   };
@@ -182,6 +195,7 @@ export default function NotificationsPage() {
   const filtered = notifications.filter(n => {
     if (filter === 'unread') return !n.read;
     if (filter === 'all') return true;
+    if (filter === 'booking') return n.type === 'booking' || n.type === 'move_out' || n.type === 'extension';
     return n.type === filter;
   });
 
@@ -217,8 +231,8 @@ export default function NotificationsPage() {
             key={f.id}
             onClick={() => setFilter(f.id)}
             className={`px-4 py-2 text-sm font-semibold rounded-full transition-colors ${filter === f.id
-                ? 'bg-green-600 text-white'
-                : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+              ? 'bg-green-600 text-white'
+              : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
               }`}
           >
             {f.label}

@@ -301,6 +301,15 @@ describe('MyBookings transfer/extend submit flows (mobile)', () => {
     });
   });
 
+  it('hides extend action when move-out notice is already submitted', async () => {
+    mockStay.booking.notice_given_at = buildIsoDate(-1);
+
+    renderWithQueryClient(<MyBookings />);
+
+    await screen.findByText('Notice Submitted');
+    expect(screen.queryByText('Extend')).toBeNull();
+  });
+
   it('submits transfer request from transfer modal', async () => {
     renderWithQueryClient(<MyBookings />);
 
