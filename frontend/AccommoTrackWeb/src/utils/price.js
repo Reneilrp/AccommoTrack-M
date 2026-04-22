@@ -1,20 +1,31 @@
-export function formatPrice(value, { currency = 'PHP', locale = 'en-PH', minimumFractionDigits = 0 } = {}) {
-  const num = Math.round(Number(value));
+import Decimal from './decimal';
+
+export function formatPrice(value, { currency = 'PHP', locale = 'en-PH', minimumFractionDigits = 2 } = {}) {
+  let num;
+  try {
+    num = new Decimal(value || 0).toNumber();
+  } catch (__e) {
+    num = 0;
+  }
+
   if (!Number.isFinite(num)) return formatZero(currency);
 
-  // For PHP show zero decimal places by default, but allow 2 decimals when cents are present
-  const digits = Number.isInteger(num) && minimumFractionDigits === 0 ? 0 : Math.max(2, minimumFractionDigits);
+  // For financial decimals, we usually want at least 2 decimal places.
+  const digits = minimumFractionDigits;
 
   try {
     return new Intl.NumberFormat(locale, {
       style: 'currency',
       currency,
       minimumFractionDigits: digits,
-      maximumFractionDigits: digits
+      maximumFractionDigits: Math.max(digits, 2)
     }).format(num);
   } catch (__e) {
     // Fallback: simple formatted number with currency symbol
-    return (currency === 'PHP' ? '₱' : '') + num.toLocaleString();
+    return (currency === 'PHP' ? '₱' : '') + num.toLocaleString(undefined, {
+      minimumFractionDigits: digits,
+      maximumFractionDigits: Math.max(digits, 2)
+    });
   }
 }
 

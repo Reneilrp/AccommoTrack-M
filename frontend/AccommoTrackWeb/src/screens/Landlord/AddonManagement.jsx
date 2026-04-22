@@ -1,1078 +1,160 @@
-import React, { useState, useEffect } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import React, { useState, useEffect, useCallback } from 'react';
+import { RefreshCw, Plus, Loader2 } from 'lucide-react';
+import { showSuccess, showError } from '../../utils/toast';
+import api from '../../utils/api';
+import AddonStats from './components/Addons/AddonStats';
+import AddonTable from './components/Addons/AddonTable';
+import AddonModal from './components/Addons/AddonModal';
+import AddonRequestTable from './components/Addons/AddonRequestTable';
 
-import { addonService } from "../../services/addonService";
-import { useUIState } from "../../contexts/UIStateContext";
-import { cacheManager } from "../../utils/cache";
-import { showSuccess, showError } from "../../utils/toast";
-import {
-  Plus,
-  Pencil,
-  Trash2,
-  Check,
-  X,
-  Sparkles,
-  BellRing,
-  RefreshCw,
-  Loader2,
-  ArrowLeft,
-  Building2,
-  MapPin,
-  ChevronRight,
-} from "lucide-react";
-import api from "../../utils/api";
-
-const AddonManagement = ({ propertyId, user, accessRole }) => {
-  const { uiState, updateData } = useUIState();
-  const navigate = useNavigate();
-  const location = useLocation();
-  const queryParams = new URLSearchParams(location.search);
-  const resolvedPropertyId =
-    propertyId ||
-    queryParams.get("property_id") ||
-    location.state?.propertyId ||
-    null;
-
-  const isCaretaker = user?.role === 'caretaker' || accessRole === 'caretaker';
-
-  // ── Caretaker property auto-resolution ───────────────────────────────────────
-  // When no property_id comes from props/URL and the user is a caretaker,
-  // fetch their assigned properties and auto-select if there's exactly one.
-  const [caretakerProperties, setCaretakerProperties] = useState([]);
-  const [caretakerPropsLoading, setCaretakerPropsLoading] = useState(false);
-  const [pickedPropertyId, setPickedPropertyId] = useState(null);
-
-  // The effective property ID used by the rest of the component
-  const effectivePropertyId = resolvedPropertyId || pickedPropertyId;
-
-  useEffect(() => {
-    if (resolvedPropertyId || !isCaretaker) return;
-    // No property in URL — fetch caretaker's assigned properties
-    setCaretakerPropsLoading(true);
-    api
-      .get('/landlord/properties')
-      .then((res) => {
-        const payload = res.data;
-        const list = Array.isArray(payload)
-          ? payload
-          : Array.isArray(payload?.data)
-            ? payload.data
-            : [];
-        setCaretakerProperties(list);
-        // Auto-select when there's exactly one assigned property
-        if (list.length === 1) {
-          setPickedPropertyId(String(list[0].id));
-        }
-      })
-      .catch(() => setCaretakerProperties([]))
-      .finally(() => setCaretakerPropsLoading(false));
-  }, [resolvedPropertyId, isCaretaker]);
-
-  // ──────────────────────────────────────────────────────────────
-
-  const cacheKey = `landlord_addons_${effectivePropertyId || "all"}`;
-  const cachedData = uiState.data?.[cacheKey] || cacheManager.get(cacheKey);
-
-  const [addons, setAddons] = useState(cachedData?.addons || []);
-  const [pendingRequests, setPendingRequests] = useState(
-    cachedData?.pendingRequests || [],
-  );
-  const [activeAddons, setActiveAddons] = useState(
-    cachedData?.activeAddons || { activeAddons: [], summary: {} },
-  );
-  const [loading, setLoading] = useState(false);
-  const [togglingAddonId, setTogglingAddonId] = useState(null);
-  const [activeTab, setActiveTab] = useState("manage");
+export default function AddonManagement() {
+  const [addons, setAddons] = useState([]);
+  const [stats, setStats] = useState({ total: 0, pending: 0, revenue: 0, approved: 0 });
+  const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
-  const [editingAddon, setEditingAddon] = useState(null);
-  const [formData, setFormData] = useState({
-    name: "",
-    description: "",
-    price: "",
-    price_type: "monthly",
-    addon_type: "fee",
-    stock: "",
-    is_active: true,
-  });
+  const [selectedAddon, setSelectedAddon] = useState(null);
+  const [processing, setProcessing] = useState(false);
 
-  useEffect(() => {
-    if (!effectivePropertyId) {
-      setLoading(false);
-      return;
-    }
-    fetchData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [effectivePropertyId]);
+  const [requests, setRequests] = useState([]);
+  const [activeTab, setActiveTab] = useState('inventory'); // inventory or requests
+  const [actionType, setActionType] = useState(null);
 
-  const fetchData = async () => {
-    if (!effectivePropertyId) return;
-    if (!cachedData) setLoading(true);
+  const fetchData = useCallback(async () => {
+    setLoading(true);
     try {
-      const [addonsRes, pendingRes, activeRes] = await Promise.all([
-        addonService.getPropertyAddons(resolvedPropertyId),
-        addonService.getPendingRequests(resolvedPropertyId),
-        addonService.getActiveAddons(resolvedPropertyId),
+      const [addonsRes, statsRes, requestsRes] = await Promise.all([
+        api.get('/landlord/addons'),
+        api.get('/landlord/addons/stats'),
+        api.get('/landlord/addons/pending-requests')
       ]);
-      const addonsList = addonsRes.addons || [];
-      const pendingList = pendingRes.pendingRequests || [];
-      const activeData = activeRes;
-
-      setAddons(addonsList);
-      setPendingRequests(pendingList);
-      setActiveAddons(activeData);
-
-      // Update cache
-      const combined = {
-        addons: addonsList,
-        pendingRequests: pendingList,
-        activeAddons: activeData,
-      };
-      const ck = `landlord_addons_${effectivePropertyId}`;
-      updateData(ck, combined);
-      cacheManager.set(ck, combined);
-    } catch (error) {
-      console.error("Failed to fetch addon data:", error);
-      showError(
-        error?.response?.data?.message || "Failed to load add-on data",
-      );
+      if (addonsRes.data) setAddons(addonsRes.data);
+      if (statsRes.data) setStats(statsRes.data);
+      if (requestsRes.data) setRequests(requestsRes.data);
+    } catch (_err) {
+      showError('Failed to load add-ons');
     } finally {
       setLoading(false);
     }
+  }, []);
+
+  useEffect(() => { fetchData(); }, [fetchData]);
+
+  const handleDelete = async (id) => {
+    if (!window.confirm('Are you sure you want to delete this add-on?')) return;
+    try {
+      await api.delete(`/landlord/addons/${id}`);
+      showSuccess('Add-on deleted successfully');
+      fetchData();
+    } catch (_err) {
+      showError(_err.response?.data?.message || 'Failed to delete add-on');
+    }
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const handleSubmit = async (data) => {
+    setProcessing(true);
     try {
-      const data = {
-        ...formData,
-        price: parseFloat(formData.price),
-        stock: formData.stock ? parseInt(formData.stock) : null,
-      };
-
-      if (editingAddon) {
-        await addonService.updateAddon(effectivePropertyId, editingAddon.id, data);
-        showSuccess("Addon updated successfully!");
+      if (selectedAddon) {
+        await api.put(`/landlord/addons/${selectedAddon.id}`, data);
+        showSuccess('Add-on updated successfully');
       } else {
-        await addonService.createAddon(effectivePropertyId, data);
-        showSuccess("Addon created successfully!");
+        await api.post('/landlord/addons', data);
+        showSuccess('Add-on created successfully');
       }
-
+      fetchData();
       setShowModal(false);
-      resetForm();
-      fetchData();
-    } catch (error) {
-      showError(error.response?.data?.message || "Failed to save addon");
-    }
-  };
-
-  const handleDelete = async (addonId) => {
-    if (!confirm("Are you sure you want to delete this addon?")) return;
-    try {
-      await addonService.deleteAddon(effectivePropertyId, addonId);
-      showSuccess("Addon deleted successfully!");
-      fetchData();
-    } catch (error) {
-      showError(error.response?.data?.message || "Failed to delete addon");
-    }
-  };
-
-  const handleToggleActive = async (addon) => {
-    setTogglingAddonId(addon.id);
-    try {
-      await addonService.updateAddon(effectivePropertyId, addon.id, {
-        is_active: !addon.isActive,
-      });
-      showSuccess(
-        addon.isActive ? "Add-on deactivated" : "Add-on activated",
-      );
-      fetchData();
-    } catch (error) {
-      showError(error.response?.data?.message || "Failed to update add-on");
+    } catch (_err) {
+      showError(_err.response?.data?.message || 'Failed to save add-on');
     } finally {
-      setTogglingAddonId(null);
+      setProcessing(false);
     }
   };
 
-  const handleUpdateActivePrice = async (bookingId, addonId, newPrice) => {
-    await addonService.updateActiveAddonPrice(bookingId, addonId, newPrice);
-    fetchData();
-  };
-
-  const handleRequest = async (bookingId, addonId, action, customPrice = null) => {
-    const note =
-      action === "reject" ? prompt("Reason for rejection (optional):") : null;
+  const handleRequestAction = async (id, action) => {
+    setProcessing(true);
+    setProcessingId(id);
+    setActionType(action);
     try {
-      const payload = {
-        action,
-        note: note || undefined,
-      };
-      
-      // Include custom price if provided (for approve action)
-      if (action === 'approve' && customPrice !== null) {
-        payload.custom_price = customPrice;
-      }
-      
-      await addonService.handleAddonRequest(bookingId, addonId, payload);
-      showSuccess(`Request ${action}ed successfully!`);
+      await api.patch(`/landlord/addons/requests/${id}`, { action });
+      showSuccess(`Request ${action}d successfully`);
       fetchData();
-    } catch (error) {
-      showError(
-        error.response?.data?.message || `Failed to ${action} request`,
-      );
+    } catch (_err) {
+      showError(_err.response?.data?.message || 'Action failed');
+    } finally {
+      setProcessing(false);
+      setProcessingId(null);
+      setActionType(null);
     }
   };
 
-  const resetForm = () => {
-    setFormData({
-      name: "",
-      description: "",
-      price: "",
-      price_type: "monthly",
-      addon_type: "fee",
-      stock: "",
-      is_active: true,
-    });
-    setEditingAddon(null);
-  };
-
-  const openEditModal = (addon) => {
-    setEditingAddon(addon);
-    setFormData({
-      name: addon.name,
-      description: addon.description || "",
-      price: addon.price.toString(),
-      price_type: addon.priceType,
-      addon_type: addon.addonType,
-      stock: addon.stock?.toString() || "",
-      is_active: addon.isActive,
-    });
-    setShowModal(true);
-  };
-
-  const tabs = [
-    {
-      id: "manage",
-      label: "Manage Add-ons",
-      icon: Sparkles,
-      count: addons.length,
-    },
-    {
-      id: "requests",
-      label: "Pending Requests",
-      icon: BellRing,
-      count: pendingRequests.length,
-    },
-    {
-      id: "active",
-      label: "Active Add-ons",
-      icon: Check,
-      count: activeAddons.summary?.totalActive || 0,
-    },
-  ];
-
-
-
-  if (!effectivePropertyId) {
-    // Loading caretaker's properties
-    if (caretakerPropsLoading) {
-      return (
-        <div className="flex items-center justify-center py-16">
-          <Loader2 className="w-8 h-8 animate-spin text-green-600" />
-        </div>
-      );
-    }
-
-    // Caretaker has multiple properties — show a picker
-    if (isCaretaker && caretakerProperties.length > 1) {
-      return (
-        <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-          <header className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700 sticky top-0 z-30 mb-8">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-              <div className="flex items-center justify-center relative min-h-[40px]">
-                <div className="absolute left-0">
-                  <button
-                    type="button"
-                    onClick={() => navigate(-1)}
-                    className="p-2 bg-white dark:bg-gray-800 text-green-600 rounded-full shadow-sm border border-gray-200 dark:border-gray-700 hover:scale-110 transition-all"
-                  >
-                    <ArrowLeft className="w-5 h-5" />
-                  </button>
-                </div>
-                <h1 className="text-xl font-bold text-gray-900 dark:text-white">Add-on Services</h1>
-              </div>
-            </div>
-          </header>
-          <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 pb-12">
-            <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
-              You manage multiple properties. Select one to view and manage its add-ons.
-            </p>
-            <div className="space-y-3">
-              {caretakerProperties.map((prop) => (
-                <button
-                  key={prop.id}
-                  onClick={() => setPickedPropertyId(String(prop.id))}
-                  className="w-full flex items-center gap-4 p-4 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm hover:border-green-400 dark:hover:border-green-600 hover:shadow-md transition-all text-left"
-                >
-                  <div className="w-10 h-10 rounded-lg bg-green-50 dark:bg-green-900/30 flex items-center justify-center flex-shrink-0">
-                    <Building2 className="w-5 h-5 text-green-600 dark:text-green-400" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-gray-900 dark:text-white truncate">{prop.title}</p>
-                    {prop.street_address && (
-                      <p className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1 mt-0.5">
-                        <MapPin className="w-3 h-3" />
-                        {prop.street_address}, {prop.city}
-                      </p>
-                    )}
-                  </div>
-                  <ChevronRight className="w-5 h-5 text-gray-400 flex-shrink-0" />
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-      );
-    }
-
-    // Caretaker has no properties assigned at all
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[40vh] gap-4 text-center px-4">
-        <div className="w-16 h-16 rounded-full bg-amber-50 dark:bg-amber-900/20 flex items-center justify-center">
-          <Building2 className="w-8 h-8 text-amber-500" />
-        </div>
-        <h3 className="font-semibold text-gray-900 dark:text-white">No Property Assigned</h3>
-        <p className="text-sm text-gray-500 dark:text-gray-400 max-w-sm">
-          You don't have any properties assigned yet. Contact your landlord to get access.
-        </p>
-      </div>
-    );
-  }
+  const [processingId, setProcessingId] = useState(null);
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      <header className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700 sticky top-0 z-30 mb-8">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center justify-center relative min-h-[40px]">
-            <div className="absolute left-0 flex items-center">
-              <button
-                type="button"
-                onClick={() => navigate(-1)}
-                className="p-2 bg-white dark:bg-gray-800 text-green-600 rounded-full shadow-sm border border-gray-200 dark:border-gray-700 hover:scale-110 transition-all flex-shrink-0"
-              >
-                <ArrowLeft className="w-5 h-5" />
-              </button>
-            </div>
-            <div className="text-center">
-              <h1 className="text-xl font-bold text-gray-900 dark:text-white">Add-on Services</h1>
-            </div>
-          </div>
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Add-on Management</h1>
+          <p className="text-sm text-gray-500">Create and manage additional services for your properties.</p>
         </div>
-      </header>
-
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-8 space-y-6">
-
-      {/* Card Header: description + Add button */}
-      <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700">
-        <div className="flex justify-between items-center mb-6">
-          <p className="text-sm text-gray-500 dark:text-gray-400">
-            Manage extra usage fees and rentals for tenants
-          </p>
-          <button
-            onClick={() => {
-              resetForm();
-              setShowModal(true);
-            }}
-            className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-all font-bold shadow-lg shadow-green-500/20"
-          >
-            <Plus className="w-5 h-5" />
-            Add New Usage Fee
+        <div className="flex items-center gap-3">
+           <button 
+             onClick={() => { setSelectedAddon(null); setShowModal(true); }}
+             className="flex items-center gap-2 px-6 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-xl font-bold shadow-lg shadow-green-500/20 transition-all"
+           >
+             <Plus className="w-5 h-5" /> New Add-on
+           </button>
+           <button onClick={fetchData} className="p-2 text-gray-400 hover:text-green-600 transition-colors">
+            <RefreshCw className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
           </button>
         </div>
-
-        {/* Tabs */}
-        <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar">
-          {tabs.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all whitespace-nowrap ${
-                activeTab === tab.id
-                  ? "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 shadow-sm"
-                  : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
-              }`}
-            >
-              <tab.icon className="w-4 h-4" />
-              {tab.label}
-              {tab.count > 0 && (
-                <span
-                  className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                    activeTab === tab.id
-                      ? "bg-green-600 text-white"
-                      : "bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400"
-                  }`}
-                >
-                  {tab.count}
-                </span>
-              )}
-            </button>
-          ))}
-
-          <div className="flex items-center gap-2 ml-auto">
-            <button
-              onClick={fetchData}
-              disabled={loading}
-              title="Refresh"
-              className="p-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center disabled:opacity-50 shadow-md shadow-blue-500/20"
-            >
-              {loading ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <RefreshCw className="w-4 h-4" />
-              )}
-            </button>
-          </div>
-        </div>
       </div>
 
-      {/* Content */}
-      <div className="p-6 relative min-h-[400px]">
-        {loading && (
-          <div className="absolute inset-0 bg-white/50 dark:bg-gray-900/50 z-10 flex items-center justify-center backdrop-blur-[1px] rounded-2xl">
-            <RefreshCw className="w-8 h-8 animate-spin text-green-600" />
-          </div>
-        )}
+      <AddonStats stats={stats} />
 
-        {activeTab === "manage" && (
-          <ManageTab
-            addons={addons}
-            onEdit={openEditModal}
-            onDelete={handleDelete}
-            onToggleActive={handleToggleActive}
-            togglingAddonId={togglingAddonId}
-          />
-        )}
-        {activeTab === "requests" && (
-          <RequestsTab requests={pendingRequests} onHandle={handleRequest} />
-        )}
-        {activeTab === "active" && <ActiveTab data={activeAddons} onUpdatePrice={handleUpdateActivePrice} />}
+      <div className="flex gap-2 p-1 bg-gray-100 dark:bg-gray-800 rounded-xl w-fit">
+        <button 
+          onClick={() => setActiveTab('inventory')}
+          className={`px-6 py-2 rounded-lg text-sm font-bold transition-all ${activeTab === 'inventory' ? 'bg-white dark:bg-gray-700 text-green-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+        >
+          Add-on Inventory
+        </button>
+        <button 
+          onClick={() => setActiveTab('requests')}
+          className={`px-6 py-2 rounded-lg text-sm font-bold transition-all relative ${activeTab === 'requests' ? 'bg-white dark:bg-gray-700 text-green-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+        >
+          Tenant Requests
+          {requests.length > 0 && (
+            <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white ring-2 ring-white dark:ring-gray-800">
+              {requests.length}
+            </span>
+          )}
+        </button>
       </div>
 
-      {/* Modal */}
-      {showModal && (
-        <AddonFormModal
-          formData={formData}
-          setFormData={setFormData}
-          onSubmit={handleSubmit}
-          onClose={() => {
-            setShowModal(false);
-            resetForm();
-          }}
-          isEditing={!!editingAddon}
+      {loading && (addons.length === 0 && requests.length === 0) ? (
+        <div className="flex justify-center py-20"><Loader2 className="w-10 h-10 animate-spin text-green-600" /></div>
+      ) : activeTab === 'inventory' ? (
+        <AddonTable 
+          addons={addons} 
+          onEdit={(a) => { setSelectedAddon(a); setShowModal(true); }} 
+          onDelete={handleDelete}
+          onToggleStatus={() => {}} 
+        />
+      ) : (
+        <AddonRequestTable 
+          requests={requests}
+          onAction={handleRequestAction}
+          processingId={processingId}
+          actionType={actionType}
         />
       )}
 
-      </div>
+      <AddonModal 
+        isOpen={showModal} 
+        onClose={() => setShowModal(false)} 
+        addon={selectedAddon} 
+        onSubmit={handleSubmit}
+        submitting={processing}
+      />
     </div>
   );
-};
-
-// ==================== Manage Tab ====================
-const ManageTab = ({ addons, onEdit, onDelete, onToggleActive, togglingAddonId }) => {
-  if (addons.length === 0) {
-    return (
-      <div className="text-center py-12 text-gray-500 dark:text-gray-400">
-        <Sparkles className="w-12 h-12 mx-auto text-gray-300 dark:text-gray-600 mb-4" />
-        <p className="font-medium">No add-ons created yet.</p>
-        <p className="text-sm">
-          Create add-ons to offer extra usage fees to your tenants.
-        </p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-      {addons.map((addon) => (
-        <div
-          key={addon.id}
-          className={`border rounded-xl p-6 transition-all shadow-sm ${addon.isActive ? "bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700" : "border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/50"}`}
-        >
-          <div className="flex justify-between items-start">
-            <div className="flex-1">
-              <div className="flex items-center gap-2">
-                <h4 className="font-bold text-gray-900 dark:text-white text-lg">
-                  {addon.name}
-                </h4>
-                {!addon.isActive && (
-                  <span className="text-[10px] font-bold uppercase bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400 px-2 py-0.5 rounded">
-                    Inactive
-                  </span>
-                )}
-              </div>
-              <div className="flex gap-2 mt-2">
-                <span
-                  className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-md ${
-                    addon.priceType === "monthly"
-                      ? "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400"
-                      : "bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400"
-                  }`}
-                >
-                  {addon.priceTypeLabel}
-                </span>
-                <span
-                  className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-md ${
-                    addon.addonType === "rental"
-                      ? "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400"
-                      : "bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400"
-                  }`}
-                >
-                  {addon.addonTypeLabel}
-                </span>
-              </div>
-              {addon.description && (
-                <p className="text-sm text-gray-500 dark:text-gray-400 mt-4 leading-relaxed">
-                  {addon.description}
-                </p>
-              )}
-              <p className="text-xl font-bold text-green-600 dark:text-green-400 mt-4">
-                ₱{addon.price.toLocaleString()}
-                {addon.priceType === "monthly" && (
-                  <span className="text-xs font-bold text-gray-500 dark:text-gray-500 ml-2">
-                    / mo
-                  </span>
-                )}
-              </p>
-              {addon.stock !== null && (
-                <p className="text-xs text-gray-500 dark:text-gray-500 mt-2 font-medium">
-                  Available Stock: {addon.stock}
-                </p>
-              )}
-            </div>
-            <div className="flex gap-2 ml-2">
-              <button
-                onClick={() => onToggleActive(addon)}
-                disabled={togglingAddonId === addon.id}
-                title={addon.isActive ? "Deactivate add-on" : "Activate add-on"}
-                className={`p-2 rounded-lg transition-colors disabled:opacity-60 ${
-                  addon.isActive
-                    ? "text-gray-500 dark:text-gray-500 hover:text-amber-600 dark:hover:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/30"
-                    : "text-gray-500 dark:text-gray-500 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/30"
-                }`}
-              >
-                {togglingAddonId === addon.id ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : addon.isActive ? (
-                  <X className="w-4 h-4" />
-                ) : (
-                  <Check className="w-4 h-4" />
-                )}
-              </button>
-              <button
-                onClick={() => onEdit(addon)}
-                className="p-2 text-gray-500 dark:text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg transition-colors"
-              >
-                <Pencil className="w-4 h-4" />
-              </button>
-              <button
-                onClick={() => onDelete(addon.id)}
-                className="p-2 text-gray-500 dark:text-gray-500 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-colors"
-              >
-                <Trash2 className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-};
-
-// ==================== Requests Tab ====================
-const RequestsTab = ({ requests, onHandle }) => {
-  const [editingPrices, setEditingPrices] = useState({});
-
-  const handlePriceChange = (requestId, newPrice) => {
-    setEditingPrices(prev => ({
-      ...prev,
-      [requestId]: newPrice
-    }));
-  };
-
-  const handleApproveWithPrice = (request) => {
-    const customPrice = editingPrices[request.requestId];
-    const finalPrice = customPrice !== undefined ? parseFloat(customPrice) : request.price;
-    
-    if (isNaN(finalPrice) || finalPrice < 0) {
-      showError('Please enter a valid price');
-      return;
-    }
-
-    // Pass the custom price to the handler
-    onHandle(request.bookingId, request.addonId, 'approve', finalPrice);
-  };
-
-  if (requests.length === 0) {
-    return (
-      <div className="text-center py-12 text-gray-500 dark:text-gray-400">
-        <BellRing className="w-12 h-12 mx-auto text-gray-300 dark:text-gray-600 mb-4" />
-        <p className="font-medium">No pending requests.</p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-4">
-      {requests.map((request) => {
-        const displayPrice = editingPrices[request.requestId] !== undefined 
-          ? editingPrices[request.requestId] 
-          : request.price;
-
-        return (
-          <div
-            key={request.requestId}
-            className="border border-amber-200 dark:border-amber-900/30 bg-amber-50 dark:bg-amber-900/20 rounded-xl p-6 shadow-sm"
-          >
-            <div className="flex justify-between items-start">
-              <div className="flex-1">
-                <div className="flex items-center gap-2">
-                  <span className="font-bold text-gray-900 dark:text-white text-lg">
-                    {request.addonName}
-                  </span>
-                  <span
-                    className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-md ${
-                      request.priceType === "monthly"
-                        ? "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400"
-                        : "bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400"
-                    }`}
-                  >
-                    {request.priceType === "monthly" ? "Monthly" : "One-time"}
-                  </span>
-                </div>
-                <div className="flex items-center gap-2 mt-2">
-                  <div className="w-8 h-8 rounded-full bg-amber-100 dark:bg-amber-900/50 flex items-center justify-center text-amber-700 dark:text-amber-400 font-bold text-xs">
-                    {request.tenant.name?.charAt(0)}
-                  </div>
-                  <div>
-                    <p className="text-sm font-bold text-gray-800 dark:text-gray-200">
-                      {request.tenant.name}{" "}
-                      <span className="mx-2 font-normal text-gray-500 dark:text-gray-500">
-                        •
-                      </span>{" "}
-                      <span className="text-amber-700 dark:text-amber-400">
-                        Room {request.roomNumber}
-                      </span>
-                    </p>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">
-                      {request.tenant.email}
-                    </p>
-                  </div>
-                </div>
-                {request.requestNote && (
-                  <div className="mt-4 p-4 bg-white/50 dark:bg-black/20 rounded-lg border border-amber-100 dark:border-amber-900/20">
-                    <p className="text-xs text-gray-600 dark:text-gray-300 italic leading-relaxed">
-                      "{request.requestNote}"
-                    </p>
-                  </div>
-                )}
-                <p className="text-[10px] font-bold text-gray-500 dark:text-gray-500 mt-4 uppercase">
-                  Requested: {new Date(request.requestedAt).toLocaleDateString()}
-                </p>
-              </div>
-              <div className="text-right ml-4">
-                <div className="mb-3">
-                  <label className="block text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase mb-2">
-                    Set Price (₱)
-                  </label>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={displayPrice}
-                      onChange={(e) => handlePriceChange(request.requestId, e.target.value)}
-                      className="w-32 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-right font-bold text-green-600 dark:text-green-400 focus:ring-2 focus:ring-green-500 dark:bg-gray-700 dark:text-green-400 outline-none"
-                      placeholder="0.00"
-                    />
-                    {request.priceType === "monthly" && (
-                      <span className="text-xs font-bold text-gray-500 dark:text-gray-500">/mo</span>
-                    )}
-                  </div>
-                  {editingPrices[request.requestId] !== undefined && editingPrices[request.requestId] !== request.price.toString() && (
-                    <p className="text-[10px] text-blue-600 dark:text-blue-400 mt-1 font-medium">
-                      Original: ₱{request.price.toLocaleString()}
-                    </p>
-                  )}
-                </div>
-                {request.stock !== null && (
-                  <p className="text-[10px] font-bold text-gray-500 dark:text-gray-500 mb-3">
-                    STOCK: {request.stock}
-                  </p>
-                )}
-                <div className="flex gap-2 justify-end">
-                  <button
-                    onClick={() => handleApproveWithPrice(request)}
-                    className="flex items-center gap-2.5 px-4 py-2 bg-green-600 text-white text-xs font-bold rounded-lg hover:bg-green-700 transition-all active:scale-95 shadow-sm"
-                  >
-                    <Check className="w-3.5 h-3.5" />
-                    Approve
-                  </button>
-                  <button
-                    onClick={() =>
-                      onHandle(request.bookingId, request.addonId, "reject")
-                    }
-                    className="flex items-center gap-2.5 px-4 py-2 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 text-xs font-bold rounded-lg hover:bg-red-200 dark:hover:bg-red-900/50 transition-all active:scale-95"
-                  >
-                    <X className="w-3.5 h-3.5" />
-                    Reject
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        );
-      })}
-    </div>
-  );
-};
-
-// ==================== Active Tab ====================
-const ActiveTab = ({ data, onUpdatePrice }) => {
-  const { activeAddons, summary } = data;
-  const [editingPrices, setEditingPrices] = useState({});
-  const [savingPriceId, setSavingPriceId] = useState(null);
-
-  const handlePriceChange = (requestId, newPrice) => {
-    setEditingPrices(prev => ({
-      ...prev,
-      [requestId]: newPrice
-    }));
-  };
-
-  const handleSavePrice = async (item) => {
-    const newPrice = editingPrices[item.requestId];
-    if (!newPrice || isNaN(parseFloat(newPrice)) || parseFloat(newPrice) < 0) {
-      showError('Please enter a valid price');
-      return;
-    }
-
-    setSavingPriceId(item.requestId);
-    try {
-      await onUpdatePrice(item.bookingId, item.addonId, parseFloat(newPrice));
-      showSuccess('Price updated! Changes will apply to next billing cycle.');
-      setEditingPrices(prev => {
-        const updated = { ...prev };
-        delete updated[item.requestId];
-        return updated;
-      });
-    } catch (error) {
-      showError(error.response?.data?.message || 'Failed to update price');
-    } finally {
-      setSavingPriceId(null);
-    }
-  };
-
-  const cancelEdit = (requestId) => {
-    setEditingPrices(prev => {
-      const updated = { ...prev };
-      delete updated[requestId];
-      return updated;
-    });
-  };
-
-  return (
-    <div>
-      {/* Summary */}
-      {summary && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
-          <div className="bg-green-50 dark:bg-green-900/20 border border-green-100 dark:border-green-900/30 rounded-xl p-6 shadow-sm">
-            <p className="text-xs font-bold text-green-600 dark:text-green-400 uppercase tracking-wider mb-2">
-              Active Subscriptions
-            </p>
-            <p className="text-3xl font-bold text-green-700 dark:text-green-300">
-              {summary.totalActive || 0}
-            </p>
-          </div>
-          <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-900/30 rounded-xl p-6 shadow-sm">
-            <p className="text-xs font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider mb-2">
-              Monthly Revenue
-            </p>
-            <p className="text-3xl font-bold text-blue-700 dark:text-blue-300">
-              ₱{(summary.monthlyRevenue || 0).toLocaleString()}
-            </p>
-          </div>
-        </div>
-      )}
-
-      {/* List */}
-      {activeAddons && activeAddons.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {activeAddons.map((item) => {
-            const isEditing = editingPrices[item.requestId] !== undefined;
-            const displayPrice = isEditing ? editingPrices[item.requestId] : item.price;
-
-            return (
-              <div
-                key={item.requestId}
-                className="border border-green-200 dark:border-green-900/30 bg-green-50 dark:bg-green-900/10 rounded-xl p-6 shadow-sm transition-all hover:shadow-md"
-              >
-                <div className="flex justify-between items-start">
-                  <div className="flex-1">
-                    <span className="font-bold text-gray-900 dark:text-white text-lg block mb-2">
-                      {item.addonName}
-                    </span>
-                    <div className="flex items-center gap-2">
-                      <div className="w-6 h-6 rounded-full bg-green-200 dark:bg-green-900/50 flex items-center justify-center text-[10px] font-bold text-green-700 dark:text-green-400">
-                        {item.tenantName?.charAt(0)}
-                      </div>
-                      <p className="text-sm font-medium text-gray-600 dark:text-gray-300">
-                        {item.tenantName}{" "}
-                        <span className="mx-2 opacity-30">•</span>{" "}
-                        <span className="text-green-700 dark:text-green-400 font-bold">
-                          Room {item.roomNumber}
-                        </span>
-                      </p>
-                    </div>
-                  </div>
-                  <div className="text-right ml-4">
-                    {isEditing ? (
-                      <div className="space-y-2">
-                        <div className="flex items-center gap-2">
-                          <input
-                            type="number"
-                            min="0"
-                            step="0.01"
-                            value={displayPrice}
-                            onChange={(e) => handlePriceChange(item.requestId, e.target.value)}
-                            className="w-28 px-2 py-1 border border-green-300 dark:border-green-700 rounded-lg text-right font-bold text-green-600 dark:text-green-400 focus:ring-2 focus:ring-green-500 dark:bg-gray-700 outline-none text-sm"
-                            placeholder="0.00"
-                          />
-                          {item.priceType === "monthly" && (
-                            <span className="text-xs font-bold text-gray-500 dark:text-gray-500">/mo</span>
-                          )}
-                        </div>
-                        <div className="flex gap-1">
-                          <button
-                            onClick={() => handleSavePrice(item)}
-                            disabled={savingPriceId === item.requestId}
-                            className="flex items-center gap-1 px-2 py-1 bg-green-600 text-white text-[10px] font-bold rounded hover:bg-green-700 transition-all disabled:opacity-50"
-                          >
-                            {savingPriceId === item.requestId ? (
-                              <Loader2 className="w-3 h-3 animate-spin" />
-                            ) : (
-                              <Check className="w-3 h-3" />
-                            )}
-                            Save
-                          </button>
-                          <button
-                            onClick={() => cancelEdit(item.requestId)}
-                            disabled={savingPriceId === item.requestId}
-                            className="flex items-center gap-1 px-2 py-1 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-[10px] font-bold rounded hover:bg-gray-300 dark:hover:bg-gray-600 transition-all disabled:opacity-50"
-                          >
-                            <X className="w-3 h-3" />
-                            Cancel
-                          </button>
-                        </div>
-                        <p className="text-[9px] text-blue-600 dark:text-blue-400 font-medium">
-                          Changes apply next month
-                        </p>
-                      </div>
-                    ) : (
-                      <>
-                        <p className="text-xl font-bold text-green-600 dark:text-green-400">
-                          ₱{item.price.toLocaleString()}
-                          {item.priceType === "monthly" && (
-                            <span className="text-xs font-bold opacity-60">/mo</span>
-                          )}
-                        </p>
-                        <button
-                          onClick={() => handlePriceChange(item.requestId, item.price.toString())}
-                          className="mt-2 flex items-center gap-1 px-2 py-1 text-[10px] font-bold text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded transition-all"
-                        >
-                          <Pencil className="w-3 h-3" />
-                          Edit Price
-                        </button>
-                      </>
-                    )}
-                    <span
-                      className={`inline-block mt-2 text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${
-                        item.status === "active"
-                          ? "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400"
-                          : "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400"
-                      }`}
-                    >
-                      {item.status}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      ) : (
-        <div className="text-center py-12 text-gray-500 dark:text-gray-400">
-          <Check className="w-12 h-12 mx-auto text-gray-300 dark:text-gray-600 mb-4" />
-          <p className="font-medium">No active add-ons yet.</p>
-        </div>
-      )}
-    </div>
-  );
-};
-
-// ==================== Form Modal ====================
-const AddonFormModal = ({
-  formData,
-  setFormData,
-  onSubmit,
-  onClose,
-  isEditing,
-}) => (
-  <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-    <div className="bg-white dark:bg-gray-800 rounded-2xl max-w-md w-full max-h-[90vh] overflow-y-auto border border-gray-100 dark:border-gray-700 shadow-2xl animate-in fade-in zoom-in duration-200">
-      <div className="p-6 border-b border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/30 flex justify-between items-center">
-        <h3 className="text-lg font-bold text-gray-900 dark:text-white uppercase tracking-tight">
-          {isEditing ? "Edit Add-on" : "Create New Add-on"}
-        </h3>
-        <button
-          onClick={onClose}
-          className="p-2 hover:bg-gray-100 dark:hover:bg-gray-600 rounded-full transition-colors"
-        >
-          <X className="w-5 h-5 text-gray-500" />
-        </button>
-      </div>
-      <form onSubmit={onSubmit} className="p-6 space-y-6">
-        <div>
-          <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-2">
-            Add-on Name *
-          </label>
-          <input
-            type="text"
-            value={formData.name}
-            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-            className="w-full px-4 py-4 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent dark:bg-gray-700 dark:text-white outline-none transition-all"
-            required
-            placeholder="e.g., Rice Cooker, Wi-Fi Upgrade"
-          />
-        </div>
-
-        <div>
-          <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-2">
-            Description
-          </label>
-          <textarea
-            value={formData.description}
-            onChange={(e) =>
-              setFormData({ ...formData, description: e.target.value })
-            }
-            className="w-full px-4 py-4 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent dark:bg-gray-700 dark:text-white outline-none transition-all h-24 resize-none"
-            rows={2}
-            placeholder="Briefly describe what this service covers..."
-          />
-        </div>
-
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-2">
-              Price (₱) *
-            </label>
-            <input
-              type="number"
-              value={formData.price}
-              onChange={(e) =>
-                setFormData({ ...formData, price: e.target.value })
-              }
-              className="w-full px-4 py-4 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent dark:bg-gray-700 dark:text-white outline-none transition-all"
-              required
-              min="0"
-              step="0.01"
-              placeholder="0.00"
-            />
-          </div>
-          <div>
-            <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-2">
-              Price Type *
-            </label>
-            <select
-              value={formData.price_type}
-              onChange={(e) =>
-                setFormData({ ...formData, price_type: e.target.value })
-              }
-              className="w-full px-4 py-4 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-green-500 dark:bg-gray-700 dark:text-white outline-none"
-            >
-              <option value="monthly">Monthly (Recurring)</option>
-              <option value="one_time">One-time Fee</option>
-            </select>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-2">
-              Add-on Type *
-            </label>
-            <select
-              value={formData.addon_type}
-              onChange={(e) =>
-                setFormData({ ...formData, addon_type: e.target.value })
-              }
-              className="w-full px-4 py-4 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-green-500 dark:bg-gray-700 dark:text-white outline-none"
-            >
-              <option value="fee">Usage Fee (Tenant Item)</option>
-              <option value="rental">Rental (Owner Provided)</option>
-            </select>
-          </div>
-          <div>
-            <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-2">
-              Stock (Optional)
-            </label>
-            <input
-              type="number"
-              value={formData.stock}
-              onChange={(e) =>
-                setFormData({ ...formData, stock: e.target.value })
-              }
-              className="w-full px-4 py-4 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent dark:bg-gray-700 dark:text-white outline-none"
-              min="0"
-              placeholder="Unlimited"
-            />
-          </div>
-        </div>
-
-        <div className="flex items-center gap-4 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl border border-gray-100 dark:border-gray-700">
-          <input
-            type="checkbox"
-            id="is_active"
-            checked={formData.is_active}
-            onChange={(e) =>
-              setFormData({ ...formData, is_active: e.target.checked })
-            }
-            className="w-5 h-5 text-green-600 rounded-lg focus:ring-green-500"
-          />
-          <label
-            htmlFor="is_active"
-            className="text-sm font-bold text-gray-700 dark:text-gray-200 cursor-pointer"
-          >
-            Active (Tenant can see this)
-          </label>
-        </div>
-
-        <div className="flex gap-4 pt-4">
-          <button
-            type="button"
-            onClick={onClose}
-            className="flex-1 px-4 py-4 border border-gray-300 dark:border-gray-600 rounded-xl text-gray-700 dark:text-gray-300 font-bold hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-          >
-            Cancel
-          </button>
-          <button
-            type="submit"
-            className="flex-1 px-4 py-4 bg-green-600 text-white rounded-xl font-bold hover:bg-green-700 shadow-lg shadow-green-500/20 active:scale-95 transition-all"
-          >
-            {isEditing ? "Save Changes" : "Create Add-on"}
-          </button>
-        </div>
-      </form>
-    </div>
-  </div>
-);
-
-export default AddonManagement;
+}

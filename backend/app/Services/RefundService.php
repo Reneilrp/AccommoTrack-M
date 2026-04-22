@@ -12,12 +12,12 @@ class RefundService
 {
     private function toCents(?float $amount): int
     {
-        return (int) round(max(0, (float) ($amount ?? 0)) * 100);
+        return max(0, (float) ($amount ?? 0));
     }
 
-    private function fromCents(int $amountCents): float
+    private function fromCents($amountCents): float
     {
-        return round($amountCents / 100, 2);
+        return (float) $amountCents;
     }
 
     /**
@@ -125,7 +125,7 @@ class RefundService
         $excessCreditCents = max(0, $creditCents - $appliedCreditCents);
         $newAmountCents = max(0, (int) $invoice->amount_cents - $appliedCreditCents);
 
-        $description = $invoice->description.' (Credit of ₱'.number_format($this->fromCents($appliedCreditCents), 2).' applied from previous room)';
+        $description = $invoice->description.' (Credit of ₱'.number_format($appliedCreditCents / 100, 2).' applied from previous room)';
 
         $updateData = [
             'amount_cents' => $newAmountCents,
@@ -141,9 +141,9 @@ class RefundService
         // Store credit metadata
         $existingMetadata = $invoice->metadata ?? [];
         $updateData['metadata'] = array_merge($existingMetadata, [
-            'credit_applied' => $this->fromCents($appliedCreditCents),
-            'credit_excess_to_wallet' => $refundPreference === 'wallet' ? $this->fromCents($excessCreditCents) : 0,
-            'credit_excess_to_cash' => $refundPreference === 'cash' ? $this->fromCents($excessCreditCents) : 0,
+            'credit_applied' => round($appliedCreditCents / 100, 2),
+            'credit_excess_to_wallet' => $refundPreference === 'wallet' ? round($excessCreditCents / 100, 2) : 0,
+            'credit_excess_to_cash' => $refundPreference === 'cash' ? round($excessCreditCents / 100, 2) : 0,
             'credit_applied_at' => now()->toISOString(),
             'original_amount' => $invoice->amount_cents / 100,
         ], $metadata);

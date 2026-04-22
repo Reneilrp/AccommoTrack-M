@@ -1,33 +1,29 @@
-import api from './api.js';
-
-const extractError = (error, fallback = 'Something went wrong') => {
-  if (error?.response?.data?.message) {
-    return error.response.data.message;
-  }
-  if (error?.message) {
-    return error.message;
-  }
-  return fallback;
-};
+import api, { normalizeResponse, normalizeError, normalizePaginatedResponse } from './api.js';
 
 const MessageService = {
-  async getConversations() {
+  async getConversations(params = {}) {
     try {
-      const response = await api.get('/messages/conversations');
-      const payload = Array.isArray(response.data) ? response.data : [];
-      return { success: true, data: payload };
+      const response = await api.get('/messages/conversations', { params });
+      return {
+        success: true,
+        data: normalizePaginatedResponse(response),
+        error: null
+      };
     } catch (error) {
-      return { success: false, error: extractError(error, 'Unable to load conversations') };
+      return normalizeError(error);
     }
   },
 
-  async getConversationMessages(conversationId) {
+  async getConversationMessages(conversationId, params = {}) {
     try {
-      const response = await api.get(`/messages/conversations/${conversationId}`);
-      const payload = Array.isArray(response.data) ? response.data : [];
-      return { success: true, data: payload };
+      const response = await api.get(`/messages/conversations/${conversationId}`, { params });
+      return {
+        success: true,
+        data: normalizePaginatedResponse(response),
+        error: null
+      };
     } catch (error) {
-      return { success: false, error: extractError(error, 'Unable to load messages') };
+      return normalizeError(error);
     }
   },
 
@@ -60,72 +56,72 @@ const MessageService = {
       }
 
       const response = await api.post('/messages/send', payload, { headers });
-      return { success: true, data: response.data };
+      return normalizeResponse(response);
     } catch (error) {
-      return { success: false, error: extractError(error, 'Unable to send message') };
+      return normalizeError(error);
     }
   },
 
   async startConversation(payload = {}) {
     try {
       const response = await api.post('/messages/start', payload);
-      return { success: true, data: response.data };
+      return normalizeResponse(response);
     } catch (error) {
-      return { success: false, error: extractError(error, 'Unable to start conversation') };
+      return normalizeError(error);
     }
   },
 
   async unsend(messageId) {
     try {
       const response = await api.patch(`/messages/${messageId}/unsend`);
-      return { success: true, data: response.data };
+      return normalizeResponse(response);
     } catch (error) {
-      return { success: false, error: extractError(error, 'Unable to unsend message') };
+      return normalizeError(error);
     }
   },
 
   async editMessage(messageId, newMessage) {
     try {
       const response = await api.patch(`/messages/${messageId}/edit`, { message: newMessage });
-      return { success: true, data: response.data };
+      return normalizeResponse(response);
     } catch (error) {
-      return { success: false, error: extractError(error, 'Unable to edit message') };
+      return normalizeError(error);
     }
   },
 
   async startLandlordChat() {
     try {
       const response = await api.post('/messages/start-landlord-chat');
-      return { success: true, data: response.data };
+      return normalizeResponse(response);
     } catch (error) {
-      return { success: false, error: extractError(error, 'Unable to start chat with landlord') };
+      return normalizeError(error);
     }
   },
 
   async assignCaretaker(conversationId, caretakerId) {
     try {
       const response = await api.patch(`/messages/${conversationId}/caretaker`, { caretaker_id: caretakerId });
-      return { success: true, data: response.data };
+      return normalizeResponse(response);
     } catch (error) {
-      return { success: false, error: extractError(error, 'Unable to assign caretaker') };
+      return normalizeError(error);
     }
   },
 
   async markAsRead(conversationId) {
     try {
       const response = await api.post(`/messages/${conversationId}/read`);
-      return { success: true, data: response.data };
+      return normalizeResponse(response);
     } catch (error) {
-      return { success: false, error: extractError(error, 'Unable to mark messages as read') };
+      return normalizeError(error);
     }
   },
 
   async hideConversation(conversationId) {
     try {
       const response = await api.delete(`/messages/conversations/${conversationId}`);
-      return { success: true, data: response.data };
+      return normalizeResponse(response);
     } catch (error) {
-      return { success: false, error: extractError(error, 'Unable to delete conversation') };
+      return normalizeError(error);
     }
   }
 };

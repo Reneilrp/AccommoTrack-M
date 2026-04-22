@@ -48,29 +48,34 @@ class AdminPaymentOversightController extends Controller
         $perPage = (int) ($validated['per_page'] ?? 50);
         $riskFlag = $validated['risk_flag'] ?? 'all';
 
-        $highRiskLandlordIds = AuditLog::query()
-            ->where('event', 'payment.denied')
-            ->where('created_at', '>=', now()->subDays(7))
-            ->whereNotNull('landlord_id')
-            ->selectRaw('landlord_id, COUNT(*) as denial_count')
-            ->groupBy('landlord_id')
-            ->having('denial_count', '>=', 5)
-            ->pluck('landlord_id')
-            ->filter()
-            ->values()
-            ->all();
+        // OPTIMIZATION: Cache risk calculations for 1 hour
+        $highRiskLandlordIds = \Illuminate\Support\Facades\Cache::remember('high_risk_landlords', 3600, function() {
+            return AuditLog::query()
+                ->where('event', 'payment.denied')
+                ->where('created_at', '>=', now()->subDays(7))
+                ->whereNotNull('landlord_id')
+                ->selectRaw('landlord_id, COUNT(*) as denial_count')
+                ->groupBy('landlord_id')
+                ->having('denial_count', '>=', 5)
+                ->pluck('landlord_id')
+                ->filter()
+                ->values()
+                ->all();
+        });
 
-        $highRiskTenantIds = AuditLog::query()
-            ->where('event', 'payment.denied')
-            ->where('created_at', '>=', now()->subDays(30))
-            ->whereNotNull('tenant_id')
-            ->selectRaw('tenant_id, COUNT(*) as denial_count')
-            ->groupBy('tenant_id')
-            ->having('denial_count', '>=', 3)
-            ->pluck('tenant_id')
-            ->filter()
-            ->values()
-            ->all();
+        $highRiskTenantIds = \Illuminate\Support\Facades\Cache::remember('high_risk_tenants', 3600, function() {
+            return AuditLog::query()
+                ->where('event', 'payment.denied')
+                ->where('created_at', '>=', now()->subDays(30))
+                ->whereNotNull('tenant_id')
+                ->selectRaw('tenant_id, COUNT(*) as denial_count')
+                ->groupBy('tenant_id')
+                ->having('denial_count', '>=', 3)
+                ->pluck('tenant_id')
+                ->filter()
+                ->values()
+                ->all();
+        });
 
         $query = PaymentTransaction::query()
             ->with([

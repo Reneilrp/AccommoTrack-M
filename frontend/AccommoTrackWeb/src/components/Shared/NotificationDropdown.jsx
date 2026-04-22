@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, memo, useMemo } from 'react';
 import { Bell, Check, Calendar, Home, Users, CreditCard, AlertCircle, ArrowLeftRight } from 'lucide-react';
 import api from '../../utils/api';
 import { useNavigate } from 'react-router-dom';
@@ -33,11 +33,6 @@ const extractNotificationRows = (payload) => {
   return [];
 };
 
-const getCurrentRole = () => {
-  const userData = (() => { try { return JSON.parse(localStorage.getItem('userData') || '{}'); } catch { return {}; } })();
-  return (userData.role || '').toLowerCase();
-};
-
 const resolveNotificationType = (rawType = '') => {
   const type = String(rawType || '').toLowerCase();
   if (type.includes('transfer')) return 'transfer';
@@ -51,6 +46,59 @@ const resolveNotificationType = (rawType = '') => {
   return 'default';
 };
 
+const NotificationItem = memo(({ item, onClick }) => {
+  if (item._kind === 'activity') {
+    const colorClass = ACTIVITY_COLOR_MAP[item.color] || ACTIVITY_COLOR_MAP.gray;
+    const icon = ACTIVITY_ICON_MAP[item.type] || <AlertCircle className="w-4 h-4" />;
+    return (
+      <li
+        role="menuitem"
+        className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors cursor-pointer"
+        onClick={() => onClick(item)}
+      >
+        <div className="px-4 py-4 flex gap-4 items-start">
+          <div className={`w-8 h-8 rounded-lg flex-shrink-0 flex items-center justify-center ${colorClass}`}>
+            {icon}
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium text-gray-700 dark:text-gray-300">{item.action}</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 line-clamp-2">{item.description}</p>
+            <p className="text-xs text-gray-400 dark:text-gray-500 mt-2">
+              {item.timestamp ? new Date(item.timestamp).toLocaleString() : ''}
+            </p>
+          </div>
+        </div>
+      </li>
+    );
+  }
+
+  // DB notification
+  return (
+    <li
+      role="menuitem"
+      className={`hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors cursor-pointer ${!isNotificationRead(item) ? 'bg-brand-50/30 dark:bg-brand-900/10' : ''}`}
+      onClick={() => onClick(item)}
+    >
+      <div className="px-4 py-4 flex gap-4">
+        <div className={`mt-2 h-2 w-2 rounded-full flex-shrink-0 ${!isNotificationRead(item) ? 'bg-brand-500' : 'bg-transparent'}`} />
+        <div className="flex-1 min-w-0">
+          <p className={`text-sm ${!isNotificationRead(item) ? 'font-semibold text-gray-900 dark:text-white' : 'font-medium text-gray-700 dark:text-gray-300'}`}>
+            {item.data?.title || 'Notification'}
+          </p>
+          <p className="text-sm text-gray-600 dark:text-gray-400 mt-0.5 line-clamp-2">
+            {item.data?.message || item.data?.body || 'You have a new update.'}
+          </p>
+          <p className="text-xs text-gray-400 dark:text-gray-500 mt-2.5">
+            {new Date(item.created_at).toLocaleString()}
+          </p>
+        </div>
+      </div>
+    </li>
+  );
+});
+
+NotificationItem.displayName = 'NotificationItem';
+
 const NotificationDropdown = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
@@ -59,11 +107,23 @@ const NotificationDropdown = () => {
   const dropdownRef = useRef(null);
   const navigate = useNavigate();
 
+  const currentRole = useMemo(() => {
+    try {
+      const userData = JSON.parse(localStorage.getItem('userData') || '{}');
+      return (userData.role || '').toLowerCase();
+    } catch {
+      return '';
+    }
+  }, []);
+
   const fetchNotifications = useCallback(async () => {
+    // Skip if document is hidden to save resources
+    if (document.hidden && !isOpen) return;
+
     try {
       setLoading(true);
 
-      const role = getCurrentRole();
+      const role = currentRole;
       const isLandlordOrCaretaker = role === 'landlord' || role === 'caretaker';
       const isTenant = role === 'tenant';
 
@@ -120,7 +180,7 @@ const NotificationDropdown = () => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [currentRole, isOpen]);
 
   useEffect(() => {
     fetchNotifications();
@@ -151,7 +211,7 @@ const NotificationDropdown = () => {
 
   const handleMarkAllRead = async () => {
     try {
-      const role = getCurrentRole();
+      const role = currentRole;
       await api.patch(`/notifications/read-all?role=${role}`);
       setNotifications(prev => prev.map(n => ({ ...n, read_at: n.read_at || new Date().toISOString() })));
       setUnreadCount(0);
@@ -160,8 +220,8 @@ const NotificationDropdown = () => {
     }
   };
 
-  const handleNotificationClick = (notification) => {
-    const role = getCurrentRole();
+  const handleNotificationClick = useCallback((notification) => {
+    const role = currentRole;
     const transferRoute = role === 'tenant' ? '/bookings' : '/transfers';
 
     if (notification._kind === 'notification' && !isNotificationRead(notification)) {
@@ -231,60 +291,7 @@ const NotificationDropdown = () => {
       else if (rawUrl.includes('transfer')) navigate(transferRoute);
       else if (rawUrl.includes('addon')) navigate('/addons');
     }
-  };
-
-  const renderItem = (item, key) => {
-    if (item._kind === 'activity') {
-      const colorClass = ACTIVITY_COLOR_MAP[item.color] || ACTIVITY_COLOR_MAP.gray;
-      const icon = ACTIVITY_ICON_MAP[item.type] || <AlertCircle className="w-4 h-4" />;
-      return (
-        <li
-          key={key}
-          role="menuitem"
-          className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors cursor-pointer"
-          onClick={() => handleNotificationClick(item)}
-        >
-          <div className="px-4 py-4 flex gap-4 items-start">
-            <div className={`w-8 h-8 rounded-lg flex-shrink-0 flex items-center justify-center ${colorClass}`}>
-              {icon}
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-gray-700 dark:text-gray-300">{item.action}</p>
-              <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 line-clamp-2">{item.description}</p>
-              <p className="text-xs text-gray-400 dark:text-gray-500 mt-2">
-                {item.timestamp ? new Date(item.timestamp).toLocaleString() : ''}
-              </p>
-            </div>
-          </div>
-        </li>
-      );
-    }
-
-    // DB notification
-    return (
-      <li
-        key={key}
-        role="menuitem"
-        className={`hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors cursor-pointer ${!isNotificationRead(item) ? 'bg-brand-50/30 dark:bg-brand-900/10' : ''}`}
-        onClick={() => handleNotificationClick(item)}
-      >
-        <div className="px-4 py-4 flex gap-4">
-          <div className={`mt-2 h-2 w-2 rounded-full flex-shrink-0 ${!isNotificationRead(item) ? 'bg-brand-500' : 'bg-transparent'}`} />
-          <div className="flex-1 min-w-0">
-            <p className={`text-sm ${!isNotificationRead(item) ? 'font-semibold text-gray-900 dark:text-white' : 'font-medium text-gray-700 dark:text-gray-300'}`}>
-              {item.data?.title || 'Notification'}
-            </p>
-            <p className="text-sm text-gray-600 dark:text-gray-400 mt-0.5 line-clamp-2">
-              {item.data?.message || item.data?.body || 'You have a new update.'}
-            </p>
-            <p className="text-xs text-gray-400 dark:text-gray-500 mt-2.5">
-              {new Date(item.created_at).toLocaleString()}
-            </p>
-          </div>
-        </div>
-      </li>
-    );
-  };
+  }, [currentRole, navigate]);
 
   return (
     <div className="relative" ref={dropdownRef}>
@@ -340,7 +347,7 @@ const NotificationDropdown = () => {
                 <ul className="divide-y divide-gray-100 dark:divide-gray-700">
                   {notifications.map((item) => {
                     const key = item._kind === 'activity' ? `activity-${item.type}-${item.id}` : `notif-${item.id}`;
-                    return renderItem(item, key);
+                    return <NotificationItem key={key} item={item} onClick={handleNotificationClick} />;
                   })}
                 </ul>
                 <div className="p-2 border-t border-gray-100 dark:border-gray-700">
@@ -363,4 +370,4 @@ const NotificationDropdown = () => {
   );
 };
 
-export default NotificationDropdown;
+export default memo(NotificationDropdown);

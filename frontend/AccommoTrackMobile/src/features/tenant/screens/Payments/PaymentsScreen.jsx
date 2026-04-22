@@ -12,9 +12,10 @@ import {
   Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useInfiniteQuery } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import PaymentService from '../../../../services/PaymentService.js';
+import { normalizePaginatedResponse } from '../../../../services/api.js';
 import SystemToggleService from '../../../../services/SystemToggleService.js';
 import { useNavigation } from '@react-navigation/native';
 import { useTheme } from '../../../../contexts/ThemeContext.jsx';
@@ -75,20 +76,31 @@ export default function PaymentsScreen() {
 
   const userId = currentUserIdQuery.data || null;
 
-  const paymentsQuery = useQuery({
+  const paymentsInfiniteQuery = useInfiniteQuery({
     queryKey: tenantQueryKeys.payments(statusFilter),
-    queryFn: async () => {
-      const response = await PaymentService.getPayments(statusFilter);
+    queryFn: async ({ pageParam = 1 }) => {
+      const response = await PaymentService.getPayments({
+        status: statusFilter,
+        page: pageParam,
+      });
       if (!response.success) {
         throw new Error(response.error || 'Failed to load payments');
       }
-      return response.data || [];
+      return normalizePaginatedResponse(response.data);
     },
-    onError: (error) => {
-      showError('Failed to load payments', error.message);
+    getNextPageParam: (lastPage) => {
+      if (lastPage.pagination.current_page < lastPage.pagination.last_page) {
+        return lastPage.pagination.current_page + 1;
+      }
+      return undefined;
     },
+    initialPageParam: 1,
     placeholderData: (previousData) => previousData,
   });
+
+  const payments = React.useMemo(() => {
+    return paymentsInfiniteQuery.data?.pages.flatMap((page) => page.items) || [];
+  }, [paymentsInfiniteQuery.data]);
 
   const statsQuery = useQuery({
     queryKey: tenantQueryKeys.paymentStats(),
@@ -102,11 +114,10 @@ export default function PaymentsScreen() {
     placeholderData: (previousData) => previousData,
   });
 
-  const payments = React.useMemo(() => paymentsQuery.data || [], [paymentsQuery.data]);
   const stats = React.useMemo(() => statsQuery.data || {}, [statsQuery.data]);
-  const paymentsLoading = paymentsQuery.isLoading;
+  const paymentsLoading = paymentsInfiniteQuery.isPending;
   const statsLoading = statsQuery.isLoading;
-  const refetchPayments = paymentsQuery.refetch;
+  const refetchPayments = paymentsInfiniteQuery.refetch;
   const refetchStats = statsQuery.refetch;
 
   const paymentRefetchers = React.useMemo(

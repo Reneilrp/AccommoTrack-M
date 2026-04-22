@@ -25,10 +25,11 @@ class LandlordDashboardController extends Controller
             $isCaretaker = $context['is_caretaker'];
             $assignedPropertyIds = ($isCaretaker && $context['assignment']) ? $context['assignment']->getAssignedPropertyIds() : null;
 
-            // Cache the dashboard bundle for 60 seconds to prevent CPU spikes from rapid refreshes
-            $cacheKey = "landlord_dashboard_bundle_{$context['landlord_id']}_{$context['user']->id}";
+            // Cache the dashboard bundle using tags for easy invalidation across all caretakers
+            $cacheKey = "landlord_dashboard_bundle_{$context['user']->id}";
+            $tag = "landlord_dashboard_{$context['landlord_id']}";
             
-            return \Illuminate\Support\Facades\Cache::remember($cacheKey, 60, function() use ($request, $context, $isCaretaker, $assignedPropertyIds) {
+            return \Illuminate\Support\Facades\Cache::tags([$tag])->remember($cacheKey, 60, function() use ($request, $context, $isCaretaker, $assignedPropertyIds) {
                 // Run all heavy data fetching in one bundled request
                 $stats = $this->dashboardService->getStats(
                     $context['landlord_id'],
@@ -228,10 +229,10 @@ class LandlordDashboardController extends Controller
                     'id' => $item->id, 'type' => 'payment',
                     'action' => $isPending ? 'Cash Payment Awaiting Verification' : ($isRefund ? 'Payment Refunded' : 'Payment Received'),
                     'description' => $isPending
-                        ? 'Recorded ₱'.number_format($amountCents / 100, 2).' via '.$methodLabel.' for Room '.$roomNumber
+                        ? 'Recorded ₱'.number_format($amountCents, 2).' via '.$methodLabel.' for Room '.$roomNumber
                         : ($isRefund
-                            ? 'Refunded ₱'.number_format($amountCents / 100, 2).' via Cash('.$methodLabel.') for Room Number('.$roomNumber.').'
-                            : 'Received ₱'.number_format($amountCents / 100, 2).' via '.$methodLabel.' for Room '.$roomNumber),
+                            ? 'Refunded ₱'.number_format($amountCents, 2).' via Cash('.$methodLabel.') for Room Number('.$roomNumber.').'
+                            : 'Received ₱'.number_format($amountCents, 2).' via '.$methodLabel.' for Room '.$roomNumber),
                     'by' => ($item->tenant->first_name ?? 'Tenant').' '.($item->tenant->last_name ?? ''),
                     'status' => $status,
                     'invoice_id' => $item->invoice_id ?? $item->invoice?->id,
@@ -504,7 +505,7 @@ class LandlordDashboardController extends Controller
                 'propertyTitle' => $invoice->property->title ?? 'Property',
                 'roomNumber' => $invoice->booking?->room?->room_number ?? 'N/A',
                 'dueDate' => optional($invoice->due_date)->format('Y-m-d'),
-                'amount' => (float) round(($invoice->amount_cents ?? 0) / 100, 2),
+                'amount' => (float) ($invoice->amount_cents ?? 0),
                 'status' => $invoice->status,
             ];
         });
@@ -517,7 +518,7 @@ class LandlordDashboardController extends Controller
                 'propertyTitle' => $invoice->property->title ?? 'Property',
                 'roomNumber' => $invoice->booking?->room?->room_number ?? 'N/A',
                 'dueDate' => optional($invoice->due_date)->format('Y-m-d'),
-                'amount' => (float) round(($invoice->amount_cents ?? 0) / 100, 2),
+                'amount' => (float) ($invoice->amount_cents ?? 0),
                 'status' => $invoice->status,
             ];
         });

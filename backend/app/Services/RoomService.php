@@ -105,8 +105,19 @@ class RoomService
                 $this->syncAmenities($room, $validatedData['amenities']);
             }
 
+            if (!empty($validatedData['delete_images'])) {
+                foreach ($validatedData['delete_images'] as $imageId) {
+                    $image = $room->images()->find($imageId);
+                    if ($image) {
+                        $filename = basename($image->image_url);
+                        Storage::delete('room_images/'.$filename);
+                        $image->delete();
+                    }
+                }
+            }
+
             if (isset($validatedData['images'])) {
-                $this->syncImagesFromUrls($room, $validatedData['images']);
+                $this->handleImageUploads(app('request'), $room);
             }
 
             if (isset($validatedData['status']) && $validatedData['status'] !== $oldStatus) {

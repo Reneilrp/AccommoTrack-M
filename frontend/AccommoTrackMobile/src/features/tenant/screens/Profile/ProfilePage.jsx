@@ -99,9 +99,11 @@ export default function ProfilePage() {
 
   useTenantFocusRefetch({ refetchers: profilePageRefetchers });
 
+  const [isInitialized, setIsInitialized] = useState(false);
+
   useEffect(() => {
     const data = profilePageQuery.data;
-    if (!data) return;
+    if (!data || isInitialized) return;
 
     let calculatedAge = data.age ? String(data.age) : "";
     if (!calculatedAge && data.date_of_birth) {
@@ -128,9 +130,9 @@ export default function ProfilePage() {
 
       return {
         ...prev,
-        firstName: data.first_name || "",
-        middleName: data.middle_name || "",
-        lastName: data.last_name || "",
+        firstName: normalizeNameInput(data.first_name || ""),
+        middleName: normalizeNameInput(data.middle_name || ""),
+        lastName: normalizeNameInput(data.last_name || ""),
         email: data.email || "",
         phone: data.phone || "",
         sex: data.sex || "",
@@ -150,7 +152,8 @@ export default function ProfilePage() {
     });
 
     setNameErrors({ firstName: '', middleName: '', lastName: '' });
-  }, [profilePageQuery.data]);
+    setIsInitialized(true);
+  }, [profilePageQuery.data, isInitialized]);
 
   useEffect(() => {
     if (!profilePageQuery.error) return;

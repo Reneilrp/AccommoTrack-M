@@ -46,7 +46,9 @@ const PreferencesTab = () => {
 
   const fetchPreferences = useCallback(async () => {
     try {
-      if (!cachedProfile) setLoading(true);
+      const hasCache = !!uiState.data?.profile;
+      if (!hasCache) setLoading(true);
+
       const res = await tenantService.getProfile();
 
       if (res.success) {
@@ -61,14 +63,18 @@ const PreferencesTab = () => {
     } finally {
       setLoading(false);
     }
-  }, [cachedProfile, mapDataToForm, updateData]);
+  }, [mapDataToForm, updateData, uiState.data?.profile]);
 
   useEffect(() => {
     if (cachedProfile) {
       mapDataToForm(cachedProfile);
     }
+  }, [cachedProfile, mapDataToForm]);
+
+  useEffect(() => {
     fetchPreferences();
-  }, [cachedProfile, mapDataToForm, fetchPreferences]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleChange = (e) => {
     const { name, value } = e.target;

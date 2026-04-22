@@ -183,22 +183,22 @@ export default function TenantLogs() {
       setTenant(tenantData);
       if (tenantData.history) {
         setHistoryData({
-          bookings: tenantData.history.bookings || [],
-          maintenance: tenantData.history.maintenance || [],
-          addons: tenantData.history.addons || [],
-          transfers: tenantData.history.transfers || [],
+          // Ensure we handle both array and object formats for history collections
+          bookings: Array.isArray(tenantData.history.bookings) ? tenantData.history.bookings : (tenantData.history.bookings?.items || []),
+          maintenance: Array.isArray(tenantData.history.maintenance) ? tenantData.history.maintenance : (tenantData.history.maintenance?.items || []),
+          addons: Array.isArray(tenantData.history.addons) ? tenantData.history.addons : (tenantData.history.addons?.items || []),
+          transfers: Array.isArray(tenantData.history.transfers) ? tenantData.history.transfers : (tenantData.history.transfers?.items || []),
         });
       }
 
       let payList = [];
       let paid = [];
       let dueSumCents = 0;
-
       try {
-        const payRes = await api.get(`/invoices?tenant_id=${tenantId}&t=${Date.now()}`);
-        payList = Array.isArray(payRes.data) ? payRes.data : (payRes.data?.data || payRes.data || []);
+        const payRes = await api.get(`/invoices?tenant_id=${tenantId}`);
+        // Handle the new {items, pagination} structure
+        payList = payRes.data?.items || (Array.isArray(payRes.data) ? payRes.data : (payRes.data?.data || []));
         setPayments(payList);
-
         paid = payList.filter(inv => (inv.status === 'paid') || inv.paid_at);
         const unpaid = payList.filter(inv => {
           const status = String(inv.status || '').toLowerCase();
@@ -207,7 +207,7 @@ export default function TenantLogs() {
         });
         setPreviousPayments(paid);
         dueSumCents = unpaid.reduce((sum, inv) => sum + (inv.amount_cents || inv.total_cents || 0), 0);
-        setDueAmount(dueSumCents / 100);
+        setDueAmount(dueSumCents);
 
         if (tenantData && tenantData.room) {
           setCurrentRoom(tenantData.room);
@@ -235,7 +235,7 @@ export default function TenantLogs() {
         tenant: tenantData, 
         payments: payList, 
         previousPayments: paid, 
-        dueAmount: dueSumCents / 100, 
+        dueAmount: dueSumCents, 
         currentRoom: tenantData?.room || null,
         historyData: tenantData?.history || { bookings: [], maintenance: [], addons: [], transfers: [] }
       };
@@ -255,7 +255,7 @@ export default function TenantLogs() {
   // Helper formatting functions
   const getAmountNumber = (inv) => {
     const cents = inv.amount_cents ?? inv.total_cents ?? null;
-    if (typeof cents === 'number') return cents / 100;
+    if (typeof cents === 'number') return cents;
     const asNum = Number(inv.amount);
     return Number.isFinite(asNum) ? asNum : 0;
   };

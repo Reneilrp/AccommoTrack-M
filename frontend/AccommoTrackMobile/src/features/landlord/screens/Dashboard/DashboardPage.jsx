@@ -607,25 +607,25 @@ export default function LandlordDashboard({ navigation, user: initialUser, onLog
     if (dashboardQuery.isStale || !dashboardQuery.data) {
       dashboardQuery.refetch();
     }
-  }, [dashboardQuery.isStale, dashboardQuery.data, dashboardQuery.refetch]);
+  }, [dashboardQuery]);
 
   const refetchVerification = useCallback(() => {
     if (verificationQuery.isStale || !verificationQuery.data) {
       verificationQuery.refetch();
     }
-  }, [verificationQuery.isStale, verificationQuery.data, verificationQuery.refetch]);
+  }, [verificationQuery]);
 
   const refetchUnreadCount = useCallback(() => {
     if (unreadCountQuery.isStale || !unreadCountQuery.data) {
       unreadCountQuery.refetch();
     }
-  }, [unreadCountQuery.isStale, unreadCountQuery.data, unreadCountQuery.refetch]);
+  }, [unreadCountQuery]);
 
   const refetchPendingTransfers = useCallback(() => {
     if (pendingTransfersQuery.isStale || !pendingTransfersQuery.data) {
       pendingTransfersQuery.refetch();
     }
-  }, [pendingTransfersQuery.isStale, pendingTransfersQuery.data, pendingTransfersQuery.refetch]);
+  }, [pendingTransfersQuery]);
 
   const dashboardRefetchers = React.useMemo(
     () => [

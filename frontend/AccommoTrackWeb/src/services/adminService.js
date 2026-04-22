@@ -235,13 +235,6 @@ const normalizeAuditLogRecord = (record) => {
 
 const adminService = {
   /**
-   * Get all landlord verifications (approval list)
-   */
-  async getLandlordVerifications() {
-    return await api.get('/admin/landlord-verifications');
-  },
-
-  /**
    * Approve a landlord user
    * @param {number|string} userId 
    */
@@ -301,9 +294,39 @@ const adminService = {
   /**
    * Get properties by status for approval
    * @param {string} status - 'pending', 'approved', 'rejected'
+   * @param {Object} params - {page, per_page}
    */
-  async getPropertiesByStatus(status = 'pending') {
-    return await api.get(`/admin/properties/${status}`);
+  async getPropertiesByStatus(status = 'pending', params = {}) {
+    try {
+      const res = await api.get(`/admin/properties/${status}`, { params });
+      const payload = res.data;
+
+      if (payload && payload.data && Array.isArray(payload.data)) {
+        return {
+          success: true,
+          data: {
+            items: payload.data,
+            pagination: {
+              currentPage: payload.current_page,
+              lastPage: payload.last_page,
+              perPage: payload.per_page,
+              total: payload.total,
+              hasMorePages: payload.current_page < payload.last_page
+            }
+          }
+        };
+      }
+
+      return {
+        success: true,
+        data: {
+          items: Array.isArray(payload) ? payload : (payload?.data || []),
+          pagination: null
+        }
+      };
+    } catch (err) {
+      return normalizeRequestError(err);
+    }
   },
 
   /**
@@ -332,9 +355,76 @@ const adminService = {
 
   /**
    * Get all users for management
+   * @param {Object} params - {page, per_page, role, search, etc}
    */
-  async getUsers() {
-    return await api.get('/admin/users');
+  async getUsers(params = {}) {
+    try {
+      const response = await api.get('/admin/users', {
+        params: buildQueryParams(params),
+      });
+
+      const envelope = normalizeEnvelope(response?.data);
+      const payload = envelope.data;
+
+      // Handle both paginated and non-paginated (legacy) responses
+      const items = getPaginatedItems(payload);
+      const pagination = normalizePagination(payload);
+
+      return {
+        success: envelope.success,
+        data: {
+          items: items.map((user) => {
+            const userData = { ...user };
+            // Add property info for landlords
+            if (user.role === 'landlord') {
+              userData.properties_count = Array.isArray(user.properties) ? user.properties.length : 0;
+            }
+            return userData;
+          }),
+          pagination,
+        },
+        message: envelope.message,
+      };
+    } catch (error) {
+      return normalizeRequestError(error);
+    }
+  },
+
+  /**
+   * Get all landlord verification requests
+   * @param {Object} params - {page, per_page, status, etc}
+   */
+  async getLandlordVerifications(params = {}) {
+    try {
+      const res = await api.get('/admin/landlord-verifications', { params });
+      const payload = res.data;
+      
+      if (payload && payload.data && Array.isArray(payload.data)) {
+        return {
+          success: true,
+          data: {
+            items: payload.data,
+            pagination: {
+              currentPage: payload.current_page,
+              lastPage: payload.last_page,
+              perPage: payload.per_page,
+              total: payload.total,
+              hasMorePages: payload.current_page < payload.last_page
+            }
+          }
+        };
+      }
+
+      return {
+        success: true,
+        data: {
+          items: Array.isArray(payload) ? payload : (payload?.data || []),
+          pagination: null
+        }
+      };
+    } catch (err) {
+      return normalizeRequestError(err);
+    }
   },
 
   /**

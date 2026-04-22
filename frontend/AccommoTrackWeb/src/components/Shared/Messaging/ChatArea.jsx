@@ -7,6 +7,9 @@ import { getAgeInYears } from '../../../utils/dateUtils';
 const ChatArea = ({
   selectedChat,
   messages,
+  hasMoreMessages,
+  loadingMore,
+  onLoadMore,
   messageText,
   setMessageText,
   sendingMessage,
@@ -163,6 +166,18 @@ const ChatArea = ({
 
       {/* Messages Area */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-white dark:bg-gray-900 scrollbar-hide">
+        {hasMoreMessages && (
+          <div className="flex justify-center py-2">
+            <button
+              onClick={onLoadMore}
+              disabled={loadingMore}
+              className="px-4 py-1.5 text-xs font-bold text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20 rounded-full hover:bg-green-100 dark:hover:bg-green-900/40 transition-colors disabled:opacity-50"
+            >
+              {loadingMore ? <Loader2 className="w-3 h-3 animate-spin mx-auto" /> : 'Load previous messages'}
+            </button>
+          </div>
+        )}
+
         {messages.length === 0 ? (
           <div className="h-full flex flex-col items-center justify-center text-gray-500 dark:text-gray-500 opacity-60">
             <MessageCircle className="w-12 h-12 mb-2" />

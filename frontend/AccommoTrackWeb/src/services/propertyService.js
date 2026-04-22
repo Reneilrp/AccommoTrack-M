@@ -187,3 +187,5 @@ export const propertyService = {
         }
     }
 };
+
+export default propertyService;

@@ -368,6 +368,16 @@ export const isSameOrigin = () => {
 };
 
 // ---------------------------------------------------------------------------
+// Request Deduplication
+// ---------------------------------------------------------------------------
+const pendingRequests = new Map();
+
+const getRequestKey = (config) => {
+  const { method, url, params, data } = config;
+  return [method, url, JSON.stringify(params), JSON.stringify(data)].join('|');
+};
+
+// ---------------------------------------------------------------------------
 // Axios instance with interceptors
 // ---------------------------------------------------------------------------
 const api = axios.create({
@@ -381,6 +391,28 @@ const api = axios.create({
     [CLIENT_PLATFORM_HEADER]: "web",
   },
 });
+
+// Store original get method
+const originalGet = api.get;
+
+/**
+ * Optimized GET wrapper with deduplication
+ */
+api.get = function (url, config = {}) {
+  const requestKey = getRequestKey({ method: 'get', url, ...config });
+  
+  if (pendingRequests.has(requestKey)) {
+    return pendingRequests.get(requestKey);
+  }
+
+  const promise = originalGet.call(this, url, config)
+    .finally(() => {
+      pendingRequests.delete(requestKey);
+    });
+
+  pendingRequests.set(requestKey, promise);
+  return promise;
+};
 
 let refreshTokenRequestPromise = null;
 

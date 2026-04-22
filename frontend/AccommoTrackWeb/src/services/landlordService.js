@@ -131,11 +131,39 @@ export const landlordService = {
   /**
    * Get all tenants for a property
    * GET /landlord/tenants?property_id=...
+   * @param {Object} params - {page, per_page, property_id, search, etc}
    */
   async getTenants(params = {}) {
     try {
       const res = await api.get('/landlord/tenants', { params });
-      return { success: true, data: res.data?.data || res.data };
+      
+      const payload = res.data;
+      
+      // If it's the new paginated structure (has 'data' array and pagination info)
+      if (payload && payload.data && Array.isArray(payload.data)) {
+        return {
+          success: true,
+          data: {
+            items: payload.data,
+            pagination: {
+              currentPage: payload.current_page,
+              lastPage: payload.last_page,
+              perPage: payload.per_page,
+              total: payload.total,
+              hasMorePages: payload.current_page < payload.last_page
+            }
+          }
+        };
+      }
+
+      // Fallback for legacy non-paginated structure
+      return { 
+        success: true, 
+        data: {
+          items: Array.isArray(payload) ? payload : (payload?.data || []),
+          pagination: null
+        }
+      };
     } catch (err) {
       return { success: false, error: err.response?.data?.message || err.message };
     }

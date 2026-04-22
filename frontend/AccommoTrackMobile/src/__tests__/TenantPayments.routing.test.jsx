@@ -120,16 +120,23 @@ describe('Tenant PaymentsScreen routing', () => {
 
     PaymentService.getPayments.mockResolvedValue({
       success: true,
-      data: [
-        {
-          id: null,
-          booking_id: 321,
-          description: 'April Rent',
-          date: '2026-04-01T10:00:00.000Z',
-          amount: 5000,
-          status: 'pending',
-        },
-      ],
+      data: {
+        pages: [
+          {
+            items: [
+              {
+                id: null,
+                booking_id: 321,
+                description: 'April Rent',
+                date: '2026-04-01T10:00:00.000Z',
+                amount: 5000,
+                status: 'pending',
+              },
+            ],
+            pagination: { current_page: 1, last_page: 1 },
+          },
+        ],
+      },
     });
 
     PaymentService.getStats.mockResolvedValue({
@@ -168,17 +175,24 @@ describe('Tenant PaymentsScreen routing', () => {
   it('navigates directly to PaymentDetail when invoice id already exists', async () => {
     PaymentService.getPayments.mockResolvedValueOnce({
       success: true,
-      data: [
-        {
-          id: 111,
-          invoice_id: 555,
-          booking_id: 321,
-          description: 'May Rent',
-          date: '2026-05-01T10:00:00.000Z',
-          amount: 5000,
-          status: 'pending',
-        },
-      ],
+      data: {
+        pages: [
+          {
+            items: [
+              {
+                id: 111,
+                invoice_id: 555,
+                booking_id: 321,
+                description: 'May Rent',
+                date: '2026-05-01T10:00:00.000Z',
+                amount: 5000,
+                status: 'pending',
+              },
+            ],
+            pagination: { current_page: 1, last_page: 1 },
+          },
+        ],
+      },
     });
 
     renderWithQueryClient(<PaymentsScreen />);

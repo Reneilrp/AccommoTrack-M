@@ -1,4 +1,4 @@
-import api from './api.js';
+import api, { normalizeResponse, normalizeError } from './api.js';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const ProfileService = {
@@ -27,17 +27,14 @@ const ProfileService = {
     try {
       // Use tenant-specific profile endpoint if it's a tenant, otherwise fallback to /me
       const response = await api.get('/tenant/profile').catch(() => api.get('/me'));
-      
-      return {
-        success: true,
-        data: response.data.user || response.data
-      };
+      const res = normalizeResponse(response);
+      if (res.success && res.data?.user) {
+        res.data = res.data.user;
+      }
+      return res;
     } catch (error) {
       console.error('Error fetching profile:', error);
-      return {
-        success: false,
-        error: error.response?.data?.message || 'Failed to fetch profile'
-      };
+      return normalizeError(error);
     }
   },
 
@@ -47,18 +44,17 @@ const ProfileService = {
   async getCurrentUser() {
     try {
       const response = await api.get('/me');
-      return {
-        success: true,
-        data: response.data.user || response.data,
-        status: response.status,
-      };
+      const res = normalizeResponse(response);
+      if (res.success && res.data?.user) {
+        res.data = res.data.user;
+      }
+      if (res.success) {
+        res.status = response.status;
+      }
+      return res;
     } catch (error) {
       console.error('Error fetching current user:', error);
-      return {
-        success: false,
-        error: error.response?.data?.message || 'Failed to fetch current user',
-        status: error.response?.status || null,
-      };
+      return normalizeError(error);
     }
   },
 
@@ -107,18 +103,17 @@ const ProfileService = {
         response = await api.put(endpoint, profileData);
       }
       
-      return {
-        success: true,
-        data: response.data.user || response.data,
-        message: response.data.message || 'Profile updated successfully'
-      };
+      const res = normalizeResponse(response);
+      if (res.success) {
+        res.message = response.data?.message || 'Profile updated successfully';
+        if (res.data?.user) {
+          res.data = res.data.user;
+        }
+      }
+      return res;
     } catch (error) {
       console.error('Error updating profile:', error);
-      return {
-        success: false,
-        error: error.response?.data?.message || 'Failed to update profile',
-        errors: error.response?.data?.errors || {}
-      };
+      return normalizeError(error);
     }
   },
 
@@ -129,17 +124,17 @@ const ProfileService = {
     try {
       const endpoint = await this._getProfileEndpoint();
       const response = await api.put(endpoint, settings);
-      return {
-        success: true,
-        data: response.data.user || response.data,
-        message: 'Settings updated successfully'
-      };
+      const res = normalizeResponse(response);
+      if (res.success) {
+        res.message = 'Settings updated successfully';
+        if (res.data?.user) {
+          res.data = res.data.user;
+        }
+      }
+      return res;
     } catch (error) {
       console.error('Error updating settings:', error);
-      return {
-        success: false,
-        error: error.response?.data?.message || 'Failed to update settings'
-      };
+      return normalizeError(error);
     }
   },
 
@@ -162,19 +157,17 @@ const ProfileService = {
       formData.append('_method', 'PUT');
 
       const response = await api.post('/tenant/profile', formData);
-
-      return {
-        success: true,
-        data: response.data.user || response.data,
-        message: response.data.message || 'Preferences updated successfully',
-      };
+      const res = normalizeResponse(response);
+      if (res.success) {
+        res.message = response.data?.message || 'Preferences updated successfully';
+        if (res.data?.user) {
+          res.data = res.data.user;
+        }
+      }
+      return res;
     } catch (error) {
       console.error('Error updating tenant preferences:', error);
-      return {
-        success: false,
-        error: error.response?.data?.message || 'Failed to update preferences',
-        errors: error.response?.data?.errors || {},
-      };
+      return normalizeError(error);
     }
   },
 
@@ -193,17 +186,14 @@ const ProfileService = {
           }
           throw error;
         });
-      return {
-        success: true,
-        message: response.data.message || 'Password changed successfully'
-      };
+      const res = normalizeResponse(response);
+      if (res.success) {
+        res.message = response.data?.message || 'Password changed successfully';
+      }
+      return res;
     } catch (error) {
       console.error('Error changing password:', error);
-      return {
-        success: false,
-        error: error.response?.data?.message || 'Failed to change password',
-        errors: error.response?.data?.errors || {}
-      };
+      return normalizeError(error);
     }
   },
 
@@ -213,18 +203,18 @@ const ProfileService = {
   async sendTenantTwoFactorOtp() {
     try {
       const response = await api.post('/tenant/security/two-factor/send-otp');
-      return {
-        success: true,
-        data: response.data.user || null,
-        twoFactor: response.data.two_factor || null,
-        message: response.data.message || 'Verification code sent to your email address.',
-      };
+      const res = normalizeResponse(response);
+      if (res.success) {
+        res.message = response.data?.message || 'Verification code sent to your email address.';
+        res.twoFactor = response.data?.two_factor || null;
+        if (res.data?.user) {
+          res.data = res.data.user;
+        }
+      }
+      return res;
     } catch (error) {
       console.error('Error sending tenant 2FA OTP:', error);
-      return {
-        success: false,
-        error: error.response?.data?.message || 'Failed to send verification code',
-      };
+      return normalizeError(error);
     }
   },
 
@@ -236,18 +226,18 @@ const ProfileService = {
       const response = await api.post('/tenant/security/two-factor/verify-otp', {
         email_otp_code: emailOtpCode,
       });
-      return {
-        success: true,
-        data: response.data.user || null,
-        twoFactor: response.data.two_factor || null,
-        message: response.data.message || 'Two-factor authentication enabled successfully.',
-      };
+      const res = normalizeResponse(response);
+      if (res.success) {
+        res.message = response.data?.message || 'Two-factor authentication enabled successfully.';
+        res.twoFactor = response.data?.two_factor || null;
+        if (res.data?.user) {
+          res.data = res.data.user;
+        }
+      }
+      return res;
     } catch (error) {
       console.error('Error verifying tenant 2FA OTP:', error);
-      return {
-        success: false,
-        error: error.response?.data?.message || 'Failed to verify code',
-      };
+      return normalizeError(error);
     }
   },
 
@@ -257,18 +247,18 @@ const ProfileService = {
   async disableTenantTwoFactor() {
     try {
       const response = await api.post('/tenant/security/two-factor/disable');
-      return {
-        success: true,
-        data: response.data.user || null,
-        twoFactor: response.data.two_factor || null,
-        message: response.data.message || 'Two-factor authentication has been disabled.',
-      };
+      const res = normalizeResponse(response);
+      if (res.success) {
+        res.message = response.data?.message || 'Two-factor authentication has been disabled.';
+        res.twoFactor = response.data?.two_factor || null;
+        if (res.data?.user) {
+          res.data = res.data.user;
+        }
+      }
+      return res;
     } catch (error) {
       console.error('Error disabling tenant 2FA:', error);
-      return {
-        success: false,
-        error: error.response?.data?.message || 'Failed to disable two-factor authentication',
-      };
+      return normalizeError(error);
     }
   },
 
@@ -278,17 +268,15 @@ const ProfileService = {
   async getTenantTwoFactorStatus() {
     try {
       const response = await api.get('/tenant/security/two-factor');
-      return {
-        success: true,
-        twoFactor: response.data.two_factor || null,
-        message: response.data.message || 'Two-factor authentication status retrieved successfully.',
-      };
+      const res = normalizeResponse(response);
+      if (res.success) {
+        res.message = response.data?.message || 'Two-factor authentication status retrieved successfully.';
+        res.twoFactor = response.data?.two_factor || null;
+      }
+      return res;
     } catch (error) {
       console.error('Error fetching tenant 2FA status:', error);
-      return {
-        success: false,
-        error: error.response?.data?.message || 'Failed to fetch two-factor status',
-      };
+      return normalizeError(error);
     }
   },
 
@@ -298,18 +286,18 @@ const ProfileService = {
   async sendLandlordEmailRecoveryOtp() {
     try {
       const response = await api.post('/landlord/security/email-recovery/send-otp');
-      return {
-        success: true,
-        data: response.data.user || null,
-        emailRecovery: response.data.email_recovery || null,
-        message: response.data.message || 'Verification code sent to your email address.',
-      };
+      const res = normalizeResponse(response);
+      if (res.success) {
+        res.message = response.data?.message || 'Verification code sent to your email address.';
+        res.emailRecovery = response.data?.email_recovery || null;
+        if (res.data?.user) {
+          res.data = res.data.user;
+        }
+      }
+      return res;
     } catch (error) {
       console.error('Error sending landlord email recovery OTP:', error);
-      return {
-        success: false,
-        error: error.response?.data?.message || 'Failed to send verification code',
-      };
+      return normalizeError(error);
     }
   },
 
@@ -321,18 +309,18 @@ const ProfileService = {
       const response = await api.post('/landlord/security/email-recovery/verify-otp', {
         email_otp_code: emailOtpCode,
       });
-      return {
-        success: true,
-        data: response.data.user || null,
-        emailRecovery: response.data.email_recovery || null,
-        message: response.data.message || 'Email recovery verified successfully.',
-      };
+      const res = normalizeResponse(response);
+      if (res.success) {
+        res.message = response.data?.message || 'Email recovery verified successfully.';
+        res.emailRecovery = response.data?.email_recovery || null;
+        if (res.data?.user) {
+          res.data = res.data.user;
+        }
+      }
+      return res;
     } catch (error) {
       console.error('Error verifying landlord email recovery OTP:', error);
-      return {
-        success: false,
-        error: error.response?.data?.message || 'Failed to verify code',
-      };
+      return normalizeError(error);
     }
   },
 
@@ -342,18 +330,18 @@ const ProfileService = {
   async disableLandlordEmailRecovery() {
     try {
       const response = await api.post('/landlord/security/email-recovery/disable');
-      return {
-        success: true,
-        data: response.data.user || null,
-        emailRecovery: response.data.email_recovery || null,
-        message: response.data.message || 'Email recovery has been disabled.',
-      };
+      const res = normalizeResponse(response);
+      if (res.success) {
+        res.message = response.data?.message || 'Email recovery has been disabled.';
+        res.emailRecovery = response.data?.email_recovery || null;
+        if (res.data?.user) {
+          res.data = res.data.user;
+        }
+      }
+      return res;
     } catch (error) {
       console.error('Error disabling landlord email recovery:', error);
-      return {
-        success: false,
-        error: error.response?.data?.message || 'Failed to disable email recovery',
-      };
+      return normalizeError(error);
     }
   },
 
@@ -363,21 +351,16 @@ const ProfileService = {
   async getVerificationStatus() {
     try {
       const response = await api.get('/landlord/my-verification');
-      return {
-        success: true,
-        data: response.data
-      };
+      return normalizeResponse(response);
     } catch (error) {
       if (error.response?.status === 404) {
         return {
           success: true,
-          data: { status: 'not_submitted' }
+          data: { status: 'not_submitted' },
+          error: null
         };
       }
-      return {
-        success: false,
-        error: error.response?.data?.message || 'Failed to fetch verification status'
-      };
+      return normalizeError(error);
     }
   },
 
@@ -387,11 +370,8 @@ const ProfileService = {
   async getValidIdTypes() {
     try {
       const response = await api.get('/valid-id-types');
-      return {
-        success: true,
-        data: response.data
-      };
-    } catch (_error) {
+      return normalizeResponse(response);
+    } catch (error) {
       return {
         success: false,
         data: ['Philippine Passport', "Driver's License", 'PhilSys ID (National ID)', 'UMID'],
@@ -406,18 +386,14 @@ const ProfileService = {
   async resubmitVerification(formData) {
     try {
       const response = await api.post('/landlord/resubmit-verification', formData);
-      return {
-        success: true,
-        data: response.data,
-        status: response.status,
-      };
+      const res = normalizeResponse(response);
+      if (res.success) {
+        res.status = response.status;
+      }
+      return res;
     } catch (error) {
       console.error('Verification resubmission failed:', error);
-      return {
-        success: false,
-        error: error.response?.data?.message || 'Failed to resubmit verification',
-        status: error.response?.status || null,
-      };
+      return normalizeError(error);
     }
   },
 
@@ -427,22 +403,15 @@ const ProfileService = {
   async registerAsLandlord(formData) {
     try {
       const response = await api.post('/tenant/register-landlord', formData);
-
-      return {
-        success: true,
-        data: response.data,
-        message: response.data.message || 'Landlord registration submitted successfully',
-        status: response.status,
-      };
+      const res = normalizeResponse(response);
+      if (res.success) {
+        res.message = response.data?.message || 'Landlord registration submitted successfully';
+        res.status = response.status;
+      }
+      return res;
     } catch (error) {
       console.error('Tenant landlord registration failed:', error);
-      return {
-        success: false,
-        error: error.response?.data?.message || 'Failed to submit landlord registration',
-        errors: error.response?.data?.errors || {},
-        status: error.response?.status || null,
-        backendStatus: error.response?.data?.status || null,
-      };
+      return normalizeError(error);
     }
   },
 
@@ -452,22 +421,10 @@ const ProfileService = {
   async getPayMongoOnboardingUrl() {
     try {
       const response = await api.get('/landlord/paymongo/onboarding');
-      return {
-        success: true,
-        data: response.data
-      };
+      return normalizeResponse(response);
     } catch (error) {
-      const serverData = error.response?.data;
-      const errMsg = serverData?.message
-        || serverData?.error
-        || error.message
-        || 'Failed to get onboarding link';
-      console.error('Error getting PayMongo onboarding URL:', errMsg, serverData);
-      return {
-        success: false,
-        error: errMsg,
-        status: error.response?.status,
-      };
+      console.error('Error getting PayMongo onboarding URL:', error);
+      return normalizeError(error);
     }
   },
 
@@ -478,19 +435,18 @@ const ProfileService = {
   async switchRole(role, payload = {}) {
     try {
       const response = await api.post('/switch-role', { role, ...payload });
-      return {
-        success: true,
-        data: response.data.user || response.data,
-        message: response.data.message || 'Role switched successfully',
-        status: response.status,
-      };
+      const res = normalizeResponse(response);
+      if (res.success) {
+        res.message = response.data?.message || 'Role switched successfully';
+        res.status = response.status;
+        if (res.data?.user) {
+          res.data = res.data.user;
+        }
+      }
+      return res;
     } catch (error) {
       console.error('Error switching role:', error);
-      return {
-        success: false,
-        error: error.response?.data?.message || 'Failed to switch role',
-        status: error.response?.status || null,
-      };
+      return normalizeError(error);
     }
   }
 };

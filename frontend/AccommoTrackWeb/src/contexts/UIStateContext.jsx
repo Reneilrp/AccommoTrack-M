@@ -169,8 +169,16 @@ export const UIStateProvider = ({ children }) => {
     }));
   }, []);
 
+  const value = React.useMemo(() => ({ 
+    uiState, 
+    updateScreenState, 
+    updateData, 
+    invalidateData, 
+    resetScreenState 
+  }), [uiState, updateScreenState, updateData, invalidateData, resetScreenState]);
+
   return (
-    <UIStateContext.Provider value={{ uiState, updateScreenState, updateData, invalidateData, resetScreenState }}>
+    <UIStateContext.Provider value={value}>
       {children}
     </UIStateContext.Provider>
   );

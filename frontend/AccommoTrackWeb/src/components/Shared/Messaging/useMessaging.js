@@ -1,33 +1,33 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
 import api from '../../../utils/api';
-import createEcho from '../../../utils/echo';
 import { showSuccess, showError } from '../../../utils/toast';
 import { useUIState } from '../../../contexts/UIStateContext';
+
+import { useWebSocket } from '../../../contexts/WebSocketContext';
 
 export const useMessaging = (user, accessRole = 'landlord') => {
   const location = useLocation();
   const { uiState, updateScreenState, updateData } = useUIState();
+  const echo = useWebSocket();
   const cachedConversations = uiState.data?.messages || [];
   
-  // Destructure UI state for messages sidebar
-  const { searchQuery, showFilters, filterProperty } = uiState.messages || {
-    searchQuery: "",
-    showFilters: false,
-    filterProperty: ""
-  };
-
+  // ... other states ...
   const [conversations, setConversations] = useState(cachedConversations);
   const [selectedChat, setSelectedChat] = useState(null);
   const [messages, setMessages] = useState([]);
+  const [nextCursor, setNextCursor] = useState(null);
+  const [hasMoreMessages, setHasMoreMessages] = useState(false);
   const [messageText, setMessageText] = useState('');
   const [loading, setLoading] = useState(conversations.length === 0);
+  const [loadingMessages, setLoadingMessages] = useState(false);
   const [sendingMessage, setSendingMessage] = useState(false);
   const [replyingTo, setReplyingTo] = useState(null);
   const [editingMessage, setEditingMessage] = useState(null);
   const [deletingConversation, setDeletingConversation] = useState(false);
   const [isOtherTyping, setIsOtherTyping] = useState(false);
   const typingTimeoutRef = useRef(null);
+  // ... rest of state ...
 
   // Image attachment state
   const [selectedImage, setSelectedImage] = useState(null);
@@ -75,6 +75,10 @@ export const useMessaging = (user, accessRole = 'landlord') => {
   };
 
   // Wrapped setters for UI state
+  const searchQuery = uiState.screens?.messages?.searchQuery || '';
+  const showFilters = uiState.screens?.messages?.showFilters || false;
+  const filterProperty = uiState.screens?.messages?.filterProperty || '';
+
   const setSearchQuery = (val) => updateScreenState('messages', { searchQuery: val });
   const setShowFilters = (val) => updateScreenState('messages', { showFilters: val });
   const setFilterProperty = (val) => updateScreenState('messages', { filterProperty: val });
@@ -128,14 +132,31 @@ export const useMessaging = (user, accessRole = 'landlord') => {
     }
   }, [updateData]);
 
-  const fetchMessages = useCallback(async (conversationId) => {
+  const fetchMessages = useCallback(async (conversationId, cursor = null) => {
     try {
-      const res = await api.get(`/messages/conversations/${conversationId}`);
-      setMessages(res.data);
+      if (!cursor) setLoadingMessages(true);
+      const url = `/messages/conversations/${conversationId}${cursor ? `?cursor=${cursor}` : ''}`;
+      const res = await api.get(url);
+      
+      const payload = res.data;
+      const newMessages = Array.isArray(payload?.data) ? payload.data : (Array.isArray(payload) ? payload : []);
+      const meta = payload?.meta || {};
+      
+      setMessages(prev => cursor ? [...newMessages.reverse(), ...prev] : newMessages.reverse());
+      setNextCursor(meta.next_cursor);
+      setHasMoreMessages(!!meta.next_cursor);
     } catch (err) {
       console.error('Failed to load messages:', err);
+    } finally {
+      setLoadingMessages(false);
     }
   }, []);
+
+  const loadMoreMessages = useCallback(() => {
+    if (selectedChat && nextCursor && !loadingMessages) {
+      fetchMessages(selectedChat.id, nextCursor);
+    }
+  }, [selectedChat, nextCursor, loadingMessages, fetchMessages]);
 
   // Reset states when switching chats
   useEffect(() => {
@@ -409,68 +430,66 @@ export const useMessaging = (user, accessRole = 'landlord') => {
 
   // Handle Typing Whisper
   useEffect(() => {
-    if (!selectedChat || !echoRef.current) return;
+    if (!selectedChat || !echo) return;
     
     if (messageText.length > 0) {
-      echoRef.current.private(`conversation.${selectedChat.id}`).whisper('typing', { typing: true });
+      echo.private(`conversation.${selectedChat.id}`).whisper('typing', { typing: true });
     } else {
-      echoRef.current.private(`conversation.${selectedChat.id}`).whisper('typing', { typing: false });
+      echo.private(`conversation.${selectedChat.id}`).whisper('typing', { typing: false });
     }
-  }, [messageText, selectedChat]);
+  }, [messageText, selectedChat, echo]);
 
   useEffect(() => {
     fetchConversations();
   }, [fetchConversations]);
 
   useEffect(() => {
-    if (selectedChat) {
+    if (selectedChat && echo) {
       fetchMessages(selectedChat.id);
-      echoRef.current = createEcho();
-      if (echoRef.current) {
-        try {
-          echoRef.current
-            .private(`conversation.${selectedChat.id}`)
-            .listen('.message.sent', (e) => {
-              const incomingMessage = e.message;
-              setMessages((prev) => {
-                const exists = prev.some((msg) => String(msg.id) === String(incomingMessage.id));
-                if (exists) {
-                  return prev.map((msg) => 
-                    String(msg.id) === String(incomingMessage.id) ? incomingMessage : msg
-                  );
-                }
-                return [...prev, incomingMessage];
-              });
-              scrollToBottom();
-
-              // If current chat is active, mark it as read
-              if (!incomingMessage.is_mine) {
-                markConversationAsRead(selectedChat.id);
+      try {
+        echo
+          .private(`conversation.${selectedChat.id}`)
+          .listen('.message.sent', (e) => {
+            const incomingMessage = e.message;
+            setMessages((prev) => {
+              const exists = prev.some((msg) => String(msg.id) === String(incomingMessage.id));
+              if (exists) {
+                return prev.map((msg) => 
+                  String(msg.id) === String(incomingMessage.id) ? incomingMessage : msg
+                );
               }
-            })
-            .listen('.message.read', (e) => {
-              setMessages((prev) => 
-                prev.map(msg => 
-                  String(msg.receiver_id) === String(e.reader_id) 
-                    ? { ...msg, is_read: true, read_at: e.read_at } 
-                    : msg
-                )
-              );
-            })
-            .listenForWhisper('typing', (e) => {
-              setIsOtherTyping(e.typing);
-              if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
-              if (e.typing) {
-                typingTimeoutRef.current = setTimeout(() => setIsOtherTyping(false), 3000);
-              }
+              return [...prev, incomingMessage];
             });
-        } catch (err) { console.warn('Echo subscription failed:', err); }
-      }
+            scrollToBottom();
+
+            // If current chat is active, mark it as read
+            if (!incomingMessage.is_mine) {
+              markConversationAsRead(selectedChat.id);
+            }
+          })
+          .listen('.message.read', (e) => {
+            setMessages((prev) => 
+              prev.map(msg => 
+                String(msg.receiver_id) === String(e.reader_id) 
+                  ? { ...msg, is_read: true, read_at: e.read_at } 
+                  : msg
+              )
+            );
+          })
+          .listenForWhisper('typing', (e) => {
+            setIsOtherTyping(e.typing);
+            if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+            if (e.typing) {
+              typingTimeoutRef.current = setTimeout(() => setIsOtherTyping(false), 3000);
+            }
+          });
+      } catch (err) { console.warn('Echo subscription failed:', err); }
+      
       return () => {
-        if (echoRef.current) echoRef.current.leave(`conversation.${selectedChat.id}`);
+        echo.leave(`conversation.${selectedChat.id}`);
       };
     }
-  }, [selectedChat, fetchMessages, appendUniqueMessage, markConversationAsRead]);
+  }, [selectedChat, echo, fetchMessages, markConversationAsRead]);
 
   useEffect(() => {
     scrollToBottom();
@@ -481,6 +500,8 @@ export const useMessaging = (user, accessRole = 'landlord') => {
     selectedChat,
     setSelectedChat,
     messages,
+    hasMoreMessages,
+    loadMoreMessages,
     messageText,
     setMessageText,
     loading,

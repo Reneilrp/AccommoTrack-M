@@ -6,11 +6,16 @@ const verificationService = {
    * @param {FormData} formData 
    */
   async submitLandlordVerification(formData) {
-    return await api.post('/landlord-verification', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    });
+    try {
+      const res = await api.post('/landlord-verification', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+      return { success: true, data: res.data };
+    } catch (err) {
+      return { success: false, error: err.response?.data?.message || err.message };
+    }
   },
 
   /**
@@ -18,11 +23,16 @@ const verificationService = {
    * @param {FormData} formData 
    */
   async resubmitTenantVerification(formData) {
-    return await api.post('/tenant/resubmit-verification', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    });
+    try {
+      const res = await api.post('/tenant/resubmit-verification', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+      return { success: true, data: res.data };
+    } catch (err) {
+      return { success: false, error: err.response?.data?.message || err.message };
+    }
   }
 };
 

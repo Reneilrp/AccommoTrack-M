@@ -48,8 +48,16 @@ class AppServiceProvider extends ServiceProvider
         Review::observe(ReviewObserver::class);
 
         // Dashboard Cache Invalidation
-        Booking::observe(TenantDashboardObserver::class);
-        Invoice::observe(TenantDashboardObserver::class);
-        PaymentTransaction::observe(TenantDashboardObserver::class);
+        $dashboardObserverModels = [
+            \App\Models\Booking::class,
+            \App\Models\Invoice::class,
+            \App\Models\PaymentTransaction::class,
+            \App\Models\MaintenanceRequest::class,
+        ];
+
+        foreach ($dashboardObserverModels as $model) {
+            $model::observe(TenantDashboardObserver::class);
+            $model::observe(\App\Observers\LandlordDashboardObserver::class);
+        }
     }
 }

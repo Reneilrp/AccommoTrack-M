@@ -27,13 +27,19 @@ export const getImageUrl = (imageSource) => {
     
     const cleanPath = imagePath.replace(/^\/+/, '');
     
+    // Auto-convert to WebP for mobile performance if it's a standard image extension
+    let finalPath = cleanPath;
+    if (cleanPath.match(/\.(jpg|jpeg|png)$/i)) {
+        finalPath = cleanPath.replace(/\.(jpg|jpeg|png)$/i, '.webp');
+    }
+
     // Logic for relative paths
-    if (cleanPath.startsWith('storage/')) {
-        return `${BASE_URL}/${cleanPath}`;
+    if (finalPath.startsWith('storage/')) {
+        return `${BASE_URL}/${finalPath}`;
     }
     
     // Default storage prefix
-    return `${BASE_URL}/storage/${cleanPath}`;
+    return `${BASE_URL}/storage/${finalPath}`;
 };
 
 /**

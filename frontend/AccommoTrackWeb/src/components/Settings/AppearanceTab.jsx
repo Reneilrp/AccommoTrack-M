@@ -1,11 +1,24 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, memo } from 'react';
 import { usePreferences } from '../../contexts/PreferencesContext';
 import { Type, Check, Sun, Moon, Monitor } from 'lucide-react';
 import { SkeletonAppearanceTab } from '../../components/Shared/Skeleton';
 import { showSuccess, showError } from '../../utils/toast';
 import api from '../../utils/api';
 
-export default function AppearanceTab({ loading = false, user, onUserUpdate }) {
+const THEME_OPTIONS = [
+  { value: 'light', label: 'Light', icon: Sun, description: 'Always use light theme' },
+  { value: 'dark', label: 'Dark', icon: Moon, description: 'Always use dark theme' },
+  { value: 'system', label: 'System', icon: Monitor, description: 'Follow device settings' }
+];
+
+const FONT_SIZE_OPTIONS = [
+  { value: 'small', label: 'Small', preview: 'Aa', size: 'text-sm', description: '90%' },
+  { value: 'medium', label: 'Medium', preview: 'Aa', size: 'text-base', description: '100%' },
+  { value: 'large', label: 'Large', preview: 'Aa', size: 'text-lg', description: '115%' },
+  { value: 'x-large', label: 'Extra Large', preview: 'Aa', size: 'text-xl', description: '130%' }
+];
+
+const AppearanceTab = ({ loading = false, user, onUserUpdate }) => {
   const {
     fontSize,
     setFontSize,
@@ -16,9 +29,12 @@ export default function AppearanceTab({ loading = false, user, onUserUpdate }) {
   } = usePreferences();
   const [isSaving, setIsSaving] = useState(false);
 
-  const persistedAppearance = (user?.preferences && typeof user.preferences === 'object' && user.preferences.appearance)
-    ? user.preferences.appearance
-    : {};
+  const persistedAppearance = useMemo(() => {
+    return (user?.preferences && typeof user.preferences === 'object' && user.preferences.appearance)
+      ? user.preferences.appearance
+      : {};
+  }, [user?.preferences]);
+
   const savedTheme = persistedAppearance?.theme || 'system';
   const savedFontSize = persistedAppearance?.fontSize || 'medium';
   const hasUnsavedChanges = theme !== savedTheme || fontSize !== savedFontSize;
@@ -52,19 +68,6 @@ export default function AppearanceTab({ loading = false, user, onUserUpdate }) {
     }
   };
 
-  const themeOptions = [
-    { value: 'light', label: 'Light', icon: Sun, description: 'Always use light theme' },
-    { value: 'dark', label: 'Dark', icon: Moon, description: 'Always use dark theme' },
-    { value: 'system', label: 'System', icon: Monitor, description: 'Follow device settings' }
-  ];
-
-  const fontSizeOptions = [
-    { value: 'small', label: 'Small', preview: 'Aa', size: 'text-sm', description: '90%' },
-    { value: 'medium', label: 'Medium', preview: 'Aa', size: 'text-base', description: '100%' },
-    { value: 'large', label: 'Large', preview: 'Aa', size: 'text-lg', description: '115%' },
-    { value: 'x-large', label: 'Extra Large', preview: 'Aa', size: 'text-xl', description: '130%' }
-  ];
-
   if (loading) return <SkeletonAppearanceTab />;
 
   return (
@@ -97,7 +100,7 @@ export default function AppearanceTab({ loading = false, user, onUserUpdate }) {
           </p>
           
           <div className="grid grid-cols-3 gap-4">
-            {themeOptions.map((option) => {
+            {THEME_OPTIONS.map((option) => {
               const Icon = option.icon;
               return (
                 <button
@@ -138,7 +141,7 @@ export default function AppearanceTab({ loading = false, user, onUserUpdate }) {
           </p>
           
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {fontSizeOptions.map((option) => (
+            {FONT_SIZE_OPTIONS.map((option) => (
               <button
                 key={option.value}
                 onClick={() => setFontSize(option.value)}
@@ -193,4 +196,6 @@ export default function AppearanceTab({ loading = false, user, onUserUpdate }) {
       </div>
     </div>
   );
-}
+};
+
+export default memo(AppearanceTab);

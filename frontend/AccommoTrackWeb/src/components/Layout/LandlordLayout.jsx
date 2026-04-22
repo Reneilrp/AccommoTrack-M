@@ -57,7 +57,6 @@ export default function LandlordLayout({ user, onLogout, children, accessRole = 
     if (typeof window === 'undefined') return undefined;
 
     refreshMessageUnreadCount();
-    const intervalId = window.setInterval(refreshMessageUnreadCount, 30000);
 
     const handleWindowFocus = () => refreshMessageUnreadCount();
     const handleUnreadUpdate = (event) => {
@@ -73,7 +72,6 @@ export default function LandlordLayout({ user, onLogout, children, accessRole = 
     window.addEventListener('accommo:messages-unread-updated', handleUnreadUpdate);
 
     return () => {
-      window.clearInterval(intervalId);
       window.removeEventListener('focus', handleWindowFocus);
       window.removeEventListener('accommo:messages-unread-updated', handleUnreadUpdate);
     };

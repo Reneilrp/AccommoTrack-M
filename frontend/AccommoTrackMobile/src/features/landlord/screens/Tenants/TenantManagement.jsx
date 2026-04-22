@@ -332,9 +332,9 @@ export default function TenantsScreen({ navigation, route }) {
     return {
       total: tenants.length,
       active: tenants.filter(t => t.tenantProfile?.status === 'active').length,
-      paid: tenants.filter(t => t.latestBooking?.payment_status === 'paid').length,
-      pending: tenants.filter(t => t.latestBooking?.payment_status === 'unpaid' || !t.latestBooking).length,
-      overdue: tenants.filter(t => t.latestBooking?.payment_status === 'overdue').length
+      paid: tenants.filter(t => t.latestBooking?.payment_status === 'paid' && !t.has_overdue_invoices).length,
+      pending: tenants.filter(t => (t.latestBooking?.payment_status === 'unpaid' || !t.latestBooking) && !t.has_overdue_invoices).length,
+      overdue: tenants.filter(t => t.has_overdue_invoices || t.latestBooking?.payment_status === 'overdue').length
     };
   }, [tenants]);
 
@@ -350,9 +350,9 @@ export default function TenantsScreen({ navigation, route }) {
       if (!matchesSearch) return false;
       if (filter === 'all') return true;
       if (filter === 'active') return tenant.tenantProfile?.status === 'active';
-      if (filter === 'paid') return tenant.latestBooking?.payment_status === 'paid';
-      if (filter === 'unpaid') return tenant.latestBooking?.payment_status === 'unpaid';
-      if (filter === 'overdue') return tenant.latestBooking?.payment_status === 'overdue';
+      if (filter === 'paid') return tenant.latestBooking?.payment_status === 'paid' && !tenant.has_overdue_invoices;
+      if (filter === 'unpaid') return tenant.latestBooking?.payment_status === 'unpaid' && !tenant.has_overdue_invoices;
+      if (filter === 'overdue') return tenant.has_overdue_invoices || tenant.latestBooking?.payment_status === 'overdue';
       return true;
     });
   }, [tenants, searchQuery, filter]);

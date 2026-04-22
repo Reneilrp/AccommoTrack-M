@@ -1,4 +1,4 @@
-import api from './api.js';
+import api, { normalizeResponse, normalizeError, normalizePaginatedResponse } from './api.js';
 
 class MaintenanceService {
 
@@ -11,10 +11,14 @@ class MaintenanceService {
       const response = await api.get(`/landlord/maintenance-requests`, {
         params
       });
-      return { success: true, data: response.data?.data || response.data || [] };
+      return { 
+        success: true, 
+        data: normalizePaginatedResponse(response),
+        error: null 
+      };
     } catch (error) {
       console.error('Error fetching maintenance requests:', error);
-      return { success: false, error: error.response?.data?.message || 'Failed to fetch requests' };
+      return normalizeError(error);
     }
   }
 
@@ -29,10 +33,10 @@ class MaintenanceService {
         `/landlord/maintenance-requests/${id}/status`,
         { status },
       );
-      return { success: true, data: response.data?.data || response.data || null };
+      return normalizeResponse(response);
     } catch (error) {
       console.error('Error updating status:', error);
-      return { success: false, error: error.response?.data?.message || 'Failed to update status' };
+      return normalizeError(error);
     }
   }
 
@@ -42,10 +46,10 @@ class MaintenanceService {
   async assignWorker(id, workerId) {
     try {
       const response = await api.patch(`/landlord/maintenance-requests/${id}/assign`, { worker_id: workerId });
-      return { success: true, data: response.data?.data || response.data || null };
+      return normalizeResponse(response);
     } catch (error) {
       console.error('Error assigning worker:', error);
-      return { success: false, error: error.response?.data?.message || 'Failed to assign worker' };
+      return normalizeError(error);
     }
   }
 
@@ -55,10 +59,10 @@ class MaintenanceService {
   async completeRequest(id, notes = null) {
     try {
       const response = await api.post(`/landlord/maintenance-requests/${id}/complete`, { notes });
-      return { success: true, data: response.data?.data || response.data || null };
+      return normalizeResponse(response);
     } catch (error) {
       console.error('Error completing request:', error);
-      return { success: false, error: error.response?.data?.message || 'Failed to complete request' };
+      return normalizeError(error);
     }
   }
 

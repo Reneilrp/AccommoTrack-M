@@ -18,7 +18,7 @@ import { showSuccess, showError } from '../../../utils/toast';
 import landlordService from '../../../services/landlordService';
 
 const formatMoney = (cents, currency = 'PHP') => {
-  const amount = Number.isFinite(Number(cents)) ? Number(cents) / 100 : 0;
+  const amount = Number.isFinite(Number(cents)) ? Number(cents) : 0;
   return new Intl.NumberFormat('en-PH', {
     style: 'currency',
     currency: currency || 'PHP',
@@ -68,8 +68,8 @@ const DEFAULT_PLAN_CHOICES = [
   {
     slug: 'basic',
     name: 'Basic',
-    monthly_price_cents: 49900,
-    annual_price_cents: 499000,
+    monthly_price_cents: 499.00,
+    annual_price_cents: 4990.00,
     currency: 'PHP',
     max_properties: 3,
     max_rooms_total: 40,
@@ -78,8 +78,8 @@ const DEFAULT_PLAN_CHOICES = [
   {
     slug: 'standard',
     name: 'Standard',
-    monthly_price_cents: 149900,
-    annual_price_cents: 1499000,
+    monthly_price_cents: 1499.00,
+    annual_price_cents: 14990.00,
     currency: 'PHP',
     max_properties: 10,
     max_rooms_total: 200,
@@ -88,8 +88,8 @@ const DEFAULT_PLAN_CHOICES = [
   {
     slug: 'premium',
     name: 'Premium',
-    monthly_price_cents: 399900,
-    annual_price_cents: 3999000,
+    monthly_price_cents: 3999.00,
+    annual_price_cents: 39990.00,
     currency: 'PHP',
     max_properties: 30,
     max_rooms_total: 800,

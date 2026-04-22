@@ -1,4 +1,4 @@
-import api from './api.js';
+import api, { normalizeResponse, normalizeError } from './api.js';
 
 class CartService {
   /**
@@ -10,16 +10,10 @@ class CartService {
       const response = await api.get('/cart', {
         params: propertyId ? { property_id: propertyId } : {},
       });
-      return {
-        success: true,
-        data: response.data?.data || response.data,
-      };
+      return normalizeResponse(response);
     } catch (error) {
       console.error('Error fetching cart:', error);
-      return {
-        success: false,
-        error: error.response?.data?.message || 'Failed to fetch cart',
-      };
+      return normalizeError(error);
     }
   }
 
@@ -30,18 +24,10 @@ class CartService {
   async addToCart(payload) {
     try {
       const response = await api.post('/cart/items', payload);
-      return {
-        success: true,
-        data: response.data?.data || response.data,
-      };
+      return normalizeResponse(response);
     } catch (error) {
       console.error('Error adding to cart:', error);
-      return {
-        success: false,
-        error: error.response?.data?.message || 'Failed to add to cart',
-        details: error.response?.data?.errors || null,
-        errors: error.response?.data?.errors || null,
-      };
+      return normalizeError(error);
     }
   }
 
@@ -52,16 +38,10 @@ class CartService {
   async updateCartItem(itemId, payload) {
     try {
       const response = await api.put(`/cart/items/${itemId}`, payload);
-      return {
-        success: true,
-        data: response.data?.data || response.data,
-      };
+      return normalizeResponse(response);
     } catch (error) {
       console.error('Error updating cart item:', error);
-      return {
-        success: false,
-        error: error.response?.data?.message || 'Failed to update cart item',
-      };
+      return normalizeError(error);
     }
   }
 
@@ -72,16 +52,10 @@ class CartService {
   async removeFromCart(itemId) {
     try {
       const response = await api.delete(`/cart/items/${itemId}`);
-      return {
-        success: true,
-        data: response.data?.data || response.data,
-      };
+      return normalizeResponse(response);
     } catch (error) {
       console.error('Error removing from cart:', error);
-      return {
-        success: false,
-        error: error.response?.data?.message || 'Failed to remove from cart',
-      };
+      return normalizeError(error);
     }
   }
 
@@ -92,16 +66,10 @@ class CartService {
   async clearCart() {
     try {
       const response = await api.delete('/cart/clear');
-      return {
-        success: true,
-        data: response.data?.data || response.data,
-      };
+      return normalizeResponse(response);
     } catch (error) {
       console.error('Error clearing cart:', error);
-      return {
-        success: false,
-        error: error.response?.data?.message || 'Failed to clear cart',
-      };
+      return normalizeError(error);
     }
   }
 
@@ -112,16 +80,10 @@ class CartService {
   async checkout(cartId) {
     try {
       const response = await api.post(`/cart/${cartId}/checkout`);
-      return {
-        success: true,
-        data: response.data?.data || response.data,
-      };
+      return normalizeResponse(response);
     } catch (error) {
       console.error('Error checking out cart:', error);
-      return {
-        success: false,
-        error: error.response?.data?.message || 'Failed to checkout cart',
-      };
+      return normalizeError(error);
     }
   }
 }

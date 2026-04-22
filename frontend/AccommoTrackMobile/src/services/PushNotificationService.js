@@ -2,7 +2,7 @@ import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
 import * as Notifications from 'expo-notifications';
-import api from './api.js';
+import api, { normalizeResponse, normalizeError } from './api.js';
 import { useAuthStore } from '../stores/auth/authStore.js';
 
 const DEVICE_PUSH_TOKEN_STORAGE_KEY = 'device_push_token';
@@ -35,11 +35,11 @@ const resolveExpoProjectId = () => {
 
 export const registerDevicePushToken = async () => {
   if (isTestEnv) {
-    return null;
+    return { success: false, data: null, error: 'Test environment' };
   }
 
   if (!useAuthStore.getState().authToken) {
-    return null;
+    return { success: false, data: null, error: 'Not authenticated' };
   }
 
   try {
@@ -61,7 +61,7 @@ export const registerDevicePushToken = async () => {
     }
 
     if (finalStatus !== 'granted') {
-      return null;
+      return { success: false, data: null, error: 'Permission not granted' };
     }
 
     const projectId = resolveExpoProjectId();
@@ -71,16 +71,16 @@ export const registerDevicePushToken = async () => {
     const expoPushToken = tokenResponse?.data || null;
 
     if (!expoPushToken) {
-      return null;
+      return { success: false, data: null, error: 'Failed to get push token' };
     }
 
     const registrationCacheKey = getRegistrationCacheKey();
     const alreadyRegisteredToken = await AsyncStorage.getItem(registrationCacheKey);
     if (alreadyRegisteredToken === expoPushToken) {
-      return expoPushToken;
+      return { success: true, data: expoPushToken, error: null };
     }
 
-    await api.post('/notifications/push-token', {
+    const response = await api.post('/notifications/push-token', {
       token: expoPushToken,
       platform: Platform.OS,
     });
@@ -88,16 +88,20 @@ export const registerDevicePushToken = async () => {
     await AsyncStorage.setItem(DEVICE_PUSH_TOKEN_STORAGE_KEY, expoPushToken);
     await AsyncStorage.setItem(registrationCacheKey, expoPushToken);
 
-    return expoPushToken;
+    const res = normalizeResponse(response);
+    if (res.success) {
+      res.data = expoPushToken;
+    }
+    return res;
   } catch (error) {
     console.warn('[PushNotificationService] Failed to register Expo push token:', error?.message || error);
-    return null;
+    return normalizeError(error);
   }
 };
 
 export const unregisterCurrentDevicePushToken = async () => {
   if (isTestEnv) {
-    return;
+    return { success: false, data: null, error: 'Test environment' };
   }
 
   try {
@@ -105,16 +109,16 @@ export const unregisterCurrentDevicePushToken = async () => {
     const storedToken = await AsyncStorage.getItem(DEVICE_PUSH_TOKEN_STORAGE_KEY);
     if (!storedToken) {
       await AsyncStorage.removeItem(registrationCacheKey);
-      return;
+      return { success: true, data: null, error: null };
     }
 
     if (!useAuthStore.getState().authToken) {
       await AsyncStorage.removeItem(DEVICE_PUSH_TOKEN_STORAGE_KEY);
       await AsyncStorage.removeItem(registrationCacheKey);
-      return;
+      return { success: true, data: null, error: null };
     }
 
-    await api.delete('/notifications/push-token', {
+    const response = await api.delete('/notifications/push-token', {
       data: {
         token: storedToken,
       },
@@ -122,24 +126,27 @@ export const unregisterCurrentDevicePushToken = async () => {
 
     await AsyncStorage.removeItem(DEVICE_PUSH_TOKEN_STORAGE_KEY);
     await AsyncStorage.removeItem(registrationCacheKey);
+
+    return normalizeResponse(response);
   } catch (error) {
     console.warn('[PushNotificationService] Failed to unregister Expo push token:', error?.message || error);
+    return normalizeError(error);
   }
 };
 
 export const sendOneDayExtensionReminder = async ({ bookingId, propertyTitle, endDate }) => {
   if (isTestEnv || !bookingId) {
-    return false;
+    return { success: false, data: null, error: 'Invalid environment or booking ID' };
   }
 
   try {
     if (!useAuthStore.getState().authToken) {
-      return false;
+      return { success: false, data: null, error: 'Not authenticated' };
     }
 
     const permission = await Notifications.getPermissionsAsync();
     if (permission?.status !== 'granted') {
-      return false;
+      return { success: false, data: null, error: 'Permission not granted' };
     }
 
     const userId = useAuthStore.getState().userId ?? 'unknown';
@@ -147,7 +154,7 @@ export const sendOneDayExtensionReminder = async ({ bookingId, propertyTitle, en
     const cacheKey = `${EXTENSION_REMINDER_PREFIX}:${userId}:${bookingId}:${normalizedEndDate}`;
     const alreadySent = await AsyncStorage.getItem(cacheKey);
     if (alreadySent === '1') {
-      return false;
+      return { success: true, data: false, message: 'Reminder already sent' };
     }
 
     const safePropertyTitle = String(propertyTitle || '').trim();
@@ -170,9 +177,9 @@ export const sendOneDayExtensionReminder = async ({ bookingId, propertyTitle, en
     });
 
     await AsyncStorage.setItem(cacheKey, '1');
-    return true;
+    return { success: true, data: true, error: null };
   } catch (error) {
     console.warn('[PushNotificationService] Failed to send one-day extension reminder:', error?.message || error);
-    return false;
+    return { success: false, data: null, error: error?.message || 'Failed to send reminder' };
   }
 };

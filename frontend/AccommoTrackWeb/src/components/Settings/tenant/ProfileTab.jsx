@@ -72,7 +72,10 @@ const ProfileTab = ({ onUserUpdate }) => {
 
   const fetchProfile = useCallback(async () => {
     try {
-      if (!cachedProfile) setLoading(true);
+      // Use loading state only if we don't have cached data yet
+      const hasCache = !!uiState.data?.profile;
+      if (!hasCache) setLoading(true);
+
       const res = await tenantService.getProfile();
 
       if (res.success) {
@@ -88,14 +91,20 @@ const ProfileTab = ({ onUserUpdate }) => {
     } finally {
       setLoading(false);
     }
-  }, [cachedProfile, mapDataToForm, updateData]);
+  }, [mapDataToForm, updateData, uiState.data?.profile]);
 
+  // Effect 1: Hydrate from cache whenever it changes
   useEffect(() => {
     if (cachedProfile) {
       mapDataToForm(cachedProfile);
     }
+  }, [cachedProfile, mapDataToForm]);
+
+  // Effect 2: Fetch fresh data once on mount
+  useEffect(() => {
     fetchProfile();
-  }, [cachedProfile, mapDataToForm, fetchProfile]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const NAME_FIELDS = ['first_name', 'middle_name', 'last_name'];
   const NAME_LABELS = {

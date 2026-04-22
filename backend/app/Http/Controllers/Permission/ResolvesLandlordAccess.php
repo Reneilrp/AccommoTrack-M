@@ -11,22 +11,31 @@ trait ResolvesLandlordAccess
     {
         $user = $request->user();
 
-        if (! $user || ! $user->managesLandlordData()) {
-            throw new AccessDeniedHttpException('Landlord or caretaker access required.');
+        if (! $user) {
+            throw new AccessDeniedHttpException('Authentication required.');
         }
 
-        $landlordId = $user->effectiveLandlordId();
+        $cacheKey = "user_landlord_context_{$user->id}";
 
-        if (! $landlordId) {
-            throw new AccessDeniedHttpException('Caretaker assignment is missing.');
-        }
+        return \Illuminate\Support\Facades\Cache::remember($cacheKey, 1800, function () use ($user) {
+            if (! $user->managesLandlordData()) {
+                throw new AccessDeniedHttpException('Landlord or caretaker access required.');
+            }
 
-        return [
-            'landlord_id' => $landlordId,
-            'is_caretaker' => $user->isCaretaker(),
-            'assignment' => $user->isCaretaker() ? $user->caretakerAssignment : null,
-            'user' => $user,
-        ];
+            $landlordId = $user->effectiveLandlordId();
+
+            if (! $landlordId) {
+                throw new AccessDeniedHttpException('Caretaker assignment is missing.');
+            }
+
+            return [
+                'landlord_id' => $landlordId,
+                'is_caretaker' => $user->isCaretaker(),
+                // Store assignment as array to avoid serialization issues with large objects
+                'assignment' => $user->isCaretaker() ? $user->caretakerAssignment : null,
+                'user_id' => $user->id,
+            ];
+        }) + ['user' => $user]; // Always merge fresh user model
     }
 
     protected function ensureCaretakerCan(array $context, string $permissionColumn): void

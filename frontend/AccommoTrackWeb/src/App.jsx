@@ -12,12 +12,16 @@ import AuthScreen from "./screens/Auth/Web-Auth";
 import LandlordRegister from "./screens/Auth/LandlordRegister";
 import Help from "./screens/Guest/Help";
 import MobileAppPage from "./screens/Guest/MobileAppPage";
+import VerifyReceipt from "./screens/Public/VerifyReceipt";
 import ErrorBoundary from "./components/Shared/ErrorBoundary";
 import { getDefaultLandingRoute } from "./utils/userRoutes";
 import { PreferencesProvider } from "./contexts/PreferencesContext";
 import { UIStateProvider } from "./contexts/UIStateContext";
 import { CartProvider } from "./contexts/CartContext";
+import { WebSocketProvider } from "./contexts/WebSocketContext";
 import { cacheManager } from "./utils/cache";
+
+import { useRealTimeSync } from "./hooks/useRealTimeSync";
 
 function App() {
   const [user, setUser] = useState(null);
@@ -174,6 +178,9 @@ function App() {
     return () => window.removeEventListener("auth:blocked", handleBlocked);
   }, [navigate]);
 
+  // Real-time synchronization for the authenticated user
+  useRealTimeSync(user);
+
   const handleLogout = () => {
     setUser(null);
     localStorage.removeItem("userData");
@@ -210,63 +217,58 @@ function App() {
   return (
     <PreferencesProvider>
       <UIStateProvider>
-        <ErrorBoundary>
-          <Routes>
-            {/* 1. Landing Page - Exact Match */}
-            <Route path="/" element={<LandingPage user={user} />} />
-
-            {/* 2. Login Page - Redirects if already logged in */}
-            <Route
-              path="/login"
-              element={
-                !user ? (
-                  <AuthScreen onLogin={handleLogin} />
-                ) : (
-                  <Navigate to={verifiedLanding} replace />
-                )
-              }
-            />
-
-            {/* 3. Register Page (Optional, if you have it) */}
-            <Route
-              path="/register"
-              element={
-                !user ? (
-                  <AuthScreen isRegister={true} onLogin={handleLogin} />
-                ) : (
-                  <Navigate to={verifiedLanding} replace />
-                )
-              }
-            />
-
-            {/* 4. Landlord and Help Pages */}
-            <Route path="/become-landlord" element={<LandlordRegister />} />
-            <Route path="/help" element={<Help />} />
-            <Route path="/mobile-app" element={<MobileAppPage />} />
-
-            {/* 5. All Other Routes Handled by WebNavigator */}
-            <Route
-              path="/*"
-              element={
-                user?.role === 'tenant' ? (
-                  <CartProvider>
+        <WebSocketProvider user={user}>
+          <ErrorBoundary>
+            <Routes>
+              {/* ... routes ... */}
+              <Route path="/" element={<LandingPage user={user} />} />
+              <Route
+                path="/login"
+                element={
+                  !user ? (
+                    <AuthScreen onLogin={handleLogin} />
+                  ) : (
+                    <Navigate to={verifiedLanding} replace />
+                  )
+                }
+              />
+              <Route
+                path="/register"
+                element={
+                  !user ? (
+                    <AuthScreen isRegister={true} onLogin={handleLogin} />
+                  ) : (
+                    <Navigate to={verifiedLanding} replace />
+                  )
+                }
+              />
+              <Route path="/become-landlord" element={<LandlordRegister />} />
+              <Route path="/help" element={<Help />} />
+              <Route path="/mobile-app" element={<MobileAppPage />} />
+              <Route path="/verify-receipt/:reference" element={<VerifyReceipt />} />
+              <Route
+                path="/*"
+                element={
+                  user?.role === 'tenant' ? (
+                    <CartProvider>
+                      <WebNavigator
+                        user={user}
+                        onLogout={handleLogout}
+                        onUserUpdate={handleUserUpdate}
+                      />
+                    </CartProvider>
+                  ) : (
                     <WebNavigator
                       user={user}
                       onLogout={handleLogout}
                       onUserUpdate={handleUserUpdate}
                     />
-                  </CartProvider>
-                ) : (
-                  <WebNavigator
-                    user={user}
-                    onLogout={handleLogout}
-                    onUserUpdate={handleUserUpdate}
-                  />
-                )
-              }
-            />
-          </Routes>
-        </ErrorBoundary>
+                  )
+                }
+              />
+            </Routes>
+          </ErrorBoundary>
+        </WebSocketProvider>
       </UIStateProvider>
     </PreferencesProvider>
   );

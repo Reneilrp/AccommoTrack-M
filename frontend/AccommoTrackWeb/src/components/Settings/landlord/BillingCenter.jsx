@@ -3,6 +3,15 @@ import { CheckCircle2, Clock3, CreditCard, FileText, History, Loader2, Receipt, 
 import { Link } from 'react-router-dom';
 import { showSuccess, showError } from '../../../utils/toast';
 import invoiceService from '../../../services/invoiceService';
+import Decimal from '../../../utils/decimal';
+
+const toDecimal = (val) => {
+  try {
+    return new Decimal(val || 0);
+  } catch (__e) {
+    return new Decimal(0);
+  }
+};
 
 const TABS = [
   { id: 'billing', label: 'Billing', icon: Receipt },
@@ -41,19 +50,19 @@ const normalizeStatus = (status) => {
 };
 
 const computeInvoiceTotals = (invoice) => {
-  const total = Number(invoice?.amount_cents ? invoice.amount_cents / 100 : invoice?.amount || 0);
+  const total = toDecimal(invoice?.amount_cents ?? invoice?.amount);
   const paid = (invoice?.transactions || [])
     .filter((tx) => ['succeeded', 'paid', 'partially_refunded'].includes((tx.status || '').toLowerCase()))
     .reduce((sum, tx) => {
-      const amount = Number(tx.amount_cents ? tx.amount_cents / 100 : tx.amount || 0);
-      const refunded = Number(tx.refunded_amount_cents ? tx.refunded_amount_cents / 100 : 0);
-      return sum + Math.max(amount - refunded, 0);
-    }, 0);
+      const amount = toDecimal(tx.amount_cents ?? tx.amount);
+      const refunded = toDecimal(tx.refunded_amount_cents ?? tx.refunded_amount);
+      return sum.plus(Decimal.max(amount.minus(refunded), 0));
+    }, new Decimal(0));
 
   return {
-    total,
-    paid,
-    outstanding: Math.max(total - paid, 0),
+    total: total.toNumber(),
+    paid: paid.toNumber(),
+    outstanding: Decimal.max(total.minus(paid), 0).toNumber(),
   };
 };
 
@@ -77,7 +86,7 @@ const buildHistory = (invoices) => {
         timestamp: tx.created_at || tx.updated_at,
         title: 'Payment update',
         detail: `${reference} ${tx.method ? `(${tx.method})` : ''} ${currency(
-          Number(tx.amount_cents ? tx.amount_cents / 100 : tx.amount || 0)
+          toDecimal(tx.amount_cents ?? tx.amount).toNumber()
         )} marked ${String(tx.status || 'pending').replace('_', ' ')}.`,
         type: 'payment',
       });
@@ -194,7 +203,7 @@ export default function BillingCenter({ onOpenSubscriptionPlan }) {
           invoiceReference: invoice.reference,
           method: tx.method || 'unknown',
           status: tx.status || 'pending',
-          amount: Number(tx.amount_cents ? tx.amount_cents / 100 : tx.amount || 0),
+          amount: toDecimal(tx.amount_cents ?? tx.amount).toNumber(),
           createdAt: tx.created_at || tx.updated_at,
         }))
       )
@@ -233,18 +242,9 @@ export default function BillingCenter({ onOpenSubscriptionPlan }) {
     if (!totals) return fallback;
 
     return {
-      totalInvoiced: Number(
-        totals.total_billed ??
-          ((Number.isFinite(Number(totals.total_billed_cents)) ? Number(totals.total_billed_cents) : 0) / 100)
-      ),
-      totalPaid: Number(
-        totals.total_paid ??
-          ((Number.isFinite(Number(totals.total_paid_cents)) ? Number(totals.total_paid_cents) : 0) / 100)
-      ),
-      totalOutstanding: Number(
-        totals.total_balance ??
-          ((Number.isFinite(Number(totals.total_balance_cents)) ? Number(totals.total_balance_cents) : 0) / 100)
-      ),
+      totalInvoiced: Number(totals.total_billed ?? (totals.total_billed_cents || 0)),
+      totalPaid: Number(totals.total_paid ?? (totals.total_paid_cents || 0)),
+      totalOutstanding: Number(totals.total_balance ?? (totals.total_balance_cents || 0)),
       pendingVerification: Number(totals.pending_verification_count || 0),
       overdue: Number(totals.overdue_count || 0),
     };

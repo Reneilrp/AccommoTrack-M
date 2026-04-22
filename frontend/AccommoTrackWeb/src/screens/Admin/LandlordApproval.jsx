@@ -1,21 +1,9 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { Eye, Check, CheckCircle, X, XCircle, Ban, Pencil, FileText, Loader2, Image as ImageIcon, AlertTriangle } from 'lucide-react';
 import api, { getImageUrl } from '../../utils/api';
+import adminService from '../../services/adminService';
 import { showSuccess, showError } from '../../utils/toast';
 import ConfirmationModal from '../../components/Shared/ConfirmationModal';
-
-const looksLikeHtmlDocument = (value) => {
-  if (typeof value !== 'string') return false;
-  return /^\s*</.test(value) && /<(?:!doctype\s+html|html)/i.test(value);
-};
-
-const normalizeVerificationsPayload = (payload) => {
-  if (Array.isArray(payload)) return payload;
-  if (payload && Array.isArray(payload.data)) return payload.data;
-  if (payload && payload.data && Array.isArray(payload.data.data)) return payload.data.data;
-  if (payload && Array.isArray(payload.verifications)) return payload.verifications;
-  return [];
-};
 
 const normalizeVerificationStatus = (status) => {
   if (typeof status !== 'string') return 'pending';
@@ -58,6 +46,7 @@ const isSelectableVerification = (verification) => normalizeVerificationStatus(v
 
 export default function LandlordApproval() {
   const [verifications, setVerifications] = useState([]);
+  const [pagination, setPagination] = useState({ currentPage: 1, lastPage: 1, total: 0 });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [selectedVerification, setSelectedVerification] = useState(null);
@@ -69,40 +58,28 @@ export default function LandlordApproval() {
   const [actionLoading, setActionLoading] = useState(null);
   const [confirmModalState, setConfirmModalState] = useState({ isOpen: false, title: '', message: '', onConfirm: () => { } });
 
-  const fetchVerifications = useCallback(async () => {
+  const fetchVerifications = useCallback(async (page = 1) => {
     try {
       setLoading(true);
       setError('');
-      const res = await api.get('/admin/landlord-verifications');
-      const responseBody = res?.data;
-
-      if (looksLikeHtmlDocument(responseBody)) {
-        throw new Error('Unexpected HTML response from landlord-verifications endpoint');
-      }
-
-      const normalizedData = normalizeVerificationsPayload(responseBody);
-      setVerifications(normalizedData);
-
-      if (!Array.isArray(responseBody) && normalizedData.length === 0 && responseBody && typeof responseBody === 'object') {
-        console.warn('Unexpected landlord verification payload shape:', responseBody);
+      const res = await adminService.getLandlordVerifications({ page });
+      
+      if (res.success) {
+        setVerifications(res.data.items || []);
+        if (res.data.pagination) setPagination(res.data.pagination);
+      } else {
+        setError(res.error || 'Failed to fetch verifications');
       }
     } catch (err) {
       console.error('Failed to fetch landlord verifications:', err);
-      const htmlResponseDetected =
-        typeof err?.message === 'string' && err.message.toLowerCase().includes('html response');
-
-      setError(
-        htmlResponseDetected
-          ? 'Failed to load verification requests: server returned HTML instead of JSON.'
-          : 'Failed to load verification requests.'
-      );
+      setError('An error occurred while loading verifications.');
     } finally {
       setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    fetchVerifications();
+    fetchVerifications(1);
   }, [fetchVerifications]);
 
   const toggleSelection = (userId) => {
@@ -537,6 +514,66 @@ export default function LandlordApproval() {
                 </tbody>
               </table>
             </div>
+
+            {/* Pagination Controls */}
+            {pagination.lastPage > 1 && (
+              <div className="flex items-center justify-between px-6 py-4 bg-gray-50 dark:bg-gray-900/50 border-t border-gray-100 dark:border-gray-700">
+                <div className="flex-1 flex justify-between sm:hidden">
+                  <button
+                    onClick={() => fetchVerifications(pagination.currentPage - 1)}
+                    disabled={pagination.currentPage === 1}
+                    className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
+                  >
+                    Previous
+                  </button>
+                  <button
+                    onClick={() => fetchVerifications(pagination.currentPage + 1)}
+                    disabled={pagination.currentPage === pagination.lastPage}
+                    className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
+                  >
+                    Next
+                  </button>
+                </div>
+                <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+                  <div>
+                    <p className="text-sm text-gray-700 dark:text-gray-400">
+                      Showing page <span className="font-medium">{pagination.currentPage}</span> of <span className="font-medium">{pagination.lastPage}</span>
+                    </p>
+                  </div>
+                  <div>
+                    <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+                      <button
+                        onClick={() => fetchVerifications(pagination.currentPage - 1)}
+                        disabled={pagination.currentPage === 1}
+                        className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white dark:bg-gray-800 text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50"
+                      >
+                        Previous
+                      </button>
+                      {[...Array(pagination.lastPage)].map((_, i) => (
+                        <button
+                          key={i + 1}
+                          onClick={() => fetchVerifications(i + 1)}
+                          className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
+                            pagination.currentPage === i + 1
+                              ? 'z-10 bg-amber-50 border-amber-500 text-amber-600'
+                              : 'bg-white dark:bg-gray-800 border-gray-300 text-gray-500 hover:bg-gray-50'
+                          }`}
+                        >
+                          {i + 1}
+                        </button>
+                      ))}
+                      <button
+                        onClick={() => fetchVerifications(pagination.currentPage + 1)}
+                        disabled={pagination.currentPage === pagination.lastPage}
+                        className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white dark:bg-gray-800 text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50"
+                      >
+                        Next
+                      </button>
+                    </nav>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}

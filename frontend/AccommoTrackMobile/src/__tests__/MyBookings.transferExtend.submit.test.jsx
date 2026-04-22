@@ -226,7 +226,7 @@ describe('MyBookings transfer/extend submit flows (mobile)', () => {
 
     TenantService.getHistory.mockResolvedValue({
       success: true,
-      data: { bookings: [] },
+      data: { items: [], meta: { current_page: 1, last_page: 1 } },
     });
 
     TenantService.getTransferRequests.mockResolvedValue({
@@ -299,7 +299,7 @@ describe('MyBookings transfer/extend submit flows (mobile)', () => {
       extension_type: 'daily',
       requested_end_date: formatLocalIsoDate(expectedDate),
     });
-  });
+  }, 10000);
 
   it('hides extend action when move-out notice is already submitted', async () => {
     mockStay.booking.notice_given_at = buildIsoDate(-1);

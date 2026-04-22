@@ -85,7 +85,7 @@ export default function MyWallet() {
 
   useEffect(() => {
     if (profileQuery.data?.wallet_balance !== undefined) {
-      setBalance(parseFloat(profileQuery.data.wallet_balance));
+      setBalance(parseFloat(profileQuery.data.wallet_balance) / 100);
     }
   }, [profileQuery.data]);
 

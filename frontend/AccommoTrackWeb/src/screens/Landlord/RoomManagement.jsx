@@ -25,7 +25,10 @@ import {
   RefreshCw,
   Upload,
   Image as ImageIcon,
+  HelpCircle,
 } from 'lucide-react';
+import PricingHelp from '../../components/Rooms/PricingHelp';
+import PriceRow from '../../components/Shared/PriceRow';
 
 const toCountNumber = (value, fallback = null) => {
   const n = Number(value);
@@ -167,6 +170,7 @@ export default function RoomManagement() {
 
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showEditPricingHelp, setShowEditPricingHelp] = useState(false);
   const [selectedRoom, setSelectedRoom] = useState(null);
   const [selectedRoomDetails, setSelectedRoomDetails] = useState(null);
   const [showRoomDetails, setShowRoomDetails] = useState(false);
@@ -174,13 +178,14 @@ export default function RoomManagement() {
 
   const [properties, setProperties] = useState(cachedProps || []);
   const [selectedPropertyId, setSelectedPropertyId] = useState(getInitialPropertyId());
-  const [drilldownApplied, setDrilldownApplied] = useState(false);
+  const [, setDrilldownApplied] = useState(false);
 
   // Dynamic cache key for rooms based on property
   const roomCacheKey = selectedPropertyId ? `rooms_property_${selectedPropertyId}` : null;
   const cachedRoomsData = roomCacheKey ? (uiState.data?.[roomCacheKey] || cacheManager.get(roomCacheKey)) : null;
 
   const [rooms, setRooms] = useState(cachedRoomsData?.rooms || []);
+  const [pagination, setPagination] = useState({ currentPage: 1, lastPage: 1, total: 0 });
   const [stats, setStats] = useState(cachedRoomsData?.stats || { total: 0, occupied: 0, available: 0, maintenance: 0 });
 
   const isFromProperty = Boolean(new URLSearchParams(location.search || '').get('property'));
@@ -328,7 +333,7 @@ export default function RoomManagement() {
     };
 
     loadInitialData();
-  }, [updateData]);
+  }, [updateData, cachedProps]);
 
   const handleOpenRoomDetails = useCallback((room) => {
     // Ensure room object has tenants loaded as array for RoomDetails
@@ -363,48 +368,53 @@ export default function RoomManagement() {
   }, [location.search, rooms, handleOpenRoomDetails]);
 
   // Get rooms
-  const fetchRooms = useCallback(async () => {
+  const fetchRooms = useCallback(async (page = 1) => {
     if (!selectedPropertyId) return;
     const currentCacheKey = `rooms_property_${selectedPropertyId}`;
-    const currentCached = uiState.data?.[currentCacheKey] || cacheManager.get(currentCacheKey);
+    const currentCached = cacheManager.get(currentCacheKey);
 
     try {
       if (!currentCached) setLoadingRooms(true);
       setError(null);
 
-      const roomsRes = await roomService.getRoomsByProperty(selectedPropertyId, { t: Date.now() });
+      const roomsRes = await roomService.getRoomsByProperty(selectedPropertyId, { page });
 
-      const roomsData = roomsRes.success
-        ? (Array.isArray(roomsRes.data) ? roomsRes.data : (Array.isArray(roomsRes.data?.data) ? roomsRes.data.data : []))
-        : [];
-      const statsData = deriveRoomStats(roomsData);
-      setRooms(roomsData);
-      setStats(statsData);
+      if (roomsRes.success) {
+        const { items: roomsData, pagination: pg } = roomsRes.data;
+        const statsData = deriveRoomStats(roomsData || []);
+        
+        setRooms(roomsData || []);
+        if (pg) setPagination(pg);
+        setStats(statsData);
 
-      // Handle roomId drilldown once rooms are loaded
-      const drilldownRoomId = new URLSearchParams(location.search).get('roomId');
-      if (drilldownRoomId && !drilldownApplied && roomsData.length > 0) {
-        const target = roomsData.find(r => String(r.id) === String(drilldownRoomId));
-        if (target) {
-          setDrilldownApplied(true);
-          handleOpenRoomDetails(target);
+        // Handle roomId drilldown once rooms are loaded
+        const drilldownRoomId = new URLSearchParams(location.search).get('roomId');
+        if (drilldownRoomId && roomsData.length > 0) {
+          const target = roomsData.find(r => String(r.id) === String(drilldownRoomId));
+          if (target) {
+            handleOpenRoomDetails(target);
+          }
         }
-      }
 
-      const newState = { rooms: roomsData, stats: statsData };
-      updateData(currentCacheKey, newState);
-      cacheManager.set(currentCacheKey, newState);
+        const newState = { rooms: roomsData, stats: statsData, pagination: pg };
+        updateData(currentCacheKey, newState);
+        cacheManager.set(currentCacheKey, newState);
+      } else {
+        setError(roomsRes.error || 'Failed to fetch rooms');
+      }
     } catch (err) {
+      const currentCacheKey = `rooms_property_${selectedPropertyId}`;
+      const currentCached = cacheManager.get(currentCacheKey);
       if (!currentCached) setError(err.message);
     } finally {
       setLoadingRooms(false);
     }
-  }, [selectedPropertyId, location.search, drilldownApplied, handleOpenRoomDetails, updateData]);
+  }, [selectedPropertyId, location.search, handleOpenRoomDetails, updateData]);
 
   // Load rooms and stats when property changes
   useEffect(() => {
     if (!selectedPropertyId) return;
-    fetchRooms();
+    fetchRooms(1);
   }, [selectedPropertyId, fetchRooms]);
 
   const handleRoomAdded = () => {
@@ -433,10 +443,10 @@ export default function RoomManagement() {
       ...room,
       type: room.type_label,
       roomNumber: room.room_number,
-      price: room.monthly_rate ? Math.round(Number(room.monthly_rate)) : '',
+      price: room.monthly_rate ? Number(room.monthly_rate) : '',
       sexRestriction: pGender !== 'mixed' ? pGender : (room.sex_restriction || 'mixed'),
       floor: `${room.floor}${getOrdinalSuffix(room.floor)} Floor`,
-      dailyRate: room.daily_rate ? Math.round(Number(room.daily_rate)) : '',
+      dailyRate: room.daily_rate ? Number(room.daily_rate) : '',
       billingPolicy: room.billing_policy || 'monthly',
       pricingModel: room.pricing_model || 'full_room',
       minStayDays: room.min_stay_days || 1,
@@ -537,24 +547,32 @@ export default function RoomManagement() {
       updateData.append('room_type', roomTypeMap[selectedRoom.type] || 'single');
       updateData.append('sex_restriction', selectedRoom.sexRestriction);
       updateData.append('floor', floorNumber);
-      updateData.append('monthly_rate', Math.round(Number(selectedRoom.price)) || 0);
-
-      if (selectedRoom.dailyRate !== undefined && selectedRoom.dailyRate !== '') {
-        updateData.append('daily_rate', Math.round(Number(selectedRoom.dailyRate)) || 0);
+      
+      const bp = selectedRoom.billingPolicy || 'monthly';
+      if (bp === 'monthly' || bp === 'monthly_with_daily') {
+        const m = parseFloat(selectedRoom.price);
+        if (!isNaN(m)) updateData.append('monthly_rate', m);
       }
-      if (selectedRoom.billingPolicy) {
-        updateData.append('billing_policy', selectedRoom.billingPolicy);
+      if (bp === 'daily' || bp === 'monthly_with_daily') {
+        const d = parseFloat(selectedRoom.dailyRate);
+        if (!isNaN(d)) updateData.append('daily_rate', d);
       }
+      
+      updateData.append('billing_policy', bp);
       updateData.append('pricing_model', selectedRoom.pricingModel || 'full_room');
+      
       if (selectedRoom.require1MonthAdvance !== null) {
         updateData.append('require_1month_advance', selectedRoom.require1MonthAdvance ? 1 : 0);
       }
-      updateData.append('min_stay_days', parseInt(selectedRoom.minStayDays) || 1);
+
+      // Only send min_stay_days for non-monthly billing (monthly auto-enforces 30 days)
+      if (bp !== 'monthly') {
+        updateData.append('min_stay_days', parseInt(selectedRoom.minStayDays) || 1);
+      }
+      
       updateData.append('capacity', parseInt(selectedRoom.capacity));
       updateData.append('status', selectedRoom.status);
-      if (selectedRoom.description) {
-        updateData.append('description', selectedRoom.description);
-      }
+      updateData.append('description', selectedRoom.description || '');
 
       // Append amenities and rules
       (selectedRoom.amenities || []).forEach((amenity, idx) => {
@@ -947,6 +965,66 @@ export default function RoomManagement() {
             </div>
           )}
         </div>
+
+        {/* Pagination Controls */}
+        {pagination.lastPage > 1 && (
+          <div className="flex items-center justify-between px-4 py-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl mt-4 mb-10">
+            <div className="flex-1 flex justify-between sm:hidden">
+              <button
+                onClick={() => fetchRooms(pagination.currentPage - 1)}
+                disabled={pagination.currentPage === 1}
+                className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
+              >
+                Previous
+              </button>
+              <button
+                onClick={() => fetchRooms(pagination.currentPage + 1)}
+                disabled={pagination.currentPage === pagination.lastPage}
+                className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
+              >
+                Next
+              </button>
+            </div>
+            <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+              <div>
+                <p className="text-sm text-gray-700 dark:text-gray-400">
+                  Showing page <span className="font-medium">{pagination.currentPage}</span> of <span className="font-medium">{pagination.lastPage}</span>
+                </p>
+              </div>
+              <div>
+                <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+                  <button
+                    onClick={() => fetchRooms(pagination.currentPage - 1)}
+                    disabled={pagination.currentPage === 1}
+                    className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white dark:bg-gray-800 text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50"
+                  >
+                    Previous
+                  </button>
+                  {[...Array(pagination.lastPage)].map((_, i) => (
+                    <button
+                      key={i + 1}
+                      onClick={() => fetchRooms(i + 1)}
+                      className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
+                        pagination.currentPage === i + 1
+                          ? 'z-10 bg-brand-50 border-brand-500 text-brand-600'
+                          : 'bg-white dark:bg-gray-800 border-gray-300 text-gray-500 hover:bg-gray-50'
+                      }`}
+                    >
+                      {i + 1}
+                    </button>
+                  ))}
+                  <button
+                    onClick={() => fetchRooms(pagination.currentPage + 1)}
+                    disabled={pagination.currentPage === pagination.lastPage}
+                    className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white dark:bg-gray-800 text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50"
+                  >
+                    Next
+                  </button>
+                </nav>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Add Room Modal */}
@@ -1034,16 +1112,16 @@ export default function RoomManagement() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Price (₱/month)</label>
-                  <input
-                    type="number"
-                    value={selectedRoom.price}
-                    onChange={(e) => setSelectedRoom({ ...selectedRoom, price: e.target.value ? Math.round(Number(e.target.value)) : '' })}
-                    className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent dark:bg-gray-700 dark:text-white ${fieldErrors.monthly_rate ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'}`}
-                    min="0"
-                    step="1"
-                  />
-                  {fieldErrors.monthly_rate && <p className="text-red-500 text-xs mt-2">{fieldErrors.monthly_rate[0]}</p>}
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Billing Policy</label>
+                  <select
+                    value={selectedRoom.billingPolicy || 'monthly'}
+                    onChange={(e) => setSelectedRoom({ ...selectedRoom, billingPolicy: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                  >
+                    <option value="monthly">Monthly Rate Only</option>
+                    <option value="monthly_with_daily">Monthly + Daily</option>
+                    <option value="daily">Daily Rate Only</option>
+                  </select>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Floor</label>
@@ -1063,7 +1141,41 @@ export default function RoomManagement() {
                     })}
                   </select>
                 </div>
+              </div>
 
+              <div className="grid grid-cols-2 gap-4">
+                {(selectedRoom.billingPolicy === 'monthly' || selectedRoom.billingPolicy === 'monthly_with_daily' || !selectedRoom.billingPolicy) && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Monthly Rate (₱/month)</label>
+                    <input
+                      type="number"
+                      value={selectedRoom.price}
+                      onChange={(e) => setSelectedRoom({ ...selectedRoom, price: e.target.value })}
+                      className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent dark:bg-gray-700 dark:text-white ${fieldErrors.monthly_rate ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'}`}
+                      min="0"
+                      step="0.01"
+                    />
+
+                    {fieldErrors.monthly_rate && <p className="text-red-500 text-xs mt-2">{fieldErrors.monthly_rate[0]}</p>}
+                  </div>
+                )}
+                {(selectedRoom.billingPolicy === 'daily' || selectedRoom.billingPolicy === 'monthly_with_daily') && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Daily Rate (₱/day)</label>
+                    <input
+                      type="number"
+                      value={selectedRoom.dailyRate || ''}
+                      onChange={(e) => setSelectedRoom({ ...selectedRoom, dailyRate: e.target.value })}
+                      className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                      min="0"
+                      step="0.01"
+                    />
+
+                  </div>
+                )}
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Sex</label>
                   <select
@@ -1084,9 +1196,6 @@ export default function RoomManagement() {
                     </p>
                   )}
                 </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Capacity</label>
                   <input
@@ -1097,21 +1206,41 @@ export default function RoomManagement() {
                     min="1"
                   />
                 </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Min. Stay (Days)</label>
-                  <input
-                    type="number"
-                    value={selectedRoom.minStayDays || 1}
-                    onChange={(e) => setSelectedRoom({ ...selectedRoom, minStayDays: parseInt(e.target.value) })}
-                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-                    min="1"
-                  />
+                  {selectedRoom.billingPolicy === 'monthly' ? (
+                    <div className="px-4 py-2 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                      <p className="text-sm text-blue-700 dark:text-blue-400 font-medium">30 days (auto-enforced)</p>
+                      <p className="text-[10px] text-blue-600 dark:text-blue-500 mt-1">Monthly billing requires 1 month min stay</p>
+                    </div>
+                  ) : (
+                    <input
+                      type="number"
+                      value={selectedRoom.minStayDays || 1}
+                      onChange={(e) => setSelectedRoom({ ...selectedRoom, minStayDays: parseInt(e.target.value) })}
+                      className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                      min="1"
+                    />
+                  )}
                 </div>
               </div>
 
               {/* Pricing Model Section */}
               <div className="bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
-                <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-4">Pricing Model</h4>
+                <div className="flex items-center justify-between mb-4">
+                  <h4 className="text-sm font-semibold text-gray-900 dark:text-white">Pricing Model</h4>
+                  <button
+                    type="button"
+                    onClick={() => setShowEditPricingHelp(true)}
+                    className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 p-2 rounded focus:outline-none"
+                    title="Pricing help"
+                  >
+                    <HelpCircle className="w-5 h-5" />
+                  </button>
+                </div>
                 <div className="space-y-2">
                   {selectedRoom.type !== 'Bed Spacer' && (
                     <label className={`flex items-center gap-4 p-4 border border-gray-200 dark:border-gray-600 rounded-lg cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors ${selectedRoom.pricingModel === 'full_room' ? 'bg-blue-100 dark:bg-blue-900/50' : ''}`}>
@@ -1143,6 +1272,26 @@ export default function RoomManagement() {
                       <p className="text-xs text-gray-600 dark:text-gray-400">Each tenant pays the monthly rate independently.</p>
                     </div>
                   </label>
+                </div>
+
+                {/* Revenue Summary */}
+                <div className="mt-4 pt-4 border-t border-blue-200 dark:border-blue-800">
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="text-blue-700 dark:text-blue-400 font-medium">Estimated Monthly Revenue:</span>
+                    <span className="text-lg font-bold text-blue-900 dark:text-blue-200">
+                      <PriceRow
+                        amount={selectedRoom.pricingModel === 'per_bed'
+                          ? (parseFloat(selectedRoom.price) || 0) * (parseInt(selectedRoom.capacity) || 1)
+                          : (parseFloat(selectedRoom.price) || 0)
+                        }
+                      />
+                    </span>
+                  </div>
+                  {selectedRoom.pricingModel === 'full_room' && parseInt(selectedRoom.capacity) > 1 && (
+                    <p className="text-[10px] text-blue-600 dark:text-blue-500 mt-2 text-right italic">
+                      * Approx. <PriceRow amount={(parseFloat(selectedRoom.price) || 0) / (parseInt(selectedRoom.capacity) || 1)} small /> per person
+                    </p>
+                  )}
                 </div>
               </div>
 
@@ -1223,60 +1372,7 @@ export default function RoomManagement() {
                 </div>
               </div>
 
-              {/* Short-stay / Daily pricing for edit */}
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Daily Rate (₱/day)</label>
-                  <input
-                    type="number"
-                    value={selectedRoom.dailyRate || ''}
-                    onChange={(e) => setSelectedRoom({ ...selectedRoom, dailyRate: e.target.value ? Math.round(Number(e.target.value)) : '' })}
-                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-                    min="0"
-                    step="1"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Billing Policy</label>
-                  <select
-                    value={selectedRoom.billingPolicy || 'monthly'}
-                    onChange={(e) => setSelectedRoom({ ...selectedRoom, billingPolicy: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-                  >
-                    <option value="monthly">Monthly Rate</option>
-                    <option value="monthly_with_daily">Monthly + Daily</option>
-                    <option value="daily">Daily Rate</option>
-                  </select>
-                </div>
-              </div>
-
-              {/* Advance Payment Toggle */}
-              {(selectedRoom.billingPolicy === 'monthly' || selectedRoom.billingPolicy === 'monthly_with_daily') && (
-                <div className="mt-4 col-span-full">
-                  <label className="flex items-start space-x-4 cursor-pointer group p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-700 hover:border-green-300 dark:hover:border-green-700 transition-colors">
-                    <div className="flex items-center h-5 mt-0.5">
-                      <input
-                        type="checkbox"
-                        checked={selectedRoom.require1MonthAdvance}
-                        onChange={(e) => setSelectedRoom({ ...selectedRoom, require1MonthAdvance: e.target.checked })}
-                        className="w-5 h-5 text-green-600 bg-gray-100 border-gray-300 rounded focus:ring-green-500 dark:focus:ring-green-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600 transition-colors"
-                      />
-                    </div>
-                    <div className="flex flex-col">
-                      <span className="text-sm font-medium text-gray-900 dark:text-white group-hover:text-green-600 dark:group-hover:text-green-400 transition-colors">
-                        Require 1-Month Advance
-                      </span>
-                      <span className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-                        Tenants will be billed for their first month's rent + an additional month as advance payment upon confirmation.
-                      </span>
-                    </div>
-                  </label>
-                </div>
-              )}
-
-              {/* Short-stay options simplified: billing policy and daily rate are handled above. */}
-
+              {/* Status Section */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Status</label>
                 <select
@@ -1568,6 +1664,11 @@ export default function RoomManagement() {
           </div>
         </div>
       )}
+
+      <PricingHelp
+        open={showEditPricingHelp}
+        onClose={() => setShowEditPricingHelp(false)}
+      />
     </div>
   );
 }

@@ -19,7 +19,6 @@ import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTheme } from '../../../../contexts/ThemeContext.jsx';
 import {
-  landlordQueryKeys,
   refetchLandlordQueries,
   useLandlordFocusRefetch,
   useLandlordRefreshHandler,

@@ -1,4 +1,4 @@
-import api from "./api.js";
+import api, { normalizeResponse, normalizeError, normalizePaginatedResponse } from "./api.js";
 
 const toNonEmptyString = (value) => {
   if (value === null || value === undefined) return "";
@@ -72,18 +72,9 @@ class TenantService {
   async getCurrentStay() {
     try {
       const response = await api.get(`/tenant/current-stay`);
-
-      return {
-        success: true,
-        data: response.data.data || response.data,
-      };
+      return normalizeResponse(response);
     } catch (error) {
-      console.error("Error fetching current stay:", error);
-      return {
-        success: false,
-        error: error.response?.data?.message || "Failed to fetch current stay",
-        data: null,
-      };
+      return normalizeError(error);
     }
   }
 
@@ -93,33 +84,9 @@ class TenantService {
   async getDashboardStats() {
     try {
       const response = await api.get(`/tenant/dashboard/stats`);
-
-      return {
-        success: true,
-        data: response.data.data || response.data,
-      };
+      return normalizeResponse(response);
     } catch (error) {
-      console.error("Error fetching dashboard stats:", error);
-      return {
-        success: false,
-        error:
-          error.response?.data?.message || "Failed to fetch dashboard stats",
-        data: {
-          payments: {
-            monthlyDue: 0,
-            pendingAmount: 0,
-            totalDue: 0,
-            totalPaid: 0,
-            nextDueDate: null,
-            invoice_breakdown: {
-              pending: 0,
-              partial: 0,
-              overdue: 0,
-              paid: 0,
-            },
-          },
-        },
-      };
+      return normalizeError(error);
     }
   }
 
@@ -129,17 +96,9 @@ class TenantService {
   async getDashboardBundle() {
     try {
       const response = await api.get(`/tenant/dashboard/bundle`);
-      return {
-        success: true,
-        data: response.data.data || response.data,
-      };
+      return normalizeResponse(response);
     } catch (error) {
-      console.error("Error fetching dashboard bundle:", error);
-      return {
-        success: false,
-        error: error.response?.data?.message || "Failed to fetch dashboard bundle",
-        data: null,
-      };
+      return normalizeError(error);
     }
   }
 
@@ -149,20 +108,9 @@ class TenantService {
   async getDashboardActivities() {
     try {
       const response = await api.get(`/tenant/dashboard/activities`);
-
-      return {
-        success: true,
-        data: response.data.data || response.data || [],
-      };
+      return normalizeResponse(response);
     } catch (error) {
-      console.error("Error fetching dashboard activities:", error);
-      return {
-        success: false,
-        error:
-          error.response?.data?.message ||
-          "Failed to fetch dashboard activities",
-        data: [],
-      };
+      return normalizeError(error);
     }
   }
 
@@ -172,20 +120,9 @@ class TenantService {
   async getDashboardUpcoming() {
     try {
       const response = await api.get(`/tenant/dashboard/upcoming`);
-
-      return {
-        success: true,
-        data: response.data.data || response.data || {},
-      };
+      return normalizeResponse(response);
     } catch (error) {
-      console.error("Error fetching dashboard upcoming data:", error);
-      return {
-        success: false,
-        error:
-          error.response?.data?.message ||
-          "Failed to fetch dashboard upcoming data",
-        data: { upcomingCheckouts: [], unpaidBookings: [] },
-      };
+      return normalizeError(error);
     }
   }
 
@@ -195,19 +132,9 @@ class TenantService {
   async getPaymentBreakdown(months = 6) {
     try {
       const response = await api.get(`/tenant/payments/breakdown?months=${months}`);
-
-      return {
-        success: true,
-        data: response.data.data || response.data || { upcoming_months: [] },
-      };
+      return normalizeResponse(response);
     } catch (error) {
-      console.error("Error fetching payment breakdown:", error);
-      return {
-        success: false,
-        error:
-          error.response?.data?.message || "Failed to fetch payment breakdown",
-        data: { upcoming_months: [] },
-      };
+      return normalizeError(error);
     }
   }
 
@@ -217,18 +144,12 @@ class TenantService {
   async getHistory(page = 1) {
     try {
       const response = await api.get(`/tenant/history?page=${page}`);
-
       return {
         success: true,
-        data: response.data.data || response.data,
+        data: normalizePaginatedResponse(response),
       };
     } catch (error) {
-      console.error("Error fetching booking history:", error);
-      return {
-        success: false,
-        error:
-          error.response?.data?.message || "Failed to fetch booking history",
-      };
+      return normalizeError(error);
     }
   }
 
@@ -238,17 +159,9 @@ class TenantService {
   async requestExtension(bookingId, payload) {
     try {
       const response = await api.post(`/bookings/${bookingId}/extend`, payload);
-
-      return {
-        success: true,
-        data: response.data.data || response.data,
-      };
+      return normalizeResponse(response);
     } catch (error) {
-      console.error("Error requesting extension:", error);
-      return {
-        success: false,
-        error: error.response?.data?.message || "Failed to request extension",
-      };
+      return normalizeError(error);
     }
   }
 
@@ -258,17 +171,9 @@ class TenantService {
   async requestTransfer(payload) {
     try {
       const response = await api.post(`/tenant/transfers`, payload);
-
-      return {
-        success: true,
-        data: response.data.data || response.data,
-      };
+      return normalizeResponse(response);
     } catch (error) {
-      console.error("Error requesting transfer:", error);
-      return {
-        success: false,
-        error: error.response?.data?.message || "Failed to request transfer",
-      };
+      return normalizeError(error);
     }
   }
 
@@ -283,21 +188,9 @@ class TenantService {
           property_id: propertyId,
         },
       });
-
-      const raw = response.data?.data || response.data || [];
-      return {
-        success: true,
-        data: Array.isArray(raw) ? raw : [],
-        message: response.data?.message || "",
-      };
+      return normalizeResponse(response);
     } catch (error) {
-      console.error("Error fetching transfer options:", error);
-      return {
-        success: false,
-        error:
-          error.response?.data?.message || "Failed to fetch transfer options",
-        data: [],
-      };
+      return normalizeError(error);
     }
   }
 
@@ -307,20 +200,9 @@ class TenantService {
   async getTransferRequests() {
     try {
       const response = await api.get(`/tenant/transfers`);
-
-      const raw = response.data?.data || response.data || [];
-      return {
-        success: true,
-        data: Array.isArray(raw) ? raw : [],
-      };
+      return normalizeResponse(response);
     } catch (error) {
-      console.error("Error fetching transfer requests:", error);
-      return {
-        success: false,
-        error:
-          error.response?.data?.message || "Failed to fetch transfer requests",
-        data: [],
-      };
+      return normalizeError(error);
     }
   }
 
@@ -336,17 +218,9 @@ class TenantService {
           requested_room_id: requestedRoomId,
         },
       });
-      return {
-        success: true,
-        data: response.data?.data || response.data,
-      };
+      return normalizeResponse(response);
     } catch (error) {
-      console.error('Error fetching transfer preview:', error);
-      return {
-        success: false,
-        error: error.response?.data?.message || 'Failed to fetch transfer preview',
-        data: null,
-      };
+      return normalizeError(error);
     }
   }
 
@@ -358,20 +232,9 @@ class TenantService {
       const response = await api.patch(
         `/tenant/transfers/${transferRequestId}/cancel`,
       );
-
-      return {
-        success: true,
-        data: response.data?.data || response.data,
-        message: response.data?.message || "Transfer request cancelled.",
-      };
+      return normalizeResponse(response);
     } catch (error) {
-      console.error("Error cancelling transfer request:", error);
-      return {
-        success: false,
-        error:
-          error.response?.data?.message ||
-          "Failed to cancel transfer request",
-      };
+      return normalizeError(error);
     }
   }
 
@@ -381,17 +244,9 @@ class TenantService {
   async requestAddon(data) {
     try {
       const response = await api.post(`/tenant/addons/request`, data);
-
-      return {
-        success: true,
-        data: response.data.data || response.data,
-      };
+      return normalizeResponse(response);
     } catch (error) {
-      console.error("Error requesting addon:", error);
-      return {
-        success: false,
-        error: error.response?.data?.message || "Failed to request addon",
-      };
+      return normalizeError(error);
     }
   }
 
@@ -401,18 +256,9 @@ class TenantService {
   async cancelAddonRequest(addonId) {
     try {
       const response = await api.delete(`/tenant/addons/${addonId}/cancel`);
-
-      return {
-        success: true,
-        data: response.data.data || response.data,
-      };
+      return normalizeResponse(response);
     } catch (error) {
-      console.error("Error canceling addon request:", error);
-      return {
-        success: false,
-        error:
-          error.response?.data?.message || "Failed to cancel addon request",
-      };
+      return normalizeError(error);
     }
   }
 
@@ -422,20 +268,9 @@ class TenantService {
   async getAvailableAddons() {
     try {
       const response = await api.get(`/tenant/addons/available`);
-
-      return {
-        success: true,
-        data: response.data.data || response.data,
-        status: response.status,
-      };
+      return normalizeResponse(response);
     } catch (error) {
-      console.error("Error fetching available addons:", error);
-      return {
-        success: false,
-        error:
-          error.response?.data?.message || "Failed to fetch available addons",
-        status: error.response?.status,
-      };
+      return normalizeError(error);
     }
   }
 
@@ -445,20 +280,9 @@ class TenantService {
   async getAddonRequests() {
     try {
       const response = await api.get(`/tenant/addons/requests`);
-
-      return {
-        success: true,
-        data: response.data.data || response.data,
-        status: response.status,
-      };
+      return normalizeResponse(response);
     } catch (error) {
-      console.error("Error fetching addon requests:", error);
-      return {
-        success: false,
-        error:
-          error.response?.data?.message || "Failed to fetch addon requests",
-        status: error.response?.status,
-      };
+      return normalizeError(error);
     }
   }
 
@@ -470,16 +294,9 @@ class TenantService {
   async submitMaintenanceRequest(payload, isForm = false) {
     try {
       const response = await api.post(`/tenant/maintenance-requests`, payload);
-
-      return { success: true, data: response.data.data || response.data };
+      return normalizeResponse(response);
     } catch (error) {
-      console.error("Error submitting maintenance request:", error);
-      return {
-        success: false,
-        error:
-          error.response?.data?.message ||
-          "Failed to submit maintenance request",
-      };
+      return normalizeError(error);
     }
   }
 
@@ -489,14 +306,9 @@ class TenantService {
   async getRequestDetails(requestId) {
     try {
       const response = await api.get(`/tenant/maintenance-requests/${requestId}`);
-      return { success: true, data: response.data.data || response.data };
+      return normalizeResponse(response);
     } catch (error) {
-      console.error("Error fetching maintenance request details:", error);
-      return {
-        success: false,
-        error:
-          error.response?.data?.message || "Failed to fetch request details",
-      };
+      return normalizeError(error);
     }
   }
 
@@ -508,16 +320,12 @@ class TenantService {
       const response = await api.get(
         `/tenant/maintenance-requests?page=${page}`,
       );
-
-      return { success: true, data: response.data.data || response.data };
-    } catch (error) {
-      console.error("Error fetching maintenance requests:", error);
       return {
-        success: false,
-        error:
-          error.response?.data?.message ||
-          "Failed to fetch maintenance requests",
+        success: true,
+        data: normalizePaginatedResponse(response),
       };
+    } catch (error) {
+      return normalizeError(error);
     }
   }
 
@@ -527,14 +335,9 @@ class TenantService {
   async submitReport(payload) {
     try {
       const response = await api.post(`/reports`, payload);
-
-      return { success: true, data: response.data };
+      return normalizeResponse(response);
     } catch (error) {
-      console.error("Error submitting report:", error);
-      return {
-        success: false,
-        error: error.response?.data?.message || "Failed to submit report",
-      };
+      return normalizeError(error);
     }
   }
 
@@ -545,14 +348,9 @@ class TenantService {
   async submitReview(payload) {
     try {
       const response = await api.post(`/tenant/reviews`, payload);
-
-      return { success: true, data: response.data.data || response.data };
+      return normalizeResponse(response);
     } catch (error) {
-      console.error("Error submitting review:", error);
-      return {
-        success: false,
-        error: error.response?.data?.message || "Failed to submit review",
-      };
+      return normalizeError(error);
     }
   }
 
@@ -562,14 +360,9 @@ class TenantService {
   async getTenantReviews() {
     try {
       const response = await api.get(`/tenant/reviews`);
-
-      return { success: true, data: response.data || response.data.data || [] };
+      return normalizeResponse(response);
     } catch (error) {
-      console.error("Error fetching tenant reviews:", error);
-      return {
-        success: false,
-        error: error.response?.data?.message || "Failed to fetch reviews",
-      };
+      return normalizeError(error);
     }
   }
 
@@ -579,14 +372,9 @@ class TenantService {
   async updateReview(reviewId, payload) {
     try {
       const response = await api.put(`/tenant/reviews/${reviewId}`, payload);
-
-      return { success: true, data: response.data.data || response.data };
+      return normalizeResponse(response);
     } catch (error) {
-      console.error("Error updating review:", error);
-      return {
-        success: false,
-        error: error.response?.data?.message || "Failed to update review",
-      };
+      return normalizeError(error);
     }
   }
 
@@ -596,14 +384,9 @@ class TenantService {
   async deleteReview(reviewId) {
     try {
       const response = await api.delete(`/tenant/reviews/${reviewId}`);
-
-      return { success: true, data: response.data.data || response.data };
+      return normalizeResponse(response);
     } catch (error) {
-      console.error("Error deleting review:", error);
-      return {
-        success: false,
-        error: error.response?.data?.message || "Failed to delete review",
-      };
+      return normalizeError(error);
     }
   }
 
@@ -612,13 +395,12 @@ class TenantService {
   async getTenants(params = {}) {
     try {
       const response = await api.get(`/landlord/tenants`, { params });
-      return { success: true, data: response.data?.data || response.data };
-    } catch (error) {
-      console.error("Error fetching tenants:", error);
       return {
-        success: false,
-        error: error.response?.data?.message || "Failed to fetch tenants",
+        success: true,
+        data: normalizePaginatedResponse(response),
       };
+    } catch (error) {
+      return normalizeError(error);
     }
   }
 
@@ -628,13 +410,9 @@ class TenantService {
   async scheduleEviction(tenantId, data) {
     try {
       const response = await api.post(`/landlord/tenants/${tenantId}/evictions/schedule`, data);
-      return { success: true, data: response.data?.data || response.data };
+      return normalizeResponse(response);
     } catch (error) {
-      console.error("Error scheduling eviction:", error);
-      return {
-        success: false,
-        error: error.response?.data?.message || "Failed to schedule eviction",
-      };
+      return normalizeError(error);
     }
   }
 
@@ -644,13 +422,9 @@ class TenantService {
   async finalizeEviction(tenantId) {
     try {
       const response = await api.post(`/landlord/tenants/${tenantId}/evictions/finalize`);
-      return { success: true, data: response.data?.data || response.data };
+      return normalizeResponse(response);
     } catch (error) {
-      console.error("Error finalizing eviction:", error);
-      return {
-        success: false,
-        error: error.response?.data?.message || "Failed to finalize eviction",
-      };
+      return normalizeError(error);
     }
   }
 
@@ -660,13 +434,9 @@ class TenantService {
   async cancelEviction(tenantId) {
     try {
       const response = await api.post(`/landlord/tenants/${tenantId}/evictions/cancel`);
-      return { success: true, data: response.data?.data || response.data };
+      return normalizeResponse(response);
     } catch (error) {
-      console.error("Error cancelling eviction:", error);
-      return {
-        success: false,
-        error: error.response?.data?.message || "Failed to cancel eviction",
-      };
+      return normalizeError(error);
     }
   }
 
@@ -676,13 +446,9 @@ class TenantService {
   async undoEviction(tenantId, data = {}) {
     try {
       const response = await api.post(`/landlord/tenants/${tenantId}/evictions/undo`, data);
-      return { success: true, data: response.data?.data || response.data };
+      return normalizeResponse(response);
     } catch (error) {
-      console.error("Error undoing eviction:", error);
-      return {
-        success: false,
-        error: error.response?.data?.message || "Failed to undo eviction",
-      };
+      return normalizeError(error);
     }
   }
 
@@ -692,13 +458,9 @@ class TenantService {
   async getEvictionNotice(tenantId) {
     try {
       const response = await api.get(`/landlord/tenants/${tenantId}/evictions/notice`);
-      return { success: true, data: response.data?.data || response.data };
+      return normalizeResponse(response);
     } catch (error) {
-      console.error("Error fetching eviction notice:", error);
-      return {
-        success: false,
-        error: error.response?.data?.message || "Failed to fetch eviction notice",
-      };
+      return normalizeError(error);
     }
   }
 
@@ -708,40 +470,32 @@ class TenantService {
   async generateTenantClaimCode(tenantId) {
     try {
       const response = await api.post(`/landlord/tenants/${tenantId}/claim-code`);
-      return { success: true, data: response.data?.data || response.data };
+      return normalizeResponse(response);
     } catch (error) {
-      console.error("Error generating claim code:", error);
-      return {
-        success: false,
-        error: error.response?.data?.message || "Failed to generate claim code",
-      };
+      return normalizeError(error);
     }
   }
 
   async getTenantDetails(tenantId) {
     try {
       const response = await api.get(`/landlord/tenants/${tenantId}`);
-      return { success: true, data: normalizeTenantDetails(response.data), raw: response.data };
-    } catch (error) {
-      console.error("Error fetching tenant details:", error);
+      const normalizedData = normalizeTenantDetails(response.data);
       return {
-        success: false,
-        error:
-          error.response?.data?.message || "Failed to fetch tenant details",
+        success: true,
+        data: normalizedData,
+        raw: response.data,
       };
+    } catch (error) {
+      return normalizeError(error);
     }
   }
 
   async createTenant(tenantData) {
     try {
       const response = await api.post(`/landlord/tenants`, tenantData);
-      return { success: true, data: response.data };
+      return normalizeResponse(response);
     } catch (error) {
-      console.error("Error creating tenant:", error);
-      return {
-        success: false,
-        error: error.response?.data?.message || "Failed to create tenant",
-      };
+      return normalizeError(error);
     }
   }
 
@@ -751,26 +505,18 @@ class TenantService {
         `/landlord/tenants/${tenantId}`,
         tenantData,
       );
-      return { success: true, data: response.data };
+      return normalizeResponse(response);
     } catch (error) {
-      console.error("Error updating tenant:", error);
-      return {
-        success: false,
-        error: error.response?.data?.message || "Failed to update tenant",
-      };
+      return normalizeError(error);
     }
   }
 
   async deleteTenant(tenantId) {
     try {
       const response = await api.delete(`/landlord/tenants/${tenantId}`);
-      return { success: true, data: response.data?.data || response.data };
+      return normalizeResponse(response);
     } catch (error) {
-      console.error("Error deleting tenant:", error);
-      return {
-        success: false,
-        error: error.response?.data?.message || "Failed to delete tenant",
-      };
+      return normalizeError(error);
     }
   }
 
@@ -780,13 +526,9 @@ class TenantService {
   async assignRoom(tenantId, payload) {
     try {
       const response = await api.post(`/landlord/tenants/${tenantId}/assign-room`, payload);
-      return { success: true, data: response.data?.data || response.data };
+      return normalizeResponse(response);
     } catch (error) {
-      console.error("Error assigning room:", error);
-      return {
-        success: false,
-        error: error.response?.data?.message || "Failed to assign room",
-      };
+      return normalizeError(error);
     }
   }
 
@@ -796,13 +538,9 @@ class TenantService {
   async unassignRoom(tenantId) {
     try {
       const response = await api.delete(`/landlord/tenants/${tenantId}/unassign-room`);
-      return { success: true, data: response.data?.data || response.data };
+      return normalizeResponse(response);
     } catch (error) {
-      console.error("Error unassigning room:", error);
-      return {
-        success: false,
-        error: error.response?.data?.message || "Failed to unassign room",
-      };
+      return normalizeError(error);
     }
   }
 
@@ -812,13 +550,9 @@ class TenantService {
   async transferRoom(tenantId, data) {
     try {
       const response = await api.post(`/landlord/tenants/${tenantId}/transfer-room`, data);
-      return { success: true, data: response.data?.data || response.data };
+      return normalizeResponse(response);
     } catch (error) {
-      console.error("Error transferring room:", error);
-      return {
-        success: false,
-        error: error.response?.data?.message || "Failed to transfer room",
-      };
+      return normalizeError(error);
     }
   }
 
@@ -836,15 +570,12 @@ class TenantService {
         reason,
         report_type: reportType,
       });
-      return { success: true, data: response.data };
+      return normalizeResponse(response);
     } catch (error) {
-      console.error('Error submitting reservation dispute:', error);
-      return {
-        success: false,
-        error: error.response?.data?.message || 'Failed to submit dispute report',
-      };
+      return normalizeError(error);
     }
   }
 }
 
 export default new TenantService();
+

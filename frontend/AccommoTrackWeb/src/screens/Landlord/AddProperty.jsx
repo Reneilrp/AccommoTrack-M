@@ -1,1594 +1,206 @@
-import { useEffect, useRef } from 'react';
-import { useState } from 'react';
-import {
-  ArrowLeft,
-  AlertCircle,
-  MapPin,
-  FileText,
-  Plus,
-  CheckCircle,
-  Upload,
-  Check,
-  Loader2,
-  ArrowRight,
-  X,
-  ShieldAlert,
-  Clock,
-  Video,
-  Play,
-  Camera
-} from 'lucide-react';
-
-// Leaflet
-import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
-import 'leaflet/dist/leaflet.css';
-import L from 'leaflet';
-import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
-import markerIcon from 'leaflet/dist/images/marker-icon.png';
-import markerShadow from 'leaflet/dist/images/marker-shadow.png';
-// Toast
+import { useEffect, useState, useCallback, useMemo } from 'react';
+import { ArrowLeft, Loader2, ArrowRight, Check, ShieldAlert, Clock, AlertCircle } from 'lucide-react';
 import { showSuccess, showError } from '../../utils/toast';
-
 import api from '../../utils/api';
 import { usePreferences } from '../../contexts/PreferencesContext';
+import StepIndicators from './components/AddProperty/StepIndicators';
+import BasicInfoStep from './components/AddProperty/BasicInfoStep';
+import LocationStep from './components/AddProperty/LocationStep';
+import AmenitiesStep from './components/AddProperty/AmenitiesStep';
+import GalleryStep from './components/AddProperty/GalleryStep';
+import RulesStep from './components/AddProperty/RulesStep';
 
 const LANDLORD_ACCESS_STATUSES = ['approved', 'partial_verified', 'pending_documents_review'];
 
+const STEPS = [
+  { id: 1, label: 'Info' },
+  { id: 2, label: 'Location' },
+  { id: 3, label: 'Gallery' },
+  { id: 4, label: 'Rules' }
+];
+
 export default function AddProperty({ onBack, onSave }) {
   const { effectiveTheme } = usePreferences();
-  const user = (() => { try { return JSON.parse(localStorage.getItem('userData') || '{}'); } catch { return {}; } })();
+  const user = useMemo(() => { try { return JSON.parse(localStorage.getItem('userData') || '{}'); } catch { return {}; } }, []);
   const isCaretaker = user?.role === 'caretaker';
+  
   const [currentStep, setCurrentStep] = useState(1);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
   const [fieldErrors, setFieldErrors] = useState({});
-  const [videoFile, setVideoFile] = useState(null);
-  const [videoPreview, setVideoPreview] = useState(null);
-  const [newRule, setNewRule] = useState('');
-  const [newAmenity, setNewAmenity] = useState('');
-  const [isVerified, setIsVerified] = useState(null); // null = loading, true/false = loaded
-  const [verificationStatus, setVerificationStatus] = useState(null);
-  const [showSuccessModal, setShowSuccessModal] = useState({ visible: false, isDraft: false, result: null });
-  const formContentRef = useRef(null);
-
-  // Fix Leaflet marker icon issue
-  delete L.Icon.Default.prototype._getIconUrl;
-  L.Icon.Default.mergeOptions({
-    iconUrl: markerIcon,
-    iconRetinaUrl: markerIcon2x,
-    shadowUrl: markerShadow,
-  });
-
-  // Map tiles based on theme
-  const tileUrl = effectiveTheme === 'dark' 
-    ? "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-    : "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
-
-
-  function DraggableMarker({ position, setPosition }) {
-    useMapEvents({
-      click(e) {
-        setPosition([e.latlng.lat, e.latlng.lng]);
-      },
-    });
-    return (
-      <Marker
-        position={position}
-        draggable={true}
-        eventHandlers={{
-          dragend: (e) => {
-            const marker = e.target;
-            const latLng = marker.getLatLng();
-            setPosition([latLng.lat, latLng.lng]);
-          },
-        }}
-      />
-    );
-  }
-
+  const [isVerified, setIsVerified] = useState(null);
+  
   const [formData, setFormData] = useState({
     propertyName: '',
     propertyType: '',
-    otherPropertyType: '',
+    description: '',
     sexRestriction: 'mixed',
-    currentStatus: 'pending',
     streetAddress: '',
+    barangay: '',
     city: '',
     provinceRegion: 'Zamboanga Del Sur',
     postalCode: '',
-    country: 'Philippines',
-    barangay: '',
-    latitude: '',
-    longitude: '',
-    nearbyLandmarks: '',
-    number_of_bathrooms: '',
-    floor_level: '',
-    total_floors: '',
-    totalRooms: '',
+    latitude: 14.5995,
+    longitude: 120.9842,
     amenities: [],
+    customAmenities: [],
     rules: [],
-    // New: eligibility flag and credential files for admin approval
-    isEligible: false,
-    credentials: [],
-    monthlyPrice: '',
-    securityDeposit: '',
-    utilitiesIncluded: 'none',
-    minimumLease: 'monthly',
-    description: '',
-    require1MonthAdvance: false,
-    allowPartialPayments: true,
-    forceWalletRefunds: true,
-    requireReservationFee: false,
-    reservationFeeAmount: '',
-    images: []
+    images: [],
+    video: null
   });
 
-  // Auto-fill address fields when latitude/longitude changes
-  useEffect(() => {
-    // Check verification status
-    const checkVerification = async () => {
-      if (isCaretaker) {
-        setIsVerified(true);
-        return;
-      }
+  const [newCustomAmenity, setNewCustomAmenity] = useState('');
+  const [newRule, setNewRule] = useState('');
 
+  useEffect(() => {
+    const checkVerification = async () => {
+      if (isCaretaker) { setIsVerified(true); return; }
       try {
         const res = await api.get('/landlord/my-verification');
-        const status = res.data?.status;
-        const hasLandlordAccess = LANDLORD_ACCESS_STATUSES.includes(status);
-        setVerificationStatus(status || null);
-        setIsVerified(hasLandlordAccess || res.data?.user?.is_verified === true);
-      } catch {
-        // If 404 or error, assume not verified
-        setVerificationStatus(null);
-        setIsVerified(false);
-      }
+        setIsVerified(LANDLORD_ACCESS_STATUSES.includes(res.data?.status));
+      } catch { setIsVerified(false); }
     };
     checkVerification();
   }, [isCaretaker]);
 
-  // Auto-fill address fields when latitude/longitude changes
-  useEffect(() => {
-    const lat = formData.latitude;
-    const lng = formData.longitude;
-    if (lat && lng) {
-      (async () => {
-        try {
-          const res = await api.get(`/reverse-geocode?lat=${lat}&lon=${lng}`);
-          const data = res.data;
-          if (data && data.address) {
-            setFormData((prev) => ({
-              ...prev,
-              streetAddress: data.address.road || prev.streetAddress,
-              city: data.address.city || data.address.town || data.address.village || prev.city,
-              provinceRegion: data.address.state || prev.provinceRegion,
-              postalCode: data.address.postcode || prev.postalCode,
-              country: data.address.country || prev.country,
-              barangay: data.address.suburb || data.address.neighbourhood || prev.barangay,
-            }));
-          }
-        } catch {
-          // Optionally handle error
-        }
-      })();
-    }
-  }, [formData.latitude, formData.longitude]);
+  const handleInputChange = useCallback((field, value) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+    if (fieldErrors[field]) setFieldErrors(prev => { const n = {...prev}; delete n[field]; return n; });
+  }, [fieldErrors]);
 
-  const amenitiesList = [
-    'WiFi', 'Air Conditioning',
-    'Security', 'Kitchen', 'Balcony'
-  ];
-
-  const steps = [
-    { number: 1, title: 'Property Information', description: 'Basic details & photos' },
-    { number: 2, title: 'Location Details', description: 'Address & coordinates' },
-    { number: 3, title: 'Rules & Amenities', description: 'House rules & features' },
-    { number: 4, title: 'Credentials', description: 'Submit documents for approval' }
-  ];
-
-  const handleInputChange = (field, value) => {
-    // Clear error for this field when user starts typing/changing
-    if (fieldErrors[field]) {
-      setFieldErrors(prev => {
-        const next = { ...prev };
-        delete next[field];
-        return next;
-      });
-    }
-
-    setFormData(prev => {
-      let updated = { ...prev, [field]: value };
-      // If city is Zamboanga City, lock province and country
-      if (
-        (field === 'city' && value.trim().toLowerCase() === 'zamboanga city') ||
-        (field !== 'city' && prev.city.trim().toLowerCase() === 'zamboanga city')
-      ) {
-        updated.provinceRegion = 'Zamboanga Del Sur';
-        updated.country = 'Philippines';
-      }
-      return updated;
-    });
-  };
-
-  const toggleAmenity = (amenity) => {
+  const handleToggleAmenity = useCallback((amenity) => {
     setFormData(prev => ({
       ...prev,
-      amenities: prev.amenities.includes(amenity)
-        ? prev.amenities.filter(a => a !== amenity)
-        : [...prev.amenities, amenity]
+      amenities: prev.amenities.includes(amenity) ? prev.amenities.filter(a => a !== amenity) : [...prev.amenities, amenity]
     }));
-  };
+  }, []);
 
-  const handleImageUpload = (e) => {
-    const files = Array.from(e.target.files);
-    const MAX_SIZE = 10 * 1024 * 1024; // 10MB
-    const allowedTypes = ['image/jpeg', 'image/png', 'image/jpg'];
-
-    const validFiles = [];
-
-    files.forEach(file => {
-      if (!allowedTypes.includes(file.type)) {
-        showError(`${file.name}: unsupported file type`);
-        return;
-      }
-      if (file.size > MAX_SIZE) {
-        showError(`${file.name}: file too large (max 10 MB)`);
-        return;
-      }
-      validFiles.push(file);
-    });
-
-    if (validFiles.length > 0) {
-      // Clear images error
-      if (fieldErrors.images) {
-        setFieldErrors(prev => {
-          const next = { ...prev };
-          delete next.images;
-          return next;
-        });
-      }
-      setFormData(prev => ({
-        ...prev,
-        images: [...prev.images, ...validFiles]
-      }));
-    }
-  };
-
-  const handleVideoUpload = (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-
-    if (file.size > 200 * 1024 * 1024) {
-      showError('Video is too large. Maximum size is 200MB.');
-      return;
-    }
-
-    const videoEl = document.createElement('video');
-    videoEl.preload = 'metadata';
-    videoEl.onloadedmetadata = () => {
-      window.URL.revokeObjectURL(videoEl.src);
-      if (videoEl.duration > 45) {
-        showError('Video must be 45 seconds or less.');
-        return;
-      }
-      setVideoFile(file);
-      setVideoPreview(URL.createObjectURL(file));
-    };
-    videoEl.src = URL.createObjectURL(file);
-  };
-
-  const removeVideo = () => {
-    if (videoPreview) URL.revokeObjectURL(videoPreview);
-    setVideoFile(null);
-    setVideoPreview(null);
-  };
-
-  const removeImage = (index) => {
-    setFormData(prev => ({
-      ...prev,
-      images: prev.images.filter((_, i) => i !== index)
-    }));
-  };
-
-  const addRule = () => {
-    try {
-      if (newRule.trim()) {
-        setFormData(prev => ({
-          ...prev,
-          rules: Array.isArray(prev.rules) ? [...prev.rules, newRule.trim()] : [newRule.trim()]
-        }));
-        setNewRule('');
-      }
-    } catch {
-      setError('Failed to add rule. Please try again.');
-    }
-  };
-
-  const removeRule = (index) => {
-    try {
-      setFormData(prev => ({
-        ...prev,
-        rules: Array.isArray(prev.rules) ? prev.rules.filter((_, i) => i !== index) : []
-      }));
-    } catch {
-      setError('Failed to remove rule. Please try again.');
-    }
-  };
-
-  const addAmenity = () => {
-    try {
-      if (newAmenity.trim()) {
-        setFormData(prev => ({
-          ...prev,
-          amenities: Array.isArray(prev.amenities) ? [...prev.amenities, newAmenity.trim()] : [newAmenity.trim()]
-        }));
-        setNewAmenity('');
-      }
-    } catch {
-      setError('Failed to add amenity. Please try again.');
-    }
-  };
-
-  const removeAmenity = (index) => {
-    try {
-      setFormData(prev => ({
-        ...prev,
-        amenities: Array.isArray(prev.amenities) ? prev.amenities.filter((_, i) => i !== index) : []
-      }));
-    } catch {
-      setError('Failed to remove amenity. Please try again.');
-    }
-  };
-
-  const validateStep = (step) => {
-    const errors = {};
-    if (step === 1) {
-      if (!formData.propertyName) errors.propertyName = 'Property name is required';
-      if (!formData.propertyType) errors.propertyType = 'Property type is required';
-      if (formData.propertyType === 'others' && !formData.otherPropertyType) errors.otherPropertyType = 'Please specify the property type';
-      if (!Array.isArray(formData.images) || formData.images.length === 0) {
-        errors.images = 'At least 1 property image is required';
-      }
-    } else if (step === 2) {
-      if (!formData.streetAddress) errors.streetAddress = 'Street address is required';
-      if (!formData.city) errors.city = 'City is required';
-      if (!formData.provinceRegion) errors.provinceRegion = 'Province is required';
-    }
-
-    setFieldErrors(errors);
-    if (Object.keys(errors).length > 0) {
-      setError('Please fix highlighted errors');
-      return false;
-    }
-    setError('');
-    return true;
-  };
-
-  const handleNext = () => {
-    if (validateStep(currentStep)) {
-      if (currentStep < steps.length) {
-        setCurrentStep(currentStep + 1);
-        setTimeout(() => {
-          formContentRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }, 100);
-      }
-    }
-  };
-
-  const handlePrevious = () => {
-    if (currentStep > 1) {
-      setCurrentStep(currentStep - 1);
-      setTimeout(() => {
-        formContentRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }, 100);
-    }
-  };
-
-  // Credential handlers
-  const handleCredentialUpload = (e) => {
-    const files = Array.from(e.target.files);
-    const MAX_SIZE = 10 * 1024 * 1024; // 10MB
-    
-    const validFiles = [];
-    let hasLargeFile = false;
-
-    files.forEach(file => {
-      if (file.size <= MAX_SIZE) {
-        validFiles.push(file);
-      } else {
-        hasLargeFile = true;
-      }
-    });
-
-    if (hasLargeFile) {
-      showError('Some documents were skipped because they exceed the 10MB limit.');
-    }
-
-    if (validFiles.length > 0) {
-      // Clear credentials error
-      if (fieldErrors.credentials) {
-        setFieldErrors(prev => {
-          const next = { ...prev };
-          delete next.credentials;
-          return next;
-        });
-      }
-      setFormData(prev => ({
-        ...prev,
-        credentials: [...prev.credentials, ...validFiles]
-      }));
-    }
-  };
-
-  const removeCredential = (index) => {
-    setFormData(prev => ({
-      ...prev,
-      credentials: prev.credentials.filter((_, i) => i !== index)
-    }));
-  };
-
-  const mapPropertyToBackend = (isDraft = false) => {
-    const isGenderRestricted = formData.propertyType !== 'apartment';
-
-    return {
-      title: formData.propertyName,
-      description: formData.description || null,
-      property_type: formData.propertyType === 'others' ? formData.otherPropertyType : formData.propertyType,
-      sex_restriction: isGenderRestricted ? formData.sexRestriction : 'mixed',
-      // If saving as draft, mark draft; otherwise default to pending
-      current_status: isDraft ? 'draft' : 'pending',
-      street_address: formData.streetAddress,
-      city: formData.city,
-      province: formData.provinceRegion,
-      postal_code: formData.postalCode || null,
-      country: formData.country || 'Philippines',
-      barangay: formData.barangay || null,
-      latitude: parseFloat(formData.latitude) || null,
-      longitude: parseFloat(formData.longitude) || null,
-      nearby_landmarks: formData.nearbyLandmarks || null,
-      number_of_bathrooms: parseInt(formData.number_of_bathrooms) || 0,
-      floor_level: formData.floor_level || null,
-      total_floors: parseInt(formData.total_floors) || null,
-      total_rooms: parseInt(formData.totalRooms) || null,
-      property_rules: formData.rules.length > 0 ? JSON.stringify(formData.rules) : null,
-      is_published: false,
-      is_available: false,
-      // Indicate whether landlord marked property eligible for approval
-      is_eligible: formData.isEligible ? '1' : '0',
-      // Explicit flag to indicate draft from frontend
-      require_1month_advance: formData.require1MonthAdvance ? '1' : '0',
-      allow_partial_payments: formData.allowPartialPayments ? '1' : '0',
-      force_wallet_refunds: formData.forceWalletRefunds ? '1' : '0',
-      require_reservation_fee: formData.requireReservationFee ? '1' : '0',
-      reservation_fee_amount: formData.requireReservationFee ? formData.reservationFeeAmount : 0,
-    };
-  };
-
-  const validateForm = (isDraft = false) => {
-    const errors = {};
-
-    if (!formData.propertyName) errors.propertyName = 'Property name is required';
-    if (!formData.propertyType) errors.propertyType = 'Property type is required';
-    if (formData.propertyType === 'others' && !formData.otherPropertyType) errors.otherPropertyType = 'Please specify the property type';
-    if (!formData.streetAddress) errors.streetAddress = 'Street address is required';
-    if (!formData.city) errors.city = 'City is required';
-    if (!formData.provinceRegion) errors.provinceRegion = 'Province is required';
-
-    // At least 1 image required (even for drafts)
-    if (!Array.isArray(formData.images) || formData.images.length === 0) {
-      errors.images = 'At least 1 property image is required';
-    }
-
-    // If property is marked eligible and we're submitting (not saving draft), credentials are required
-    if (!isDraft && formData.isEligible && (!Array.isArray(formData.credentials) || formData.credentials.length === 0)) {
-      errors.credentials = 'Credentials are required for eligible properties';
-    }
-
-    setFieldErrors(errors);
-    if (Object.keys(errors).length > 0) {
-      setError('Please fix highlighted errors');
-      return false;
-    }
-
-    return true;
-  };
-
-  const handleSubmit = async (isDraft = false) => {
-    if (!isDraft) {
-       // Validate all steps when submitting
-       if (!validateStep(1) || !validateStep(2)) {
-         return;
-       }
-       if (!validateForm(isDraft)) return;
-    } else {
-       setError('');
-    }
-
+  const handleSubmit = async () => {
     setLoading(true);
-
-    // Use FormData (multipart/form-data)
-    const payload = new FormData();
-
-    // Append text fields
-    const mapped = mapPropertyToBackend(isDraft);
-    Object.entries(mapped).forEach(([key, value]) => {
-      if (key === 'is_published' || key === 'is_available') {
-        payload.append(key, value ? '1' : '0');
-      } else if (value !== null && value !== undefined) {
-        payload.append(key, value.toString());
-      }
-    });
-
-    // Append amenities as array
-    formData.amenities.forEach((amenity, index) => {
-      payload.append(`amenities[${index}]`, amenity);
-    });
-
-    formData.images.forEach((file, index) => {
-      if (file instanceof File) {
-        payload.append(`images[${index}]`, file);
-      }
-    });
-
-    // Append credential documents if any
-    formData.credentials.forEach((file, index) => {
-      if (file instanceof File) {
-        payload.append(`credentials[${index}]`, file);
-      }
-    });
-
-    // Append video tour if any
-    if (videoFile) {
-      payload.append('video', videoFile);
-    }
-
     try {
-      const result = await api.post('/landlord/properties', payload, {
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'multipart/form-data'
+      const payload = new FormData();
+      Object.keys(formData).forEach(key => {
+        if (key === 'images') {
+           formData.images.forEach(img => payload.append('images[]', img.file));
+        } else if (key === 'amenities' || key === 'rules') {
+           payload.append(key, JSON.stringify(formData[key]));
+        } else {
+           payload.append(key, formData[key]);
         }
       });
-      showSuccess(isDraft ? 'Property draft saved successfully!' : 'Property submitted for approval!');
-      setShowSuccessModal({ visible: true, isDraft, result });
+
+      const res = await api.post('/landlord/properties', payload);
+      showSuccess('Property created successfully!');
+      if (onSave) onSave(res.data);
+      onBack();
     } catch (err) {
-      const errData = err.response?.data;
-      if (errData?.errors) {
-        setFieldErrors(errData.errors);
-        setError('Submission failed. Please review the errors below and try again.');
-        showError('Please fix the validation errors.');
-      } else {
-        const errorMessage = errData?.message || err.message || 'Something went wrong';
-        setError(errorMessage);
-        showError(errorMessage);
-      }
+      showError(err.response?.data?.message || 'Failed to create property');
     } finally {
       setLoading(false);
     }
   };
 
+  const tileUrl = effectiveTheme === 'dark' 
+    ? "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+    : "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
+
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      {/* Custom Header - Matches Global Header Style */}
-      <header className="bg-white dark:bg-gray-800 shadow-sm dark:shadow-gray-900/20 h-14 md:h-18 flex items-center justify-center px-4 lg:px-8 flex-shrink-0 z-10 relative">
-        {/* Left: Back button */}
-        <div className="absolute left-4 lg:left-8">
-          <button
-            onClick={onBack}
-            className="p-2 bg-white dark:bg-gray-800 text-green-600 rounded-full shadow-sm border border-gray-200 dark:border-gray-700 hover:scale-110 transition-all flex-shrink-0"
-            title="Go Back"
-          >
-            <ArrowLeft className="w-5 h-5" />
-          </button>
-        </div>
-
-        {/* Center: Title */}
-        <h1 className="text-4xl font-bold text-gray-900 dark:text-white">
-          Add New Property
-        </h1>
-      </header>
-
-      {/* Error Message */}
-      {error && (
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4 flex items-start gap-4">
-            <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
-            <div className="flex-1">
-              <span className="text-red-700 dark:text-red-400 text-sm">{error}</span>
-            </div>
-            <button onClick={() => setError('')} className="text-red-500 hover:text-red-700">
-              <X className="w-5 h-5" />
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Verification Warning Banner */}
-      {!isCaretaker && isVerified === false && (
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4 flex items-start gap-4">
-            <ShieldAlert className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
-            <div className="flex-1">
-              <h4 className="text-yellow-800 dark:text-yellow-300 font-semibold">Account Verification Required</h4>
-              <p className="text-yellow-700 dark:text-yellow-400 text-sm mt-2">
-                {verificationStatus === 'pending'
-                  ? 'Your account is under review. You can create and save properties as drafts now. Submit for approval and publishing unlock after partial verification or full approval.'
-                  : 'You can create and save properties as drafts. Submit for approval and publishing unlock after partial verification or full approval.'}
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Progress Steps */}
-      <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="flex items-center justify-between">
-            {steps.map((step, index) => (
-              <div key={step.number} className="flex items-center flex-1">
-                <div className="flex flex-col items-center flex-1">
-                  <div className={`w-10 h-10 rounded-full flex items-center justify-center font-semibold ${currentStep >= step.number
-                    ? 'bg-green-600 text-white'
-                    : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
-                    }`}>
-                    {step.number}
-                  </div>
-                  <div className="text-center mt-2">
-                    <p className={`text-sm font-medium ${currentStep >= step.number ? 'text-gray-900 dark:text-white' : 'text-gray-500 dark:text-gray-400'
-                      }`}>
-                      {step.title}
-                    </p>
-                    <p className="text-xs text-gray-500 dark:text-gray-500">{step.description}</p>
-                  </div>
-                </div>
-                {index < steps.length - 1 && (
-                  <div className={`h-0.5 flex-1 mx-4 ${currentStep > step.number ? 'bg-green-600' : 'bg-gray-200 dark:bg-gray-700'
-                    }`} />
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
+    <div className="max-w-4xl mx-auto py-8 px-4 space-y-8">
+      <div className="flex items-center gap-4">
+        <button onClick={onBack} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors">
+          <ArrowLeft className="w-6 h-6 text-gray-600 dark:text-gray-300" />
+        </button>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">List Your Property</h1>
       </div>
 
-      {/* Form Content */}
-      <div ref={formContentRef} className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Step 1: Property Information */}
+      <StepIndicators currentStep={currentStep} steps={STEPS} />
+
+      <div className="bg-white dark:bg-gray-800 rounded-3xl p-8 shadow-sm border border-gray-100 dark:border-gray-700 min-h-[500px]">
         {currentStep === 1 && (
-          <div className="space-y-6">
-            <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6 space-y-6">
-              <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
-                <h2 className="text-xl font-semibold text-gray-900 dark:text-white shrink-0">Basic Information</h2>
-                {Object.keys(fieldErrors).some(k => ['propertyName', 'propertyType', 'otherPropertyType'].includes(k)) && (
-                  <p className="text-red-600 text-xs font-bold animate-in fade-in slide-in-from-left-2">
-                    {['propertyName', 'propertyType', 'otherPropertyType'].map(k => fieldErrors[k]).filter(Boolean).join(' • ')}
-                  </p>
-                )}
-              </div>
-
-              <div className="grid grid-cols-5 gap-4">
-                <div className="col-span-3">
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Property Name <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="e.g., Sunset Apartments"
-                    value={formData.propertyName}
-                    onChange={(e) => handleInputChange('propertyName', e.target.value)}
-                    className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 dark:bg-gray-700 dark:text-white ${fieldErrors.propertyName ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'}`}
-                  />
-                  {fieldErrors.propertyName && <p className="text-red-500 text-xs mt-2">{fieldErrors.propertyName[0]}</p>}
-                </div>
-
-                <div className={formData.propertyType === 'others' ? 'col-span-1' : 'col-span-2'}>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Property Type <span className="text-red-500">*</span>
-                  </label>
-                  <select
-                    value={formData.propertyType}
-                    onChange={(e) => handleInputChange('propertyType', e.target.value)}
-                    className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 dark:bg-gray-700 dark:text-white ${fieldErrors.propertyType ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'}`}
-                  >
-                    <option value="" disabled hidden>Select type</option>
-                    <option value="dormitory">Dormitory</option>
-                    <option value="apartment">Apartment</option>
-                    <option value="boardingHouse">Boarding House</option>
-                    <option value="bedSpacer">Bed Spacer</option>
-                    <option value="others">Others</option>
-                  </select>
-                  {fieldErrors.propertyType && <p className="text-red-500 text-xs mt-2">{fieldErrors.propertyType[0]}</p>}
-                </div>
-
-                {formData.propertyType === 'others' && (
-                  <div className="col-span-1">
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Specify <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="e.g., Studio"
-                      value={formData.otherPropertyType}
-                      onChange={(e) => handleInputChange('otherPropertyType', e.target.value)}
-                      className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 dark:bg-gray-700 dark:text-white ${fieldErrors.otherPropertyType ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'}`}
-                    />
-                    {fieldErrors.otherPropertyType && <p className="text-red-500 text-xs mt-2">{fieldErrors.otherPropertyType[0]}</p>}
-                  </div>
-                )}
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Description
-                </label>
-                <textarea
-                  placeholder="Provide a detailed description of the property, including any special features, nearby conveniences, and other relevant info"
-                  value={formData.description}
-                  onChange={(e) => handleInputChange('description', e.target.value)}
-                  rows={6}
-                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-gray-50 dark:bg-gray-700 dark:text-white"
-                />
-              </div>
-
-              <div className="pt-4 border-t border-gray-100 dark:border-gray-700">
-                <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-4">Property Specifications</h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Bathrooms
-                    </label>
-                    <input
-                      type="number"
-                      min="0"
-                      placeholder="e.g., 1"
-                      value={formData.number_of_bathrooms}
-                      onChange={(e) => handleInputChange('number_of_bathrooms', e.target.value)}
-                      className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-gray-50 dark:bg-gray-700 dark:text-white"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Total Rooms
-                    </label>
-                    <input
-                      type="number"
-                      min="0"
-                      placeholder="e.g., 10"
-                      value={formData.totalRooms}
-                      onChange={(e) => handleInputChange('totalRooms', e.target.value)}
-                      className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-gray-50 dark:bg-gray-700 dark:text-white"
-                    />
-                  </div>
-                  <div>
-                    {formData.propertyType !== 'apartment' && (
-                      <>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                          Sex Restriction <span className="text-red-500">*</span>
-                        </label>
-                        <select
-                          value={formData.sexRestriction}
-                          onChange={(e) => handleInputChange('sexRestriction', e.target.value)}
-                          className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 dark:bg-gray-700 dark:text-white"
-                        >
-                          <option value="mixed">Mixed (Any Sex)</option>
-                          <option value="male">Boys Only</option>
-                          <option value="female">Girls Only</option>
-                        </select>
-                      </>
-                    )}
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Total Floors
-                    </label>
-                    <input
-                      type="number"
-                      min="1"
-                      placeholder="e.g., 3"
-                      value={formData.total_floors}
-                      onChange={(e) => handleInputChange('total_floors', e.target.value)}
-                      className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-gray-50 dark:bg-gray-700 dark:text-white"
-                    />
-                  </div>
-                  <div className="md:col-span-2"></div>
-
-                  {parseInt(formData.total_floors) > 1 && (
-                    <div className="md:col-span-3">
-                      <div className="flex items-center justify-between mb-2">
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                          Managed Floors (Select floors you manage)
-                        </label>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const totalFloors = parseInt(formData.total_floors);
-                            const selectedFloors = (formData.floor_level || '').split(',').filter(f => f && !isNaN(f));
-                            const allSelected = selectedFloors.length === totalFloors;
-                            handleInputChange('floor_level', allSelected ? '' : Array.from({ length: totalFloors }, (_, i) => i + 1).join(','));
-                          }}
-                          className="text-xs text-green-600 dark:text-green-400 hover:text-green-700 dark:hover:text-green-300 font-medium transition-colors"
-                        >
-                          {((formData.floor_level || '').split(',').filter(f => f && !isNaN(f)).length === parseInt(formData.total_floors)) ? 'Unselect All' : 'Select All'}
-                        </button>
-                      </div>
-                      <div className="flex flex-wrap gap-2">
-                        {Array.from({ length: parseInt(formData.total_floors) }, (_, i) => i + 1).map((floor) => (
-                          <label
-                            key={floor}
-                            className={`flex items-center justify-center w-10 h-10 rounded-lg border-2 cursor-pointer transition-all ${
-                              (formData.floor_level || '').split(',').includes(String(floor))
-                                ? 'bg-green-500 border-green-500 text-white'
-                                : 'border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-500 hover:border-green-200'
-                            }`}
-                          >
-                            <input
-                              type="checkbox"
-                              className="hidden"
-                              checked={(formData.floor_level || '').split(',').includes(String(floor))}
-                              onChange={(e) => {
-                                const current = (formData.floor_level || '').split(',').filter(f => f && !isNaN(f));
-                                const next = e.target.checked
-                                  ? [...current, String(floor)].sort((a, b) => a - b)
-                                  : current.filter((f) => f !== String(floor));
-                                handleInputChange('floor_level', next.join(','));
-                              }}
-                            />
-                            {floor}
-                          </label>
-                        ))}
-                      </div>
-                      <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-                        Selected floors will be the only ones available when adding rooms.
-                      </p>
-                    </div>
-                  )}
-
-                  <div className="md:col-span-3 pt-4 border-t border-gray-100 dark:border-gray-700 mt-2">
-                    <label className="flex items-start space-x-4 cursor-pointer group mb-6">
-                      <div className="flex items-center h-5 mt-0.5">
-                        <input
-                          type="checkbox"
-                          checked={formData.require1MonthAdvance}
-                          onChange={(e) => handleInputChange('require1MonthAdvance', e.target.checked)}
-                          className="w-5 h-5 text-green-600 bg-gray-100 border-gray-300 rounded focus:ring-green-500 dark:focus:ring-green-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600 transition-colors"
-                        />
-                      </div>
-                      <div className="flex flex-col">
-                        <span className="text-sm font-medium text-gray-900 dark:text-white group-hover:text-green-600 dark:group-hover:text-green-400 transition-colors">
-                          Require 1-Month Advance Payment
-                        </span>
-                        <span className="text-sm text-gray-500 dark:text-gray-400 mt-2">
-                          If enabled, tenants will be billed for their first month's rent plus an additional month as an advance payment upon booking confirmation. This setting will operate as the default for all rooms, but can be overridden per room.
-                        </span>
-                      </div>
-                    </label>
-
-                    <label className={`flex items-start space-x-4 group ${(!user?.is_paymongo_ready) ? 'opacity-60' : 'cursor-pointer'} mt-6 mb-6`}>
-                      <div className="flex items-center h-5 mt-0.5">
-                        <input
-                          type="checkbox"
-                          disabled={!user?.is_paymongo_ready}
-                          checked={formData.requireReservationFee}
-                          onChange={(e) => handleInputChange('requireReservationFee', e.target.checked)}
-                          className="w-5 h-5 text-green-600 bg-gray-100 border-gray-300 rounded focus:ring-green-500 dark:focus:ring-green-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600 transition-colors disabled:opacity-50"
-                        />
-                      </div>
-                      <div className="flex flex-col w-full">
-                        <span className="text-sm font-medium text-gray-900 dark:text-white transition-colors">
-                          Require Instant Reservation Fee
-                        </span>
-                        <span className="text-sm text-gray-500 dark:text-gray-400 mt-2">
-                          If enabled, tenants must pay a non-refundable reservation fee immediately to secure their booking request.
-                          {!user?.is_paymongo_ready && (
-                            <span className="text-red-500 block mt-2">You must complete PayMongo onboarding to enable instant payments.</span>
-                          )}
-                        </span>
-                        {formData.requireReservationFee && (
-                          <div className="mt-4">
-                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                              Reservation Fee Amount (₱)
-                            </label>
-                            <input
-                              type="number"
-                              min="0"
-                              step="0.01"
-                              value={formData.reservationFeeAmount}
-                              onChange={(e) => handleInputChange('reservationFeeAmount', e.target.value)}
-                              className="w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 dark:bg-gray-800 dark:border-gray-600 dark:text-white transition-all duration-200 shadow-sm"
-                              placeholder="e.g. 500"
-                            />
-                          </div>
-                        )}
-                      </div>
-                    </label>
-
-                    <label className="flex items-start space-x-4 cursor-pointer group">
-                      <div className="flex items-center h-5 mt-0.5">
-                        <input
-                          type="checkbox"
-                          checked={formData.allowPartialPayments}
-                          onChange={(e) => handleInputChange('allowPartialPayments', e.target.checked)}
-                          className="w-5 h-5 text-green-600 bg-gray-100 border-gray-300 rounded focus:ring-green-500 dark:focus:ring-green-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600 transition-colors"
-                        />
-                      </div>
-                      <div className="flex flex-col">
-                        <span className="text-sm font-medium text-gray-900 dark:text-white group-hover:text-green-600 dark:group-hover:text-green-400 transition-colors">
-                          Allow Partial Payments
-                        </span>
-                        <span className="text-sm text-gray-500 dark:text-gray-400 mt-2">
-                          If enabled, tenants can pay their invoice balance in smaller increments. If disabled, they will be required to pay the full remaining invoice balance in a single transaction.
-                        </span>
-                      </div>
-                    </label>
-
-                    <label className="flex items-start space-x-4 cursor-pointer group mt-6">
-                      <div className="flex items-center h-5 mt-0.5">
-                        <input
-                          type="checkbox"
-                          checked={formData.forceWalletRefunds}
-                          onChange={(e) => handleInputChange('forceWalletRefunds', e.target.checked)}
-                          className="w-5 h-5 text-green-600 bg-gray-100 border-gray-300 rounded focus:ring-green-500 dark:focus:ring-green-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600 transition-colors"
-                        />
-                      </div>
-                      <div className="flex flex-col">
-                        <span className="text-sm font-medium text-gray-900 dark:text-white group-hover:text-green-600 dark:group-hover:text-green-400 transition-colors">
-                          Force Excess Refunds to App Wallet
-                        </span>
-                        <span className="text-sm text-gray-500 dark:text-gray-400 mt-2">
-                          If enabled, excess credits from room transfers will automatically be converted to tenant wallet credits. If disabled, tenants can choose between wallet credits or requesting manual cash refunds.
-                        </span>
-                      </div>
-                    </label>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Property Images */}
-            <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
-              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mb-4">
-                <h2 className="text-xl font-semibold text-gray-900 dark:text-white shrink-0">Property Images</h2>
-                {fieldErrors.images && (
-                  <p className="text-red-600 text-xs font-bold animate-in fade-in slide-in-from-left-2">
-                    {fieldErrors.images[0]}
-                  </p>
-                )}
-              </div>
-
-              <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-8 hover:border-green-500 dark:hover:border-green-500 transition-colors group">
-                <input
-                  type="file"
-                  multiple
-                  accept="image/png,image/jpeg"
-                  onChange={handleImageUpload}
-                  className="hidden"
-                  id="image-upload"
-                />
-                
-                {formData.images.length === 0 ? (
-                  <label htmlFor="image-upload" className="cursor-pointer flex flex-col items-center justify-center">
-                    <div className="flex flex-col items-center gap-2 text-gray-500 group-hover:text-green-500 transition-colors">
-                      <Camera className="w-10 h-10" />
-                      <span className="text-sm font-medium">Click to upload or drag and drop</span>
-                      <span className="text-xs">PNG, JPG up to 10MB</span>
-                    </div>
-                  </label>
-                ) : (
-                  <div className="space-y-4">
-                    <div className="grid grid-cols-4 gap-4">
-                      {formData.images.map((img, index) => (
-                        <div key={index} className="relative aspect-square bg-gray-100 dark:bg-gray-700 rounded-lg overflow-hidden group">
-                          <img
-                            src={typeof img === 'string' ? img : URL.createObjectURL(img)}
-                            alt={`Property ${index + 1}`}
-                            className="w-full h-full object-cover"
-                          />
-                          <button
-                            onClick={() => removeImage(index)}
-                            className="absolute top-2 right-2 p-2 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
-                          >
-                            <X className="w-4 h-4" />
-                          </button>
-                        </div>
-                      ))}
-                      {formData.images.length < 10 && (
-                        <label htmlFor="image-upload" className="aspect-square border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg flex items-center justify-center cursor-pointer hover:border-gray-400 transition-colors">
-                          <Plus className="w-8 h-8 text-gray-500" />
-                        </label>
-                      )}
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Property Video Tour */}
-            <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
-              <div className="mb-4">
-                <h2 className="text-xl font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-                  <Video className="w-5 h-5 text-green-600" />
-                  Property Video Tour
-                  <span className="text-sm font-normal text-gray-500 dark:text-gray-400">(Optional)</span>
-                </h2>
-                <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
-                  Upload a short video tour of your property. Max <strong>45 seconds</strong> and <strong>200MB</strong>.
-                </p>
-              </div>
-
-              {!videoPreview ? (
-                <label
-                  htmlFor="video-upload"
-                  className="flex flex-col items-center justify-center w-full h-40 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-xl cursor-pointer hover:border-green-500 dark:hover:border-green-500 bg-gray-50 dark:bg-gray-700/50 transition-colors group"
-                >
-                  <div className="flex flex-col items-center gap-2 text-gray-500 group-hover:text-green-500 transition-colors">
-                    <Play className="w-10 h-10" />
-                    <span className="text-sm font-medium">Click to upload video</span>
-                    <span className="text-xs">MP4, MOV, AVI (max 200MB, 45s)</span>
-                  </div>
-                  <input
-                    id="video-upload"
-                    type="file"
-                    accept="video/*"
-                    className="hidden"
-                    onChange={handleVideoUpload}
-                  />
-                </label>
-              ) : (
-                <div className="relative w-full rounded-xl overflow-hidden border border-gray-200 dark:border-gray-600 bg-black">
-                  <video
-                    src={videoPreview}
-                    className="w-full max-h-64 object-contain"
-                    controls
-                  />
-                  <button
-                    type="button"
-                    onClick={removeVideo}
-                    className="absolute top-2 right-2 p-2.5 bg-red-600 hover:bg-red-700 text-white rounded-full transition-colors shadow-lg"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                  <div className="absolute bottom-2 left-2 bg-black/60 text-white text-xs px-2 py-2 rounded font-bold flex items-center gap-2">
-                    <Video className="w-3 h-3" /> VIDEO TOUR
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
+          <BasicInfoStep 
+            data={formData} 
+            onChange={handleInputChange} 
+            errors={fieldErrors} 
+          />
         )}
-
-        {/* Step 2: Location & Specifications */}
         {currentStep === 2 && (
-          <div className="space-y-6">
-            {/* Map Section */}
-            <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800 p-6">
-              <div className="flex items-start gap-2 mb-4">
-                <MapPin className="w-5 h-5 text-red-500 mt-0.5" />
-                <div>
-                  <h3 className="font-semibold text-gray-900 dark:text-white">Set Property Coordinates</h3>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">Drag or click on the map below to set the exact location of your property</p>
-                </div>
-              </div>
-
-              <div className="bg-gray-100 dark:bg-gray-800 rounded-lg h-64 flex items-center justify-center mb-4" style={{ position: 'relative', height: '300px' }}>
-                <MapContainer
-                  center={[
-                    formData.latitude ? parseFloat(formData.latitude) : 6.912559646590693,
-                    formData.longitude ? parseFloat(formData.longitude) : 122.06180691719057,
-                  ]}
-                  zoom={16}
-                  style={{ height: '100%', width: '100%', borderRadius: '8px' }}
-                  scrollWheelZoom={true}
-                >
-                  <TileLayer
-                    attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                    url={tileUrl}
-                  />
-                  <DraggableMarker
-                    position={[
-                      formData.latitude ? parseFloat(formData.latitude) : 6.9147,
-                      formData.longitude ? parseFloat(formData.longitude) : 122.0781,
-                    ]}
-                    setPosition={([lat, lng]) => {
-                      setFormData((prev) => ({
-                        ...prev,
-                        latitude: lat,
-                        longitude: lng,
-                      }));
-                    }}
-                  />
-
-                </MapContainer>
-              </div>
-
-              {/* <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Latitude</label>
-                  <input
-                    type="text"
-                    value={formData.latitude}
-                    onChange={(e) => handleInputChange('latitude', e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-white dark:bg-gray-700 dark:text-white"
-                    placeholder="e.g., 6.9147"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Longitude</label>
-                  <input
-                    type="text"
-                    value={formData.longitude}
-                    onChange={(e) => handleInputChange('longitude', e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-white dark:bg-gray-700 dark:text-white"
-                    placeholder="e.g., 122.0781"
-                  />
-                </div>
-              </div> */}
-            </div>
-            <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6 space-y-6">
-              <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
-                <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-2 shrink-0">Location Details</h2>
-                {Object.keys(fieldErrors).some(k => ['streetAddress', 'city', 'provinceRegion', 'postalCode', 'barangay'].includes(k)) && (
-                  <p className="text-red-600 text-xs font-bold animate-in fade-in slide-in-from-left-2">
-                    {['streetAddress', 'city', 'provinceRegion', 'postalCode', 'barangay'].map(k => fieldErrors[k]).filter(Boolean).join(' • ')}
-                  </p>
-                )}
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Street Address <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="e.g., 123 Main Street"
-                    value={formData.streetAddress}
-                    onChange={(e) => handleInputChange('streetAddress', e.target.value)}
-                    className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-gray-50 dark:bg-gray-700 dark:text-white ${fieldErrors.streetAddress ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'}`}
-                  />
-                  {fieldErrors.streetAddress && <p className="text-red-500 text-xs mt-2">{fieldErrors.streetAddress[0]}</p>}
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Barangay
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="e.g., Barangay 123"
-                    value={formData.barangay}
-                    onChange={(e) => handleInputChange('barangay', e.target.value)}
-                    className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-gray-50 dark:bg-gray-700 dark:text-white ${fieldErrors.barangay ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'}`}
-                  />
-                  {fieldErrors.barangay && <p className="text-red-500 text-xs mt-2">{fieldErrors.barangay[0]}</p>}
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    City <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="e.g., Manila"
-                    value={formData.city}
-                    onChange={(e) => handleInputChange('city', e.target.value)}
-                    className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-gray-50 dark:bg-gray-700 dark:text-white ${fieldErrors.city ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'}`}
-                  />
-                  {fieldErrors.city && <p className="text-red-500 text-xs mt-2">{fieldErrors.city[0]}</p>}
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Province/Region <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="e.g., Metro Manila"
-                    value={formData.provinceRegion}
-                    onChange={(e) => handleInputChange('provinceRegion', e.target.value)}
-                    className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-gray-50 dark:bg-gray-700 dark:text-white ${fieldErrors.provinceRegion ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'}`}
-                    readOnly={formData.city.trim().toLowerCase() === 'zamboanga city'}
-                  />
-                  {fieldErrors.provinceRegion && <p className="text-red-500 text-xs mt-2">{fieldErrors.provinceRegion[0]}</p>}
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Postal Code
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="e.g., 1000"
-                    value={formData.postalCode}
-                    onChange={(e) => handleInputChange('postalCode', e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-gray-50 dark:bg-gray-700 dark:text-white"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Country
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="e.g., Philippines"
-                    value={formData.country}
-                    onChange={(e) => handleInputChange('country', e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-gray-50 dark:bg-gray-700 dark:text-white"
-                    readOnly={formData.city.trim().toLowerCase() === 'zamboanga city'}
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Nearby Landmarks</label>
-              <textarea
-                placeholder="e.g., Near SM Mall, 5 minutes from LRT Station"
-                value={formData.nearbyLandmarks}
-                onChange={(e) => handleInputChange('nearbyLandmarks', e.target.value)}
-                rows={3}
-                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-gray-50 dark:bg-gray-700 dark:text-white"
-              />
-            </div>
-          </div>
+          <LocationStep 
+            data={formData} 
+            onLocationSelect={(lat, lng) => setFormData(prev => ({ ...prev, latitude: lat, longitude: lng }))}
+            onDataChange={handleInputChange}
+            errors={fieldErrors}
+            tileUrl={tileUrl}
+          />
         )}
-
-        {/* Step 3: Rules & Amenities */}
         {currentStep === 3 && (
-          <div className="space-y-6">
-            {/* Amenities */}
-            <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
-              <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">Amenities</h2>
-
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Add Amenity</label>
-                <div className="flex gap-4">
-                  <input
-                    type="text"
-                    placeholder="e.g., Water Heater"
-                    value={newAmenity}
-                    onChange={(e) => setNewAmenity(e.target.value)}
-                    onKeyPress={(e) => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault();
-                        addAmenity();
-                      }
-                    }}
-                    className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-gray-50 dark:bg-gray-700 dark:text-white"
-                  />
-                  <button
-                    onClick={addAmenity}
-                    disabled={!newAmenity.trim()}
-                    className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-                  >
-                    <Plus className="w-5 h-5" />
-                    Add
-                  </button>
-                </div>
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">Press Enter or click Add to include a custom amenity</p>
-              </div>
-
-              <div>
-                <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-4">Common Amenities:</p>
-                <div className="grid grid-cols-3 gap-4 mb-4">
-                  {amenitiesList.map((amenity) => (
-                    <button
-                      key={amenity}
-                      onClick={() => toggleAmenity(amenity)}
-                      className={`px-4 py-4 rounded-lg border-2 text-left transition-all ${formData.amenities.includes(amenity)
-                        ? 'border-green-500 bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400'
-                        : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'
-                        }`}
-                    >
-                      {amenity}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Current selected amenities (added + selected) */}
-              {Array.isArray(formData.amenities) && formData.amenities.length > 0 && (
-                <div>
-                  <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-4">Your Amenities:</p>
-                  <div className="grid grid-cols-3 gap-4">
-                    {formData.amenities.map((amenity, index) => (
-                      <div
-                        key={index}
-                        className="flex items-start gap-4 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600 group hover:border-gray-300 dark:hover:border-gray-500 transition-colors"
-                      >
-                        <div className="flex-shrink-0 mt-0.5">
-                          <CheckCircle className="w-5 h-5 text-green-600" />
-                        </div>
-                        <p className="flex-1 text-sm text-gray-700 dark:text-gray-300">{amenity}</p>
-                        <button
-                          onClick={() => removeAmenity(index)}
-                          className="flex-shrink-0 text-red-500 hover:text-red-700 opacity-0 group-hover:opacity-100 transition-opacity"
-                        >
-                          <X className="w-5 h-5" />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Property Rules */}
-            <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6 space-y-6">
-              <div>
-                <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">Property Rules</h2>
-                <p className="text-sm text-gray-600 dark:text-gray-400">Add house rules and policies for your property</p>
-              </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Add Rule
-              </label>
-              <div className="flex gap-4">
-                <input
-                  type="text"
-                  placeholder="e.g., No smoking inside the premises"
-                  value={newRule}
-                  onChange={(e) => setNewRule(e.target.value)}
-                  onKeyPress={(e) => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault();
-                      addRule();
-                    }
-                  }}
-                  className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-gray-50 dark:bg-gray-700 dark:text-white"
-                />
-                <button
-                  onClick={addRule}
-                  disabled={!newRule.trim()}
-                  className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-                >
-                  <Plus className="w-5 h-5" />
-                  Add
-                </button>
-              </div>
-              <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">Press Enter or click Add to include the rule</p>
-            </div>
-
-            {/* Common Rules Suggestions */}
-            <div>
-              <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-4">Common Rules:</p>
-              <div className="grid grid-cols-3 gap-4">
-                {[
-                  'No smoking',
-                  'No pets allowed',
-                  'No visitors after 10 PM',
-                  'Quiet hours: 10 PM - 6 AM',
-                  'Keep common areas clean',
-                  'Respect other tenants',
-                  'No cooking in rooms'
-                ].map((suggestion) => (
-                  <button
-                    key={suggestion}
-                    onClick={() => {
-                      setFormData(prev => {
-                        const isSelected = prev.rules.includes(suggestion);
-
-                        return {
-                          ...prev,
-                          rules: isSelected
-                            ? prev.rules.filter(rule => rule !== suggestion)  // Remove
-                            : [...prev.rules, suggestion]                     // Add
-                        };
-                      });
-                    }}
-                    className={`px-4 py-4 rounded-lg border-2 text-left transition-all ${formData.rules.includes(suggestion)
-                      ? 'border-green-500 bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400'
-                      : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'
-                      }`}
-                  >
-                    {suggestion}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Rules List */}
-            {Array.isArray(formData.rules) && formData.rules.length > 0 && (
-              <div>
-                <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-4">Your Property Rules:</p>
-                <div className="grid grid-cols-3 gap-4">
-                  {formData.rules.map((rule, index) => (
-                    <div
-                      key={index}
-                      className="flex items-start gap-4 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600 group hover:border-gray-300 dark:hover:border-gray-500 transition-colors"
-                    >
-                      <div className="flex-shrink-0 mt-0.5">
-                        <CheckCircle className="w-5 h-5 text-green-600" />
-                      </div>
-                      <p className="flex-1 text-sm text-gray-700 dark:text-gray-300">{rule}</p>
-                      <button
-                        onClick={() => removeRule(index)}
-                        className="flex-shrink-0 text-red-500 hover:text-red-700 opacity-0 group-hover:opacity-100 transition-opacity"
-                      >
-                        <X className="w-5 h-5" />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {(!Array.isArray(formData.rules) || formData.rules.length === 0) && (
-              <div className="text-center py-8 bg-gray-50 dark:bg-gray-700 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600">
-                <FileText className="w-12 h-12 text-gray-500 dark:text-gray-500 mx-auto mb-4" />
-                <p className="text-gray-600 dark:text-gray-400 text-sm">No rules added yet</p>
-                <p className="text-gray-500 dark:text-gray-500 text-xs mt-2">Add rules to help tenants understand your property policies</p>
-              </div>
-            )}
-            </div>
-          </div>
+          <AmenitiesStep
+            selectedAmenities={formData.amenities}
+            onToggleAmenity={handleToggleAmenity}
+            customAmenities={formData.customAmenities}
+            onAddCustom={() => {
+              if (newCustomAmenity.trim()) {
+                setFormData(prev => ({ ...prev, customAmenities: [...prev.customAmenities, newCustomAmenity.trim()] }));
+                setNewCustomAmenity('');
+              }
+            }}
+            onRemoveCustom={(idx) => {
+              setFormData(prev => ({ ...prev, customAmenities: prev.customAmenities.filter((_, i) => i !== idx) }));
+            }}
+            newCustomValue={newCustomAmenity}
+            onCustomValueChange={setNewCustomAmenity}
+          />
         )}
-
-        {/* Step 4: Credentials (Eligibility + Documents) */}
         {currentStep === 4 && (
-          <div className="space-y-6">
-            <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
-              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mb-2">
-                <h2 className="text-xl font-semibold text-gray-900 dark:text-white shrink-0">Credentials for Approval</h2>
-                {fieldErrors.credentials && (
-                  <p className="text-red-600 text-xs font-bold animate-in fade-in slide-in-from-left-2">
-                    {fieldErrors.credentials}
-                  </p>
-                )}
-              </div>
-              <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">If your property is eligible for direct admin approval, upload supporting documents (e.g., proof of ownership, permits).</p>
-
-              <div className="flex items-center gap-4 mb-4">
-                <label className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    checked={formData.isEligible}
-                    onChange={(e) => setFormData(prev => ({ ...prev, isEligible: e.target.checked }))}
-                    className="form-checkbox h-4 w-4 text-green-600 dark:bg-gray-700 dark:border-gray-600"
-                  />
-                  <span className="text-sm text-gray-700 dark:text-gray-300">Mark property as eligible for admin approval</span>
-                </label>
-              </div>
-
-              <div className={`border-2 border-dashed rounded-lg p-6 ${fieldErrors.credentials ? 'border-red-500 bg-red-50/10' : 'border-gray-300 dark:border-gray-600'}`}>
-                <input
-                  type="file"
-                  multiple
-                  accept="application/pdf,image/png,image/jpeg"
-                  onChange={handleCredentialUpload}
-                  className="hidden"
-                  id="credential-upload"
-                />
-
-                {formData.credentials.length === 0 ? (
-                  <label htmlFor="credential-upload" className="cursor-pointer block text-center">
-                    <Upload className="w-12 h-12 text-gray-500 dark:text-gray-500 mx-auto mb-4" />
-                    <p className="text-gray-600 dark:text-gray-400 mb-2">Click to upload credential documents</p>
-                    <p className="text-sm text-gray-500 dark:text-gray-500">PDF, PNG, JPG</p>
-                  </label>
-                ) : (
-                  <div className="space-y-4">
-                    <div className="grid grid-cols-1 gap-4">
-                      {formData.credentials.map((file, index) => (
-                        <div key={index} className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600">
-                          <div className="flex items-center gap-4">
-                            <FileText className="w-5 h-5 text-gray-500 dark:text-gray-400" />
-                            <p className="text-sm text-gray-700 dark:text-gray-300">{file.name}</p>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <label htmlFor="credential-upload" className="text-sm text-gray-500 dark:text-gray-400 cursor-pointer mr-2">Add more</label>
-                            <button onClick={() => removeCredential(index)} className="text-red-500 hover:text-red-700">
-                              <X className="w-5 h-5" />
-                            </button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
+          <GalleryStep 
+            images={formData.images}
+            onUploadImage={(file) => setFormData(prev => ({ ...prev, images: [...prev.images, { file, preview: URL.createObjectURL(file) }] }))}
+            onRemoveImage={(idx) => setFormData(prev => ({ ...prev, images: prev.images.filter((_, i) => i !== idx) }))}
+            onSetThumbnail={(idx) => setFormData(prev => ({ ...prev, images: prev.images.map((img, i) => ({ ...img, isThumbnail: i === idx })) }))}
+          />
         )}
-
-        {/* Navigation Buttons */}
-        <div className="flex items-center justify-between pt-6">
-          <button
-            onClick={handlePrevious}
-            disabled={currentStep === 1 || loading}
-            className={`flex items-center gap-2 px-6 py-4 rounded-lg font-medium transition-colors ${currentStep === 1 || loading
-              ? 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-600 cursor-not-allowed'
-              : 'bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
-              }`}
-          >
-            <ArrowLeft className="w-5 h-5" />
-            Previous
-          </button>
-
-          <div className="flex items-center gap-4">
-            {currentStep === steps.length ? (
-              <>
-                  <button
-                    onClick={() => handleSubmit(true)}
-                    disabled={loading}
-                    className="px-6 py-4 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {loading ? 'Saving...' : 'Save as Draft'}
-                  </button>
-                {isVerified ? (
-                  <button
-                    onClick={() => handleSubmit(false)}
-                    disabled={loading}
-                    className="flex items-center gap-2 px-6 py-4 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {loading ? (
-                      <>
-                        <Loader2 className="animate-spin h-5 w-5 text-white" />
-                        Submitting...
-                      </>
-                    ) : (
-                      <>
-                        <Check className="w-5 h-5" />
-                        Submit for Approval
-                      </>
-                    )}
-                  </button>
-                ) : (
-                  <div className="flex items-center gap-2 px-4 py-2 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
-                    <Clock className="w-5 h-5 text-yellow-600 dark:text-yellow-400" />
-                    <span className="text-sm text-yellow-800 dark:text-yellow-300 font-medium">Complete partial verification to submit</span>
-                  </div>
-                )}
-              </>
-            ) : (
-              <button
-                onClick={handleNext}
-                disabled={loading}
-                className="flex items-center gap-2 px-6 py-4 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium disabled:opacity-50"
-              >
-                Next
-                <ArrowRight className="w-5 h-5" />
-              </button>
-            )}
-          </div>
-        </div>
+        {currentStep === 5 && (
+          <RulesStep 
+            rules={formData.rules}
+            newRuleValue={newRule}
+            onRuleValueChange={setNewRule}
+            onAddRule={() => { if (newRule.trim()) { setFormData(prev => ({ ...prev, rules: [...prev.rules, newRule.trim()] })); setNewRule(''); } }}
+            onRemoveRule={(idx) => setFormData(prev => ({ ...prev, rules: prev.rules.filter((_, i) => i !== idx) }))}
+          />
+        )}
       </div>
 
-      {/* Success Modal */}
-      {showSuccessModal.visible && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 px-4">
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full p-6 text-center">
-            <div className="w-16 h-16 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
-              {showSuccessModal.isDraft ? (
-                <FileText className="w-8 h-8 text-green-600 dark:text-green-400" />
-              ) : (
-                <CheckCircle className="w-8 h-8 text-green-600 dark:text-green-400" />
-              )}
-            </div>
-            <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
-              {showSuccessModal.isDraft ? "Draft Saved!" : "Success!"}
-            </h3>
-            <p className="text-gray-600 dark:text-gray-400 mb-6 font-medium">
-              {showSuccessModal.isDraft
-                ? "Your property draft has been saved successfully. You can complete it later."
-                : "Your property has been submitted and is now pending. Please wait 1-2 days for admin approval for eligibility."}
-            </p>
-            <button
-              onClick={() => {
-                const { result, isDraft } = showSuccessModal;
-                setShowSuccessModal({ visible: false, isDraft: false, result: null });
-                if (onSave) onSave(result, isDraft ? 'draft' : 'pending');
-                if (onBack) onBack();
-              }}
-              className="w-full bg-green-600 hover:bg-green-700 text-white font-medium py-4 px-4 rounded-lg transition-colors"
-            >
-              Go to My Properties
-            </button>
-          </div>
+      <div className="flex justify-between items-center pt-4">
+        <button
+          onClick={() => setCurrentStep(prev => prev - 1)}
+          disabled={currentStep === 1 || loading}
+          className="px-8 py-3 rounded-xl font-bold text-gray-500 hover:bg-gray-100 disabled:opacity-30"
+        >
+          Back
+        </button>
+        {currentStep < 5 ? (
+          <button
+            onClick={() => setCurrentStep(prev => prev + 1)}
+            className="px-10 py-3 bg-green-600 hover:bg-green-700 text-white rounded-xl font-bold shadow-lg shadow-green-500/20 transition-all"
+          >
+            Next Step
+          </button>
+        ) : (
+          <button
+            onClick={handleSubmit}
+            disabled={loading || !isVerified}
+            className="flex items-center gap-2 px-10 py-3 bg-green-600 hover:bg-green-700 text-white rounded-xl font-bold shadow-lg shadow-green-500/20 transition-all disabled:opacity-50"
+          >
+            {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Check className="w-5 h-5" />}
+            Submit Listing
+          </button>
+        )}
+      </div>
+
+      {!isVerified && isVerified !== null && (
+        <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 p-4 rounded-xl flex gap-3">
+          <ShieldAlert className="w-5 h-5 text-amber-600" />
+          <p className="text-sm text-amber-700 dark:text-amber-300">
+            <strong>Verification Required:</strong> You need to complete your landlord registration before submitting properties for approval.
+          </p>
         </div>
       )}
     </div>

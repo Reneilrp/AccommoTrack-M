@@ -177,22 +177,29 @@ class MaintenanceRequestController extends Controller
             $baseQuery->where('property_id', $request->property_id);
         }
 
-        $stats = [
-            'total' => (clone $baseQuery)->count(),
-            'pending' => (clone $baseQuery)->where('status', 'pending')->count(),
-            'in_progress' => (clone $baseQuery)->where('status', 'in_progress')->count(),
-            'completed_today' => (clone $baseQuery)
-                ->where('status', 'completed')
-                ->whereDate('resolved_at', now()->toDateString())
-                ->count(),
-            'assigned_to_me' => MaintenanceRequest::where('assigned_to', $context['user']->id)
-                ->whereNotIn('status', ['completed', 'cancelled'])
-                ->count(),
-        ];
+        // OPTIMIZATION: Combine all counts into one query
+        $statsRaw = (clone $baseQuery)
+            ->selectRaw("
+                COUNT(*) as total,
+                COUNT(CASE WHEN status = 'pending' THEN 1 END) as pending,
+                COUNT(CASE WHEN status = 'in_progress' THEN 1 END) as in_progress,
+                COUNT(CASE WHEN status = 'completed' AND DATE(resolved_at) = CURRENT_DATE THEN 1 END) as completed_today
+            ")
+            ->first();
+
+        $assignedToMe = MaintenanceRequest::where('assigned_to', $context['user']->id)
+            ->whereNotIn('status', ['completed', 'cancelled'])
+            ->count();
 
         return response()->json([
             'success' => true,
-            'data' => $stats,
+            'data' => [
+                'total' => (int) $statsRaw->total,
+                'pending' => (int) $statsRaw->pending,
+                'in_progress' => (int) $statsRaw->in_progress,
+                'completed_today' => (int) $statsRaw->completed_today,
+                'assigned_to_me' => $assignedToMe,
+            ],
         ]);
     }
 

@@ -332,7 +332,7 @@ export default function RoomDetailsModal({
   );
   const dailyRate = toMoneyNumber(
     room?.daily_rate ?? room?.dailyRate,
-    monthlyRate > 0 ? Math.round(monthlyRate / 30) : 0,
+    monthlyRate > 0 ? (monthlyRate / 30) : 0,
   );
 
   const primaryRate = isDailyContract ? dailyRate : monthlyRate;

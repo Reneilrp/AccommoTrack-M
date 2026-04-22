@@ -43,8 +43,15 @@ const InquiryManagement = () => {
     setLoading(true);
     try {
       const res = await api.get(`/admin/inquiries?page=${page}`);
-      setInquiries(res.data.data || []);
-      setTotalPages(res.data.last_page || 1);
+      
+      const payload = res.data;
+      if (payload && payload.data && Array.isArray(payload.data)) {
+        setInquiries(payload.data);
+        setTotalPages(payload.last_page || 1);
+      } else {
+        setInquiries(Array.isArray(payload) ? payload : (payload?.data || []));
+        setTotalPages(payload?.last_page || 1);
+      }
       if (res?.data?.permissions) {
         setPermissions({
           ...defaultInquiryPermissions,

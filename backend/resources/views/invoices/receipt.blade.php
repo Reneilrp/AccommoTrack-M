@@ -188,8 +188,16 @@
         });
         $displayPaidCents = $netPaidCents > 0 ? $netPaidCents : $totalCents;
         $isPartiallyRefunded = strtolower((string) ($invoice->status ?? '')) === 'partially_refunded';
-        $verificationUrl = $invoice->receipt_reference
-            ? route('public.receipt.verify', ['reference' => $invoice->receipt_reference])
+        
+        // CRYPTOGRAPHIC ASSURANCE:
+        // We point the QR code to the FRONTEND React app, passing an HMAC signature.
+        // This signature proves the reference was not tampered with.
+        $reference = $invoice->receipt_reference;
+        $signature = hash_hmac('sha256', (string) $reference, config('app.key'));
+        $frontendUrl = rtrim(config('app.frontend_url', 'https://accommotrack.me'), '/');
+        
+        $verificationUrl = $reference
+            ? "{$frontendUrl}/verify-receipt/{$reference}?sig={$signature}"
             : null;
     @endphp
 

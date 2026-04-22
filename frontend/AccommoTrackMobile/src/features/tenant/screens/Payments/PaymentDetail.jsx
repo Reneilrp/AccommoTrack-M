@@ -574,7 +574,7 @@ export default function PaymentDetail() {
 
       const balanceResult = await PaymentService.getWalletBalance();
       if (balanceResult?.success) {
-        const refreshedBalance = Number(balanceResult.data ?? 0);
+        const refreshedBalance = Number(balanceResult.data ?? 0) / 100;
         setWalletBalance(Number.isFinite(refreshedBalance) ? refreshedBalance : 0);
       }
     } catch (error) {
@@ -807,7 +807,7 @@ export default function PaymentDetail() {
                 <Text style={styles.amountInputCurrency}>₱</Text>
                 <TextInput
                   style={styles.amountInputField}
-                  keyboardType="numeric"
+                  keyboardType="decimal-pad"
                   value={paymentAmount}
                   onChangeText={handlePaymentAmountChange}
                   placeholder="0.00"

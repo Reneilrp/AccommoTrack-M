@@ -67,10 +67,6 @@ class MessageController extends Controller
             })
             ->firstOrFail();
 
-        if ($conversation->isHiddenForUser((int) $ownerId)) {
-            abort(404, 'Conversation not found.');
-        }
-
         // Mark messages as read
         Message::where('conversation_id', $conversationId)
             ->where('receiver_id', $ownerId)
@@ -80,12 +76,13 @@ class MessageController extends Controller
                 'read_at' => now(),
             ]);
 
+        // OPTIMIZATION: Use Cursor Pagination for messages
         $messages = Message::where('conversation_id', $conversationId)
             ->with(['sender:id,first_name,last_name,role,profile_image', 'actualSender:id,first_name,last_name,profile_image', 'replyTo.sender', 'histories'])
-            ->orderBy('created_at', 'asc')
-            ->get();
+            ->orderBy('created_at', 'desc') // Load newest first for cursor pagination
+            ->cursorPaginate(50);
 
-        return response()->json(MessageResource::collection($messages));
+        return MessageResource::collection($messages);
     }
 
     // Send a message

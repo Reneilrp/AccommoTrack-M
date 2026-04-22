@@ -23,12 +23,9 @@ class PaymentLedgerService
             $invoice->paid_at = $invoice->paid_at ?? now();
 
             if (! $invoice->receipt_reference) {
-                // Generate a unique receipt key
-                do {
-                    $ref = 'RCPT-'.date('Ymd').'-'.strtoupper(\Illuminate\Support\Str::random(6));
-                } while (Invoice::where('receipt_reference', $ref)->exists());
-
-                $invoice->receipt_reference = $ref;
+                // OPTIMIZATION: Generate unique reference without DB loop
+                // 14 chars timestamp + 10 chars random string = virtually zero collision risk
+                $invoice->receipt_reference = 'RCPT-' . now()->format('YmdHis') . '-' . strtoupper(\Illuminate\Support\Str::random(10));
             }
         } else {
             $invoice->paid_at = null;

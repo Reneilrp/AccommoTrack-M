@@ -16,14 +16,39 @@ const bookingService = {
     }
   },
 
-  async getMyBookings() {
+  async getMyBookings(params = {}) {
     try {
-      const res = await api.get('/tenant/bookings');
-      return { success: true, data: res.data };
+      const res = await api.get('/tenant/bookings', { params });
+      return { 
+        success: true, 
+        data: this.normalizePaginatedResponse(res.data) 
+      };
     } catch (_err) {
-      console.error('getMyBookings error:',_err?.response?.data ||_err);
-      return { success: false, error:_err?.response?.data?.message ||_err.message };
+      console.error('getMyBookings error:', _err?.response?.data || _err);
+      return { success: false, error: _err?.response?.data?.message || _err.message };
     }
+  },
+
+  /**
+   * Helper to normalize Laravel paginated and non-paginated responses
+   */
+  normalizePaginatedResponse(payload) {
+    if (payload && payload.data && Array.isArray(payload.data)) {
+      return {
+        items: payload.data,
+        pagination: {
+          currentPage: payload.current_page,
+          lastPage: payload.last_page,
+          perPage: payload.per_page,
+          total: payload.total,
+          hasMorePages: payload.current_page < payload.last_page
+        }
+      };
+    }
+    return {
+      items: Array.isArray(payload) ? payload : (payload?.data || []),
+      pagination: null
+    };
   },
 
   async getBookingDetails(bookingId) {
@@ -67,11 +92,14 @@ const bookingService = {
   async getBookings(params = {}) {
     try {
       const res = await api.get('/bookings', { params });
-      return { success: true, data: res.data?.data || res.data };
+      return { 
+        success: true, 
+        data: this.normalizePaginatedResponse(res.data) 
+      };
     } catch (_err) {
       const status = _err?.response?.status;
       if (status === 404 || status === 204) {
-        return { success: true, data: [] };
+        return { success: true, data: { items: [], pagination: null } };
       }
       return { success: false, status, error: _err.response?.data?.message || _err.message };
     }

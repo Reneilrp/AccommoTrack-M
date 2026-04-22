@@ -8,13 +8,38 @@ import { normalizeExtendStayError } from '../utils/error';
 export const roomService = {
 
   /**
+   * Helper to normalize Laravel paginated and non-paginated responses
+   */
+  normalizePaginatedResponse(payload) {
+    if (payload && payload.data && Array.isArray(payload.data)) {
+      return {
+        items: payload.data,
+        pagination: {
+          currentPage: payload.current_page,
+          lastPage: payload.last_page,
+          perPage: payload.per_page,
+          total: payload.total,
+          hasMorePages: payload.current_page < payload.last_page
+        }
+      };
+    }
+    return {
+      items: Array.isArray(payload) ? payload : (payload?.data || []),
+      pagination: null
+    };
+  },
+
+  /**
    * Get all rooms for a property (with optional filters)
    * GET /rooms/property/:propertyId
    */
   async getRoomsByProperty(propertyId, params = {}) {
     try {
       const res = await api.get(`/rooms/property/${propertyId}`, { params });
-      return { success: true, data: res.data?.data || res.data };
+      return { 
+        success: true, 
+        data: this.normalizePaginatedResponse(res.data) 
+      };
     } catch (err) {
       return { success: false, error: err.response?.data?.message || err.message };
     }

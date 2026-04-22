@@ -13,11 +13,14 @@ class LandlordDashboardService
 {
     public function getStats(int $landlordId, ?array $assignedPropertyIds, bool $isCaretaker, ?\App\Models\CaretakerAssignment $assignment = null): array
     {
-        // 1. Optimized Properties Stats (Single Query)
-        $propStats = Property::where('landlord_id', $landlordId)
-            ->when($assignedPropertyIds, fn($q) => $q->whereIn('id', $assignedPropertyIds))
-            ->selectRaw('COUNT(*) as total, COUNT(CASE WHEN current_status = ? THEN 1 END) as active', [Property::STATUS_ACTIVE])
-            ->first();
+        $cacheKey = "landlord_stats_{$landlordId}_" . ($isCaretaker ? 'caretaker' : 'landlord');
+
+        return \Illuminate\Support\Facades\Cache::remember($cacheKey, 600, function() use ($landlordId, $assignedPropertyIds, $isCaretaker, $assignment) {
+            // 1. Optimized Properties Stats (Single Query)
+            $propStats = Property::where('landlord_id', $landlordId)
+                ->when($assignedPropertyIds, fn($q) => $q->whereIn('id', $assignedPropertyIds))
+                ->selectRaw('COUNT(*) as total, COUNT(CASE WHEN current_status = ? THEN 1 END) as active', [Property::STATUS_ACTIVE])
+                ->first();
 
         // 2. Optimized Rooms Stats (Single Query)
         $roomStats = Room::whereHas('property', function ($query) use ($landlordId, $assignedPropertyIds) {
@@ -104,10 +107,32 @@ class LandlordDashboardService
         }
 
         return $response;
-    }
+    });
+}
 
 
     public function getRecentActivities(
+        int $landlordId,
+        ?array $assignedPropertyIds,
+        bool $isCaretaker,
+        ?int $propertyId,
+        ?int $roomId = null,
+        ?\App\Models\CaretakerAssignment $assignment = null
+    ): \Illuminate\Support\Collection {
+        $redisKey = "landlord_activities_{$landlordId}";
+        
+        // Fetch last 50 activities from Redis
+        $cachedActivities = \Illuminate\Support\Facades\Redis::lrange($redisKey, 0, 49);
+
+        if (!empty($cachedActivities)) {
+            return collect($cachedActivities)->map(fn($item) => json_decode($item, true));
+        }
+
+        // Fallback to original logic if Redis is empty (e.g. first run or cache cleared)
+        return $this->getRecentActivitiesFallback($landlordId, $assignedPropertyIds, $isCaretaker, $propertyId, $roomId, $assignment);
+    }
+
+    private function getRecentActivitiesFallback(
         int $landlordId,
         ?array $assignedPropertyIds,
         bool $isCaretaker,
@@ -407,9 +432,9 @@ class LandlordDashboardService
                 'due_for_billing_count' => $dueForBilling->count(),
                 'due_for_billing' => $dueForBilling,
                 'overdue_invoices_count' => $overdueInvoices->count(),
-                'overdue_invoices_amount' => (float) round($overdueInvoices->sum(fn (Invoice $invoice) => $invoice->amount_cents) / 100, 2),
+                'overdue_invoices_amount' => (float) $overdueInvoices->sum(fn (Invoice $invoice) => $invoice->amount_cents),
                 'due_soon_invoices_count' => $dueSoonInvoices->count(),
-                'due_soon_invoices_amount' => (float) round($dueSoonInvoices->sum(fn (Invoice $invoice) => $invoice->amount_cents) / 100, 2),
+                'due_soon_invoices_amount' => (float) $dueSoonInvoices->sum(fn (Invoice $invoice) => $invoice->amount_cents),
                 'overdue_invoices' => $overdueInvoices,
                 'due_soon_invoices' => $dueSoonInvoices,
             ],
@@ -446,7 +471,7 @@ class LandlordDashboardService
             )
             ->groupBy('invoices.property_id')
             ->pluck('total_paid_cents', 'invoices.property_id')
-            ->map(fn ($totalPaidCents) => (float) round(((int) $totalPaidCents) / 100, 2));
+            ->map(fn ($totalPaidCents) => (float) $totalPaidCents);
 
         return [
             'properties' => $properties,

@@ -88,6 +88,10 @@ class TenantController extends Controller
                         $q->where('landlord_id', $landlordId);
                     },
                 ])
+                // OPTIMIZATION: Check for overdue invoices in a single subquery
+                ->withExists(['invoices as has_overdue_invoices' => function($q) {
+                    $q->where('status', 'pending')->where('due_date', '<', now());
+                }])
                 ->where(function ($q) use ($landlordId, $allowedPropertyIds, $confirmedStatuses) {
                     $q->whereHas('roomAssignments', function ($q2) use ($landlordId, $allowedPropertyIds) {
                         $q2->whereHas('property', function ($q3) use ($landlordId, $allowedPropertyIds) {
@@ -142,7 +146,10 @@ class TenantController extends Controller
                 });
             }
 
-            $tenants = $query->get()->map(function ($tenant) use ($propertyId) {
+            $perPage = $request->query('per_page', 50);
+            $tenants = $query->paginate($perPage);
+
+            $tenants->getCollection()->transform(function ($tenant) use ($propertyId) {
                 // ... map logic remains same ...
                 $legacyRoom = $tenant->room;
 
@@ -163,8 +170,6 @@ class TenantController extends Controller
                 $scheduledEviction = $tenant->scheduledEviction;
                 $latestEviction = $tenant->latestEvictionRecord;
 
-                $hasOverdue = Invoice::where('tenant_id', $tenant->id)->where('status', 'pending')->where('due_date', '<', now())->exists();
-
                 return [
                     'id' => $tenant->id,
                     'first_name' => $tenant->first_name,
@@ -173,7 +178,7 @@ class TenantController extends Controller
                     'email' => $tenant->email,
                     'phone' => $tenant->phone,
                     'is_active' => $tenant->is_active,
-                    'has_overdue_invoices' => $hasOverdue, // Fix #3: was computed but missing from response
+                    'has_overdue_invoices' => (bool) $tenant->has_overdue_invoices, // Value from subquery
                     'room' => $room ? [
                         'id' => $room->id,
                         'room_number' => $room->room_number,
@@ -797,6 +802,7 @@ class TenantController extends Controller
             'prorated_adjustment' => 'nullable|numeric',
             'bed_number' => 'nullable|integer',
             'bed_numbers' => 'nullable|string',
+            'refund_preference' => 'nullable|in:wallet,cash',
         ]);
 
         $tenant = $this->resolveTenantForLandlord((int) $id, (int) $context['landlord_id'], $context)
@@ -888,7 +894,7 @@ class TenantController extends Controller
                     'property_id' => $newRoom->property_id,
                     'tenant_id' => $tenant->id,
                     'description' => 'Transfer fee from '.($oldRoom ? $oldRoom->room_number : 'previous room').' to '.$newRoom->room_number,
-                    'amount_cents' => (int) round($validated['transfer_fee'] * 100),
+                    'amount_cents' => $validated['transfer_fee'],
                     'currency' => 'PHP',
                     'status' => 'pending',
                     'issued_at' => now(),
@@ -1001,7 +1007,7 @@ class TenantController extends Controller
                         'transfer_from_room' => $oldRoom ? $oldRoom->room_number : 'N/A',
                         'transfer_to_room' => $newRoom->room_number,
                         'credit_calculation' => $creditCalculation ?? [],
-                    ]);
+                    ], $validated['refund_preference'] ?? 'wallet');
 
                     $newBooking->payment_status = match ($initialInvoice->status) {
                         'paid' => 'paid',
@@ -1014,7 +1020,7 @@ class TenantController extends Controller
                         'tenant_id' => $tenant->id,
                         'property_id' => $newRoom->property_id,
                         'room_id' => $newRoom->id,
-                        'amount_cents' => (int) round($creditAmount * 100),
+                        'amount_cents' => $creditAmount,
                         'type' => 'credit',
                         'description' => 'Transfer credit (no pending invoice to apply)',
                     ]);

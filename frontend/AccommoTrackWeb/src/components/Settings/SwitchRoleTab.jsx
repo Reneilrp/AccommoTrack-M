@@ -1,11 +1,13 @@
-import React, { useEffect, useState } from 'react';
-import { ArrowLeftRight, ShieldCheck, Clock, ShieldAlert, X, Upload } from 'lucide-react';
+import React, { useEffect, useState, useCallback, useMemo, memo } from 'react';
+import { ArrowLeftRight, ShieldCheck, Clock, ShieldAlert } from 'lucide-react';
 import { authService } from '../../services/authService';
 import api from '../../utils/api';
 import { showSuccess, showError } from '../../utils/toast';
+import RoleConfirmModal from './SwitchRole/RoleConfirmModal';
+import LandlordRegistrationModal from './SwitchRole/LandlordRegistrationModal';
 
-export default function SwitchRoleTab({ user: userProp }) {
-  const user = userProp || authService.getCurrentUser();
+const SwitchRoleTab = ({ user: userProp }) => {
+  const user = useMemo(() => userProp || authService.getCurrentUser(), [userProp]);
   const currentRole = user?.role || 'tenant';
 
   const [verificationStatus, setVerificationStatus] = useState(null);
@@ -27,7 +29,7 @@ export default function SwitchRoleTab({ user: userProp }) {
     permit: null,
   });
   const [registrationErrors, setRegistrationErrors] = useState({});
-  const canSwitchToLandlord = ['partial_verified', 'pending_documents_review', 'approved'].includes(verificationStatus);
+  const canSwitchToLandlord = useMemo(() => ['partial_verified', 'pending_documents_review', 'approved'].includes(verificationStatus), [verificationStatus]);
   const isWaitingForPartial = verificationStatus === 'pending';
 
   useEffect(() => {
@@ -80,7 +82,7 @@ export default function SwitchRoleTab({ user: userProp }) {
     loadIdTypes();
   }, [showRegistrationModal, idTypes.length, idTypesLoading]);
 
-  const getSwitchButtonLabel = () => {
+  const getSwitchButtonLabel = useCallback(() => {
     if (currentRole === 'landlord') {
       return 'Switch to Tenant Mode';
     }
@@ -94,9 +96,9 @@ export default function SwitchRoleTab({ user: userProp }) {
     }
 
     return 'Register as Landlord';
-  };
+  }, [currentRole, canSwitchToLandlord, isWaitingForPartial]);
 
-  const getVerificationInfo = () => {
+  const verificationInfo = useMemo(() => {
     if (loading || currentRole === 'landlord') {
       return null;
     }
@@ -133,7 +135,7 @@ export default function SwitchRoleTab({ user: userProp }) {
           text: 'To become a landlord, select a valid ID type and submit front/back ID images plus your business permit.',
         };
     }
-  };
+  }, [loading, currentRole, verificationStatus]);
 
   const performRoleSwitch = async (targetRole) => {
     try {
@@ -204,7 +206,7 @@ export default function SwitchRoleTab({ user: userProp }) {
     setShowRegistrationModal(true);
   };
 
-  const handleRegistrationChange = (field, value) => {
+  const handleRegistrationChange = useCallback((field, value) => {
     setRegistrationForm((prev) => ({
       ...prev,
       [field]: value,
@@ -213,9 +215,9 @@ export default function SwitchRoleTab({ user: userProp }) {
       ...prev,
       [field]: '',
     }));
-  };
+  }, []);
 
-  const handleRegistrationFile = (field, file) => {
+  const handleRegistrationFile = useCallback((field, file) => {
     if (!file) {
       return;
     }
@@ -251,7 +253,7 @@ export default function SwitchRoleTab({ user: userProp }) {
       ...prev,
       [field]: '',
     }));
-  };
+  }, []);
 
   const validateRegistrationForm = () => {
     const errors = {};
@@ -321,8 +323,6 @@ export default function SwitchRoleTab({ user: userProp }) {
     }
   };
 
-  const verificationInfo = getVerificationInfo();
-
   const handleConfirmSwitch = async () => {
     setShowConfirmModal(false);
     if (confirmModalConfig.targetRole) {
@@ -370,163 +370,27 @@ export default function SwitchRoleTab({ user: userProp }) {
         </div>
       </div>
 
-      {showConfirmModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[1200]">
-          <div className="bg-white dark:bg-gray-800 rounded-xl p-6 max-w-md w-full mx-4 animate-in fade-in zoom-in duration-200">
-            <div className="flex items-center justify-center w-12 h-12 bg-green-100 dark:bg-green-900/30 rounded-full mx-auto mb-4">
-              <ArrowLeftRight className="w-6 h-6 text-green-600 dark:text-green-400" />
-            </div>
+      <RoleConfirmModal 
+        isOpen={showConfirmModal}
+        onClose={() => setShowConfirmModal(false)}
+        onConfirm={handleConfirmSwitch}
+        config={confirmModalConfig}
+        isSwitching={isSwitching}
+      />
 
-            <h3 className="text-lg font-bold text-gray-900 dark:text-white text-center mb-2">
-              {confirmModalConfig.title}
-            </h3>
-
-            <p className="text-gray-600 dark:text-gray-300 text-center mb-6">
-              {confirmModalConfig.message}
-            </p>
-
-            <div className="flex gap-4">
-              <button
-                onClick={() => setShowConfirmModal(false)}
-                className="flex-1 px-4 py-2.5 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors font-medium"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleConfirmSwitch}
-                disabled={isSwitching}
-                className="flex-1 px-4 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium disabled:bg-gray-400"
-              >
-                {isSwitching ? 'Switching...' : 'Confirm'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {showRegistrationModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4 py-6">
-          <div className="w-full max-w-xl max-h-[90vh] overflow-y-auto rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-xl">
-            <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between sticky top-0 bg-white dark:bg-gray-800">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Register as Landlord</h3>
-              <button
-                type="button"
-                onClick={() => setShowRegistrationModal(false)}
-                className="p-2 rounded-md text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700"
-                aria-label="Close"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <div className="px-6 py-5 space-y-5">
-              <p className="text-sm text-gray-600 dark:text-gray-300">
-                Provide your valid ID type, upload front and back ID images, and upload your business permit. Name and date of birth will be taken from your tenant account.
-              </p>
-
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Valid ID Type</label>
-                  <select
-                    value={registrationForm.valid_id_type}
-                    onChange={(e) => handleRegistrationChange('valid_id_type', e.target.value)}
-                    className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                  >
-                    <option value="">Select ID type</option>
-                    {idTypes.map((type) => (
-                      <option key={type} value={type}>{type}</option>
-                    ))}
-                    {!idTypes.includes('Other') && <option value="Other">Other</option>}
-                  </select>
-                  {registrationErrors.valid_id_type && <p className="text-xs text-red-500 mt-1">{registrationErrors.valid_id_type}</p>}
-                </div>
-
-                {registrationForm.valid_id_type === 'Other' && (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Specify ID Type</label>
-                    <input
-                      type="text"
-                      value={registrationForm.valid_id_other}
-                      onChange={(e) => handleRegistrationChange('valid_id_other', e.target.value)}
-                      className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                    />
-                    {registrationErrors.valid_id_other && <p className="text-xs text-red-500 mt-1">{registrationErrors.valid_id_other}</p>}
-                  </div>
-                )}
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Upload Valid ID Front Image</label>
-                  <label className="w-full px-4 py-3 border border-dashed border-gray-300 dark:border-gray-600 rounded-lg flex items-center gap-2 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/40">
-                    <Upload className="w-4 h-4" />
-                    <span className="text-sm text-gray-600 dark:text-gray-300">
-                      {registrationForm.valid_id_front ? registrationForm.valid_id_front.name : 'Choose image (JPG/PNG, max 5MB)'}
-                    </span>
-                    <input
-                      type="file"
-                      className="hidden"
-                      accept=".jpg,.jpeg,.png,image/*"
-                      onChange={(e) => handleRegistrationFile('valid_id_front', e.target.files?.[0] || null)}
-                    />
-                  </label>
-                  {registrationErrors.valid_id_front && <p className="text-xs text-red-500 mt-1">{registrationErrors.valid_id_front}</p>}
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Upload Valid ID Back Image (Optional)</label>
-                  <label className="w-full px-4 py-3 border border-dashed border-gray-300 dark:border-gray-600 rounded-lg flex items-center gap-2 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/40">
-                    <Upload className="w-4 h-4" />
-                    <span className="text-sm text-gray-600 dark:text-gray-300">
-                      {registrationForm.valid_id_back ? registrationForm.valid_id_back.name : 'Choose image (JPG/PNG, max 5MB)'}
-                    </span>
-                    <input
-                      type="file"
-                      className="hidden"
-                      accept=".jpg,.jpeg,.png,image/*"
-                      onChange={(e) => handleRegistrationFile('valid_id_back', e.target.files?.[0] || null)}
-                    />
-                  </label>
-                  {registrationErrors.valid_id_back && <p className="text-xs text-red-500 mt-1">{registrationErrors.valid_id_back}</p>}
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Upload Business/Accommodation Permit</label>
-                  <label className="w-full px-4 py-3 border border-dashed border-gray-300 dark:border-gray-600 rounded-lg flex items-center gap-2 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/40">
-                    <Upload className="w-4 h-4" />
-                    <span className="text-sm text-gray-600 dark:text-gray-300">
-                      {registrationForm.permit ? registrationForm.permit.name : 'Choose file (JPG, PNG, PDF, max 5MB)'}
-                    </span>
-                    <input
-                      type="file"
-                      className="hidden"
-                      accept=".jpg,.jpeg,.png,.pdf,image/*,application/pdf"
-                      onChange={(e) => handleRegistrationFile('permit', e.target.files?.[0] || null)}
-                    />
-                  </label>
-                  {registrationErrors.permit && <p className="text-xs text-red-500 mt-1">{registrationErrors.permit}</p>}
-                </div>
-              </div>
-            </div>
-
-            <div className="px-6 py-4 border-t border-gray-200 dark:border-gray-700 flex items-center justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => setShowRegistrationModal(false)}
-                className="px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={submitLandlordRegistration}
-                disabled={isSubmittingRegistration}
-                className="px-4 py-2 rounded-lg bg-green-600 hover:bg-green-700 text-white disabled:bg-gray-400"
-              >
-                {isSubmittingRegistration ? 'Submitting...' : 'Submit Registration'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <LandlordRegistrationModal 
+        isOpen={showRegistrationModal}
+        onClose={() => setShowRegistrationModal(false)}
+        idTypes={idTypes}
+        form={registrationForm}
+        errors={registrationErrors}
+        onChange={handleRegistrationChange}
+        onFileChange={handleRegistrationFile}
+        onSubmit={submitLandlordRegistration}
+        isSubmitting={isSubmittingRegistration}
+      />
     </>
   );
-}
+};
+
+export default memo(SwitchRoleTab);

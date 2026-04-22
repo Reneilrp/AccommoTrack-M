@@ -17,112 +17,125 @@ class TenantDashboardService
 {
     public function getStats(int $tenantId): array
     {
-        // 1. Optimized Booking Stats (Single Query)
-        $bookingStats = Booking::where('tenant_id', $tenantId)
-            ->selectRaw("
-                COUNT(CASE WHEN status IN ('pending', 'confirmed') THEN 1 END) as active,
-                COUNT(CASE WHEN status = 'confirmed' THEN 1 END) as confirmed,
-                COUNT(CASE WHEN status = 'pending' THEN 1 END) as pending
-            ")
-            ->first();
+        $cacheKey = "tenant_stats_{$tenantId}";
 
-        // 2. Optimized Invoice Stats & Sums (Fetch Invoices first for accurate balance logic)
-        $now = now();
-        $unpaidInvoices = Invoice::with(['transactions' => function ($q) {
-            $q->whereIn('status', ['succeeded', 'paid', 'partially_refunded', 'refunded']);
-        }])
-            ->where('tenant_id', $tenantId)
-            ->whereIn('status', ['pending', 'partial', 'overdue'])
-            ->get();
+        return \Illuminate\Support\Facades\Cache::remember($cacheKey, 600, function() use ($tenantId) {
+            // 1. Optimized Booking Stats (Single Query)
+            $bookingStats = Booking::where('tenant_id', $tenantId)
+                ->selectRaw("
+                    COUNT(CASE WHEN status IN ('pending', 'confirmed') THEN 1 END) as active,
+                    COUNT(CASE WHEN status = 'confirmed' THEN 1 END) as confirmed,
+                    COUNT(CASE WHEN status = 'pending' THEN 1 END) as pending
+                ")
+                ->first();
 
-        $monthlyDueCents = 0;
-        $totalDueCents = 0;
-        $countPending = 0;
-        $countPartial = 0;
-        $countOverdue = 0;
-        $hasOverdue = false;
+            // 2. Optimized Invoice Stats & Sums
+            $now = now();
+            $unpaidInvoices = Invoice::with(['transactions' => function ($q) {
+                $q->whereIn('status', ['succeeded', 'paid', 'partially_refunded', 'refunded']);
+            }])
+                ->where('tenant_id', $tenantId)
+                ->whereIn('status', ['pending', 'partial', 'overdue'])
+                ->get();
 
-        foreach ($unpaidInvoices as $inv) {
-            $netPaid = $inv->transactions->sum(fn ($tx) => $tx->amount_cents - ($tx->refunded_amount_cents ?? 0));
-            $balance = max(0, ($inv->total_cents ?? $inv->amount_cents) - $netPaid);
+            $monthlyDueCents = 0;
+            $totalDueCents = 0;
+            $countPending = 0;
+            $countPartial = 0;
+            $countOverdue = 0;
+            $hasOverdue = false;
 
-            if ($balance > 0) {
-                $totalDueCents += $balance;
-                if ($inv->due_date && $inv->due_date->month == $now->month && $inv->due_date->year == $now->year) {
-                    $monthlyDueCents += $balance;
+            foreach ($unpaidInvoices as $inv) {
+                $netPaid = $inv->transactions->sum(fn ($tx) => $tx->amount_cents - ($tx->refunded_amount_cents ?? 0));
+                $balance = max(0, ($inv->total_cents ?? $inv->amount_cents) - $netPaid);
+
+                if ($balance > 0) {
+                    $totalDueCents += $balance;
+                    if ($inv->due_date && $inv->due_date->month == $now->month && $inv->due_date->year == $now->year) {
+                        $monthlyDueCents += $balance;
+                    }
+                }
+
+                if ($inv->status === 'pending') {
+                    $countPending++;
+                } elseif ($inv->status === 'partial') {
+                    $countPartial++;
+                } elseif ($inv->status === 'overdue') {
+                    $countOverdue++;
+                    $hasOverdue = true;
                 }
             }
 
-            if ($inv->status === 'pending') {
-                $countPending++;
-            } elseif ($inv->status === 'partial') {
-                $countPartial++;
-            } elseif ($inv->status === 'overdue') {
-                $countOverdue++;
-                $hasOverdue = true;
-            }
-        }
+            $countPaid = Invoice::where('tenant_id', $tenantId)->where('status', 'paid')->count();
 
-        $countPaid = Invoice::where('tenant_id', $tenantId)->where('status', 'paid')->count();
+            // 3. Paid Amount Calculation
+            $totalPaidCents = PaymentTransaction::where('tenant_id', $tenantId)
+                ->where('amount_cents', '>', 0)
+                ->whereIn('status', ['succeeded', 'paid', 'partially_refunded', 'refunded'])
+                ->selectRaw('SUM(amount_cents - COALESCE(refunded_amount_cents, 0)) as net_cents')
+                ->value('net_cents') ?? 0;
 
-        // 3. Paid Amount Calculation
-        $totalPaidCents = PaymentTransaction::where('tenant_id', $tenantId)
-            ->where('amount_cents', '>', 0)
-            ->whereIn('status', ['succeeded', 'paid', 'partially_refunded', 'refunded'])
-            ->selectRaw('SUM(amount_cents - COALESCE(refunded_amount_cents, 0)) as net_cents')
-            ->value('net_cents') ?? 0;
+            // 4. Latest unpaid invoice
+            $latestUnpaidInvoice = Invoice::where('tenant_id', $tenantId)
+                ->whereIn('status', ['pending', 'partial', 'overdue'])
+                ->orderBy('due_date', 'asc')
+                ->first();
 
-        // 4. Latest unpaid invoice
-        $latestUnpaidInvoice = Invoice::where('tenant_id', $tenantId)
-            ->whereIn('status', ['pending', 'partial', 'overdue'])
-            ->orderBy('due_date', 'asc')
-            ->first();
+            $unreadNotifications = User::find($tenantId)->unreadNotifications()->count();
+            $walletBalanceCents = \App\Models\TenantCredit::getBalance($tenantId);
 
-        $unreadNotifications = User::find($tenantId)->unreadNotifications()->count();
-        $walletBalanceCents = \App\Models\TenantCredit::getBalance($tenantId);
-
-        return [
-            'bookings' => [
-                'active' => (int) ($bookingStats->active ?? 0),
-                'confirmed' => (int) ($bookingStats->confirmed ?? 0),
-                'pending' => (int) ($bookingStats->pending ?? 0),
-            ],
-            'payments' => [
-                'monthlyDue' => (float) ($monthlyDueCents / 100),
-                'totalDue' => (float) ($totalDueCents / 100),
-                'totalPaid' => (float) ($totalPaidCents / 100),
-                'walletBalance' => (float) ($walletBalanceCents / 100),
-                'pendingAmount' => (float) ($totalDueCents / 100),
-                'latestUnpaidInvoiceId' => $latestUnpaidInvoice ? $latestUnpaidInvoice->id : null,
-                'hasOverdueInvoices' => (bool) $hasOverdue,
-                'unpaidInvoices' => $unpaidInvoices->map(fn($inv) => [
-                    'id' => $inv->id,
-                    'reference' => $inv->reference || $inv->invoice_number,
-                    'description' => $inv->description,
-                    'amount' => (float) ($inv->total_cents ?? $inv->amount_cents) / 100,
-                    'due_date' => $inv->due_date,
-                    'status' => $inv->status,
-                    'property_id' => $inv->property_id,
-                    'booking_id' => $inv->booking_id,
-                    'net_paid' => (float) $inv->transactions->sum(fn($tx) => $tx->amount_cents - ($tx->refunded_amount_cents ?? 0)) / 100,
-                ]),
-                'invoice_breakdown' => [
-                    'pending' => (int) $countPending,
-                    'partial' => (int) $countPartial,
-                    'overdue' => (int) $countOverdue,
-                    'paid' => (int) $countPaid,
+            return [
+                'bookings' => [
+                    'active' => (int) ($bookingStats->active ?? 0),
+                    'confirmed' => (int) ($bookingStats->confirmed ?? 0),
+                    'pending' => (int) ($bookingStats->pending ?? 0),
                 ],
-            ],
-            'notifications' => [
-                'unread' => $unreadNotifications,
-            ],
-        ];
+                'payments' => [
+                    'monthlyDue' => (float) $monthlyDueCents,
+                    'totalDue' => (float) $totalDueCents,
+                    'totalPaid' => (float) $totalPaidCents,
+                    'walletBalance' => (float) $walletBalanceCents,
+                    'pendingAmount' => (float) $totalDueCents,
+                    'latestUnpaidInvoiceId' => $latestUnpaidInvoice ? $latestUnpaidInvoice->id : null,
+                    'hasOverdueInvoices' => (bool) $hasOverdue,
+                    'unpaidInvoices' => $unpaidInvoices->map(fn($inv) => [
+                        'id' => $inv->id,
+                        'reference' => $inv->reference || $inv->invoice_number,
+                        'description' => $inv->description,
+                        'amount' => (float) ($inv->total_cents ?? $inv->amount_cents),
+                        'due_date' => $inv->due_date,
+                        'status' => $inv->status,
+                        'property_id' => $inv->property_id,
+                        'booking_id' => $inv->booking_id,
+                        'net_paid' => (float) $inv->transactions->sum(fn($tx) => $tx->amount_cents - ($tx->refunded_amount_cents ?? 0)),
+                    ]),
+                    'invoice_breakdown' => [
+                        'pending' => (int) $countPending,
+                        'partial' => (int) $countPartial,
+                        'overdue' => (int) $countOverdue,
+                        'paid' => (int) $countPaid,
+                    ],
+                ],
+                'notifications' => [
+                    'unread' => $unreadNotifications,
+                ],
+            ];
+        });
     }
-    // private function getBookingConfirmed($bookings){
-    //     return  $bookings['status'] === 'confirmed';
-    // }
 
     public function getRecentActivities(int $tenantId): Collection
+    {
+        $redisKey = "tenant_activities_{$tenantId}";
+        $cached = \Illuminate\Support\Facades\Redis::lrange($redisKey, 0, 29);
+
+        if (!empty($cached)) {
+            return collect($cached)->map(fn($item) => json_decode($item, true));
+        }
+
+        return $this->getRecentActivitiesFallback($tenantId);
+    }
+
+    public function getRecentActivitiesFallback(int $tenantId): Collection
     {
         $resolveSortKey = static function ($value): int {
             if ($value instanceof \DateTimeInterface) {

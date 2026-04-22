@@ -5,16 +5,38 @@ export const paymentService = {
      * Get all payments for the authenticated tenant
      * @param {string} status - Filter by status: 'all', 'paid', 'pending', 'overdue'
      */
-    async getPayments(status = 'all', archiveFilter = 'active') {
+    async getPayments(status = 'all', archiveFilter = 'active', page = 1) {
         try {
-            const params = {};
+            const params = { page };
             if (status !== 'all') params.status = status;
             if (archiveFilter) params.archive_filter = archiveFilter;
             
             const response = await api.get('/tenant/payments', { params });
+            const payload = response.data;
+
+            // Normalize paginated response
+            if (payload && payload.data && Array.isArray(payload.data)) {
+                return {
+                    success: true,
+                    data: {
+                        items: payload.data,
+                        pagination: {
+                            currentPage: payload.current_page,
+                            lastPage: payload.last_page,
+                            perPage: payload.per_page,
+                            total: payload.total,
+                            hasMorePages: payload.current_page < payload.last_page
+                        }
+                    }
+                };
+            }
+
             return {
                 success: true,
-                data: response.data
+                data: {
+                    items: Array.isArray(payload) ? payload : (payload?.data || []),
+                    pagination: null
+                }
             };
         } catch (error) {
             console.error('Error fetching payments:', error);
@@ -132,7 +154,7 @@ export const paymentService = {
      * Apply wallet credits to an invoice.
      * POST /tenant/invoices/{id}/apply-wallet-credit
      * @param {number} invoiceId
-     * @param {number} amountCents  – Amount in centavos (e.g. 50000 = ₱500.00)
+     * @param {number|string} amountCents  – Amount in decimal (e.g. 500.50)
      */
     async applyWalletCredit(invoiceId, amountCents) {
         try {
@@ -169,9 +191,30 @@ export const paymentService = {
     async getWalletLogs(page = 1) {
         try {
             const response = await api.get(`/tenant/wallet-credit/logs?page=${page}`);
+            const payload = response.data;
+
+            if (payload && payload.data && Array.isArray(payload.data)) {
+                return {
+                    success: true,
+                    data: {
+                        items: payload.data,
+                        pagination: {
+                            currentPage: payload.current_page,
+                            lastPage: payload.last_page,
+                            perPage: payload.per_page,
+                            total: payload.total,
+                            hasMorePages: payload.current_page < payload.last_page
+                        }
+                    }
+                };
+            }
+
             return {
                 success: true,
-                data: response.data
+                data: {
+                    items: Array.isArray(payload) ? payload : (payload?.data || []),
+                    pagination: null
+                }
             };
         } catch (error) {
             console.error('Error fetching wallet logs:', error);
@@ -204,12 +247,13 @@ export const paymentService = {
 
     /**
      * Format amount to Philippine Peso
-     * @param {number} amount 
+     * @param {number|string} amount 
      */
     formatAmount(amount) {
         return new Intl.NumberFormat('en-PH', {
             style: 'currency',
-            currency: 'PHP'
+            currency: 'PHP',
+            minimumFractionDigits: 2
         }).format(amount || 0);
     },
 

@@ -6,11 +6,12 @@ use App\Http\Controllers\Controller;
 use App\Models\Invoice;
 use App\Models\ReceiptDispute;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 
 class PublicReceiptController extends Controller
 {
     /**
-     * Publicly verify a receipt by its reference.
+     * Publicly verify a receipt by its reference (Blade view - Legacy).
      */
     public function verify(Request $request, $reference)
     {
@@ -26,6 +27,12 @@ class PublicReceiptController extends Controller
             ]);
         }
 
+        // Check HMAC if signature is present (Optional enforcement for Blade, but recommended)
+        $signature = $request->query('sig');
+        $expectedSignature = hash_hmac('sha256', $reference, config('app.key'));
+        
+        $isAuthentic = $signature && hash_equals($expectedSignature, $signature);
+
         // Mask tenant name for privacy (e.g., John Doe -> J*** D***)
         $firstName = $invoice->tenant->first_name ?? '';
         $lastName = $invoice->tenant->last_name ?? '';
@@ -36,7 +43,53 @@ class PublicReceiptController extends Controller
             'success' => true,
             'invoice' => $invoice,
             'maskedName' => trim($maskedName) ?: 'Verified Tenant',
-            'reference' => $reference
+            'reference' => $reference,
+            'isAuthentic' => $isAuthentic
+        ]);
+    }
+
+    /**
+     * API: Verify receipt with HMAC signature for Frontend Assurance.
+     */
+    public function verifyApi(Request $request, $reference)
+    {
+        $signature = $request->query('sig');
+        if (!$signature) {
+            return response()->json(['success' => false, 'message' => 'Missing cryptographic signature.'], 403);
+        }
+
+        $expectedSignature = hash_hmac('sha256', $reference, config('app.key'));
+        if (!hash_equals($expectedSignature, $signature)) {
+            return response()->json(['success' => false, 'message' => 'Forged or tampered document detected.'], 403);
+        }
+
+        $invoice = Invoice::with(['tenant', 'property'])
+            ->where('receipt_reference', $reference)
+            ->first();
+
+        if (!$invoice) {
+            return response()->json(['success' => false, 'message' => 'Receipt reference not found.'], 404);
+        }
+
+        $firstName = $invoice->tenant->first_name ?? '';
+        $lastName = $invoice->tenant->last_name ?? '';
+        $maskedName = $this->maskName($firstName) . ' ' . $this->maskName($lastName);
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'reference' => $invoice->receipt_reference,
+                'invoice_ref' => $invoice->reference,
+                'amount' => (float) (($invoice->total_cents ?? $invoice->amount_cents) / 100),
+                'status' => $invoice->status,
+                'paid_at' => $invoice->paid_at,
+                'tenant_name' => trim($maskedName) ?: 'Verified Tenant',
+                'property_title' => $invoice->property?->title ?? 'AccommoTrack Partner',
+                'period_start' => $invoice->billing_period_start,
+                'period_end' => $invoice->billing_period_end,
+                'is_authentic' => true,
+                'certified_at' => now()->toIso8601String(),
+            ]
         ]);
     }
 
@@ -63,6 +116,10 @@ class PublicReceiptController extends Controller
             'status' => 'pending',
         ]);
 
+        if ($request->wantsJson()) {
+            return response()->json(['success' => true, 'message' => 'Dispute reported successfully.']);
+        }
+
         return back()->with('status', 'Dispute reported successfully. Our team will investigate this reference.');
     }
 
@@ -72,8 +129,10 @@ class PublicReceiptController extends Controller
     private function maskName($name)
     {
         if (empty($name)) return '';
+        $name = trim($name);
         $len = strlen($name);
         if ($len <= 1) return $name;
-        return substr($name, 0, 1) . str_repeat('*', min(3, $len - 1)) . substr($name, -1, 1);
+        if ($len <= 3) return substr($name, 0, 1) . '*';
+        return substr($name, 0, 1) . str_repeat('*', min(4, $len - 2)) . substr($name, -1, 1);
     }
 }

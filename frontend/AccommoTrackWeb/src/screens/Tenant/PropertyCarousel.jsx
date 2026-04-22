@@ -65,8 +65,8 @@ const PropertyCarousel = ({ property, onOpenDetails }) => {
     );
     const hasDailyRate = room?.daily_rate !== null && room?.daily_rate !== undefined;
     const dailyRate = hasDailyRate
-      ? toMoneyNumber(room?.daily_rate, monthlyRate > 0 ? Math.round(monthlyRate / 30) : 0)
-      : toMoneyNumber(room?.dailyRate, monthlyRate > 0 ? Math.round(monthlyRate / 30) : 0);
+      ? toMoneyNumber(room?.daily_rate, monthlyRate > 0 ? (monthlyRate / 30) : 0)
+      : toMoneyNumber(room?.dailyRate, monthlyRate > 0 ? (monthlyRate / 30) : 0);
     const unitPrice = toMoneyNumber(room?.unit_price ?? room?.unitPrice, 0);
     const billingPolicy = (room?.billing_policy || room?.billingPolicy || 'monthly')
       .toString()

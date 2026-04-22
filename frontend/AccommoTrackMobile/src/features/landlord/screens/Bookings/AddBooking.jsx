@@ -134,79 +134,61 @@ export default function AddBooking({ navigation }) {
   );
   useLandlordFocusRefetch({ refetchers: addBookingRefetchers });
 
+  // Consolidate auto-initialization and dependency syncing into one effect
   useEffect(() => {
-    if (formData.propertyId || properties.length === 0) return;
-    setFormData((prev) => ({ ...prev, propertyId: properties[0].id }));
-  }, [formData.propertyId, properties]);
+    // 1. Auto-select first property if none selected
+    if (!formData.propertyId && properties.length > 0) {
+      setFormData(prev => ({ ...prev, propertyId: properties[0].id }));
+      return;
+    }
 
-  useEffect(() => {
+    // 2. Clear room data if no property selected
     if (!formData.propertyId) {
-      setFormData((prev) =>
-        prev.roomId || prev.amount || prev.bedCount !== 1
-          ? { ...prev, roomId: '', amount: '', bedCount: 1 }
-          : prev,
-      );
+      if (formData.roomId || formData.amount || formData.bedCount !== 1) {
+        setFormData(prev => ({ ...prev, roomId: '', amount: '', bedCount: 1 }));
+      }
       return;
     }
 
-    if (rooms.length === 0) {
-      setFormData((prev) =>
-        prev.roomId || prev.amount || prev.bedCount !== 1
-          ? { ...prev, roomId: '', amount: '', bedCount: 1 }
-          : prev,
-      );
-      return;
-    }
-
-    setFormData((prev) => {
-      const selectedRoom = rooms.find((room) => String(room.id) === String(prev.roomId));
+    // 3. Handle room selection logic when rooms list updates
+    if (rooms.length > 0) {
+      const currentRoom = rooms.find(r => String(r.id) === String(formData.roomId));
       const fallbackRoom = rooms[0];
-      const activeRoom = selectedRoom || fallbackRoom;
+      const activeRoom = currentRoom || fallbackRoom;
+      
       const nextRoomId = activeRoom?.id ?? '';
       const nextAmount = activeRoom?.monthly_rate?.toString() || '';
       const nextMaxBeds = Math.max(1, Number(activeRoom?.available_slots ?? activeRoom?.capacity ?? 1));
-      const nextBedCount = Math.min(Math.max(1, Number(prev.bedCount || 1)), nextMaxBeds);
+      const nextBedCount = Math.min(Math.max(1, Number(formData.bedCount || 1)), nextMaxBeds);
 
-      if (
-        String(prev.roomId) === String(nextRoomId)
-        && prev.amount === nextAmount
-        && prev.bedCount === nextBedCount
-      ) {
-        return prev;
+      const hasChanged = 
+        String(formData.roomId) !== String(nextRoomId) || 
+        formData.amount !== nextAmount || 
+        formData.bedCount !== nextBedCount;
+
+      if (hasChanged) {
+        setFormData(prev => ({
+          ...prev,
+          roomId: nextRoomId,
+          amount: nextAmount,
+          bedCount: nextBedCount,
+        }));
       }
-
-      return {
-        ...prev,
-        roomId: nextRoomId,
-        amount: nextAmount,
-        bedCount: nextBedCount,
-      };
-    });
+    } else if (formData.roomId || formData.amount) {
+      // Clear selections if rooms are loading or empty for current property
+      setFormData(prev => ({ ...prev, roomId: '', amount: '', bedCount: 1 }));
+    }
   }, [formData.propertyId, rooms]);
 
-  useEffect(() => {
-    if (!selectedRoom) return;
-    if (formData.bedCount > maxSelectableBeds) {
-      setFormData((prev) => ({
-        ...prev,
-        bedCount: maxSelectableBeds,
-      }));
-    }
-  }, [formData.bedCount, maxSelectableBeds, selectedRoom]);
-
+  // Handle daily checkout auto-set
   useEffect(() => {
     if (!selectedRoom || selectedRoomBillingPolicy !== 'daily') return;
-
-    setFormData((prev) => {
-      if (prev.checkOut) return prev;
-      const nextDay = new Date(prev.checkIn);
+    if (!formData.checkOut) {
+      const nextDay = new Date(formData.checkIn);
       nextDay.setDate(nextDay.getDate() + 1);
-      return {
-        ...prev,
-        checkOut: nextDay,
-      };
-    });
-  }, [selectedRoom, selectedRoomBillingPolicy]);
+      setFormData(prev => ({ ...prev, checkOut: nextDay }));
+    }
+  }, [selectedRoom, selectedRoomBillingPolicy, formData.checkIn]);
 
   useEffect(() => {
     if (!guestSearch || guestSearch.trim().length < 2 || selectedGuest) {

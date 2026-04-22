@@ -109,7 +109,9 @@ class UpdateRoomRequest extends FormRequest
             'duration_pricing.9.discount_value' => 'required_with:duration_pricing.9|numeric|gt:0',
             'duration_pricing.12.discount_value' => 'required_with:duration_pricing.12|numeric|gt:0',
             'images' => 'nullable|array',
-            'images.*' => 'string|url', // Assuming URLs are sent for existing images
+            'images.*' => 'nullable|image|mimes:jpeg,png,jpg,webp|max:10240',
+            'delete_images' => 'nullable|array',
+            'delete_images.*' => 'integer|exists:media,id',
         ];
     }
 

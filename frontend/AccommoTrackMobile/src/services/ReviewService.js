@@ -1,4 +1,4 @@
-import api from './api.js';
+import api, { normalizeResponse, normalizeError, normalizePaginatedResponse } from './api.js';
 
   /**
    * Get all reviews for a specific property (Public)
@@ -8,10 +8,15 @@ import api from './api.js';
   async getPropertyReviews(propertyId) {
     try {
       const response = await api.get(`/public/properties/${propertyId}/reviews`);
-      return { success: true, data: response.data.reviews || [], summary: response.data.summary || null };
+      const res = normalizeResponse(response);
+      if (res.success) {
+        res.data = response.data?.reviews || [];
+        res.summary = response.data?.summary || null;
+      }
+      return res;
     } catch (error) {
       console.error('Error fetching property reviews:', error);
-      return { success: false, error: error.response?.data?.message || 'Failed to fetch reviews' };
+      return normalizeError(error);
     }
   }
 
@@ -21,10 +26,14 @@ import api from './api.js';
   async getLandlordReviews(params = {}) {
     try {
       const response = await api.get(`/landlord/reviews`, { params });
-      return { success: true, data: response.data.data || response.data };
+      return {
+        success: true,
+        data: normalizePaginatedResponse(response),
+        error: null
+      };
     } catch (error) {
       console.error('Error fetching landlord reviews:', error);
-      return { success: false, error: error.response?.data?.message || 'Failed to fetch reviews' };
+      return normalizeError(error);
     }
   }
 
@@ -37,10 +46,10 @@ import api from './api.js';
         `/landlord/reviews/${reviewId}/respond`,
         { response: responseText },
       );
-      return { success: true, data: response.data };
+      return normalizeResponse(response);
     } catch (error) {
       console.error('Error responding to review:', error);
-      return { success: false, error: error.response?.data?.message || 'Failed to submit response' };
+      return normalizeError(error);
     }
   }
 }

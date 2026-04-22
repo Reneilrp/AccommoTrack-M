@@ -1,10 +1,22 @@
-import { useState } from 'react';
+import { useState, memo, useEffect } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import ImagePlaceholder from './ImagePlaceholder';
 import { getImageUrl } from '../../utils/api';
 
-export default function ImageCarousel({ images = [], alt = 'Image', className = '' }) {
+const ImageCarousel = ({ images = [], alt = 'Image', className = '' }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
+
+  // Preload next image for smoother transitions
+  useEffect(() => {
+    if (images.length > 1) {
+      const nextIndex = (currentIndex + 1) % images.length;
+      const nextImageUrl = getImageUrl(images[nextIndex]);
+      if (nextImageUrl) {
+        const img = new Image();
+        img.src = nextImageUrl;
+      }
+    }
+  }, [currentIndex, images]);
 
   if (!images || images.length === 0) {
     return (
@@ -34,6 +46,7 @@ export default function ImageCarousel({ images = [], alt = 'Image', className = 
           <img
             src={getImageUrl(images[currentIndex])}
             alt={`${alt} ${currentIndex + 1}`}
+            loading="lazy"
             className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
           />
         ) : (
@@ -83,4 +96,6 @@ export default function ImageCarousel({ images = [], alt = 'Image', className = 
       )}
     </div>
   );
-}
+};
+
+export default memo(ImageCarousel);

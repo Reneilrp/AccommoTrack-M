@@ -1,17 +1,4 @@
-import api from './api.js';
-import { extractErrorMessage } from '../utils/error.js';
-
-const unwrapResponseData = (payload) => {
-  if (!payload || typeof payload !== 'object') {
-    return payload;
-  }
-
-  if (Object.prototype.hasOwnProperty.call(payload, 'data')) {
-    return payload.data;
-  }
-
-  return payload;
-};
+import api, { normalizeResponse, normalizeError } from './api.js';
 
 const normalizeLandlordProperties = (properties) => {
   if (!Array.isArray(properties)) {
@@ -46,7 +33,7 @@ class CaretakerService {
   async getCaretakers() {
     try {
       const response = await api.get(`/landlord/caretakers`);
-      const payload = unwrapResponseData(response.data) || {};
+      const { data: payload } = normalizeResponse(response);
       const caretakers = Array.isArray(payload?.caretakers) ? payload.caretakers : [];
 
       let landlordProperties;
@@ -54,7 +41,7 @@ class CaretakerService {
         landlordProperties = normalizeLandlordProperties(payload.landlord_properties);
       } else {
         const propertiesResponse = await api.get(`/landlord/properties`);
-        const propertiesPayload = unwrapResponseData(propertiesResponse.data);
+        const { data: propertiesPayload } = normalizeResponse(propertiesResponse);
         landlordProperties = normalizeLandlordProperties(propertiesPayload);
       }
 
@@ -65,10 +52,11 @@ class CaretakerService {
           caretakers,
           landlord_properties: landlordProperties,
         },
+        error: null
       };
     } catch (error) {
       console.error('Error fetching caretakers:', error);
-      return { success: false, error: extractErrorMessage(error) || 'Failed to fetch caretakers' };
+      return normalizeError(error);
     }
   }
 
@@ -78,10 +66,10 @@ class CaretakerService {
   async createCaretaker(data) {
     try {
       const response = await api.post(`/landlord/caretakers`, data);
-      return { success: true, data: unwrapResponseData(response.data) };
+      return normalizeResponse(response);
     } catch (error) {
       console.error('Error creating caretaker:', error);
-      return { success: false, error: extractErrorMessage(error) || 'Failed to create caretaker' };
+      return normalizeError(error);
     }
   }
 
@@ -91,10 +79,10 @@ class CaretakerService {
   async updateCaretaker(assignmentId, data) {
     try {
       const response = await api.patch(`/landlord/caretakers/${assignmentId}`, data);
-      return { success: true, data: unwrapResponseData(response.data) };
+      return normalizeResponse(response);
     } catch (error) {
       console.error('Error updating caretaker:', error);
-      return { success: false, error: extractErrorMessage(error) || 'Failed to update caretaker' };
+      return normalizeError(error);
     }
   }
 
@@ -104,10 +92,10 @@ class CaretakerService {
   async deleteCaretaker(assignmentId) {
     try {
       const response = await api.delete(`/landlord/caretakers/${assignmentId}`);
-      return { success: true, data: unwrapResponseData(response.data) };
+      return normalizeResponse(response);
     } catch (error) {
       console.error('Error deleting caretaker:', error);
-      return { success: false, error: extractErrorMessage(error) || 'Failed to delete caretaker' };
+      return normalizeError(error);
     }
   }
 
@@ -117,10 +105,10 @@ class CaretakerService {
   async resetPassword(assignmentId) {
     try {
       const response = await api.post(`/landlord/caretakers/${assignmentId}/reset-password`, {});
-      return { success: true, data: unwrapResponseData(response.data) };
+      return normalizeResponse(response);
     } catch (error) {
       console.error('Error resetting password:', error);
-      return { success: false, error: extractErrorMessage(error) || 'Failed to reset password' };
+      return normalizeError(error);
     }
   }
 }

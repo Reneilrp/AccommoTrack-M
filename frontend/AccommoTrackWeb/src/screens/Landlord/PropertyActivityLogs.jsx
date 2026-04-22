@@ -223,7 +223,7 @@ export default function PropertyActivityLogs({ propertyId, _propertyTitle, isOpe
                     </div>
                     {a.amount_cents || a.amount ? (
                       <div className="text-sm font-bold text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/30 px-2 py-2 rounded-lg border border-green-100 dark:border-green-900/30">
-                        {a.amount ? a.amount : `₱${Number(a.amount_cents || 0) / 100}`}
+                        {a.amount ? a.amount : `₱${Number(a.amount_cents || 0)}`}
                       </div>
                     ) : null}
                   </div>

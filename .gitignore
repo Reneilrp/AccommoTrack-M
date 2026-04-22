@@ -27,6 +27,9 @@ unused_vars.json
 temp_inject_ui.js
 temp_replace.js
 temp_sed_systemsettings.js
+refactor_accommotrack.js
+replace_gender.js
+replace_gender_vars.js
 
 AGENTS.md
 *.md
@@ -38,4 +41,4 @@ AGENTS.md
 .DS_Store
 
 # Temporary
-!Goal.md
+Goal.md

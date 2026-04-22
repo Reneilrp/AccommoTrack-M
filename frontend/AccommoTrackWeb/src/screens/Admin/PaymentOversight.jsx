@@ -32,7 +32,7 @@ const formatDateTime = (value) => {
 };
 
 const formatPesoFromCents = (amountCents) => {
-  const amount = Number(amountCents || 0) / 100;
+  const amount = Number(amountCents || 0);
   return amount.toLocaleString('en-PH', {
     style: 'currency',
     currency: 'PHP',
@@ -220,7 +220,7 @@ export default function PaymentOversight() {
       Tenant_Name: record.tenantName || 'Unknown',
       Property_Title: record.propertyTitle || 'Unknown',
       Room: record.roomNumber || 'N/A',
-      Amount_PHP: Number(record.amountCents || 0) / 100,
+      Amount_PHP: Number(record.amountCents || 0),
       Method: formatMethodLabel(record.method),
       Status: record.status || 'unknown',
       Risk_Flags: record.riskFlags?.join(', ') || 'None',

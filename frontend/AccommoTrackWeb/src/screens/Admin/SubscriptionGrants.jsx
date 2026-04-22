@@ -65,7 +65,7 @@ const formatDateTime = (value) => {
 };
 
 const formatMoneyFromCents = (value, currency = 'PHP') => {
-  const amount = Number(value || 0) / 100;
+  const amount = Number(value || 0);
   return amount.toLocaleString('en-PH', {
     style: 'currency',
     currency: currency || 'PHP',
@@ -97,18 +97,6 @@ const getGrantStatusClasses = (status) => {
     default:
       return 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300';
   }
-};
-
-const extractUsers = (response) => {
-  if (Array.isArray(response?.data?.data)) {
-    return response.data.data;
-  }
-
-  if (Array.isArray(response?.data)) {
-    return response.data;
-  }
-
-  return [];
 };
 
 const buildLandlordLabel = (landlord) => {
@@ -160,25 +148,12 @@ export default function SubscriptionGrants() {
   const [focusedActionPanel, setFocusedActionPanel] = useState('');
 
   const filteredLandlords = useMemo(() => {
-    const query = landlordSearch.trim().toLowerCase();
-
-    const sorted = [...landlords].sort((a, b) => {
+    return [...landlords].sort((a, b) => {
       const aName = buildLandlordLabel(a).toLowerCase();
       const bName = buildLandlordLabel(b).toLowerCase();
       return aName.localeCompare(bName);
     });
-
-    if (!query) {
-      return sorted;
-    }
-
-    return sorted.filter((landlord) => {
-      const idMatch = String(landlord?.id || '').includes(query);
-      const emailMatch = String(landlord?.email || '').toLowerCase().includes(query);
-      const nameMatch = buildLandlordLabel(landlord).toLowerCase().includes(query);
-      return idMatch || emailMatch || nameMatch;
-    });
-  }, [landlords, landlordSearch]);
+  }, [landlords]);
 
   const selectedLandlord = useMemo(
     () => landlords.find((item) => String(item.id) === String(selectedLandlordId)) || null,
@@ -223,13 +198,35 @@ export default function SubscriptionGrants() {
     setOverviewLoading(false);
   }, [selectedLandlordId]);
 
+  const [searchingLandlords, setSearchingLandlords] = useState(false);
+
+  const fetchLandlords = useCallback(async (search = '') => {
+    try {
+      setSearchingLandlords(true);
+      const res = await adminService.getUsers({ 
+        role: 'landlord', 
+        search: search || undefined,
+        per_page: 20 
+      });
+      
+      if (res.success) {
+        setLandlords(res.data.items || []);
+      }
+    } catch (err) {
+      console.error('Failed to search landlords', err);
+    } finally {
+      setSearchingLandlords(false);
+    }
+  }, []);
+
   const fetchBootstrap = useCallback(async () => {
     setBootstrapLoading(true);
 
     try {
-      const [plansResponse, usersResponse] = await Promise.all([
+      // Load plans and initial landlords in parallel
+      const [plansResponse] = await Promise.all([
         adminService.getSubscriptionPlans({ include_inactive: true }),
-        adminService.getUsers(),
+        fetchLandlords()
       ]);
 
       if (!plansResponse.success) {
@@ -239,10 +236,7 @@ export default function SubscriptionGrants() {
       const availablePlans = Array.isArray(plansResponse.data) ? plansResponse.data : [];
       setPlans(availablePlans);
       setGrantForm((prev) => {
-        if (prev.plan_id) {
-          return prev;
-        }
-
+        if (prev.plan_id) return prev;
         const firstPlanId = availablePlans[0]?.id;
         return {
           ...prev,
@@ -250,24 +244,12 @@ export default function SubscriptionGrants() {
         };
       });
 
-      const allUsers = extractUsers(usersResponse);
-      const landlordsOnly = allUsers.filter((user) => String(user?.role || '').toLowerCase() === 'landlord');
-      setLandlords(landlordsOnly);
-
-      setSelectedLandlordId((prev) => {
-        if (prev) {
-          return prev;
-        }
-
-        const firstLandlordId = landlordsOnly[0]?.id;
-        return firstLandlordId ? String(firstLandlordId) : '';
-      });
     } catch (error) {
       showError(error?.response?.data?.message || error?.message || 'Failed to load admin subscription grant data.');
     } finally {
       setBootstrapLoading(false);
     }
-  }, []);
+  }, [fetchLandlords]);
 
   useEffect(() => {
     fetchBootstrap();
@@ -526,21 +508,29 @@ export default function SubscriptionGrants() {
               <input
                 type="text"
                 value={landlordSearch}
-                onChange={(event) => setLandlordSearch(event.target.value)}
-                placeholder="Filter by name, email, or ID"
+                onChange={(event) => {
+                  setLandlordSearch(event.target.value);
+                  fetchLandlords(event.target.value);
+                }}
+                placeholder="Name or email..."
                 className="w-full pl-9 pr-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm text-gray-900 dark:text-white"
               />
+              {searchingLandlords && (
+                <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                  <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
+                </div>
+              )}
             </div>
           </label>
 
           <label className="block">
-            <span className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Select landlord</span>
+            <span className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Select result</span>
             <select
               value={selectedLandlordId}
               onChange={(event) => setSelectedLandlordId(event.target.value)}
               className="w-full mt-2 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm text-gray-900 dark:text-white"
             >
-              <option value="">Choose landlord</option>
+              <option value="">-- Results --</option>
               {filteredLandlords.map((landlord) => (
                 <option key={landlord.id} value={String(landlord.id)}>
                   {`#${landlord.id} - ${buildLandlordLabel(landlord)}`}
@@ -551,7 +541,7 @@ export default function SubscriptionGrants() {
         </div>
 
         <div className="text-xs text-gray-500 dark:text-gray-400">
-          {bootstrapLoading ? 'Loading landlords and plans...' : `Loaded ${filteredLandlords.length} landlord options and ${plans.length} subscription plans.`}
+          {bootstrapLoading ? 'Loading plans...' : `Found ${filteredLandlords.length} search results and ${plans.length} subscription plans.`}
         </div>
 
         {selectedLandlord && (

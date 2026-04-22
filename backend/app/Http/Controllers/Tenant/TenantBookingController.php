@@ -29,7 +29,15 @@ class TenantBookingController extends Controller
     public function index(Request $request)
     {
         try {
-            $query = Booking::with(['property.images', 'landlord', 'room', 'review', 'occupants'])
+            $query = Booking::with([
+                'property.images', 
+                'landlord', 
+                'room.images', 
+                'room.currentTenant',
+                'review', 
+                'occupants',
+                'tenant.tenantProfile'
+            ])
                 ->withCount('occupants')
                 ->where('tenant_id', Auth::id());
 
@@ -208,9 +216,11 @@ class TenantBookingController extends Controller
                 'landlord',
                 'room.images',
                 'room.amenities',
+                'room.currentTenant',
                 'addons',
                 'maintenanceRequests',
                 'occupants',
+                'tenant.tenantProfile'
             ])
                 ->withCount('occupants')
                 ->where('tenant_id', Auth::id())
@@ -381,9 +391,9 @@ class TenantBookingController extends Controller
                 $partialCharge = round($daysOverdue * $ratePerDay, 2);
             }
 
-            $totalAmount = round($monthlyDue + $partialCharge, 2);
+            $totalAmount = $monthlyDue + $partialCharge;
 
-            $amountCents = (int) round($totalAmount * 100);
+            $amountCents = $totalAmount;
 
             $reference = 'INV-'.date('Ymd').'-'.strtoupper(substr(bin2hex(random_bytes(3)), 0, 6));
 
@@ -524,7 +534,7 @@ class TenantBookingController extends Controller
             'billing_period_start' => $periodStart,
             'billing_period_end' => $periodEnd,
             'billing_period_key' => $periodKey,
-            'amount_cents' => (int) round($baseInvoiceAmount * 100),
+            'amount_cents' => $baseInvoiceAmount,
             'currency' => 'PHP',
             'status' => 'pending',
             'issued_at' => now(),

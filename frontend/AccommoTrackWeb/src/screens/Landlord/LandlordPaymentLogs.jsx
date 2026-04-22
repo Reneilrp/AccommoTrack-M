@@ -90,7 +90,7 @@ function InvoiceRow({ invoice, navigate }) {
   const tenantName = isSubscription ? (invoice.description || 'Platform Subscription') : buildTenantName(invoice);
   const roomLabel = isSubscription ? 'System' : buildRoomLabel(invoice);
   const property = isSubscription ? 'AccommoTrack' : (invoice?.property?.title || invoice?.property_title || invoice?.booking?.property?.title || '—');
-  const amount = invoice?.amount_cents ? invoice.amount_cents / 100 : Number(invoice?.amount || 0);
+  const amount = invoice?.amount_cents ?? Number(invoice?.amount || 0);
 
   return (
     <tr

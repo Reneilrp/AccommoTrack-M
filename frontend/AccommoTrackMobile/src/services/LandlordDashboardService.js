@@ -1,4 +1,4 @@
-import api from './api.js';
+import api, { normalizeResponse, normalizeError } from './api.js';
 
 /**
  * Landlord dashboard aggregated data fetcher mirroring the web admin endpoints.
@@ -25,13 +25,7 @@ const LandlordDashboardService = {
                 25000 // Slightly longer timeout for the bundle
             );
 
-            if (response.data && response.data.success) {
-                return response.data;
-            }
-
-            // Fallback: If bundle fails or is not supported yet (legacy backend), 
-            // the catch block will handle it or we can manually trigger the old flow.
-            throw new Error('Bundle endpoint returned failure status');
+            return normalizeResponse(response);
         } catch (error) {
             console.warn('Dashboard bundle failed, falling back to individual requests:', error.message);
             
@@ -68,13 +62,11 @@ const LandlordDashboardService = {
                         revenueChart: chartRes.data || { labels: [], data: [] },
                         propertyPerformance: performanceRes.data || [],
                     },
+                    error: null,
                 };
             } catch (fallbackError) {
                 console.error('Final dashboard fetch failure:', fallbackError);
-                return {
-                    success: false,
-                    error: fallbackError.response?.data?.message || fallbackError.message || 'Failed to load dashboard data',
-                };
+                return normalizeError(fallbackError);
             }
         }
     },
@@ -82,7 +74,7 @@ const LandlordDashboardService = {
     async fetchUnreadNotificationsCount() {
         try {
             const response = await api.get('/notifications/unread-count?role=landlord');
-            const payload = response?.data;
+            const { data: payload } = normalizeResponse(response);
             const rawCount =
                 payload?.count ??
                 payload?.data?.count ??
@@ -94,30 +86,21 @@ const LandlordDashboardService = {
             return {
                 success: true,
                 data: Number.isFinite(normalizedCount) ? normalizedCount : 0,
+                error: null,
             };
         } catch (error) {
             console.error('Failed to fetch unread notification count:', error);
-            return {
-                success: false,
-                data: 0
-            };
+            return normalizeError(error);
         }
     },
 
     async fetchPropertyActivities(propertyId) {
         try {
             const response = await api.get(`/landlord/dashboard/recent-activities?property_id=${propertyId}`);
-            return {
-                success: true,
-                data: response.data || []
-            };
+            return normalizeResponse(response);
         } catch (error) {
             console.error('Failed to fetch property activities:', error);
-            return {
-                success: false,
-                data: [],
-                error: error.response?.data?.message || error.message || 'Failed to load activity'
-            };
+            return normalizeError(error);
         }
     }
 };

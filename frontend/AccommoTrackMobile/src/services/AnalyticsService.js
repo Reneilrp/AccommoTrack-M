@@ -1,16 +1,4 @@
-import api from './api.js';
-
-const buildErrorMessage = (error, fallbackMessage) => {
-  if (error?.response?.data) {
-    return (
-      error.response.data.message ||
-      error.response.data.error ||
-      (typeof error.response.data === 'string' ? error.response.data : null) ||
-      fallbackMessage
-    );
-  }
-  return error?.message || fallbackMessage;
-};
+import api, { normalizeResponse, normalizeError } from './api.js';
 
 const analyticsService = {
   /**
@@ -25,10 +13,10 @@ const analyticsService = {
         ...extra
       };
       const response = await api.get('/landlord/analytics/dashboard', { params });
-      return { success: true, data: response.data || null };
+      return normalizeResponse(response);
     } catch (error) {
       console.error('Analytics dashboard fetch failed:', error.response?.data || error.message);
-      return { success: false, error: buildErrorMessage(error, 'Unable to load dashboard analytics') };
+      return normalizeError(error);
     }
   },
 
@@ -38,14 +26,10 @@ const analyticsService = {
   async getProperties() {
     try {
       const response = await api.get('/properties/accessible');
-      const payload = response?.data;
-      const data = Array.isArray(payload)
-        ? payload
-        : (Array.isArray(payload?.data) ? payload.data : []);
-      return { success: true, data };
+      return normalizeResponse(response);
     } catch (error) {
       console.error('Property list fetch failed:', error.response?.data || error.message);
-      return { success: false, error: buildErrorMessage(error, 'Unable to load properties') };
+      return normalizeError(error);
     }
   },
 
@@ -60,21 +44,18 @@ const analyticsService = {
         responseType: 'text'
       });
 
+      const normalized = normalizeResponse(response);
+
       const disposition = response?.headers?.['content-disposition'] || '';
       const match = disposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/i);
       const filename = match ? match[1].replace(/['"]/g, '') : null;
 
       return {
-        success: true,
-        data: response?.data || '',
+        ...normalized,
         filename
       };
     } catch (error) {
-      return {
-        success: false,
-        error: buildErrorMessage(error, 'Unable to export analytics report'),
-        status: error?.response?.status || null
-      };
+      return normalizeError(error);
     }
   },
 
@@ -85,9 +66,9 @@ const analyticsService = {
   async getOverviewStats(params = {}) {
     try {
         const response = await api.get('/landlord/analytics/overview', { params });
-        return { success: true, data: response.data };
+        return normalizeResponse(response);
     } catch (error) {
-        return { success: false, error: buildErrorMessage(error, 'Failed to fetch overview stats') };
+        return normalizeError(error);
     }
   },
 
@@ -98,9 +79,9 @@ const analyticsService = {
   async getRevenueAnalytics(params = {}) {
       try {
           const response = await api.get('/landlord/analytics/revenue', { params });
-          return { success: true, data: response.data };
+          return normalizeResponse(response);
       } catch (error) {
-          return { success: false, error: buildErrorMessage(error, 'Failed to fetch revenue analytics') };
+          return normalizeError(error);
       }
   },
 
@@ -111,9 +92,9 @@ const analyticsService = {
   async getOccupancyAnalytics(params = {}) {
       try {
           const response = await api.get('/landlord/analytics/occupancy', { params });
-          return { success: true, data: response.data };
+          return normalizeResponse(response);
       } catch (error) {
-          return { success: false, error: buildErrorMessage(error, 'Failed to fetch occupancy analytics') };
+          return normalizeError(error);
       }
   },
 
@@ -124,9 +105,9 @@ const analyticsService = {
   async getRoomTypeAnalytics(params = {}) {
       try {
           const response = await api.get('/landlord/analytics/room-types', { params });
-          return { success: true, data: response.data };
+          return normalizeResponse(response);
       } catch (error) {
-          return { success: false, error: buildErrorMessage(error, 'Failed to fetch room type analytics') };
+          return normalizeError(error);
       }
   },
 
@@ -137,9 +118,9 @@ const analyticsService = {
   async getPropertyComparison(params = {}) {
       try {
           const response = await api.get('/landlord/analytics/properties', { params });
-          return { success: true, data: response.data };
+          return normalizeResponse(response);
       } catch (error) {
-          return { success: false, error: buildErrorMessage(error, 'Failed to fetch property comparison') };
+          return normalizeError(error);
       }
   },
 
@@ -150,9 +131,9 @@ const analyticsService = {
   async getTenantAnalytics(params = {}) {
       try {
           const response = await api.get('/landlord/analytics/tenants', { params });
-          return { success: true, data: response.data };
+          return normalizeResponse(response);
       } catch (error) {
-          return { success: false, error: buildErrorMessage(error, 'Failed to fetch tenant analytics') };
+          return normalizeError(error);
       }
   },
 
@@ -163,9 +144,9 @@ const analyticsService = {
   async getPaymentAnalytics(params = {}) {
       try {
           const response = await api.get('/landlord/analytics/payments', { params });
-          return { success: true, data: response.data };
+          return normalizeResponse(response);
       } catch (error) {
-          return { success: false, error: buildErrorMessage(error, 'Failed to fetch payment analytics') };
+          return normalizeError(error);
       }
   },
 
@@ -176,9 +157,9 @@ const analyticsService = {
   async getBookingAnalytics(params = {}) {
       try {
           const response = await api.get('/landlord/analytics/bookings', { params });
-          return { success: true, data: response.data };
+          return normalizeResponse(response);
       } catch (error) {
-          return { success: false, error: buildErrorMessage(error, 'Failed to fetch booking analytics') };
+          return normalizeError(error);
       }
   }
 };

@@ -2,56 +2,87 @@ import api from '../utils/api';
 
 export const reviewService = {
     /**
+     * Helper to normalize Laravel paginated and non-paginated responses
+     */
+    normalizePaginatedResponse(payload) {
+        if (payload && payload.data && Array.isArray(payload.data)) {
+            return {
+                items: payload.data,
+                pagination: {
+                    currentPage: payload.current_page,
+                    lastPage: payload.last_page,
+                    perPage: payload.per_page,
+                    total: payload.total,
+                    hasMorePages: payload.current_page < payload.last_page
+                }
+            };
+        }
+        return {
+            items: Array.isArray(payload) ? payload : (payload?.data || []),
+            pagination: null
+        };
+    },
+
+    /**
      * Get reviews for a property (Public)
      * @param {number} propertyId 
+     * @param {object} params - {page, per_page}
      */
-    async getPropertyReviews(propertyId) {
+    async getPropertyReviews(propertyId, params = {}) {
         try {
-            const response = await api.get(`/public/properties/${propertyId}/reviews`);
-            return response.data;
+            const response = await api.get(`/public/properties/${propertyId}/reviews`, { params });
+            return { 
+                success: true, 
+                data: this.normalizePaginatedResponse(response.data) 
+            };
         } catch (error) {
             console.error('Error fetching property reviews:', error);
-            throw error;
+            return { success: false, error: error.response?.data?.message || error.message };
         }
     },
 
     /**
      * Submit a review for a completed booking (Tenant)
-     * @param {object} reviewData - { booking_id, rating, comment, cleanliness_rating, location_rating, value_rating, communication_rating }
      */
     async submitReview(reviewData) {
         try {
             const response = await api.post('/tenant/reviews', reviewData);
-            return response.data;
+            return { success: true, data: response.data };
         } catch (error) {
             console.error('Error submitting review:', error);
-            throw error;
+            return { success: false, error: error.response?.data?.message || error.message };
         }
     },
 
     /**
      * Get tenant's own reviews
      */
-    async getMyReviews() {
+    async getMyReviews(params = {}) {
         try {
-            const response = await api.get('/tenant/reviews');
-            return response.data;
+            const response = await api.get('/tenant/reviews', { params });
+            return { 
+                success: true, 
+                data: this.normalizePaginatedResponse(response.data) 
+            };
         } catch (error) {
             console.error('Error fetching my reviews:', error);
-            throw error;
+            return { success: false, error: error.response?.data?.message || error.message };
         }
     },
 
     /**
      * Get reviews for landlord's properties (Landlord)
      */
-    async getLandlordReviews() {
+    async getLandlordReviews(params = {}) {
         try {
-            const response = await api.get('/landlord/reviews');
-            return response.data;
+            const response = await api.get('/landlord/reviews', { params });
+            return { 
+                success: true, 
+                data: this.normalizePaginatedResponse(response.data) 
+            };
         } catch (error) {
             console.error('Error fetching landlord reviews:', error);
-            throw error;
+            return { success: false, error: error.response?.data?.message || error.message };
         }
     },
 
@@ -65,10 +96,10 @@ export const reviewService = {
             const result = await api.post(`/landlord/reviews/${reviewId}/respond`, {
                 response: response
             });
-            return result.data;
+            return { success: true, data: result.data?.data || result.data };
         } catch (error) {
             console.error('Error responding to review:', error);
-            throw error;
+            return { success: false, error: error.response?.data?.message || error.message };
         }
     },
 

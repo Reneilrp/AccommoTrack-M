@@ -97,6 +97,10 @@ Route::post('/payments/webhook/paymongo', [PaymongoWebhookController::class, 'ha
 // Public receipt endpoint: controller validates either signed URL or authenticated ownership/access.
 Route::get('/invoices/{id}/receipt', [InvoiceController::class, 'receipt'])->name('invoices.receipt');
 
+// Public verification API (HMAC Secured)
+Route::get('/public/receipts/{reference}/verify', [\App\Http\Controllers\Public\PublicReceiptController::class, 'verifyApi']);
+Route::post('/public/receipts/report', [\App\Http\Controllers\Public\PublicReceiptController::class, 'report']);
+
 Route::get('/rooms/{id}/details', [PropertyController::class, 'getRoomDetails']);
 Route::get('/rooms/{room}/payment-options', [RoomController::class, 'getPaymentOptions']);
 Route::get('/rooms/{id}/pricing', [RoomController::class, 'pricing']);

@@ -160,6 +160,8 @@ class Property extends Model
         'require_reservation_fee',
         'reservation_fee',
         'reservation_fee_gap_days',
+        'transfer_fee',
+        'transfer_limit',
         'gcash_name',
         'gcash_number',
         'gcash_qr_path',
@@ -184,6 +186,8 @@ class Property extends Model
         'require_reservation_fee' => 'boolean',
         'reservation_fee' => 'decimal:2',
         'reservation_fee_gap_days' => 'integer',
+        'transfer_fee' => 'decimal:2',
+        'transfer_limit' => 'integer',
         'property_rules' => 'array',
         'accepted_payments' => 'array',
     ];

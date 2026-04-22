@@ -40,7 +40,9 @@ const NotificationsTab = ({ loading: initialLoading = false }) => {
 
 	const loadPrefs = useCallback(async () => {
 		try {
-			if (!cachedProfile) setLoading(true);
+			const hasCache = !!uiState.data?.profile;
+			if (!hasCache) setLoading(true);
+
 			const res = await tenantService.getProfile();
 			
 			if (res.success) {
@@ -55,15 +57,19 @@ const NotificationsTab = ({ loading: initialLoading = false }) => {
 		} finally {
 			setLoading(false);
 		}
-	}, [cachedProfile, mapDataToSettings, updateData]);
+	}, [mapDataToSettings, updateData, uiState.data?.profile]);
 
 	// Load prefs from backend on mount
 	useEffect(() => {
 		if (cachedProfile) {
 			mapDataToSettings(cachedProfile);
 		}
+	}, [cachedProfile, mapDataToSettings]);
+
+	useEffect(() => {
 		loadPrefs();
-	}, [cachedProfile, mapDataToSettings, loadPrefs]);
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, []);
 
 	const handleToggle = (key) => {
 		if (!isEditing) return;

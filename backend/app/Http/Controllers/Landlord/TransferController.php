@@ -68,11 +68,6 @@ class TransferController extends Controller
     public function handle(Request $request, $id)
     {
         $context = $this->resolveLandlordContext($request);
-        $transferReq = TransferRequest::where('landlord_id', $context['landlord_id'])->findOrFail($id);
-
-        if ($transferReq->status !== 'pending') {
-            return response()->json(['message' => 'Request already handled'], 422);
-        }
 
         $validated = $request->validate([
             'action' => 'required|in:approve,reject',
@@ -85,25 +80,36 @@ class TransferController extends Controller
             'bed_numbers' => 'nullable|string',
         ]);
 
-        if ($validated['action'] === 'reject') {
-            $transferReq->update([
-                'status' => 'rejected',
-                'landlord_notes' => $validated['landlord_notes'] ?? null,
-                'handled_at' => now(),
-            ]);
-
-            $tenant = $transferReq->tenant;
-            if ($tenant) {
-                $tenant->notify(new \App\Notifications\TransferRequestHandledNotification($transferReq, 'rejected'));
-            }
-
-            return response()->json(['message' => 'Request rejected']);
-        }
-
-        // For Approval, we trigger the actual transfer logic
         try {
             DB::beginTransaction();
 
+            $transferReq = TransferRequest::where('landlord_id', $context['landlord_id'])
+                ->lockForUpdate()
+                ->findOrFail($id);
+
+            if ($transferReq->status !== 'pending') {
+                DB::rollBack();
+                return response()->json(['message' => 'Request already handled'], 422);
+            }
+
+            if ($validated['action'] === 'reject') {
+                $transferReq->update([
+                    'status' => 'rejected',
+                    'landlord_notes' => $validated['landlord_notes'] ?? null,
+                    'handled_at' => now(),
+                ]);
+
+                DB::commit();
+
+                $tenant = $transferReq->tenant;
+                if ($tenant) {
+                    $tenant->notify(new \App\Notifications\TransferRequestHandledNotification($transferReq, 'rejected'));
+                }
+
+                return response()->json(['message' => 'Request rejected']);
+            }
+
+            // For Approval, we trigger the actual transfer logic
             $tenantController = app(\App\Http\Controllers\Landlord\TenantController::class);
 
             // Calculate credit before transfer
@@ -118,6 +124,7 @@ class TransferController extends Controller
                 $creditCalculation = $this->refundService->calculateProratedCredit($activeBooking, $damageCharge, $transferFee);
                 $creditAmount = $creditCalculation['final_credit'];
             } else {
+                DB::rollBack();
                 return response()->json([
                     'message' => 'Active booking is required for room transfer. No active booking found for this request.',
                 ], 422);
@@ -136,6 +143,7 @@ class TransferController extends Controller
                 'prorated_adjustment' => $validated['prorated_adjustment'] ?? 0,
                 'bed_number' => $validated['bed_number'] ?? null,
                 'bed_numbers' => $validated['bed_numbers'] ?? null,
+                'refund_preference' => $transferReq->refund_preference ?? 'wallet',
             ]);
 
             // Set the authenticated user resolver on the fake request so ResolvesLandlordAccess works
@@ -212,20 +220,20 @@ class TransferController extends Controller
         $remainingDays = (int) ($creditCalculation['remaining_days'] ?? 0);
         $daysInCycle = $creditCalculation['days_in_cycle'] ?? 30;
 
-        $newMonthlyRentCents = (int) round(((float) ($newRoom->monthly_rate ?? $newRoom->price ?? 0)) * 100);
-        $costOfNewRoomForRemainingDaysCents = (int) round(($newMonthlyRentCents * $remainingDays) / $daysInCycle);
-        $oldRoomUnusedValueCents = (int) ($creditCalculation['unused_value_cents']
-            ?? round(((float) ($creditCalculation['unused_value'] ?? 0)) * 100));
+        $newMonthlyRentCents = (float) ($newRoom->monthly_rate ?? $newRoom->price ?? 0);
+        $costOfNewRoomForRemainingDaysCents = ($newMonthlyRentCents * $remainingDays) / $daysInCycle;
+        $oldRoomUnusedValueCents = (float) ($creditCalculation['unused_value_cents']
+            ?? ((float) ($creditCalculation['unused_value'] ?? 0)));
 
         // Positive means tenant needs to pay more, negative means tenant gets extra credit.
         $suggestedAdjustmentCents = $costOfNewRoomForRemainingDaysCents - $oldRoomUnusedValueCents;
-        $suggestedAdjustment = round($suggestedAdjustmentCents / 100, 2);
+        $suggestedAdjustment = $suggestedAdjustmentCents;
 
         return response()->json([
             'suggested_adjustment' => $suggestedAdjustment,
             'remaining_days' => $remainingDays,
-            'old_room_unused_value' => round($oldRoomUnusedValueCents / 100, 2),
-            'new_room_cost' => round($costOfNewRoomForRemainingDaysCents / 100, 2),
+            'old_room_unused_value' => (float) $oldRoomUnusedValueCents,
+            'new_room_cost' => (float) $costOfNewRoomForRemainingDaysCents,
             'credit_available' => $creditCalculation['final_credit'],
             'paid_amount' => $creditCalculation['paid_amount'],
             'damage_charge' => $creditCalculation['damage_charge'],

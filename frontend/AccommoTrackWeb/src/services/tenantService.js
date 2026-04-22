@@ -7,6 +7,28 @@ const CACHE_KEYS = {
 
 export const tenantService = {
     /**
+     * Helper to normalize Laravel paginated and non-paginated responses
+     */
+    normalizePaginatedResponse(payload) {
+        if (payload && payload.data && Array.isArray(payload.data)) {
+            return {
+                items: payload.data,
+                pagination: {
+                    currentPage: payload.current_page,
+                    lastPage: payload.last_page,
+                    perPage: payload.per_page,
+                    total: payload.total,
+                    hasMorePages: payload.current_page < payload.last_page
+                }
+            };
+        }
+        return {
+            items: Array.isArray(payload) ? payload : (payload?.data || []),
+            pagination: null
+        };
+    },
+
+    /**
      * Get current stay details (active booking with room, addons, payments)
      */
     async getCurrentStay() {
@@ -25,7 +47,10 @@ export const tenantService = {
     async getHistory(page = 1) {
         try {
             const response = await api.get(`/tenant/history?page=${page}`);
-            return { success: true, data: response.data };
+            return { 
+                success: true, 
+                data: this.normalizePaginatedResponse(response.data) 
+            };
         } catch (_err) {
             console.error('Error fetching booking history:', _err);
             return { success: false, error: _err?.response?.data?.message || _err.message };
@@ -145,6 +170,111 @@ export const tenantService = {
             return { success: true, data: response.data };
         } catch (_err) {
             console.error('Error requesting move-out:', _err);
+            return { success: false, error: _err?.response?.data?.message || _err.message };
+        }
+    },
+
+    /**
+     * Request lease extension
+     */
+    async requestExtension(bookingId, payload) {
+        try {
+            const response = await api.post(`/bookings/${bookingId}/extend`, payload);
+            return { success: true, data: response.data };
+        } catch (_err) {
+            console.error('Error requesting extension:', _err);
+            return { success: false, error: _err?.response?.data?.message || _err.message };
+        }
+    },
+
+    /**
+     * Request room transfer
+     */
+    async requestTransfer(payload) {
+        try {
+            const response = await api.post('/tenant/transfers', payload);
+            return { success: true, data: response.data };
+        } catch (_err) {
+            console.error('Error requesting transfer:', _err);
+            return { success: false, error: _err?.response?.data?.message || _err.message };
+        }
+    },
+
+    /**
+     * Cancel room transfer request
+     */
+    async cancelTransferRequest(transferRequestId) {
+        try {
+            const response = await api.patch(`/tenant/transfers/${transferRequestId}/cancel`);
+            return { success: true, data: response.data };
+        } catch (_err) {
+            console.error('Error cancelling transfer request:', _err);
+            return { success: false, error: _err?.response?.data?.message || _err.message };
+        }
+    },
+
+    /**
+     * Reviews
+     */
+    async getReviews() {
+        try {
+            const response = await api.get('/tenant/reviews');
+            return { success: true, data: response.data?.data || response.data || [] };
+        } catch (_err) {
+            console.error('Error fetching reviews:', _err);
+            return { success: false, error: _err?.response?.data?.message || _err.message };
+        }
+    },
+
+    async submitReview(payload) {
+        try {
+            const response = await api.post('/tenant/reviews', payload);
+            return { success: true, data: response.data };
+        } catch (_err) {
+            console.error('Error submitting review:', _err);
+            return { success: false, error: _err?.response?.data?.message || _err.message };
+        }
+    },
+
+    async updateReview(id, payload) {
+        try {
+            const response = await api.put(`/tenant/reviews/${id}`, payload);
+            return { success: true, data: response.data };
+        } catch (_err) {
+            console.error('Error updating review:', _err);
+            return { success: false, error: _err?.response?.data?.message || _err.message };
+        }
+    },
+
+    async deleteReview(id) {
+        try {
+            const response = await api.delete(`/tenant/reviews/${id}`);
+            return { success: true, data: response.data };
+        } catch (_err) {
+            console.error('Error deleting review:', _err);
+            return { success: false, error: _err?.response?.data?.message || _err.message };
+        }
+    },
+
+    /**
+     * Maintenance
+     */
+    async submitMaintenanceRequest(payload) {
+        try {
+            const response = await api.post('/tenant/maintenance-requests', payload);
+            return { success: true, data: response.data };
+        } catch (_err) {
+            console.error('Error submitting maintenance request:', _err);
+            return { success: false, error: _err?.response?.data?.message || _err.message };
+        }
+    },
+
+    async getMaintenanceRequests() {
+        try {
+            const response = await api.get('/tenant/maintenance-requests');
+            return { success: true, data: response.data?.data || response.data || [] };
+        } catch (_err) {
+            console.error('Error fetching maintenance requests:', _err);
             return { success: false, error: _err?.response?.data?.message || _err.message };
         }
     },
@@ -300,13 +430,16 @@ export const tenantService = {
     /**
      * Get recent activities for tenant
      */
-    async getActivities() {
+    async getActivities(params = {}) {
         try {
-            const response = await api.get('/tenant/dashboard/activities');
-            return { success: true, data: response.data?.data || response.data };
+            const response = await api.get('/tenant/dashboard/activities', { params });
+            return { 
+                success: true, 
+                data: this.normalizePaginatedResponse(response.data) 
+            };
         } catch (_err) {
             console.error('Error fetching tenant activities:', _err);
-            return { success: false, error: _err?.response?.data?.message || _err.message, data: [] };
+            return { success: false, error: _err?.response?.data?.message || _err.message, data: { items: [], pagination: null } };
         }
     },
 

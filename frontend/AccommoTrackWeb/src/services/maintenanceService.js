@@ -7,11 +7,39 @@ export const maintenanceService = {
     async getTenantRequests(page = 1) {
         try {
             const response = await api.get(`/tenant/maintenance-requests?page=${page}`);
-            return response.data;
+            return {
+                success: true,
+                data: this.normalizePaginatedResponse(response.data)
+            };
         } catch (error) {
             console.error('Error fetching tenant maintenance requests:', error);
-            throw error;
+            return {
+                success: false,
+                error: error.response?.data?.message || 'Failed to fetch maintenance requests'
+            };
         }
+    },
+
+    /**
+     * Helper to normalize Laravel paginated and non-paginated responses
+     */
+    normalizePaginatedResponse(payload) {
+        if (payload && payload.data && Array.isArray(payload.data)) {
+            return {
+                items: payload.data,
+                pagination: {
+                    currentPage: payload.current_page,
+                    lastPage: payload.last_page,
+                    perPage: payload.per_page,
+                    total: payload.total,
+                    hasMorePages: payload.current_page < payload.last_page
+                }
+            };
+        }
+        return {
+            items: Array.isArray(payload) ? payload : (payload?.data || []),
+            pagination: null
+        };
     },
 
     /**
@@ -20,10 +48,16 @@ export const maintenanceService = {
     async getRequestDetails(id) {
         try {
             const response = await api.get(`/tenant/maintenance-requests/${id}`);
-            return response.data;
+            return {
+                success: true,
+                data: response.data?.data || response.data
+            };
         } catch (error) {
             console.error('Error fetching maintenance request details:', error);
-            throw error;
+            return {
+                success: false,
+                error: error.response?.data?.message || 'Request not found'
+            };
         }
     },
 

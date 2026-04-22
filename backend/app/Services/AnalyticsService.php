@@ -18,40 +18,44 @@ class AnalyticsService
      */
     public function getDashboardAnalytics(int $landlordId, ?int $propertyId = null, string $timeRange = 'month'): array
     {
-        $dateRange = $this->getDateRange($timeRange);
+        $cacheKey = "landlord_analytics_{$landlordId}_" . ($propertyId ?? 'all') . "_{$timeRange}";
 
-        // Check if landlord has any properties first
-        $hasProperties = Property::where('landlord_id', $landlordId)->exists();
+        return \Illuminate\Support\Facades\Cache::remember($cacheKey, 3600, function() use ($landlordId, $propertyId, $timeRange) {
+            $dateRange = $this->getDateRange($timeRange);
 
-        if (! $hasProperties) {
-            // Return empty/default analytics structure
-            return $this->getEmptyAnalytics();
-        }
+            // Check if landlord has any properties first
+            $hasProperties = Property::where('landlord_id', $landlordId)->exists();
 
-        $overview = $this->calculateOverviewStats($landlordId, $propertyId);
-        $revenue = $this->calculateRevenueAnalytics($landlordId, $propertyId, $dateRange, $timeRange);
-        $payments = $this->calculatePaymentAnalytics($landlordId, $propertyId);
-        $tenants = $this->calculateTenantAnalytics($landlordId, $propertyId, $dateRange);
-        $properties = $this->calculatePropertyComparison($landlordId, $propertyId, $dateRange);
-        $roomPerformance = $propertyId ? $this->calculateRoomPerformance($landlordId, $propertyId, $dateRange) : [];
+            if (! $hasProperties) {
+                // Return empty/default analytics structure
+                return $this->getEmptyAnalytics();
+            }
 
-        return [
-            'overview' => $overview,
-            'revenue' => [
-                'expected_monthly' => $revenue['expected_monthly'] ?? 0,
-                'actual_monthly' => $revenue['actual_monthly'] ?? 0,
-                'collection_rate' => $revenue['collection_rate'] ?? 0,
-                'monthly_trend' => $revenue['monthly_trend'] ?? [],
-                'income_breakdown' => $revenue['income_breakdown'] ?? [],
-            ],
-            'occupancy' => $this->calculateOccupancyAnalytics($landlordId, $propertyId),
-            'roomTypes' => $this->calculateRoomTypeAnalytics($landlordId, $propertyId),
-            'properties' => $properties,
-            'room_performance' => $roomPerformance,
-            'tenants' => $tenants,
-            'payments' => $payments,
-            'bookings' => $this->calculateBookingAnalytics($landlordId, $propertyId, $dateRange),
-        ];
+            $overview = $this->calculateOverviewStats($landlordId, $propertyId);
+            $revenue = $this->calculateRevenueAnalytics($landlordId, $propertyId, $dateRange, $timeRange);
+            $payments = $this->calculatePaymentAnalytics($landlordId, $propertyId);
+            $tenants = $this->calculateTenantAnalytics($landlordId, $propertyId, $dateRange);
+            $properties = $this->calculatePropertyComparison($landlordId, $propertyId, $dateRange);
+            $roomPerformance = $propertyId ? $this->calculateRoomPerformance($landlordId, $propertyId, $dateRange) : [];
+
+            return [
+                'overview' => $overview,
+                'revenue' => [
+                    'expected_monthly' => $revenue['expected_monthly'] ?? 0,
+                    'actual_monthly' => $revenue['actual_monthly'] ?? 0,
+                    'collection_rate' => $revenue['collection_rate'] ?? 0,
+                    'monthly_trend' => $revenue['monthly_trend'] ?? [],
+                    'income_breakdown' => $revenue['income_breakdown'] ?? [],
+                ],
+                'occupancy' => $this->calculateOccupancyAnalytics($landlordId, $propertyId),
+                'roomTypes' => $this->calculateRoomTypeAnalytics($landlordId, $propertyId),
+                'properties' => $properties,
+                'room_performance' => $roomPerformance,
+                'tenants' => $tenants,
+                'payments' => $payments,
+                'bookings' => $this->calculateBookingAnalytics($landlordId, $propertyId, $dateRange),
+            ];
+        });
     }
 
     /**
@@ -173,9 +177,9 @@ class AnalyticsService
             ")
             ->first();
 
-        $totalRevenue = (float)(($revenueStats->total_cents ?? 0) / 100);
-        $monthlyRevenue = (float)(($revenueStats->monthly_cents ?? 0) / 100);
-        $prevMonthRevenue = (float)(($revenueStats->prev_monthly_cents ?? 0) / 100);
+        $totalRevenue = (float)($revenueStats->total_cents ?? 0);
+        $monthlyRevenue = (float)($revenueStats->monthly_cents ?? 0);
+        $prevMonthRevenue = (float)($revenueStats->prev_monthly_cents ?? 0);
 
         $revenueGrowth = 0;
         if ($prevMonthRevenue > 0) {
@@ -236,19 +240,19 @@ class AnalyticsService
         if ($timeRange === 'week') {
             for ($i = 0; $i < 7; $i++) {
                 $date = (clone $dateRange['start'])->addDays($i)->format('Y-m-d');
-                $trend[] = ['month' => $date, 'revenue' => (float) (($resultsCents[$date] ?? 0) / 100)];
+                $trend[] = ['month' => $date, 'revenue' => (float) ($resultsCents[$date] ?? 0)];
             }
         } elseif ($timeRange === 'month') {
             $maxWeek = (int) ceil(now()->day / 7);
             // Ensure we at least show up to the current week of the month
             for ($w = 1; $w <= max(4, $maxWeek); $w++) {
                 $key = "Week $w";
-                $trend[] = ['month' => $key, 'revenue' => (float) (($resultsCents[$key] ?? 0) / 100)];
+                $trend[] = ['month' => $key, 'revenue' => (float) ($resultsCents[$key] ?? 0)];
             }
         } elseif ($timeRange === 'year') {
             for ($m = 1; $m <= 12; $m++) {
                 $monthKey = now()->year.'-'.str_pad($m, 2, '0', STR_PAD_LEFT);
-                $trend[] = ['month' => $monthKey, 'revenue' => (float) (($resultsCents[$monthKey] ?? 0) / 100)];
+                $trend[] = ['month' => $monthKey, 'revenue' => (float) ($resultsCents[$monthKey] ?? 0)];
             }
         }
 
@@ -262,9 +266,9 @@ class AnalyticsService
             ")
             ->first();
 
-        $totalRevenue = (float)(($revenueStats->total_cents ?? 0) / 100);
-        $actualMonthly = (float)(($revenueStats->monthly_cents ?? 0) / 100);
-        $totalPeriodRevenue = (float)(($revenueStats->period_cents ?? 0) / 100);
+        $totalRevenue = (float)($revenueStats->total_cents ?? 0);
+        $actualMonthly = (float)($revenueStats->monthly_cents ?? 0);
+        $totalPeriodRevenue = (float)($revenueStats->period_cents ?? 0);
 
         // Expected (potential) vs actual collected revenue for current month.
         $expectedMonthly = $this->calculatePotentialRevenue($landlordId, $propertyId);
@@ -427,7 +431,7 @@ class AnalyticsService
             }])
             ->get()
             ->map(function ($room) use ($periodRevenueByRoom) {
-                $periodRevenue = (float) (($periodRevenueByRoom[$room->id] ?? 0) / 100);
+                $periodRevenue = (float) ($periodRevenueByRoom[$room->id] ?? 0);
 
                 return [
                     'id' => $room->id,
@@ -493,9 +497,9 @@ class AnalyticsService
                     'occupied_slots' => $occupiedSlots,
                     'available_rooms' => $availableRooms,
                     'occupancy_rate' => $totalSlots > 0 ? round(($occupiedSlots / $totalSlots) * 100, 1) : 0,
-                    'monthly_revenue' => round($periodRevenueCents / 100, 2),
-                    'total_revenue' => round($totalRevenueCents / 100, 2),
-                    'revpar' => $property->rooms_count > 0 ? round(($periodRevenueCents / 100) / $property->rooms_count, 2) : 0,
+                    'monthly_revenue' => (float)$periodRevenueCents,
+                    'total_revenue' => (float)$totalRevenueCents,
+                    'revpar' => $property->rooms_count > 0 ? (float)($periodRevenueCents / $property->rooms_count) : 0,
                 ];
             })
             ->toArray();
@@ -578,8 +582,8 @@ class AnalyticsService
             'partial' => $partial,
             'overdue' => $overdue,
             'payment_rate' => $paymentRate,
-            'collected' => $collectedCents / 100,
-            'outstanding' => (($stats->total_cents ?? 0) - $collectedCents) / 100,
+            'collected' => (float)$collectedCents,
+            'outstanding' => (float)(($stats->total_cents ?? 0) - $collectedCents),
         ];
     }
 

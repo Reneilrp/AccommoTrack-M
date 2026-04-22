@@ -1,4 +1,4 @@
-import api from "./api.js";
+import api, { normalizeResponse, normalizeError, normalizePaginatedResponse } from "./api.js";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const toNonEmptyString = (value) => {
@@ -53,26 +53,6 @@ const normalizeInvoiceItem = (invoice) => {
   };
 };
 
-const unwrapInvoiceList = (payload) => {
-  if (Array.isArray(payload)) {
-    return payload;
-  }
-
-  if (Array.isArray(payload?.data)) {
-    return payload.data;
-  }
-
-  if (Array.isArray(payload?.invoices)) {
-    return payload.invoices;
-  }
-
-  if (Array.isArray(payload?.results)) {
-    return payload.results;
-  }
-
-  return [];
-};
-
 class PaymentService {
   /**
    * Get all payments for the authenticated tenant
@@ -87,14 +67,12 @@ class PaymentService {
 
       return {
         success: true,
-        data: response.data,
+        data: normalizePaginatedResponse(response),
+        error: null
       };
     } catch (error) {
       console.error("Error fetching payments:", error);
-      return {
-        success: false,
-        error: error.response?.data?.message || "Failed to fetch payments",
-      };
+      return normalizeError(error);
     }
   }
 
@@ -104,17 +82,10 @@ class PaymentService {
   async getStats() {
     try {
       const response = await api.get(`/tenant/payments/stats`);
-
-      return {
-        success: true,
-        data: response.data,
-      };
+      return normalizeResponse(response);
     } catch (error) {
       console.error("Error fetching payment stats:", error);
-      return {
-        success: false,
-        error: error.response?.data?.message || "Failed to fetch payment stats",
-      };
+      return normalizeError(error);
     }
   }
 
@@ -124,18 +95,10 @@ class PaymentService {
   async getPaymentDetails(paymentId) {
     try {
       const response = await api.get(`/tenant/payments/${paymentId}`);
-
-      return {
-        success: true,
-        data: response.data,
-      };
+      return normalizeResponse(response);
     } catch (error) {
       console.error("Error fetching payment details:", error);
-      return {
-        success: false,
-        error:
-          error.response?.data?.message || "Failed to fetch payment details",
-      };
+      return normalizeError(error);
     }
   }
 
@@ -151,17 +114,10 @@ class PaymentService {
           : undefined;
 
       const response = await api.post(`/tenant/bookings/${bookingId}/invoice`, payload);
-
-      return {
-        success: true,
-        data: response.data?.data || response.data,
-      };
+      return normalizeResponse(response);
     } catch (error) {
       console.error("Error creating booking invoice:", error.response?.data || error.message);
-      return {
-        success: false,
-        error: error.response?.data?.message || "Failed to create invoice for booking",
-      };
+      return normalizeError(error);
     }
   }
 
@@ -191,23 +147,14 @@ class PaymentService {
         payload,
       );
 
-      return { success: true, data: response.data };
+      return normalizeResponse(response);
     } catch (error) {
       // Provide more diagnostic details so mobile UI can display the server response
       console.error(
         "Error creating paymongo source:",
         error.response?.data || error.message,
       );
-      const serverBody = error.response?.data;
-      let errMsg = "Failed to create source";
-      if (serverBody) {
-        // try to extract useful fields
-        errMsg =
-          serverBody.message || serverBody.error || JSON.stringify(serverBody);
-      } else if (error.message) {
-        errMsg = error.message;
-      }
-      return { success: false, error: errMsg, raw: serverBody || null };
+      return normalizeError(error);
     }
   }
 
@@ -220,17 +167,13 @@ class PaymentService {
         `/tenant/invoices/${invoiceId}/paymongo-pay`,
         data,
       );
-
-      return { success: true, data: response.data };
+      return normalizeResponse(response);
     } catch (error) {
       console.error(
         "Error creating paymongo payment:",
         error.response?.data || error.message,
       );
-      return {
-        success: false,
-        error: error.response?.data?.message || "Failed to create payment",
-      };
+      return normalizeError(error);
     }
   }
 
@@ -243,18 +186,13 @@ class PaymentService {
         `/tenant/invoices/${invoiceId}/record-offline`,
         data,
       );
-
-      return { success: true, data: response.data };
+      return normalizeResponse(response);
     } catch (error) {
       console.error(
         "Error recording offline payment:",
         error.response?.data || error.message,
       );
-      return {
-        success: false,
-        error:
-          error.response?.data?.message || "Failed to record offline payment",
-      };
+      return normalizeError(error);
     }
   }
 
@@ -264,17 +202,14 @@ class PaymentService {
   async getInvoices(params = {}) {
     try {
       const response = await api.get(`/invoices`, { params });
-
-      return { success: true, data: response.data };
+      return {
+        success: true,
+        data: normalizePaginatedResponse(response),
+        error: null
+      };
     } catch (error) {
       console.error("Error fetching invoices:", error);
-      return {
-        success: false,
-        error:
-          error.response?.data?.message ||
-          error.message ||
-          "Failed to fetch invoices",
-      };
+      return normalizeError(error);
     }
   }
 
@@ -284,21 +219,13 @@ class PaymentService {
   async getPaymentBundle(params = {}) {
     try {
       const response = await api.get(`/invoices/bundle`, { params });
-      return {
-        success: true,
-        data: response.data?.data || response.data || null,
-        error: null,
-      };
+      return normalizeResponse(response);
     } catch (error) {
       console.error(
         "Error fetching payment bundle:",
         error.response?.data || error.message,
       );
-      return {
-        success: false,
-        data: null,
-        error: error.response?.data?.message || error.message || "Failed to fetch bundle",
-      };
+      return normalizeError(error);
     }
   }
 
@@ -308,27 +235,10 @@ class PaymentService {
   async getInvoiceSummary(params = {}) {
     try {
       const response = await api.get('/invoices/summary', { params });
-      const payload = response.data;
-
-      if (payload && typeof payload === 'object' && Object.prototype.hasOwnProperty.call(payload, 'success')) {
-        return {
-          success: Boolean(payload.success),
-          data: payload.data ?? null,
-          message: payload.message || '',
-          error: payload.success ? null : (payload.message || 'Failed to fetch invoice summary'),
-        };
-      }
-
-      return { success: true, data: payload?.data || payload };
+      return normalizeResponse(response);
     } catch (error) {
       console.error('Error fetching invoice summary:', error);
-      return {
-        success: false,
-        error:
-          error.response?.data?.message ||
-          error.message ||
-          'Failed to fetch invoice summary',
-      };
+      return normalizeError(error);
     }
   }
 
@@ -338,20 +248,18 @@ class PaymentService {
   async getInvoicesByTenant(tenantId) {
     try {
       const response = await api.get(`/invoices?tenant_id=${tenantId}`);
-      const invoices = unwrapInvoiceList(response.data).map(normalizeInvoiceItem);
+      const paginated = normalizePaginatedResponse(response);
+      paginated.items = paginated.items.map(normalizeInvoiceItem);
 
       return {
         success: true,
-        data: invoices,
+        data: paginated,
+        error: null,
         raw: response.data,
       };
     } catch (error) {
       console.error("Error fetching tenant invoices:", error);
-      return {
-        success: false,
-        error:
-          error.response?.data?.message || "Failed to fetch tenant invoices",
-      };
+      return normalizeError(error);
     }
   }
 
@@ -374,22 +282,13 @@ class PaymentService {
         notes,
         received_at: new Date().toISOString(),
       });
-      return { success: true, data: response.data };
+      return normalizeResponse(response);
     } catch (error) {
       console.error(
         "Error recording payment:",
         error.response?.data || error.message,
       );
-      if (error?.response) {
-        return {
-          success: false,
-          error,
-        };
-      }
-      return {
-        success: false,
-        error: error.message || "Failed to record payment",
-      };
+      return normalizeError(error);
     }
   }
 
@@ -402,17 +301,10 @@ class PaymentService {
         `/bookings/${bookingId}/payment`,
         payload,
       );
-
-      return { success: true, data: response.data };
+      return normalizeResponse(response);
     } catch (error) {
       console.error("Error updating booking payment:", error);
-      return {
-        success: false,
-        error:
-          error.response?.data?.message ||
-          error.message ||
-          "Failed to update payment",
-      };
+      return normalizeError(error);
     }
   }
 
@@ -424,16 +316,10 @@ class PaymentService {
       const response = await api.post(`/transactions/${transactionId}/refund`, {
         amount_cents: amountCents,
       });
-      return { success: true, data: response.data };
+      return normalizeResponse(response);
     } catch (error) {
       console.error("Error refunding transaction:", error);
-      return {
-        success: false,
-        error:
-          error.response?.data?.message ||
-          error.message ||
-          "Failed to refund transaction",
-      };
+      return normalizeError(error);
     }
   }
 
@@ -445,16 +331,10 @@ class PaymentService {
       const response = await api.post(`/invoices/${invoiceId}/refund`, {
         amount_cents: amountCents,
       });
-      return { success: true, data: response.data };
+      return normalizeResponse(response);
     } catch (error) {
       console.error("Error refunding invoice:", error);
-      return {
-        success: false,
-        error:
-          error.response?.data?.message ||
-          error.message ||
-          "Failed to refund invoice",
-      };
+      return normalizeError(error);
     }
   }
 
@@ -469,16 +349,10 @@ class PaymentService {
           : payloadOrAction;
 
       const response = await api.post(`/invoices/${invoiceId}/verify-cash`, payload);
-      return { success: true, data: response.data };
+      return normalizeResponse(response);
     } catch (error) {
       console.error("Error verifying cash payment:", error);
-      return {
-        success: false,
-        error:
-          error.response?.data?.message ||
-          error.message ||
-          "Failed to verify cash payment",
-      };
+      return normalizeError(error);
     }
   }
 
@@ -492,18 +366,13 @@ class PaymentService {
         `/tenant/invoices/${invoiceId}/paymongo-refresh`,
         {},
       );
-
-      return { success: true, data: response.data };
+      return normalizeResponse(response);
     } catch (error) {
       console.error(
         "Error refreshing invoice status:",
         error.response?.data || error.message,
       );
-      return {
-        success: false,
-        error:
-          error.response?.data?.message || "Failed to refresh invoice status",
-      };
+      return normalizeError(error);
     }
   }
 
@@ -517,16 +386,13 @@ class PaymentService {
         `/tenant/rooms/${roomId}/payment-link`,
         data,
       );
-      return { success: true, data: response.data };
+      return normalizeResponse(response);
     } catch (error) {
       console.error(
         "Error creating payment link:",
         error.response?.data || error.message,
       );
-      return {
-        success: false,
-        error: error.response?.data?.message || "Failed to create payment link",
-      };
+      return normalizeError(error);
     }
   }
 
@@ -540,17 +406,13 @@ class PaymentService {
         `/rooms/${roomId}/generate-cash-invoice`,
         data,
       );
-      return { success: true, data: response.data };
+      return normalizeResponse(response);
     } catch (error) {
       console.error(
         "Error generating cash invoice:",
         error.response?.data || error.message,
       );
-      return {
-        success: false,
-        error:
-          error.response?.data?.message || "Failed to generate cash invoice",
-      };
+      return normalizeError(error);
     }
   }
 
@@ -561,17 +423,15 @@ class PaymentService {
   async getWalletBalance() {
     try {
       const response = await api.get('/tenant/profile');
-      const balance = Number(response?.data?.wallet_balance ?? 0);
-      return {
-        success: true,
-        data: Number.isFinite(balance) ? balance : 0,
-      };
+      const res = normalizeResponse(response);
+      if (res.success) {
+        const balance = Number(res.data?.wallet_balance ?? 0);
+        res.data = Number.isFinite(balance) ? balance : 0;
+      }
+      return res;
     } catch (error) {
       console.error('Error fetching wallet balance:', error);
-      return {
-        success: false,
-        error: error.response?.data?.message || error.message || 'Failed to fetch wallet balance',
-      };
+      return normalizeError(error);
     }
   }
 
@@ -584,17 +444,10 @@ class PaymentService {
       const response = await api.post(`/tenant/invoices/${invoiceId}/apply-wallet-credit`, {
         amount_cents: amountCents,
       });
-
-      return {
-        success: true,
-        data: response.data,
-      };
+      return normalizeResponse(response);
     } catch (error) {
       console.error('Error applying wallet credit:', error.response?.data || error.message);
-      return {
-        success: false,
-        error: error.response?.data?.message || error.message || 'Failed to apply wallet credits',
-      };
+      return normalizeError(error);
     }
   }
 
@@ -607,14 +460,12 @@ class PaymentService {
       const response = await api.get(`/tenant/wallet-credit/logs?page=${page}`);
       return {
         success: true,
-        data: response.data,
+        data: normalizePaginatedResponse(response),
+        error: null
       };
     } catch (error) {
       console.error("Error fetching wallet logs:", error);
-      return {
-        success: false,
-        error: error.response?.data?.message || "Failed to fetch transaction history",
-      };
+      return normalizeError(error);
     }
   }
 

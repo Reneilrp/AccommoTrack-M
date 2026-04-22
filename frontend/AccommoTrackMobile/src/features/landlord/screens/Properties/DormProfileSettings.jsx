@@ -129,6 +129,7 @@ const buildEmptyForm = () => ({
   gcashQr: null,
   deleteExistingGcashQr: false,
   transferFee: '',
+  transferLimit: '1',
   normalBookingLimit: '1',
   proxyBookingLimit: '3',
   minPartialPaymentPct: '20',

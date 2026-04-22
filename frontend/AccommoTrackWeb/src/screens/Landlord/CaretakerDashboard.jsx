@@ -1,18 +1,15 @@
-import React, { useState, useEffect } from 'react';
-import {
-  Home,
-  Calendar,
-  Building2,
-  AlertCircle,
-  Wrench,
-  PlusCircle,
-  XCircle,
-} from 'lucide-react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { Building2, XCircle, RefreshCw } from 'lucide-react';
 import api from '../../utils/api';
 import { useUIState } from '../../contexts/UIStateContext';
 import { cacheManager } from '../../utils/cache';
+import CaretakerStats from './components/Caretaker/CaretakerStats';
+import CaretakerActivities from './components/Caretaker/CaretakerActivities';
+import OperationalAlerts from './components/Caretaker/OperationalAlerts';
+import UpcomingCheckouts from './components/Caretaker/UpcomingCheckouts';
+import PropertyPerformance from './components/Caretaker/PropertyPerformance';
 
-export default function CaretakerDashboard({ __user }) {
+export default function CaretakerDashboard() {
   const { uiState, updateData } = useUIState();
   const cachedData = uiState.data?.caretaker_dashboard || cacheManager.get('caretaker_dashboard');
 
@@ -22,9 +19,9 @@ export default function CaretakerDashboard({ __user }) {
   const [propertyPerformance, setPropertyPerformance] = useState(cachedData?.propertyPerformance || []);
   const [loading, setLoading] = useState(!cachedData);
   const [error, setError] = useState('');
-  const initialLoadRef = React.useRef(!cachedData);
+  const initialLoadRef = useRef(!cachedData);
 
-  const fetchDashboardData = React.useCallback(async () => {
+  const fetchDashboardData = useCallback(async () => {
     try {
       if (initialLoadRef.current) setLoading(true);
       initialLoadRef.current = false;
@@ -56,7 +53,6 @@ export default function CaretakerDashboard({ __user }) {
 
       updateData('caretaker_dashboard', dashboardState);
       cacheManager.set('caretaker_dashboard', dashboardState);
-
     } catch (err) {
       console.error('Error fetching caretaker dashboard data:', err);
       setError('Failed to sync with latest data');
@@ -65,70 +61,7 @@ export default function CaretakerDashboard({ __user }) {
     }
   }, [updateData]);
 
-  useEffect(() => {
-    fetchDashboardData();
-  }, [fetchDashboardData]);
-
-  const getActivityIcon = (type) => {
-    switch (type) {
-      case 'booking': return <Calendar className="w-5 h-5" />;
-      case 'room': return <Home className="w-5 h-5" />;
-      case 'maintenance': return <Wrench className="w-5 h-5" />;
-      default: return <AlertCircle className="w-5 h-5" />;
-    }
-  };
-
-  const resolveActivityColor = (activity) => {
-    const explicitColor = String(activity?.color || '').toLowerCase();
-    if (['green', 'blue', 'yellow', 'red', 'gray'].includes(explicitColor)) {
-      return explicitColor;
-    }
-
-    const status = String(activity?.status || '').toLowerCase();
-    const type = String(activity?.type || '').toLowerCase();
-
-    if (type === 'property' && (status === 'updated' || status === 'changed')) return 'green';
-    if (type === 'room' && status === 'occupied') return 'green';
-    if (['notified', 'received', 'submitted'].includes(status)) return 'blue';
-    if (['cancelled', 'canceled', 'rejected', 'failed', 'declined', 'overdue', 'refunded'].includes(status)) return 'red';
-    if (['pending', 'pending_offline', 'in_progress', 'partial', 'partial-completed', 'processing'].includes(status)) return 'yellow';
-    if (['confirmed', 'completed', 'paid', 'approved', 'active', 'available', 'resolved', 'succeeded', 'verified'].includes(status)) return 'green';
-    if (['inactive', 'maintenance', 'draft'].includes(status)) return 'gray';
-
-    return 'gray';
-  };
-
-  const getActivityColor = (activity) => {
-    switch (resolveActivityColor(activity)) {
-      case 'green': return 'bg-green-100 text-green-600';
-      case 'blue': return 'bg-blue-100 text-blue-600';
-      case 'yellow': return 'bg-yellow-100 text-yellow-600';
-      case 'red': return 'bg-red-100 text-red-600';
-      case 'gray': return 'bg-gray-100 text-gray-600';
-      default: return 'bg-gray-100 text-gray-600';
-    }
-  };
-
-  const getStatusColor = (activity) => {
-    const status = String(activity?.status || '').toLowerCase();
-
-    if (status === 'updated' || status === 'changed' || ['notified', 'received', 'submitted'].includes(status)) return 'bg-green-100 text-green-600';
-    if (['pending', 'pending_offline', 'in_progress', 'partial', 'partial-completed', 'processing'].includes(status)) return 'bg-yellow-100 text-yellow-600';
-    if (['confirmed', 'completed', 'paid', 'approved', 'active', 'available', 'resolved', 'succeeded', 'verified'].includes(status)) return 'bg-green-100 text-green-600';
-    if (['cancelled', 'canceled', 'rejected', 'failed', 'declined', 'overdue', 'refunded'].includes(status)) return 'bg-red-100 text-red-600';
-    if (['inactive', 'maintenance', 'draft'].includes(status)) return 'bg-gray-100 text-gray-600';
-
-    return getActivityColor(activity);
-  };
-
-  const getUrgencyColor = (urgency) => {
-    switch (urgency) {
-      case 'high': return 'bg-red-100 text-red-800 border-red-200';
-      case 'medium': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-      case 'low': return 'bg-green-100 text-green-800 border-green-200';
-      default: return 'bg-gray-100 text-gray-800 border-gray-200';
-    }
-  };
+  useEffect(() => { fetchDashboardData(); }, [fetchDashboardData]);
 
   const formatDate = (dateString) => {
     const date = new Date(dateString);
@@ -138,48 +71,29 @@ export default function CaretakerDashboard({ __user }) {
     const diffHours = Math.floor(diffTime / (1000 * 60 * 60));
     const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
 
-    if (diffMinutes < 60) return `${diffMinutes} minutes ago`;
-    if (diffHours < 24) return `${diffHours} hours ago`;
-    if (diffDays < 7) return `${diffDays} days ago`;
+    if (diffMinutes < 60) return `${diffMinutes}m ago`;
+    if (diffHours < 24) return `${diffHours}h ago`;
+    if (diffDays < 7) return `${diffDays}d ago`;
     return date.toLocaleDateString();
+  };
+
+  const getUrgencyColor = (urgency) => {
+    switch (urgency) {
+      case 'high': return 'bg-red-50 text-red-800 border-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800';
+      case 'medium': return 'bg-yellow-50 text-yellow-800 border-yellow-200 dark:bg-yellow-900/20 dark:text-yellow-400 dark:border-yellow-800';
+      default: return 'bg-gray-50 text-gray-800 border-gray-200 dark:bg-gray-700/50 dark:text-gray-300 dark:border-gray-700';
+    }
   };
 
   if (loading && !stats) {
     return (
-      <div className="max-w-7xl mx-auto py-8 animate-pulse">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-          {[...Array(3)].map((_, i) => (
-            <div key={i} className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-100 dark:border-gray-700 h-32 flex flex-col justify-between">
-              <div className="flex justify-between items-start">
-                <div className="w-12 h-12 bg-gray-200 dark:bg-gray-700 rounded-lg" />
-                <div className="w-16 h-4 bg-gray-200 dark:bg-gray-700 rounded" />
-              </div>
-              <div className="space-y-2">
-                <div className="w-24 h-8 bg-gray-200 dark:bg-gray-700 rounded" />
-                <div className="w-32 h-4 bg-gray-200 dark:bg-gray-700 rounded" />
-              </div>
-            </div>
-          ))}
+      <div className="max-w-7xl mx-auto py-8 animate-pulse space-y-8">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {[...Array(3)].map((_, i) => <div key={i} className="h-32 bg-gray-100 dark:bg-gray-800 rounded-2xl" />)}
         </div>
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2 bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm h-96 flex flex-col gap-4">
-            <div className="w-48 h-6 bg-gray-200 dark:bg-gray-700 rounded mb-4" />
-            {[...Array(5)].map((_, j) => (
-              <div key={j} className="flex gap-4">
-                <div className="w-10 h-10 bg-gray-200 dark:bg-gray-700 rounded-lg shrink-0" />
-                <div className="flex-1 space-y-2">
-                  <div className="w-3/4 h-4 bg-gray-200 dark:bg-gray-700 rounded" />
-                  <div className="w-1/2 h-3 bg-gray-200 dark:bg-gray-700 rounded" />
-                </div>
-              </div>
-            ))}
-          </div>
-          <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm h-96 flex flex-col gap-4">
-            <div className="w-40 h-6 bg-gray-200 dark:bg-gray-700 rounded mb-4" />
-            {[...Array(4)].map((_, k) => (
-              <div key={k} className="h-16 bg-gray-200 dark:bg-gray-700 rounded-lg w-full" />
-            ))}
-          </div>
+          <div className="lg:col-span-2 h-96 bg-gray-100 dark:bg-gray-800 rounded-2xl" />
+          <div className="h-96 bg-gray-100 dark:bg-gray-800 rounded-2xl" />
         </div>
       </div>
     );
@@ -202,121 +116,42 @@ export default function CaretakerDashboard({ __user }) {
           <Building2 className="w-10 h-10 text-gray-500" />
         </div>
         <h2 className="text-2xl font-bold text-gray-800 dark:text-white">No Properties Assigned</h2>
-        <p className="text-gray-500 dark:text-gray-400 max-w-md">
-          You don't have any properties assigned to your caretaker account. Please contact the landlord to grant access.
-        </p>
+        <p className="text-gray-500 dark:text-gray-400 max-w-md">You don't have any properties assigned to your account. Contact your landlord for access.</p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-300 dark:border-gray-700 p-6">
-          <div className="flex items-center justify-between mb-4">
-            <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center"><Building2 className="w-6 h-6 text-green-600" /></div>
-            <span className="text-xs text-green-600 font-medium">{stats?.properties.active}/{stats?.properties.total} Active</span>
-          </div>
-          <p className="text-2xl font-bold text-gray-900 dark:text-white">{stats?.properties.total}</p>
-          <p className="text-sm text-gray-500">Assigned Properties</p>
+    <div className="space-y-8 pb-10">
+      <div className="flex justify-between items-center">
+         <div>
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Caretaker Dashboard</h1>
+            <p className="text-sm text-gray-500">Overview of your assigned properties and daily tasks.</p>
+         </div>
+         <button onClick={fetchDashboardData} className="p-2 text-gray-400 hover:text-green-600 transition-colors">
+            <RefreshCw className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
+         </button>
+      </div>
+
+      <CaretakerStats stats={stats} />
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="lg:col-span-2">
+          <CaretakerActivities 
+            activities={activities} 
+            formatDate={formatDate} 
+            getActivityColor={() => 'bg-green-100 text-green-600'}
+            getStatusColor={() => 'bg-blue-100 text-blue-600'}
+          />
         </div>
 
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-300 dark:border-gray-700 p-6">
-          <div className="flex items-center justify-between mb-4">
-            <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center"><Home className="w-6 h-6 text-green-600" /></div>
-            <span className="text-xs text-green-600 font-medium">{stats?.rooms.occupancyRate}% Occupied</span>
-          </div>
-          <p className="text-2xl font-bold text-gray-900 dark:text-white">{stats?.rooms.total}</p>
-          <p className="text-sm text-gray-500">{stats?.rooms.occupied} Occupied · {stats?.rooms.available} Available</p>
-        </div>
-
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-300 dark:border-gray-700 p-6">
-          <div className="flex items-center justify-between mb-4">
-            <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center"><Calendar className="w-6 h-6 text-purple-600" /></div>
-            {stats?.bookings.pending > 0 && <span className="text-xs text-yellow-600 font-medium">{stats?.bookings.pending} Pending</span>}
-          </div>
-          <p className="text-2xl font-bold text-gray-900 dark:text-white">{(stats?.bookings.pending || 0) + (stats?.bookings.confirmed || 0)}</p>
-          <p className="text-sm text-gray-500">Bookings (Confirmed & Pending)</p>
+        <div className="space-y-8">
+          <OperationalAlerts stats={stats} />
+          <UpcomingCheckouts checkouts={upcomingCheckouts} getUrgencyColor={getUrgencyColor} />
         </div>
       </div>
 
-      {/* Activities and Sidebar */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-400/50 dark:border-gray-700 p-6">
-          <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Recent Activities</h2>
-          <div className="space-y-4">
-            {activities.length === 0 ? <p className="text-center py-8 text-gray-500 italic">No recent activities</p> :
-              activities.slice(0, 6).map((activity, index) => (
-                <div key={index} className="flex items-start gap-4 pb-4 border-b border-gray-100 dark:border-gray-700 last:border-0">
-                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${getActivityColor(activity)}`}>{getActivityIcon(activity.type)}</div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-gray-900 dark:text-white">{activity.action}</p>
-                    <p className="text-sm text-gray-600 dark:text-gray-300 mt-2">{activity.description}</p>
-                    <p className="text-xs text-gray-500 mt-2">{formatDate(activity.timestamp)}</p>
-                  </div>
-                  <span className={`px-2 py-2 text-xs font-medium rounded-full capitalize ${getStatusColor(activity)}`}>{activity.status}</span>
-                </div>
-              ))
-            }
-          </div>
-        </div>
-
-        <div className="space-y-6">
-          {/* Operational Alerts */}
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-300 dark:border-gray-700 p-6">
-            <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Operational Alerts</h2>
-            <div className="space-y-4">
-              <div className="flex items-center justify-between p-4 bg-purple-50 dark:bg-purple-900/20 rounded-xl border border-purple-100 dark:border-purple-800">
-                <div className="flex items-center gap-4">
-                  <div className="p-2 bg-purple-600 rounded-lg text-white"><PlusCircle className="w-4 h-4" /></div>
-                  <span className="text-sm font-bold text-purple-900 dark:text-purple-300">Addon Requests</span>
-                </div>
-                <span className="text-lg font-bold text-purple-600">{stats?.requests?.addons || 0}</span>
-              </div>
-
-              <div className="flex items-center justify-between p-4 bg-orange-50 dark:bg-orange-900/20 rounded-xl border border-orange-100 dark:border-orange-800">
-                <div className="flex items-center gap-4">
-                  <div className="p-2 bg-orange-600 rounded-lg text-white"><Wrench className="w-4 h-4" /></div>
-                  <span className="text-sm font-bold text-orange-900 dark:text-orange-300">Maintenance</span>
-                </div>
-                <span className="text-lg font-bold text-orange-600">{stats?.requests?.maintenance || 0}</span>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-300 dark:border-gray-700 p-6">
-            <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Upcoming Checkouts</h2>
-            <div className="space-y-4">
-              {upcomingCheckouts.length === 0 ? <p className="text-sm text-gray-500 text-center py-4">None scheduled</p> :
-                upcomingCheckouts.slice(0, 4).map((c) => (
-                  <div key={c.id} className={`p-4 rounded-lg border ${getUrgencyColor(c.urgency)}`}>
-                    <div className="flex justify-between font-semibold text-sm text-gray-900 dark:text-white"><span>{c.tenantName}</span><span>{c.daysLeft}d</span></div>
-                    <p className="text-xs mt-2 text-gray-600 dark:text-gray-400">{c.propertyTitle} - Room {c.roomNumber}</p>
-                  </div>
-                ))
-              }
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Property Performance */}
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-300 dark:border-gray-700 p-6">
-        <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Property Status Overview</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {propertyPerformance.map((p) => (
-            <div key={p.id} className="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-100 dark:border-gray-700">
-              <div className="flex justify-between mb-4"><h3 className="font-semibold text-gray-900 dark:text-white">{p.title}</h3><span className="text-xs font-bold text-green-600">{p.occupancyRate}%</span></div>
-              <div className="w-full bg-gray-200 dark:bg-gray-600 rounded-full h-1.5 mb-4"><div className="bg-green-600 h-1.5 rounded-full" style={{ width: `${p.occupancyRate}%` }} /></div>
-              <div className="flex justify-between text-xs text-gray-500">
-                <span>Rooms: {p.occupiedRooms}/{p.totalRooms}</span>
-                <span className="capitalize">{p.status}</span>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
+      <PropertyPerformance performance={propertyPerformance} />
     </div>
   );
 }

@@ -2040,6 +2040,31 @@ export default function RoomManagementScreen({ navigation, route }) {
                 )}
             </View>
 
+            {/* Revenue Summary */}
+            <View style={{ backgroundColor: theme.colors.backgroundSecondary, borderRadius: 12, padding: 16, marginTop: 8, borderWidth: 1, borderColor: theme.colors.border }}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Text style={{ fontSize: 13, color: theme.colors.textSecondary, fontWeight: "500" }}>
+                  Estimated Monthly Revenue:
+                </Text>
+                <Text style={{ fontSize: 18, color: theme.colors.primary, fontWeight: "700" }}>
+                  {formatCurrency(
+                    formData.pricingModel === 'per_bed'
+                      ? (parseFloat(formData.monthlyRate) || 0) * (parseInt(formData.capacity) || 1)
+                      : (parseFloat(formData.monthlyRate) || 0)
+                  )}
+                </Text>
+              </View>
+              <Text style={{ fontSize: 11, color: theme.colors.textSecondary, marginTop: 6, fontStyle: "italic", textAlign: "right" }}>
+                {formData.roomType === 'single'
+                  ? "* Based on single occupancy"
+                  : formData.roomType === 'bedSpacer'
+                    ? `* Based on ${formData.capacity} beds at the monthly rate`
+                    : formData.pricingModel === 'per_bed'
+                      ? `* Total revenue from ${formData.capacity} tenants`
+                      : `* Tenants split full price (approx. ${formatCurrency((parseFloat(formData.monthlyRate) || 0) / (parseInt(formData.capacity) || 1))} each)`}
+              </Text>
+            </View>
+
             <Text style={styles.sectionTitle}>Lease Advance</Text>
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
               <View style={{ flex: 1, marginRight: 8 }}>

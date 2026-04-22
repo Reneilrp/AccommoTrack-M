@@ -1,8 +1,7 @@
-import api from "./api.js";
+import api, { normalizeResponse, normalizeError, normalizePaginatedResponse } from "./api.js";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { getImageUrl } from "../utils/imageUtils.js";
 import {
-  extractErrorMessage,
   normalizeActionError,
   normalizeExtendStayError,
 } from "../utils/error.js";
@@ -125,7 +124,7 @@ const PropertyService = {
 
       const url = `/public/properties${params.toString() ? "?" + params.toString() : ""}`;
       const response = await api.get(url);
-      const data = response.data?.data || response.data || [];
+      const data = normalizePaginatedResponse(response);
 
       await cacheManager.set(cacheKey, data);
 
@@ -135,14 +134,8 @@ const PropertyService = {
         error: null,
       };
     } catch (error) {
-      return {
-        success: false,
-        data: [],
-        error:
-          error.response?.data?.message ||
-          error.message ||
-          "Failed to fetch properties",
-      };
+      console.error("Error fetching public properties:", error);
+      return normalizeError(error);
     }
   },
 
@@ -159,24 +152,16 @@ const PropertyService = {
       if (cached) return { success: true, data: cached, error: null };
 
       const response = await api.get(`/public/properties/${propertyId}`);
-      const data = response.data?.data || response.data || null;
+      const res = normalizeResponse(response);
 
-      await cacheManager.set(cacheKey, data);
+      if (res.success) {
+        await cacheManager.set(cacheKey, res.data);
+      }
 
-      return {
-        success: true,
-        data,
-        error: null,
-      };
+      return res;
     } catch (error) {
-      return {
-        success: false,
-        data: null,
-        error:
-          error.response?.data?.message ||
-          error.message ||
-          "Failed to fetch property",
-      };
+      console.error("Error fetching public property:", error);
+      return normalizeError(error);
     }
   },
 
@@ -189,20 +174,10 @@ const PropertyService = {
   async getPropertyStats(propertyId) {
     try {
       const response = await api.get(`/properties/${propertyId}/stats`);
-      return {
-        success: true,
-        data: response.data,
-        error: null,
-      };
+      return normalizeResponse(response);
     } catch (error) {
-      return {
-        success: false,
-        data: { addons: 0, maintenance: 0, activity: 0, reviews: 0 },
-        error:
-          error.response?.data?.message ||
-          error.message ||
-          "Failed to fetch property stats",
-      };
+      console.error("Error fetching property stats:", error);
+      return normalizeError(error);
     }
   },
 
@@ -217,22 +192,10 @@ const PropertyService = {
       const response = await api.get(`/reverse-geocode`, {
         params: { lat, lon },
       });
-
-      return {
-        success: true,
-        data: response.data,
-        error: null,
-      };
+      return normalizeResponse(response);
     } catch (error) {
       console.error("Error reverse geocoding:", error);
-      return {
-        success: false,
-        data: null,
-        error:
-          error.response?.data?.message ||
-          error.message ||
-          "Reverse geocode failed",
-      };
+      return normalizeError(error);
     }
   },
 
@@ -243,6 +206,7 @@ const PropertyService = {
    * @returns {Object} - Transformed accommodation object
    */
   transformPropertyToAccommodation(property) {
+    if (!property) return null;
     // Backend already provides the image URL or placeholder
     const coverImage =
       property.image || "https://via.placeholder.com/400x200?text=No+Image";
@@ -387,28 +351,19 @@ const PropertyService = {
       }
 
       const response = await api.get(`/landlord/properties`);
-      const data = scopePropertiesForCaretaker(
-        response.data?.data || response.data || [],
-        currentUser,
-      );
+      const paginated = normalizePaginatedResponse(response);
+      paginated.items = scopePropertiesForCaretaker(paginated.items, currentUser);
 
-      await cacheManager.set(cacheKey, data);
+      await cacheManager.set(cacheKey, paginated.items);
 
       return {
         success: true,
-        data,
+        data: paginated,
         error: null,
       };
     } catch (error) {
-      console.error(
-        "Error fetching my properties:",
-        error.response?.data || error.message,
-      );
-      return {
-        success: false,
-        data: [],
-        error: extractErrorMessage(error),
-      };
+      console.error("Error fetching my properties:", error);
+      return normalizeError(error);
     }
   },
 
@@ -419,22 +374,10 @@ const PropertyService = {
   async getProperty(propertyId) {
     try {
       const response = await api.get(`/landlord/properties/${propertyId}`);
-
-      return {
-        success: true,
-        data: response.data?.data || response.data || null,
-        error: null,
-      };
+      return normalizeResponse(response);
     } catch (error) {
-      console.error(
-        "Error fetching property details:",
-        error.response?.data || error.message,
-      );
-      return {
-        success: false,
-        data: null,
-        error: extractErrorMessage(error),
-      };
+      console.error("Error fetching property details:", error);
+      return normalizeError(error);
     }
   },
 
@@ -451,21 +394,10 @@ const PropertyService = {
       await cacheManager.invalidate(CACHE_KEYS.LANDLORD_PROPERTIES);
       await cacheManager.clearAll(); // Invalidate public caches too
 
-      return {
-        success: true,
-        data: response.data?.data || response.data || null,
-        error: null,
-      };
+      return normalizeResponse(response);
     } catch (error) {
-      console.error(
-        "Error creating property:",
-        error.response?.data || error.message,
-      );
-      return {
-        success: false,
-        data: null,
-        error: extractErrorMessage(error),
-      };
+      console.error("Error creating property:", error);
+      return normalizeError(error);
     }
   },
 
@@ -492,21 +424,10 @@ const PropertyService = {
       await cacheManager.invalidate(`${CACHE_KEYS.PUBLIC_PROPERTY}${propertyId}`);
       await cacheManager.clearAll(); // Invalidate search results
 
-      return {
-        success: true,
-        data: response.data?.data || response.data || null,
-        error: null,
-      };
+      return normalizeResponse(response);
     } catch (error) {
-      console.error(
-        "Error updating property:",
-        error.response?.data || error.message,
-      );
-      return {
-        success: false,
-        data: null,
-        error: extractErrorMessage(error),
-      };
+      console.error("Error updating property:", error);
+      return normalizeError(error);
     }
   },
 
@@ -519,7 +440,7 @@ const PropertyService = {
    */
   async deleteProperty(propertyId, password) {
     try {
-      await api.delete(`/landlord/properties/${propertyId}`, {
+      const response = await api.delete(`/landlord/properties/${propertyId}`, {
         data: { password },
       });
 
@@ -527,19 +448,10 @@ const PropertyService = {
       await cacheManager.invalidate(`${CACHE_KEYS.PUBLIC_PROPERTY}${propertyId}`);
       await cacheManager.clearAll();
 
-      return {
-        success: true,
-        error: null,
-      };
+      return normalizeResponse(response);
     } catch (error) {
-      console.error(
-        "Error deleting property:",
-        error.response?.data || error.message,
-      );
-      return {
-        success: false,
-        error: extractErrorMessage(error),
-      };
+      console.error("Error deleting property:", error);
+      return normalizeError(error);
     }
   },
 
@@ -552,21 +464,10 @@ const PropertyService = {
       const response = await api.post(`/landlord/properties/verify-password`, {
         password,
       });
-      return {
-        success: true,
-        data: response.data,
-        error: null,
-      };
+      return normalizeResponse(response);
     } catch (error) {
-      console.error(
-        "Password verification failed:",
-        error.response?.data || error.message,
-      );
-      return {
-        success: false,
-        data: null,
-        error: extractErrorMessage(error),
-      };
+      console.error("Password verification failed:", error);
+      return normalizeError(error);
     }
   },
 
@@ -581,19 +482,12 @@ const PropertyService = {
       );
       return {
         success: true,
-        data: response.data?.data || response.data || [],
-        error: null,
+        data: normalizePaginatedResponse(response),
+        error: null
       };
     } catch (error) {
-      console.error(
-        "Error fetching rooms:",
-        error.response?.data || error.message,
-      );
-      return {
-        success: false,
-        data: [],
-        error: extractErrorMessage(error),
-      };
+      console.error("Error fetching rooms:", error);
+      return normalizeError(error);
     }
   },
 
@@ -606,21 +500,10 @@ const PropertyService = {
       const response = await api.get(
         `/landlord/properties/${propertyId}/rooms/stats`,
       );
-      return {
-        success: true,
-        data: response.data?.data || response.data || null,
-        error: null,
-      };
+      return normalizeResponse(response);
     } catch (error) {
-      console.error(
-        "Error fetching room stats:",
-        error.response?.data || error.message,
-      );
-      return {
-        success: false,
-        data: null,
-        error: extractErrorMessage(error),
-      };
+      console.error("Error fetching room stats:", error);
+      return normalizeError(error);
     }
   },
 
@@ -631,21 +514,10 @@ const PropertyService = {
   async createRoom(roomData) {
     try {
       const response = await api.post(`/landlord/rooms`, roomData);
-      return {
-        success: true,
-        data: response.data,
-        error: null,
-      };
+      return normalizeResponse(response);
     } catch (error) {
-      console.error(
-        "Error creating room:",
-        error.response?.data || error.message,
-      );
-      return {
-        success: false,
-        data: null,
-        error: extractErrorMessage(error),
-      };
+      console.error("Error creating room:", error);
+      return normalizeError(error);
     }
   },
 
@@ -658,25 +530,14 @@ const PropertyService = {
       let payload = roomData;
       if (isFormData(roomData)) {
         roomData.append("_method", "PUT");
-        return api.post(`/rooms/${roomId}`, payload).then(res => ({ success: true, data: res.data, error: null }));
+        return api.post(`/rooms/${roomId}`, payload).then(res => normalizeResponse(res));
       }
 
       const response = await api.put(`/rooms/${roomId}`, payload);
-      return {
-        success: true,
-        data: response.data,
-        error: null,
-      };
+      return normalizeResponse(response);
     } catch (error) {
-      console.error(
-        "Error updating room:",
-        error.response?.data || error.message,
-      );
-      return {
-        success: false,
-        data: null,
-        error: extractErrorMessage(error),
-      };
+      console.error("Error updating room:", error);
+      return normalizeError(error);
     }
   },
 
@@ -686,20 +547,11 @@ const PropertyService = {
    */
   async deleteRoom(roomId) {
     try {
-      await api.delete(`/rooms/${roomId}`);
-      return {
-        success: true,
-        error: null,
-      };
+      const response = await api.delete(`/rooms/${roomId}`);
+      return normalizeResponse(response);
     } catch (error) {
-      console.error(
-        "Error deleting room:",
-        error.response?.data || error.message,
-      );
-      return {
-        success: false,
-        error: extractErrorMessage(error),
-      };
+      console.error("Error deleting room:", error);
+      return normalizeError(error);
     }
   },
 
@@ -718,21 +570,10 @@ const PropertyService = {
 
     try {
       const response = await api.patch(`/rooms/${roomId}/status`, { status });
-      return {
-        success: true,
-        data: response.data,
-        error: null,
-      };
+      return normalizeResponse(response);
     } catch (error) {
-      console.error(
-        "Error updating room status:",
-        error.response?.data || error.message,
-      );
-      return {
-        success: false,
-        data: null,
-        error: normalizeActionError(error, "Failed to update room status."),
-      };
+      console.error("Error updating room status:", error);
+      return normalizeError(error);
     }
   },
 
@@ -747,21 +588,10 @@ const PropertyService = {
         { amenity },
         { headers: { "Content-Type": "application/json" } },
       );
-      return {
-        success: true,
-        data: response.data,
-        error: null,
-      };
+      return normalizeResponse(response);
     } catch (error) {
-      console.error(
-        "Error adding property amenity:",
-        error.response?.data || error.message,
-      );
-      return {
-        success: false,
-        data: null,
-        error: extractErrorMessage(error),
-      };
+      console.error("Error adding property amenity:", error);
+      return normalizeError(error);
     }
   },
 
@@ -776,21 +606,10 @@ const PropertyService = {
         { rule },
         { headers: { "Content-Type": "application/json" } },
       );
-      return {
-        success: true,
-        data: response.data,
-        error: null,
-      };
+      return normalizeResponse(response);
     } catch (error) {
-      console.error(
-        "Error adding property rule:",
-        error.response?.data || error.message,
-      );
-      return {
-        success: false,
-        data: null,
-        error: extractErrorMessage(error),
-      };
+      console.error("Error adding property rule:", error);
+      return normalizeError(error);
     }
   },
 
@@ -805,19 +624,12 @@ const PropertyService = {
       });
       return {
         success: true,
-        data: response.data?.data || response.data || [],
-        error: null,
+        data: normalizePaginatedResponse(response),
+        error: null
       };
     } catch (error) {
-      console.error(
-        "Error fetching tenants:",
-        error.response?.data || error.message,
-      );
-      return {
-        success: false,
-        data: [],
-        error: extractErrorMessage(error),
-      };
+      console.error("Error fetching tenants:", error);
+      return normalizeError(error);
     }
   },
 
@@ -828,24 +640,14 @@ const PropertyService = {
   async getRoomsByProperty(propertyId) {
     try {
       const response = await api.get(`/rooms/property/${propertyId}`);
-      const list = Array.isArray(response.data?.data)
-        ? response.data.data
-        : (Array.isArray(response.data) ? response.data : []);
       return {
         success: true,
-        data: list,
-        error: null,
+        data: normalizePaginatedResponse(response),
+        error: null
       };
     } catch (error) {
-      console.error(
-        "Error fetching rooms by property:",
-        error.response?.data || error.message,
-      );
-      return {
-        success: false,
-        data: [],
-        error: extractErrorMessage(error),
-      };
+      console.error("Error fetching rooms by property:", error);
+      return normalizeError(error);
     }
   },
 
@@ -860,21 +662,10 @@ const PropertyService = {
         payload,
         { headers: { "Content-Type": "application/json" } },
       );
-      return {
-        success: true,
-        data: response.data?.data || response.data || null,
-        error: null,
-      };
+      return normalizeResponse(response);
     } catch (error) {
-      console.error(
-        "Error transferring tenant room:",
-        error.response?.data || error.message,
-      );
-      return {
-        success: false,
-        data: null,
-        error: extractErrorMessage(error),
-      };
+      console.error("Error transferring tenant room:", error);
+      return normalizeError(error);
     }
   },
 
@@ -889,18 +680,10 @@ const PropertyService = {
         payload,
         { headers: { "Content-Type": "application/json" } },
       );
-      return {
-        success: true,
-        data: response.data?.data || response.data || null,
-        error: null,
-      };
+      return normalizeResponse(response);
     } catch (error) {
-      console.error("Error evicting tenant:", error.response?.data || error.message);
-      return {
-        success: false,
-        data: null,
-        error: extractErrorMessage(error),
-      };
+      console.error("Error evicting tenant:", error);
+      return normalizeError(error);
     }
   },
 
@@ -915,18 +698,10 @@ const PropertyService = {
         payload,
         { headers: { "Content-Type": "application/json" } },
       );
-      return {
-        success: true,
-        data: response.data?.data || response.data || null,
-        error: null,
-      };
+      return normalizeResponse(response);
     } catch (error) {
-      console.error("Error finalizing tenant eviction:", error.response?.data || error.message);
-      return {
-        success: false,
-        data: null,
-        error: extractErrorMessage(error),
-      };
+      console.error("Error finalizing tenant eviction:", error);
+      return normalizeError(error);
     }
   },
 
@@ -941,18 +716,10 @@ const PropertyService = {
         { note },
         { headers: { "Content-Type": "application/json" } },
       );
-      return {
-        success: true,
-        data: response.data?.data || response.data || null,
-        error: null,
-      };
+      return normalizeResponse(response);
     } catch (error) {
-      console.error("Error cancelling tenant eviction:", error.response?.data || error.message);
-      return {
-        success: false,
-        data: null,
-        error: extractErrorMessage(error),
-      };
+      console.error("Error cancelling tenant eviction:", error);
+      return normalizeError(error);
     }
   },
 
@@ -967,18 +734,10 @@ const PropertyService = {
         { reason },
         { headers: { "Content-Type": "application/json" } },
       );
-      return {
-        success: true,
-        data: response.data?.data || response.data || null,
-        error: null,
-      };
+      return normalizeResponse(response);
     } catch (error) {
-      console.error("Error undoing tenant eviction:", error.response?.data || error.message);
-      return {
-        success: false,
-        data: null,
-        error: extractErrorMessage(error),
-      };
+      console.error("Error undoing tenant eviction:", error);
+      return normalizeError(error);
     }
   },
 
@@ -1001,21 +760,10 @@ const PropertyService = {
         { tenant_ids: tenantIds, message },
         { headers: { "Content-Type": "application/json" } },
       );
-      return {
-        success: true,
-        data: response.data?.data || response.data || null,
-        error: null,
-      };
+      return normalizeResponse(response);
     } catch (error) {
-      console.error(
-        "Error sending tenant broadcast:",
-        error.response?.data || error.message,
-      );
-      return {
-        success: false,
-        data: null,
-        error: extractErrorMessage(error),
-      };
+      console.error("Error sending tenant broadcast:", error);
+      return normalizeError(error);
     }
   },
 
@@ -1028,21 +776,10 @@ const PropertyService = {
       const response = await api.post(`/landlord/tenants`, tenantData, {
         headers: { "Content-Type": "application/json" },
       });
-      return {
-        success: true,
-        data: response.data?.data || response.data || null,
-        error: null,
-      };
+      return normalizeResponse(response);
     } catch (error) {
-      console.error(
-        "Error creating tenant:",
-        error.response?.data || error.message,
-      );
-      return {
-        success: false,
-        data: null,
-        error: extractErrorMessage(error),
-      };
+      console.error("Error creating tenant:", error);
+      return normalizeError(error);
     }
   },
 
@@ -1057,21 +794,10 @@ const PropertyService = {
         {},
         { headers: { "Content-Type": "application/json" } },
       );
-      return {
-        success: true,
-        data: response.data?.data || response.data || null,
-        error: null,
-      };
+      return normalizeResponse(response);
     } catch (error) {
-      console.error(
-        "Error generating tenant claim code:",
-        error.response?.data || error.message,
-      );
-      return {
-        success: false,
-        data: null,
-        error: extractErrorMessage(error),
-      };
+      console.error("Error generating tenant claim code:", error);
+      return normalizeError(error);
     }
   },
 
@@ -1088,21 +814,10 @@ const PropertyService = {
           headers: { "Content-Type": "application/json" },
         },
       );
-      return {
-        success: true,
-        data: response.data?.data || response.data || null,
-        error: null,
-      };
+      return normalizeResponse(response);
     } catch (error) {
-      console.error(
-        "Error updating tenant:",
-        error.response?.data || error.message,
-      );
-      return {
-        success: false,
-        data: null,
-        error: extractErrorMessage(error),
-      };
+      console.error("Error updating tenant:", error);
+      return normalizeError(error);
     }
   },
 
@@ -1112,20 +827,11 @@ const PropertyService = {
    */
   async deleteTenant(tenantId) {
     try {
-      await api.delete(`/landlord/tenants/${tenantId}`);
-      return {
-        success: true,
-        error: null,
-      };
+      const response = await api.delete(`/landlord/tenants/${tenantId}`);
+      return normalizeResponse(response);
     } catch (error) {
-      console.error(
-        "Error deleting tenant:",
-        error.response?.data || error.message,
-      );
-      return {
-        success: false,
-        error: extractErrorMessage(error),
-      };
+      console.error("Error deleting tenant:", error);
+      return normalizeError(error);
     }
   },
 
@@ -1140,21 +846,10 @@ const PropertyService = {
         payload,
         { headers: { "Content-Type": "application/json" } },
       );
-      return {
-        success: true,
-        data: response.data?.data || response.data || null,
-        error: null,
-      };
+      return normalizeResponse(response);
     } catch (error) {
-      console.error(
-        "Error assigning tenant to room:",
-        error.response?.data || error.message,
-      );
-      return {
-        success: false,
-        data: null,
-        error: extractErrorMessage(error),
-      };
+      console.error("Error assigning tenant to room:", error);
+      return normalizeError(error);
     }
   },
 
@@ -1167,21 +862,10 @@ const PropertyService = {
       const response = await api.delete(
         `/landlord/tenants/${tenantId}/unassign-room`,
       );
-      return {
-        success: true,
-        data: response.data?.data || response.data || null,
-        error: null,
-      };
+      return normalizeResponse(response);
     } catch (error) {
-      console.error(
-        "Error unassigning tenant room:",
-        error.response?.data || error.message,
-      );
-      return {
-        success: false,
-        data: null,
-        error: extractErrorMessage(error),
-      };
+      console.error("Error unassigning tenant room:", error);
+      return normalizeError(error);
     }
   },
 
@@ -1196,19 +880,12 @@ const PropertyService = {
       });
       return {
         success: true,
-        data: response.data?.data || response.data || [],
-        error: null,
+        data: normalizePaginatedResponse(response),
+        error: null
       };
     } catch (error) {
-      console.error(
-        "Error fetching bookings:",
-        error.response?.data || error.message,
-      );
-      return {
-        success: false,
-        data: [],
-        error: extractErrorMessage(error),
-      };
+      console.error("Error fetching bookings:", error);
+      return normalizeError(error);
     }
   },
 
@@ -1219,21 +896,10 @@ const PropertyService = {
   async getBookingBundle() {
     try {
       const response = await api.get(`/bookings/bundle`);
-      return {
-        success: true,
-        data: response.data?.data || response.data || null,
-        error: null,
-      };
+      return normalizeResponse(response);
     } catch (error) {
-      console.error(
-        "Error fetching booking bundle:",
-        error.response?.data || error.message,
-      );
-      return {
-        success: false,
-        data: null,
-        error: extractErrorMessage(error),
-      };
+      console.error("Error fetching booking bundle:", error);
+      return normalizeError(error);
     }
   },
 
@@ -1244,21 +910,10 @@ const PropertyService = {
   async getBookingStats() {
     try {
       const response = await api.get(`/bookings/stats`);
-      return {
-        success: true,
-        data: response.data?.data || response.data || null,
-        error: null,
-      };
+      return normalizeResponse(response);
     } catch (error) {
-      console.error(
-        "Error fetching booking stats:",
-        error.response?.data || error.message,
-      );
-      return {
-        success: false,
-        data: null,
-        error: extractErrorMessage(error),
-      };
+      console.error("Error fetching booking stats:", error);
+      return normalizeError(error);
     }
   },
 
@@ -1275,21 +930,10 @@ const PropertyService = {
           headers: { "Content-Type": "application/json" },
         },
       );
-      return {
-        success: true,
-        data: response.data?.data || response.data || null,
-        error: null,
-      };
+      return normalizeResponse(response);
     } catch (error) {
-      console.error(
-        "Error updating booking status:",
-        error.response?.data || error.message,
-      );
-      return {
-        success: false,
-        data: null,
-        error: extractErrorMessage(error),
-      };
+      console.error("Error updating booking status:", error);
+      return normalizeError(error);
     }
   },
 
@@ -1306,21 +950,10 @@ const PropertyService = {
           headers: { "Content-Type": "application/json" },
         },
       );
-      return {
-        success: true,
-        data: response.data?.data || response.data || null,
-        error: null,
-      };
+      return normalizeResponse(response);
     } catch (error) {
-      console.error(
-        "Error updating booking payment:",
-        error.response?.data || error.message,
-      );
-      return {
-        success: false,
-        data: null,
-        error: extractErrorMessage(error),
-      };
+      console.error("Error updating booking payment:", error);
+      return normalizeError(error);
     }
   },
 
@@ -1337,22 +970,14 @@ const PropertyService = {
           headers: { "Content-Type": "application/json" },
         },
       );
-      return {
-        success: true,
-        data: response.data?.data || response.data || null,
-        message: response.data?.message || 'Checkout finalized successfully.',
-        error: null,
-      };
+      const res = normalizeResponse(response);
+      if (res.success) {
+        res.message = response.data?.message || 'Checkout finalized successfully.';
+      }
+      return res;
     } catch (error) {
-      console.error(
-        "Error finalizing booking checkout:",
-        error.response?.data || error.message,
-      );
-      return {
-        success: false,
-        data: null,
-        error: extractErrorMessage(error),
-      };
+      console.error("Error finalizing booking checkout:", error);
+      return normalizeError(error);
     }
   },
 
@@ -1369,22 +994,14 @@ const PropertyService = {
           headers: { "Content-Type": "application/json" },
         },
       );
-      return {
-        success: true,
-        data: response.data?.data || response.data || null,
-        message: response.data?.message || 'Deposit settlement recorded successfully.',
-        error: null,
-      };
+      const res = normalizeResponse(response);
+      if (res.success) {
+        res.message = response.data?.message || 'Deposit settlement recorded successfully.';
+      }
+      return res;
     } catch (error) {
-      console.error(
-        "Error settling booking deposit:",
-        error.response?.data || error.message,
-      );
-      return {
-        success: false,
-        data: null,
-        error: extractErrorMessage(error),
-      };
+      console.error("Error settling booking deposit:", error);
+      return normalizeError(error);
     }
   },
 
@@ -1395,21 +1012,10 @@ const PropertyService = {
   async getBookingDepositSettlements(bookingId) {
     try {
       const response = await api.get(`/bookings/${bookingId}/deposit-settlements`);
-      return {
-        success: true,
-        data: response.data?.data || response.data || null,
-        error: null,
-      };
+      return normalizeResponse(response);
     } catch (error) {
-      console.error(
-        "Error fetching booking deposit settlements:",
-        error.response?.data || error.message,
-      );
-      return {
-        success: false,
-        data: null,
-        error: extractErrorMessage(error),
-      };
+      console.error("Error fetching booking deposit settlements:", error);
+      return normalizeError(error);
     }
   },
 
@@ -1422,19 +1028,12 @@ const PropertyService = {
       const response = await api.get(`/landlord/extensions`);
       return {
         success: true,
-        data: response.data?.data || response.data || [],
-        error: null,
+        data: normalizePaginatedResponse(response),
+        error: null
       };
     } catch (error) {
-      console.error(
-        "Error fetching extension requests:",
-        error.response?.data || error.message,
-      );
-      return {
-        success: false,
-        data: [],
-        error: extractErrorMessage(error),
-      };
+      console.error("Error fetching extension requests:", error);
+      return normalizeError(error);
     }
   },
 
@@ -1448,21 +1047,10 @@ const PropertyService = {
         `/landlord/extensions/${requestId}/handle`,
         payload,
       );
-      return {
-        success: true,
-        data: response.data?.data || response.data || null,
-        error: null,
-      };
+      return normalizeResponse(response);
     } catch (error) {
-      console.error(
-        "Error handling extension request:",
-        error.response?.data || error.message,
-      );
-      return {
-        success: false,
-        data: null,
-        error: extractErrorMessage(error),
-      };
+      console.error("Error handling extension request:", error);
+      return normalizeError(error);
     }
   },
 
@@ -1477,19 +1065,12 @@ const PropertyService = {
       });
       return {
         success: true,
-        data: response.data?.data || response.data || [],
-        error: null,
+        data: normalizePaginatedResponse(response),
+        error: null
       };
     } catch (error) {
-      console.error(
-        "Error fetching transfer requests:",
-        error.response?.data || error.message,
-      );
-      return {
-        success: false,
-        data: [],
-        error: extractErrorMessage(error),
-      };
+      console.error("Error fetching transfer requests:", error);
+      return normalizeError(error);
     }
   },
 
@@ -1503,21 +1084,10 @@ const PropertyService = {
         `/landlord/transfers/${requestId}/handle`,
         payload,
       );
-      return {
-        success: true,
-        data: response.data?.data || response.data || null,
-        error: null,
-      };
+      return normalizeResponse(response);
     } catch (error) {
-      console.error(
-        "Error handling transfer request:",
-        error.response?.data || error.message,
-      );
-      return {
-        success: false,
-        data: null,
-        error: extractErrorMessage(error),
-      };
+      console.error("Error handling transfer request:", error);
+      return normalizeError(error);
     }
   },
 
@@ -1528,21 +1098,10 @@ const PropertyService = {
   async getTransferProration(requestId) {
     try {
       const response = await api.get(`/landlord/transfers/${requestId}/proration`);
-      return {
-        success: true,
-        data: response.data?.data || response.data || null,
-        error: null,
-      };
+      return normalizeResponse(response);
     } catch (error) {
-      console.error(
-        "Error fetching transfer proration:",
-        error.response?.data || error.message,
-      );
-      return {
-        success: false,
-        data: null,
-        error: extractErrorMessage(error),
-      };
+      console.error("Error fetching transfer proration:", error);
+      return normalizeError(error);
     }
   },
 
@@ -1553,20 +1112,10 @@ const PropertyService = {
   async getRoomPaymentOptions(roomId) {
     try {
       const response = await api.get(`/rooms/${roomId}/payment-options`);
-      return {
-        success: true,
-        data: response.data,
-      };
+      return normalizeResponse(response);
     } catch (error) {
-      console.error(
-        "Error fetching payment options:",
-        error.response?.data || error.message,
-      );
-      return {
-        success: false,
-        data: { methods: ["cash"], is_paymongo_ready: false }, // Default to cash only on error
-        error: extractErrorMessage(error),
-      };
+      console.error("Error fetching payment options:", error);
+      return normalizeError(error);
     }
   },
 
@@ -1596,21 +1145,12 @@ const PropertyService = {
       const response = await api.get(`/rooms/${roomId}/pricing`, {
         params,
       });
-      return {
-        success: true,
-        data: response.data,
-      };
+      return normalizeResponse(response);
     } catch (error) {
       console.error("Pricing calculation failed:", error);
-      return {
-        success: false,
-        data: { total: 0, breakdown: null },
-        error: extractErrorMessage(error),
-      };
+      return normalizeError(error);
     }
   },
-
-
 
   /**
    * Assign a tenant to a room
@@ -1622,18 +1162,10 @@ const PropertyService = {
         tenant_id: tenantId,
         start_date: startDate,
       });
-      return {
-        success: true,
-        data: response.data,
-        error: null,
-      };
+      return normalizeResponse(response);
     } catch (error) {
       console.error("Error assigning tenant:", error);
-      return {
-        success: false,
-        data: null,
-        error: extractErrorMessage(error),
-      };
+      return normalizeError(error);
     }
   },
 
@@ -1646,18 +1178,10 @@ const PropertyService = {
       const response = await api.delete(`/rooms/${roomId}/remove-tenant`, {
         data: { tenant_id: tenantId },
       });
-      return {
-        success: true,
-        data: response.data,
-        error: null,
-      };
+      return normalizeResponse(response);
     } catch (error) {
       console.error("Error removing tenant:", error);
-      return {
-        success: false,
-        data: null,
-        error: extractErrorMessage(error),
-      };
+      return normalizeError(error);
     }
   },
 
@@ -1668,18 +1192,10 @@ const PropertyService = {
   async extendStay(roomId, payload) {
     try {
       const response = await api.post(`/rooms/${roomId}/extend`, payload);
-      return {
-        success: true,
-        data: response.data,
-        error: null,
-      };
+      return normalizeResponse(response);
     } catch (error) {
       console.error("Error extending stay:", error);
-      return {
-        success: false,
-        data: null,
-        error: normalizeExtendStayError(error),
-      };
+      return normalizeError(error);
     }
   },
 

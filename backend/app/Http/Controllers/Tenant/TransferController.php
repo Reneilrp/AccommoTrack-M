@@ -164,15 +164,21 @@ class TransferController extends Controller
             return response()->json(['message' => 'There is already a pending transfer request for this room/booking.'], 422);
         }
 
-        // Check transfer limit: maximum 2 transfers per tenant per month
+        // Check transfer limit: landlord configurable limit
+        $transferLimit = (int) ($property->transfer_limit ?? 1);
+
+        if ($transferLimit === 0) {
+            return response()->json(['message' => 'Room transfers are not allowed for this property.'], 422);
+        }
+
         $currentMonth = now()->startOfMonth();
         $monthEndTransfers = TransferRequest::where('tenant_id', $tenantId)
             ->whereIn('status', ['pending', 'approved'])
             ->where('created_at', '>=', $currentMonth)
             ->count();
 
-        if ($monthEndTransfers >= 2) {
-            return response()->json(['message' => 'Note: as transferring requires effort in checking and more time preparing, transferring of room is only allowed twice per tenant and will be approved only by the Landlord when all records are cleared and all things are ready.'], 422);
+        if ($monthEndTransfers >= $transferLimit) {
+            return response()->json(['message' => 'Note: as transferring requires effort in checking and more time preparing, transferring of room is only allowed '.$transferLimit.' time(s) per tenant and will be approved only by the Landlord when all records are cleared and all things are ready.'], 422);
         }
 
         $transferRequest = TransferRequest::create([
@@ -336,11 +342,11 @@ class TransferController extends Controller
         $currentRoomRate = (float) ($activeBooking->monthly_rent ?? 0);
         $newRoomRate = (float) ($newRoom->monthly_rate ?? $newRoom->price ?? 0);
 
-        $newRoomCostCents = (int) round(($newRoomRate * 100 * $remainingDays) / $daysInCycle);
-        $unusedValueCents = (int) round($unusedValue * 100);
+        $newRoomCostCents = ($newRoomRate * $remainingDays) / $daysInCycle;
+        $unusedValueCents = (float) $unusedValue;
         $suggestedAdjustmentCents = $newRoomCostCents - $unusedValueCents;
-        $suggestedAdjustment = round($suggestedAdjustmentCents / 100, 2);
-        $newRoomCost = round($newRoomCostCents / 100, 2);
+        $suggestedAdjustment = $suggestedAdjustmentCents;
+        $newRoomCost = $newRoomCostCents;
 
         $hasPaymentThisPeriod = $paidAmount > 0;
 

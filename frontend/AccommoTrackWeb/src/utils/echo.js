@@ -4,7 +4,14 @@ import api, { shouldUseBearerForRequest } from "./api";
 
 window.Pusher = Pusher;
 
-const createEcho = () => {
+let echoInstance = null;
+
+/**
+ * Singleton getter for Echo instance
+ */
+export const getEcho = () => {
+  if (echoInstance) return echoInstance;
+
   const REVERB_KEY =
     import.meta.env.VITE_REVERB_APP_KEY ||
     import.meta.env.VITE_REVERB_KEY ||
@@ -26,7 +33,6 @@ const createEcho = () => {
     `${import.meta.env.VITE_APP_URL || window.location.origin}/api`;
 
   const explicitAuth = import.meta.env.VITE_BROADCAST_AUTH_ENDPOINT;
-  // Default to /api/broadcasting/auth to match the backend route in api.php
   const authEndpoint =
     explicitAuth || `${API_BASE.replace(/\/$/, "")}/broadcasting/auth`;
 
@@ -36,14 +42,6 @@ const createEcho = () => {
     );
     return null;
   }
-
-  console.info("[Echo] init", {
-    REVERB_KEY: REVERB_KEY ? "***" : null,
-    REVERB_HOST,
-    REVERB_PORT,
-    REVERB_SCHEME,
-    authEndpoint,
-  });
 
   // Bearer token is optional (non-production/dev). Cookie-auth mode relies on credentials.
   const token = shouldUseBearerForRequest()
@@ -58,7 +56,7 @@ const createEcho = () => {
     authHeaders.Authorization = `Bearer ${token}`;
   }
 
-  const echo = new Echo({
+  echoInstance = new Echo({
     broadcaster: "reverb",
     key: REVERB_KEY,
     wsHost: REVERB_HOST,
@@ -70,7 +68,6 @@ const createEcho = () => {
     auth: {
       headers: authHeaders,
     },
-    // Use axios authorizer so cookie mode sends XSRF/session and token mode keeps Bearer fallback.
     authorizer: (channel) => ({
       authorize: async (socketId, callback) => {
         try {
@@ -97,7 +94,7 @@ const createEcho = () => {
   });
 
   try {
-    const pusher = echo.connector && echo.connector.pusher;
+    const pusher = echoInstance.connector && echoInstance.connector.pusher;
     if (pusher && pusher.connection) {
       pusher.connection.bind("connected", () =>
         console.info("[Echo] connected"),
@@ -113,7 +110,19 @@ const createEcho = () => {
     console.warn("[Echo] failed to attach pusher listeners", err);
   }
 
-  return echo;
+  return echoInstance;
 };
+
+/**
+ * Disconnect and clear the singleton instance
+ */
+export const disconnectEcho = () => {
+  if (echoInstance) {
+    echoInstance.disconnect();
+    echoInstance = null;
+  }
+};
+
+const createEcho = () => getEcho();
 
 export default createEcho;

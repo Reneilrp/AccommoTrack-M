@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import {
   Animated,
   View,
@@ -14,7 +14,7 @@ import {
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useNavigation } from "@react-navigation/native";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useInfiniteQuery } from "@tanstack/react-query";
 import { WebView } from "react-native-webview";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from '@expo/vector-icons';
@@ -137,7 +137,6 @@ export default function TenantHomePage({
   }, [navigation]);
 
   const cachedExplore = uiState.data?.[BUCKET];
-  const [properties, setProperties] = useState(cachedExplore || []);
   const [filteredProperties, setFilteredProperties] = useState(cachedExplore || []);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -162,28 +161,45 @@ export default function TenantHomePage({
     [selectedFilter, advancedFilters],
   );
 
-  const explorePropertiesQuery = useQuery({
+  const explorePropertiesInfiniteQuery = useInfiniteQuery({
     queryKey: tenantQueryKeys.exploreProperties({
       type: selectedFilter,
       advancedFilters,
+      search: searchQuery
     }),
-    queryFn: async () => {
+    queryFn: async ({ pageParam = 1 }) => {
       const filters = buildExploreApiFilters(selectedFilter, advancedFilters);
-      const result = await PropertyService.getPublicProperties(filters);
+      const result = await PropertyService.getPublicProperties({
+        ...filters,
+        search: searchQuery || undefined,
+        page: pageParam,
+      });
 
-      if (!result?.success || !Array.isArray(result?.data)) {
+      if (!result?.success || !result?.data) {
         throw new Error(result?.error || "Failed to load properties");
       }
 
-      return result.data.map((property) =>
+      const paginatedData = result.data;
+      paginatedData.items = (paginatedData.items || []).map((property) =>
         PropertyService.transformPropertyToAccommodation(property),
       );
+      
+      return paginatedData;
     },
-    placeholderData: (previousData) =>
-      previousData || (!hasServerFilters ? cachedExplore : undefined),
+    getNextPageParam: (lastPage) => {
+      if (lastPage.pagination.current_page < lastPage.pagination.last_page) {
+        return lastPage.pagination.current_page + 1;
+      }
+      return undefined;
+    },
+    initialPageParam: 1,
   });
 
-  const refetchExploreProperties = explorePropertiesQuery.refetch;
+  const properties = useMemo(() => {
+    return explorePropertiesInfiniteQuery.data?.pages.flatMap((page) => page.items) || [];
+  }, [explorePropertiesInfiniteQuery.data]);
+
+  const refetchExploreProperties = explorePropertiesInfiniteQuery.refetch;
   const exploreRefetchers = React.useMemo(
     () => [refetchExploreProperties],
     [refetchExploreProperties],
@@ -196,27 +212,33 @@ export default function TenantHomePage({
     refetchers: exploreRefetchers,
   });
 
-  const loading = explorePropertiesQuery.isLoading && properties.length === 0;
-  const error = explorePropertiesQuery.error?.message || null;
-
-  useEffect(() => {
-    if (!explorePropertiesQuery.data) return;
-
-    setProperties(explorePropertiesQuery.data);
-    if (!hasServerFilters) {
-      updateData(BUCKET, explorePropertiesQuery.data);
+  const handleLoadMore = () => {
+    if (explorePropertiesInfiniteQuery.hasNextPage && !explorePropertiesInfiniteQuery.isFetchingNextPage) {
+      explorePropertiesInfiniteQuery.fetchNextPage();
     }
-  }, [explorePropertiesQuery.data, hasServerFilters, updateData]);
+  };
+
+  const loading = explorePropertiesInfiniteQuery.isPending && properties.length === 0;
+  const error = explorePropertiesInfiniteQuery.error?.message || null;
 
   useEffect(() => {
-    if (!explorePropertiesQuery.error) return;
+    if (!explorePropertiesInfiniteQuery.data) return;
 
-    console.error("Error loading properties:", explorePropertiesQuery.error);
+    // setProperties(properties); // properties is already memoized from the query pages
+    if (!hasServerFilters) {
+      updateData(BUCKET, properties);
+    }
+  }, [explorePropertiesInfiniteQuery.data, hasServerFilters, updateData, properties]);
+
+  useEffect(() => {
+    if (!explorePropertiesInfiniteQuery.error) return;
+
+    console.error("Error loading properties:", explorePropertiesInfiniteQuery.error);
     showError(
       "Error",
-      explorePropertiesQuery.error.message || "Failed to load properties. Please try again.",
+      explorePropertiesInfiniteQuery.error.message || "Failed to load properties. Please try again.",
     );
-  }, [explorePropertiesQuery.error]);
+  }, [explorePropertiesInfiniteQuery.error]);
 
   useEffect(() => {
     filterProperties();
@@ -764,6 +786,13 @@ export default function TenantHomePage({
           { useNativeDriver: true }
         )}
         scrollEventThrottle={16}
+        onEndReached={handleLoadMore}
+        onEndReachedThreshold={0.5}
+        ListFooterComponent={explorePropertiesInfiniteQuery.isFetchingNextPage ? (
+          <View style={{ paddingVertical: 20 }}>
+            <ActivityIndicator size="small" color={theme.colors.primary} />
+          </View>
+        ) : null}
         ListEmptyComponent={
           !loading ? (
             <View style={styles.noResultsContainer}>

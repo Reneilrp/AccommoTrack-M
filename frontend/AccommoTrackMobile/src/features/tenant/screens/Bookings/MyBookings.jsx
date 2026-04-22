@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Image, RefreshControl, Alert, Animated, Modal, TextInput, Platform, useWindowDimensions } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, Image, RefreshControl, Alert, Animated, Modal, TextInput, Platform, useWindowDimensions, FlatList, ActivityIndicator } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useInfiniteQuery } from '@tanstack/react-query';
 import { getStyles } from '../../../../styles/Menu/MyBookings.js';
 import BookingService from '../../../../services/BookingService.js';
 import TenantService from '../../../../services/TenantService.js';
@@ -42,6 +42,7 @@ const MAINTENANCE_PRIORITIES = [
 
 const extractHistoryBookings = (payload, fallback = []) => {
   const candidates = [
+    payload?.items,
     payload?.bookings,
     payload?.data?.bookings,
     payload?.data,
@@ -509,7 +510,6 @@ export default function MyBookings() {
 
   // Data states — seed from cache if available
   const [stayData, setStayData] = useState(cachedBookings?.stayData ?? null);
-  const [historyData, setHistoryData] = useState(cachedBookings?.historyData ?? []);
   const [pendingBookings, setPendingBookings] = useState(cachedBookings?.pendingBookings ?? []);
   const [pendingCheckIns, setPendingCheckIns] = useState(cachedBookings?.pendingCheckIns ?? []);
   const [selectedStayIndex, setSelectedStayIndex] = useState(0);
@@ -636,10 +636,9 @@ export default function MyBookings() {
     queryKey: tenantQueryKeys.myBookingsBundle(),
     queryFn: async () => {
       try {
-        const [stayRes, bookingsRes, historyRes, transferRes] = await Promise.all([
+        const [stayRes, bookingsRes, transferRes] = await Promise.all([
           TenantService.getCurrentStay(),
           BookingService.getMyBookings(),
-          TenantService.getHistory(),
           TenantService.getTransferRequests(),
         ]);
 
@@ -654,14 +653,6 @@ export default function MyBookings() {
           pendingStatuses.has(String(bookingItem.status || '').toLowerCase()) &&
           !pendingCheckInIds.has(bookingItem.id)
         );
-
-        const historyPayload = historyRes.success ? (historyRes.data || {}) : {};
-        const fallbackHistory = allBookings.filter((bookingItem) =>
-          ['completed', 'partial-completed', 'transferred', 'cancelled', 'rejected', 'evicted'].includes(
-            String(bookingItem.status || '').toLowerCase(),
-          ),
-        );
-        const historyDataNext = extractHistoryBookings(historyPayload, fallbackHistory);
 
         let pendingTransferRequestsNext = [];
         let monthlyTransferCountNext = 0;
@@ -692,7 +683,6 @@ export default function MyBookings() {
           stayData: stayDataNext,
           pendingBookings: pendingBookingsNext,
           pendingCheckIns: pendingCheckInsNext,
-          historyData: historyDataNext,
           pendingTransferRequests: pendingTransferRequestsNext,
           monthlyTransferCount: monthlyTransferCountNext,
         };
@@ -703,7 +693,6 @@ export default function MyBookings() {
             stayData: null,
             pendingBookings: [],
             pendingCheckIns: [],
-            historyData: [],
             pendingTransferRequests: [],
             monthlyTransferCount: 0,
           }
@@ -713,10 +702,28 @@ export default function MyBookings() {
     placeholderData: (previousData) => previousData || cachedBundle,
   });
 
+  const historyInfiniteQuery = useInfiniteQuery({
+    queryKey: ['tenant', 'history', 'infinite'],
+    queryFn: async ({ pageParam = 1 }) => {
+      const res = await TenantService.getHistory(pageParam);
+      return res.success ? res.data : { items: [], meta: { current_page: 1, last_page: 1 } };
+    },
+    getNextPageParam: (lastPage) => {
+      const { current_page, last_page } = lastPage.meta || {};
+      return current_page < last_page ? current_page + 1 : undefined;
+    },
+    initialPageParam: 1,
+  });
+
+  const flattenedHistory = React.useMemo(() => {
+    if (!historyInfiniteQuery.data) return [];
+    return historyInfiniteQuery.data.pages.flatMap((page) => extractHistoryBookings(page));
+  }, [historyInfiniteQuery.data]);
+
   const refetchMyBookingsBundle = myBookingsBundleQuery.refetch;
   const myBookingsRefetchers = React.useMemo(
-    () => [refetchMyBookingsBundle],
-    [refetchMyBookingsBundle],
+    () => [refetchMyBookingsBundle, historyInfiniteQuery.refetch],
+    [refetchMyBookingsBundle, historyInfiniteQuery.refetch],
   );
 
   useTenantFocusRefetch({ refetchers: myBookingsRefetchers });
@@ -738,7 +745,6 @@ export default function MyBookings() {
     setStayData(nextBundle.stayData ?? null);
     setPendingBookings(nextBundle.pendingBookings ?? []);
     setPendingCheckIns(nextBundle.pendingCheckIns ?? []);
-    setHistoryData(nextBundle.historyData ?? []);
     setPendingTransferRequests(nextBundle.pendingTransferRequests ?? []);
     setMonthlyTransferCount(nextBundle.monthlyTransferCount ?? 0);
 
@@ -2566,7 +2572,7 @@ export default function MyBookings() {
   const renderHistory = () => {
     if (loading) return <BookingCardSkeleton />;
 
-    if (historyData.length === 0) {
+    if (flattenedHistory.length === 0) {
       return (
         <View style={styles.content}>
           <View style={styles.emptyHistoryCard}>
@@ -2601,7 +2607,7 @@ export default function MyBookings() {
 
     return (
       <View style={styles.content}>
-        {historyData.map((booking) => (
+        {flattenedHistory.map((booking) => (
           <TouchableOpacity
             key={booking.id}
             style={[styles.bookingCard, styles.historyItemCard]}
@@ -2717,19 +2723,22 @@ export default function MyBookings() {
       {renderTabs()}
 
       {loading && !refreshing ? (
-        <ScrollView style={styles.content}>
+        <View style={styles.content}>
           <BookingCardSkeleton />
           <BookingCardSkeleton />
-        </ScrollView>
+        </View>
       ) : (
         <View style={{ flex: 1 }}>
-          <ScrollView
-            style={{ flex: 1 }}
-            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[theme.colors.primary]} />}
-          >
-            {activeTab === 'current' && renderCurrentStay()}
-            {activeTab === 'history' && renderHistory()}
-          </ScrollView>
+          {activeTab === 'current' ? (
+            <ScrollView
+              style={{ flex: 1 }}
+              refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[theme.colors.primary]} />}
+            >
+              {renderCurrentStay()}
+            </ScrollView>
+          ) : (
+            renderHistory()
+          )}
         </View>
       )}
 

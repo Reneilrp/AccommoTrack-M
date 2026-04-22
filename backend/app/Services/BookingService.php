@@ -91,7 +91,7 @@ class BookingService
                     'tenant_id' => $tenantId,
                     'description' => 'Cart Group Reservation Fee for '.count($bookings).' rooms',
                     'invoice_type' => 'reservation_fee',
-                    'amount_cents' => (int) round($totalReservationFee * 100),
+                    'amount_cents' => $totalReservationFee,
                     'currency' => 'PHP',
                     'status' => 'pending',
                     'issued_at' => now(),
@@ -474,7 +474,7 @@ class BookingService
                     'tenant_id' => $tenantId,
                     'description' => 'Reservation Fee for booking '.$bookingReference,
                     'invoice_type' => 'reservation_fee',
-                    'amount_cents' => (int) round($reservationFeeAmount * 100),
+                    'amount_cents' => $reservationFeeAmount,
                     'currency' => 'PHP',
                     'status' => 'pending',
                     'issued_at' => now(),
@@ -1352,13 +1352,14 @@ class BookingService
             ]);
         }
 
-        // Get recurring addons and split among occupants
+        // OPTIMIZATION: Use PHP memory sum instead of DB query
         $recurringAddonAmount = 0;
         if ($billingPolicy !== 'daily' && $booking->payment_plan === 'monthly') {
-            $recurringAddonAmount = $booking->addons()
-                ->where('booking_addons.status', 'active')
-                ->where('price_type', 'monthly')
-                ->sum(DB::raw('booking_addons.price_at_booking * booking_addons.quantity'));
+            $activeAddons = $booking->relationLoaded('addons') 
+                ? $booking->addons 
+                : $booking->addons()->where('booking_addons.status', 'active')->where('price_type', 'monthly')->get();
+            
+            $recurringAddonAmount = $activeAddons->sum(fn($a) => $a->pivot->price_at_booking * $a->pivot->quantity);
         }
 
         $perOccupantAddonAmount = (float) $recurringAddonAmount / $invoiceSlots;
@@ -1406,7 +1407,7 @@ class BookingService
                 'tenant_id' => $booking->tenant_id,
                 'description' => $description,
                 'invoice_type' => 'rent',
-                'amount_cents' => (int) round($amount * 100),
+                'amount_cents' => $amount,
                 'currency' => 'PHP',
                 'status' => 'pending',
                 'issued_at' => now(),
@@ -1474,10 +1475,12 @@ class BookingService
                 $amount = $booking->monthly_rent;
                 $description = 'Monthly rent for booking '.$booking->booking_reference;
 
-                $recurringAddonAmount = $booking->addons()
-                    ->where('booking_addons.status', 'active')
-                    ->where('price_type', 'monthly')
-                    ->sum(DB::raw('booking_addons.price_at_booking * booking_addons.quantity'));
+                // OPTIMIZATION: Use PHP memory sum instead of DB query
+                $activeAddons = $booking->relationLoaded('addons') 
+                    ? $booking->addons 
+                    : $booking->addons()->where('booking_addons.status', 'active')->where('price_type', 'monthly')->get();
+                
+                $recurringAddonAmount = $activeAddons->sum(fn($a) => $a->pivot->price_at_booking * $a->pivot->quantity);
 
                 $amount += $recurringAddonAmount;
             }
@@ -1634,7 +1637,7 @@ class BookingService
                     'tenant_id' => $booking->tenant_id,
                     'description' => 'Reservation Fee for booking '.$booking->booking_reference,
                     'invoice_type' => 'reservation_fee',
-                    'amount_cents' => (int) round($reservationFeeAmount * 100),
+                    'amount_cents' => $reservationFeeAmount,
                     'currency' => 'PHP',
                     'status' => 'pending',
                     'issued_at' => now(),

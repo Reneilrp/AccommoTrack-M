@@ -9,10 +9,10 @@ export const addonService = {
       const response = await api.get(
         `/landlord/properties/${propertyId}/addons`,
       );
-      return response.data;
+      return { success: true, data: response.data?.data || response.data };
     } catch (error) {
       console.error("Error fetching property addons:", error);
-      throw error;
+      return { success: false, error: error.response?.data?.message || error.message };
     }
   },
 
@@ -25,10 +25,10 @@ export const addonService = {
         `/landlord/properties/${propertyId}/addons`,
         addonData,
       );
-      return response.data;
+      return { success: true, data: response.data?.data || response.data };
     } catch (error) {
       console.error("Error creating addon:", error);
-      throw error;
+      return { success: false, error: error.response?.data?.message || error.message };
     }
   },
 
@@ -41,10 +41,10 @@ export const addonService = {
         `/landlord/properties/${propertyId}/addons/${addonId}`,
         addonData,
       );
-      return response.data;
+      return { success: true, data: response.data?.data || response.data };
     } catch (error) {
       console.error("Error updating addon:", error);
-      throw error;
+      return { success: false, error: error.response?.data?.message || error.message };
     }
   },
 
@@ -56,10 +56,10 @@ export const addonService = {
       const response = await api.delete(
         `/landlord/properties/${propertyId}/addons/${addonId}`,
       );
-      return response.data;
+      return { success: true, data: response.data?.data || response.data };
     } catch (error) {
       console.error("Error deleting addon:", error);
-      throw error;
+      return { success: false, error: error.response?.data?.message || error.message };
     }
   },
 
@@ -71,10 +71,10 @@ export const addonService = {
       const response = await api.get(
         `/landlord/properties/${propertyId}/addons/pending`,
       );
-      return response.data;
+      return { success: true, data: response.data?.data || response.data };
     } catch (error) {
       console.error("Error fetching pending requests:", error);
-      throw error;
+      return { success: false, error: error.response?.data?.message || error.message };
     }
   },
 
@@ -86,10 +86,10 @@ export const addonService = {
       const response = await api.get(
         `/landlord/properties/${propertyId}/addons/active`,
       );
-      return response.data;
+      return { success: true, data: response.data?.data || response.data };
     } catch (error) {
       console.error("Error fetching active addons:", error);
-      throw error;
+      return { success: false, error: error.response?.data?.message || error.message };
     }
   },
 
@@ -102,10 +102,10 @@ export const addonService = {
         `/landlord/bookings/${bookingId}/addons/${addonId}`,
         payload,
       );
-      return response.data;
+      return { success: true, data: response.data?.data || response.data };
     } catch (error) {
       console.error("Error handling addon request:", error);
-      throw error;
+      return { success: false, error: error.response?.data?.message || error.message };
     }
   },
 
@@ -119,10 +119,10 @@ export const addonService = {
         `/landlord/bookings/${bookingId}/addons/${addonId}/price`,
         { new_price: newPrice },
       );
-      return response.data;
+      return { success: true, data: response.data?.data || response.data };
     } catch (error) {
       console.error("Error updating active addon price:", error);
-      throw error;
+      return { success: false, error: error.response?.data?.message || error.message };
     }
   },
 };

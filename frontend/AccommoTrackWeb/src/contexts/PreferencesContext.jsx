@@ -109,26 +109,26 @@ export function PreferencesProvider({ children }) {
     return () => mediaQuery.removeEventListener('change', handleChange);
   }, [preferences.theme]);
 
-  const setFontSize = (size) => {
+  const setFontSize = useCallback((size) => {
     if (FONT_SIZES[size]) {
       setPreferences(prev => ({ ...prev, fontSize: size }));
     }
-  };
+  }, []);
 
-  const setTheme = (theme) => {
+  const setTheme = useCallback((theme) => {
     if (THEME_OPTIONS[theme]) {
       setPreferences(prev => ({ ...prev, theme }));
     }
-  };
+  }, []);
 
-  const resetPreferences = () => {
+  const resetPreferences = useCallback(() => {
     setPreferences(DEFAULT_PREFERENCES);
-  };
+  }, []);
 
   // Get the currently active theme (resolved from system if needed)
   const effectiveTheme = getEffectiveTheme(preferences.theme);
 
-  const value = {
+  const value = React.useMemo(() => ({
     preferences,
     fontSize: preferences.fontSize,
     theme: preferences.theme,
@@ -140,7 +140,7 @@ export function PreferencesProvider({ children }) {
     FONT_SIZE_LABELS,
     THEME_OPTIONS,
     THEME_LABELS
-  };
+  }), [preferences, effectiveTheme, setFontSize, setTheme, resetPreferences]);
 
   return (
     <PreferencesContext.Provider value={value}>

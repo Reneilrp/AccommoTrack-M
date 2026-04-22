@@ -163,6 +163,8 @@ class AdminController extends Controller
      */
     public function getUsers(Request $request)
     {
+        $perPage = $request->query('per_page', 50);
+        
         $users = User::where('role', '!=', 'admin')
             ->with([
                 // For landlords: their properties and verification
@@ -170,8 +172,7 @@ class AdminController extends Controller
                 'landlordVerification:id,user_id,status',
                 // For tenants: their bookings with property and room info
                 'bookings' => function ($query) {
-                    $query->where('status', 'confirmed')
-                        ->orWhere('status', 'active')
+                    $query->whereIn('status', ['confirmed', 'active'])
                         ->with(['property:id,title', 'room:id,room_number']);
                 },
                 // For tenants: room assignments as fallback
@@ -183,8 +184,10 @@ class AdminController extends Controller
                     $query->with(['landlord:id,first_name,last_name,email', 'landlord.properties:id,landlord_id,title']);
                 },
             ])
-            ->get()
-            ->map(function (User $user) {
+            ->orderBy('created_at', 'desc')
+            ->paginate($perPage);
+
+        $users->getCollection()->transform(function (User $user) {
                 $userData = $user->toArray();
 
                 // Add property info for landlords

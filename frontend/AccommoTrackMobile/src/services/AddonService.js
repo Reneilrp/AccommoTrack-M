@@ -1,4 +1,4 @@
-import api from './api.js';
+import api, { normalizeResponse, normalizeError } from './api.js';
 
 /**
  * Addon Service for handling all addon-related API calls
@@ -10,18 +10,10 @@ const AddonService = {
     async getPropertyAddons(propertyId) {
         try {
             const response = await api.get(`/landlord/properties/${propertyId}/addons`);
-            return {
-                success: true,
-                data: response.data,
-                error: null
-            };
+            return normalizeResponse(response);
         } catch (error) {
             console.error('Error fetching property addons:', error);
-            return {
-                success: false,
-                data: null,
-                error: error.response?.data?.message || error.message || 'Failed to fetch addons'
-            };
+            return normalizeError(error);
         }
     },
 
@@ -31,18 +23,10 @@ const AddonService = {
     async createAddon(propertyId, addonData) {
         try {
             const response = await api.post(`/landlord/properties/${propertyId}/addons`, addonData);
-            return {
-                success: true,
-                data: response.data,
-                error: null
-            };
+            return normalizeResponse(response);
         } catch (error) {
             console.error('Error creating addon:', error);
-            return {
-                success: false,
-                data: null,
-                error: error.response?.data?.message || error.message || 'Failed to create addon'
-            };
+            return normalizeError(error);
         }
     },
 
@@ -52,18 +36,10 @@ const AddonService = {
     async updateAddon(propertyId, addonId, addonData) {
         try {
             const response = await api.put(`/landlord/properties/${propertyId}/addons/${addonId}`, addonData);
-            return {
-                success: true,
-                data: response.data,
-                error: null
-            };
+            return normalizeResponse(response);
         } catch (error) {
             console.error('Error updating addon:', error);
-            return {
-                success: false,
-                data: null,
-                error: error.response?.data?.message || error.message || 'Failed to update addon'
-            };
+            return normalizeError(error);
         }
     },
 
@@ -73,17 +49,10 @@ const AddonService = {
     async deleteAddon(propertyId, addonId) {
         try {
             const response = await api.delete(`/landlord/properties/${propertyId}/addons/${addonId}`);
-            return {
-                success: true,
-                data: response.data,
-                error: null
-            };
+            return normalizeResponse(response);
         } catch (error) {
             console.error('Error deleting addon:', error);
-            return {
-                success: false,
-                error: error.response?.data?.message || error.message || 'Failed to delete addon'
-            };
+            return normalizeError(error);
         }
     },
 
@@ -93,18 +62,10 @@ const AddonService = {
     async getPendingRequests(propertyId) {
         try {
             const response = await api.get(`/landlord/properties/${propertyId}/addons/pending`);
-            return {
-                success: true,
-                data: response.data,
-                error: null
-            };
+            return normalizeResponse(response);
         } catch (error) {
             console.error('Error fetching pending requests:', error);
-            return {
-                success: false,
-                data: null,
-                error: error.response?.data?.message || error.message || 'Failed to fetch pending requests'
-            };
+            return normalizeError(error);
         }
     },
 
@@ -114,18 +75,10 @@ const AddonService = {
     async getActiveAddons(propertyId) {
         try {
             const response = await api.get(`/landlord/properties/${propertyId}/addons/active`);
-            return {
-                success: true,
-                data: response.data,
-                error: null
-            };
+            return normalizeResponse(response);
         } catch (error) {
             console.error('Error fetching active addons:', error);
-            return {
-                success: false,
-                data: null,
-                error: error.response?.data?.message || error.message || 'Failed to fetch active addons'
-            };
+            return normalizeError(error);
         }
     },
 
@@ -145,17 +98,10 @@ const AddonService = {
             }
 
             const response = await api.patch(`/landlord/bookings/${bookingId}/addons/${addonId}`, payload);
-            return {
-                success: true,
-                data: response.data,
-                error: null
-            };
+            return normalizeResponse(response);
         } catch (error) {
             console.error('Error handling addon request:', error);
-            return {
-                success: false,
-                error: error.response?.data?.message || error.message || `Failed to ${action} request`
-            };
+            return normalizeError(error);
         }
     }
 };

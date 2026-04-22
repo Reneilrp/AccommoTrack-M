@@ -52,7 +52,7 @@ export const mapRoom = (room) => {
     // keep `price` for older consumers, but expose canonical fields expected by modal
     price: Number(room.monthly_rate || room.price || 0),
     monthly_rate: Number(room.monthly_rate ?? room.monthlyRate ?? room.price ?? 0),
-    daily_rate: Number(room.daily_rate ?? room.dailyRate ?? Math.round((room.monthly_rate || room.price || 0) / 30)),
+    daily_rate: Number(room.daily_rate ?? room.dailyRate ?? ((room.monthly_rate || room.price || 0) / 30)),
     billing_policy: room.billing_policy || room.billingPolicy || 'monthly',
     pricing_model: room.pricing_model || room.pricingModel || 'full_room',
     is_available: typeof room.is_available === 'boolean' ? room.is_available : undefined,
