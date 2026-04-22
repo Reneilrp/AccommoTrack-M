@@ -39,7 +39,15 @@ class PropertyService
     public function createProperty(array $validated, User $user): Property
     {
         return DB::transaction(function () use ($validated, $user) {
-            $this->assertCanCreatePropertyUnderSubscription($user);
+            try {
+                $this->assertCanCreatePropertyUnderSubscription($user);
+            } catch (ValidationException $e) {
+                \Illuminate\Support\Facades\Log::warning('Property creation blocked by subscription limit', [
+                    'user_id' => $user->id,
+                    'errors' => $e->errors(),
+                ]);
+                throw $e;
+            }
 
             $canSubmitProperties = $this->canLandlordSubmitProperties($user);
 
@@ -596,21 +604,29 @@ class PropertyService
 
     private function uploadVideo(Property $property, $videoFile): void
     {
-        $path = $videoFile->store('property_videos');
+        // Check duration locally first to avoid remote S3 read timeout
         try {
-            $duration = FFMpeg::fromDisk(config('filesystems.default'))->open($path)->getDurationInSeconds();
+            $duration = FFMpeg::fromDisk('local')->open($videoFile->getRealPath())->getDurationInSeconds();
             if ($duration > 45) {
-                Storage::delete($path);
                 throw new \Exception('Video duration must not exceed 45 seconds.');
             }
-            PropertyImage::create([
-                'property_id' => $property->id, 'image_url' => $path, 'is_primary' => false,
-                'display_order' => 99, 'media_type' => 'video',
-            ]);
         } catch (\Exception $e) {
-            Storage::delete($path);
-            throw new \Exception('Could not process video file: '.$e->getMessage());
+            \Illuminate\Support\Facades\Log::error('Video duration check failed', [
+                'property_id' => $property->id,
+                'error' => $e->getMessage(),
+            ]);
+            throw new \Exception('Could not process video file: ' . $e->getMessage());
         }
+
+        $path = $videoFile->store('property_videos');
+
+        PropertyImage::create([
+            'property_id' => $property->id,
+            'image_url' => $path,
+            'is_primary' => false,
+            'display_order' => 99,
+            'media_type' => 'video',
+        ]);
     }
 
     private function handleDeletions(Property $property, Request $request): void

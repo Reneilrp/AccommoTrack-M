@@ -53,9 +53,9 @@ const PropertyCarousel = ({ property, onOpenDetails }) => {
 
       return rawType
         ? rawType
-            .replace(/[_-]+/g, ' ')
-            .replace(/\s+/g, ' ')
-            .replace(/\b\w/g, (char) => char.toUpperCase())
+          .replace(/[_-]+/g, ' ')
+          .replace(/\s+/g, ' ')
+          .replace(/\b\w/g, (char) => char.toUpperCase())
         : 'Room';
     };
 
@@ -65,8 +65,8 @@ const PropertyCarousel = ({ property, onOpenDetails }) => {
     );
     const hasDailyRate = room?.daily_rate !== null && room?.daily_rate !== undefined;
     const dailyRate = hasDailyRate
-      ? toMoneyNumber(room?.daily_rate, monthlyRate > 0 ? (monthlyRate / 30) : 0)
-      : toMoneyNumber(room?.dailyRate, monthlyRate > 0 ? (monthlyRate / 30) : 0);
+      ? toMoneyNumber(room?.daily_rate, monthlyRate > 0 ? Math.round(monthlyRate / 30) : 0)
+      : toMoneyNumber(room?.dailyRate, monthlyRate > 0 ? Math.round(monthlyRate / 30) : 0);
     const unitPrice = toMoneyNumber(room?.unit_price ?? room?.unitPrice, 0);
     const billingPolicy = (room?.billing_policy || room?.billingPolicy || 'monthly')
       .toString()
@@ -83,7 +83,7 @@ const PropertyCarousel = ({ property, onOpenDetails }) => {
         : monthlyRate || unitPrice || dailyRate;
 
     const alternatePrice = billingPolicy === 'daily' ? monthlyRate : dailyRate;
-    
+
     const roomType = getRoomTypeLabel(room);
     const displayName = room.room_number ? `Room ${room.room_number}` : roomType;
     const roomCapacity = Math.max(
@@ -246,7 +246,7 @@ const PropertyCarousel = ({ property, onOpenDetails }) => {
           .filter((room) => {
             const rawStatus = (room.display_status || room.status || 'available').toLowerCase();
             const availableSlots = Number(room.available_slots ?? room.availableSlots);
-            
+
             // Priority 1: Maintenance
             if (rawStatus === 'maintenance' || room.status === 'maintenance') return false;
 
@@ -262,7 +262,7 @@ const PropertyCarousel = ({ property, onOpenDetails }) => {
             }
 
             const isFullyOccupied = effectiveStatus === 'occupied' || (Number.isFinite(availableSlots) && availableSlots <= 0 && rawStatus === 'occupied');
-            
+
             return effectiveStatus !== 'occupied' && !isFullyOccupied;
           })
           .sort((a, b) => {
@@ -285,7 +285,7 @@ const PropertyCarousel = ({ property, onOpenDetails }) => {
             const rawStatus = (room.display_status || room.status || 'available').toString().toLowerCase();
             const availableSlots = Number(room.available_slots ?? room.availableSlots);
             const isMaintenance = rawStatus === 'maintenance' || room.status === 'maintenance';
-            
+
             let effectiveDisplayStatus = rawStatus;
             if (isMaintenance) {
               effectiveDisplayStatus = 'maintenance';
@@ -300,7 +300,7 @@ const PropertyCarousel = ({ property, onOpenDetails }) => {
             const statusBadgeText = room.reserved_by_me
               ? 'Reserved by you (Pending)'
               : (room.display_status_label || effectiveDisplayStatus || '').toString().charAt(0).toUpperCase() +
-                (room.display_status_label || effectiveDisplayStatus || '').toString().slice(1);
+              (room.display_status_label || effectiveDisplayStatus || '').toString().slice(1);
 
             const statusBadgeClassName = room.reserved_by_me
               ? 'bg-amber-50 text-amber-800 border border-amber-100'
@@ -313,113 +313,113 @@ const PropertyCarousel = ({ property, onOpenDetails }) => {
                     : 'bg-green-50 text-green-700 border border-green-100';
 
             return (
-          <div
-            key={room.id}
-            className={`flex-none w-[210px] sm:w-[200px] md:w-[190px] lg:w-[calc((100%-2.25rem)/4.25)] xl:w-[calc((100%-3rem)/4.25)] bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-100 dark:border-gray-700 hover:shadow-lg hover:border-green-300 dark:hover:border-green-600 transition-all duration-300 snap-start overflow-hidden group/card flex flex-col ${isOccupied ? 'opacity-50' : ''}`}
-          >
-            {/* Image Click -> Open Room Details */}
-            <div className="relative h-32 overflow-hidden bg-gray-200 dark:bg-gray-700 cursor-pointer" onClick={() => onOpenDetails(room, property)}>
-              {getImageUrl(room.imageSource) ? (
-                <img
-                  src={getImageUrl(room.imageSource)}
-                  alt={room.displayName}
-                  className="w-full h-full object-cover transform group-hover/card:scale-105 transition-transform duration-500"
-                  loading="lazy"
-                />
-              ) : (
-                <ImagePlaceholder className="w-full h-full" />
-              )}
-              <div className="absolute top-2 left-2 right-2 flex items-start justify-between gap-1.5">
-                <span className={`px-1.5 py-1 rounded-md text-[9px] font-bold uppercase tracking-wide shadow-sm max-w-[72%] ${statusBadgeClassName}`}>
-                  {statusBadgeText}
-                </span>
-                {showGenderBadge && (
-                  <span
-                    className={`px-1.5 py-1 rounded-md text-[9px] font-bold uppercase tracking-wide shadow-sm shrink-0 ${genderBadge.className}`}
-                  >
-                    {genderBadge.label}
-                  </span>
-                )}
-              </div>
-            </div>
-
-            <div className="p-3 flex-1 flex flex-col">
-              <div className="flex items-center justify-between gap-1.5 mb-1">
-                <h4
-                  className="text-sm font-bold text-gray-900 dark:text-white line-clamp-1 cursor-pointer hover:text-green-600 dark:hover:text-green-400 transition-colors"
-                  title={room.displayName}
-                  onClick={() => onOpenDetails(room, property)}
-                >
-                  {room.displayName}
-                </h4>
-                <span className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-semibold bg-gray-100 text-gray-700 border border-gray-200 whitespace-nowrap shrink-0">
-                  {room.occupancyLabel}
-                </span>
-              </div>
-
-              <div className="flex flex-wrap gap-1 mb-2">
-                <span className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-semibold bg-blue-50 text-blue-700 border border-blue-100">
-                  {room.roomTypeLabel}
-                </span>
-              </div>
-
-              {room.longTermPromos.length > 0 && (
-                <div className="flex flex-wrap gap-1 mb-2">
-                  {room.longTermPromos.slice(0, 2).map((promo) => (
-                    <span
-                      key={`${room.id}-promo-${promo.months}`}
-                      className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[9px] font-semibold bg-amber-50 text-amber-700 border border-amber-200"
-                    >
-                      {formatPromoLabel(promo)}
-                    </span>
-                  ))}
-                  {room.longTermPromos.length > 2 && (
-                    <span className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[9px] font-semibold bg-gray-100 text-gray-600 border border-gray-200">
-                      +{room.longTermPromos.length - 2} more
-                    </span>
+              <div
+                key={room.id}
+                className={`flex-none w-[210px] sm:w-[200px] md:w-[190px] lg:w-[calc((100%-2.25rem)/4.25)] xl:w-[calc((100%-3rem)/4.25)] bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-100 dark:border-gray-700 hover:shadow-lg hover:border-green-300 dark:hover:border-green-600 transition-all duration-300 snap-start overflow-hidden group/card flex flex-col ${isOccupied ? 'opacity-50' : ''}`}
+              >
+                {/* Image Click -> Open Room Details */}
+                <div className="relative h-32 overflow-hidden bg-gray-200 dark:bg-gray-700 cursor-pointer" onClick={() => onOpenDetails(room, property)}>
+                  {getImageUrl(room.imageSource) ? (
+                    <img
+                      src={getImageUrl(room.imageSource)}
+                      alt={room.displayName}
+                      className="w-full h-full object-cover transform group-hover/card:scale-105 transition-transform duration-500"
+                      loading="lazy"
+                    />
+                  ) : (
+                    <ImagePlaceholder className="w-full h-full" />
                   )}
+                  <div className="absolute top-2 left-2 right-2 flex items-start justify-between gap-1.5">
+                    <span className={`px-1.5 py-1 rounded-md text-[9px] font-bold uppercase tracking-wide shadow-sm max-w-[72%] ${statusBadgeClassName}`}>
+                      {statusBadgeText}
+                    </span>
+                    {showGenderBadge && (
+                      <span
+                        className={`px-1.5 py-1 rounded-md text-[9px] font-bold uppercase tracking-wide shadow-sm shrink-0 ${genderBadge.className}`}
+                      >
+                        {genderBadge.label}
+                      </span>
+                    )}
+                  </div>
                 </div>
-              )}
 
-              {room.amenityLabels.length > 0 && (
-                <div className="flex flex-wrap gap-1 mb-2">
-                  {room.amenityLabels.slice(0, 3).map((label, idx) => (
-                    <span
-                      key={`${label}-${idx}`}
-                      className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[9px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-100"
-                      title={label}
+                <div className="p-3 flex-1 flex flex-col">
+                  <div className="flex items-center justify-between gap-1.5 mb-1">
+                    <h4
+                      className="text-sm font-bold text-gray-900 dark:text-white line-clamp-1 cursor-pointer hover:text-green-600 dark:hover:text-green-400 transition-colors"
+                      title={room.displayName}
+                      onClick={() => onOpenDetails(room, property)}
                     >
-                      {label}
+                      {room.displayName}
+                    </h4>
+                    <span className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-semibold bg-gray-100 text-gray-700 border border-gray-200 whitespace-nowrap shrink-0">
+                      {room.occupancyLabel}
                     </span>
-                  ))}
-                  {room.amenityLabels.length > 3 && (
-                    <span className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[9px] font-semibold bg-gray-100 text-gray-600 border border-gray-200">
-                      +{room.amenityLabels.length - 3} more
-                    </span>
-                  )}
-                </div>
-              )}
+                  </div>
 
-              <div className="flex items-center justify-between mt-auto pt-2">
-                <div className="flex items-baseline gap-1">
-                  <span className="text-sm font-extrabold text-green-600 leading-none">
-                    {formatCurrency(room.primaryPrice)}
-                  </span>
-                  <span className="text-[11px] text-gray-500 dark:text-gray-400 font-bold leading-none">
-                    / {room.billingPolicy === 'daily' ? 'D' : 'M'}
-                  </span>
+                  <div className="flex flex-wrap gap-1 mb-2">
+                    <span className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-semibold bg-blue-50 text-blue-700 border border-blue-100">
+                      {room.roomTypeLabel}
+                    </span>
+                  </div>
+
+                  {room.longTermPromos.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mb-2">
+                      {room.longTermPromos.slice(0, 2).map((promo) => (
+                        <span
+                          key={`${room.id}-promo-${promo.months}`}
+                          className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[9px] font-semibold bg-amber-50 text-amber-700 border border-amber-200"
+                        >
+                          {formatPromoLabel(promo)}
+                        </span>
+                      ))}
+                      {room.longTermPromos.length > 2 && (
+                        <span className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[9px] font-semibold bg-gray-100 text-gray-600 border border-gray-200">
+                          +{room.longTermPromos.length - 2} more
+                        </span>
+                      )}
+                    </div>
+                  )}
+
+                  {room.amenityLabels.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mb-2">
+                      {room.amenityLabels.slice(0, 3).map((label, idx) => (
+                        <span
+                          key={`${label}-${idx}`}
+                          className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[9px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-100"
+                          title={label}
+                        >
+                          {label}
+                        </span>
+                      ))}
+                      {room.amenityLabels.length > 3 && (
+                        <span className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[9px] font-semibold bg-gray-100 text-gray-600 border border-gray-200">
+                          +{room.amenityLabels.length - 3} more
+                        </span>
+                      )}
+                    </div>
+                  )}
+
+                  <div className="flex items-center justify-between mt-auto pt-2">
+                    <div className="flex items-baseline gap-1">
+                      <span className="text-sm font-extrabold text-green-600 leading-none">
+                        {formatCurrency(room.primaryPrice)}
+                      </span>
+                      <span className="text-[11px] text-gray-500 dark:text-gray-400 font-bold leading-none">
+                        / {room.billingPolicy === 'daily' ? 'D' : 'M'}
+                      </span>
+                    </div>
+                    <button
+                      onClick={() => onOpenDetails(room, property)}
+                      className="px-2.5 py-1 rounded-md bg-gray-900 text-white text-[11px] font-semibold hover:bg-green-600 transition-colors shadow-sm whitespace-nowrap shrink-0"
+                    >
+                      View Details
+                    </button>
+                  </div>
                 </div>
-                <button
-                  onClick={() => onOpenDetails(room, property)}
-                  className="px-2.5 py-1 rounded-md bg-gray-900 text-white text-[11px] font-semibold hover:bg-green-600 transition-colors shadow-sm whitespace-nowrap shrink-0"
-                >
-                  View Details
-                </button>
               </div>
-            </div>
-          </div>
-        );
-        })}
+            );
+          })}
       </div>
 
       {/* Right Arrow */}

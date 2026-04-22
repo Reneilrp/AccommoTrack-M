@@ -118,7 +118,8 @@ export default function Analytics() {
       cacheManager.set(cacheKey, response.data);
 
       // Also update global cache for backward compatibility
-      updateData('landlord_analytics', prev => ({ ...prev, analytics: response.data }));
+      const newState = { ...uiState.data?.landlord_analytics, analytics: response.data };
+      updateData('landlord_analytics', newState);
     } catch (err) {
       console.error('Analytics error:', err);
 

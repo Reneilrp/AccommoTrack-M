@@ -5,6 +5,8 @@ import {
   Archive, FileText, CheckCircle, Clock, AlertTriangle, XCircle, RotateCcw
 } from 'lucide-react';
 import { invoiceService } from '../../services/invoiceService';
+import { formatPrice } from '../../utils/price';
+import Decimal from '../../utils/decimal';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -70,8 +72,7 @@ const getStatusMeta = (status) => {
   }
 };
 
-const formatCurrency = (amount) =>
-  new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP', minimumFractionDigits: 2 }).format(Number(amount) || 0);
+const formatCurrency = (amount) => formatPrice(amount);
 
 const formatDate = (d) => {
   if (!d) return '—';
@@ -90,7 +91,9 @@ function InvoiceRow({ invoice, navigate }) {
   const tenantName = isSubscription ? (invoice.description || 'Platform Subscription') : buildTenantName(invoice);
   const roomLabel = isSubscription ? 'System' : buildRoomLabel(invoice);
   const property = isSubscription ? 'AccommoTrack' : (invoice?.property?.title || invoice?.property_title || invoice?.booking?.property?.title || '—');
-  const amount = invoice?.amount_cents ?? Number(invoice?.amount || 0);
+  const amount = invoice?.amount_cents
+    ? new Decimal(invoice.amount_cents).div(100).toNumber()
+    : new Decimal(invoice?.amount || 0).toNumber();
 
   return (
     <tr
@@ -272,21 +275,19 @@ export default function LandlordPaymentLogs() {
         <div className="flex items-center gap-2 mb-6 bg-gray-100 dark:bg-gray-800 p-1.5 rounded-2xl border border-gray-200 dark:border-gray-700 w-fit">
           <button
             onClick={() => setLogType('tenant')}
-            className={`px-4 py-2 rounded-xl text-sm font-bold transition-all ${
-              logType === 'tenant' 
-              ? 'bg-white dark:bg-gray-700 text-green-600 dark:text-green-400 shadow-sm' 
-              : 'text-gray-500 dark:text-gray-400 hover:text-gray-700'
-            }`}
+            className={`px-4 py-2 rounded-xl text-sm font-bold transition-all ${logType === 'tenant'
+                ? 'bg-white dark:bg-gray-700 text-green-600 dark:text-green-400 shadow-sm'
+                : 'text-gray-500 dark:text-gray-400 hover:text-gray-700'
+              }`}
           >
             Tenant Payments
           </button>
           <button
             onClick={() => setLogType('subscription')}
-            className={`px-4 py-2 rounded-xl text-sm font-bold transition-all ${
-              logType === 'subscription' 
-              ? 'bg-white dark:bg-gray-700 text-green-600 dark:text-green-400 shadow-sm' 
-              : 'text-gray-500 dark:text-gray-400 hover:text-gray-700'
-            }`}
+            className={`px-4 py-2 rounded-xl text-sm font-bold transition-all ${logType === 'subscription'
+                ? 'bg-white dark:bg-gray-700 text-green-600 dark:text-green-400 shadow-sm'
+                : 'text-gray-500 dark:text-gray-400 hover:text-gray-700'
+              }`}
           >
             Platform Billing
           </button>
@@ -408,11 +409,10 @@ export default function LandlordPaymentLogs() {
                 <button
                   key={f.value}
                   onClick={() => setStatusFilter(f.value)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-colors ${
-                    statusFilter === f.value
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-colors ${statusFilter === f.value
                       ? 'bg-green-600 text-white shadow-sm shadow-green-500/20'
                       : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
-                  }`}
+                    }`}
                 >
                   {f.label}
                 </button>

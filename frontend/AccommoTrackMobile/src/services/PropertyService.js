@@ -389,14 +389,25 @@ const PropertyService = {
    */
   async createProperty(propertyData) {
     try {
+      // Do NOT set Content-Type manually — Axios + React Native must auto-generate
+      // the multipart/form-data boundary. Overriding it strips the boundary and
+      // causes the server to return a 500 it can't parse the body.
       const response = await api.post(`/landlord/properties`, propertyData);
 
       await cacheManager.invalidate(CACHE_KEYS.LANDLORD_PROPERTIES);
-      await cacheManager.clearAll(); // Invalidate public caches too
+      await cacheManager.clearAll();
 
       return normalizeResponse(response);
     } catch (error) {
-      console.error("Error creating property:", error);
+      // Log full response for debugging 500s
+      if (error?.response) {
+        console.error("[createProperty] Server responded with error:", {
+          status: error.response.status,
+          data: error.response.data,
+        });
+      } else {
+        console.error("[createProperty] No response (network/timeout):", error?.message);
+      }
       return normalizeError(error);
     }
   },
@@ -412,9 +423,11 @@ const PropertyService = {
     try {
       let payload = propertyData;
       if (isFormData(propertyData)) {
+        // Use POST with _method=PUT for multipart — do NOT set Content-Type manually
         propertyData.append("_method", "PUT");
       }
 
+      // Do NOT set Content-Type manually — let Axios/RN inject the boundary
       const response = await api.post(
         `/landlord/properties/${propertyId}`,
         payload,
@@ -422,11 +435,18 @@ const PropertyService = {
 
       await cacheManager.invalidate(CACHE_KEYS.LANDLORD_PROPERTIES);
       await cacheManager.invalidate(`${CACHE_KEYS.PUBLIC_PROPERTY}${propertyId}`);
-      await cacheManager.clearAll(); // Invalidate search results
+      await cacheManager.clearAll();
 
       return normalizeResponse(response);
     } catch (error) {
-      console.error("Error updating property:", error);
+      if (error?.response) {
+        console.error("[updateProperty] Server error:", {
+          status: error.response.status,
+          data: error.response.data,
+        });
+      } else {
+        console.error("[updateProperty] No response (network/timeout):", error?.message);
+      }
       return normalizeError(error);
     }
   },

@@ -1,77 +1,68 @@
 import React, { memo } from 'react';
-import { MapPin, Star, Shield, Play, ArrowRight } from 'lucide-react';
-import { getImageUrl } from '../../../../utils/api';
+import { MapPin, Play, ArrowRight } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import PropertyCarousel from '../../PropertyCarousel';
 
 const ExplorePropertyCard = ({ property, onClick }) => {
-  const thumbnail = property.images?.find(img => img.is_thumbnail)?.path || property.images?.[0]?.path;
-  const price = property.rooms?.[0]?.price || 0;
+  const navigate = useNavigate();
 
   return (
-    <div 
-      onClick={() => onClick(property.id)}
-      className="bg-white dark:bg-gray-800 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden group cursor-pointer hover:shadow-xl transition-all duration-500"
-    >
-      <div className="relative h-64 overflow-hidden">
-        <img 
-          src={getImageUrl(thumbnail)} 
-          className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" 
-          alt={property.title}
-        />
-        <div className="absolute top-4 left-4 flex gap-2">
-          {property.is_verified && (
-            <div className="bg-white/90 backdrop-blur-md px-3 py-1.5 rounded-xl shadow-sm flex items-center gap-1.5 animate-in fade-in duration-500">
-              <Shield className="w-3.5 h-3.5 text-green-600 fill-green-600" />
-              <span className="text-[10px] font-black text-gray-900 uppercase tracking-widest">Verified</span>
-            </div>
-          )}
-          {property.video && (
-            <div className="bg-black/50 backdrop-blur-md p-2 rounded-xl text-white">
-              <Play className="w-3.5 h-3.5 fill-current" />
-            </div>
-          )}
-        </div>
-        <div className="absolute bottom-4 left-4 right-4 flex justify-between items-end">
-           <div className="bg-white/90 backdrop-blur-md px-3 py-2 rounded-2xl shadow-lg animate-in slide-in-from-bottom-2 duration-500">
-              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest leading-none mb-1">Starts at</p>
-              <p className="text-lg font-black text-gray-900 leading-none">₱{Number(price).toLocaleString()}<span className="text-[10px] font-bold">/mo</span></p>
-           </div>
-        </div>
-      </div>
-
-      <div className="p-6">
-        <div className="flex justify-between items-start mb-2">
-          <h3 className="text-xl font-bold text-gray-900 dark:text-white line-clamp-1 group-hover:text-green-600 transition-colors">
-            {property.title}
-          </h3>
-          <div className="flex items-center gap-1.5 bg-yellow-50 dark:bg-yellow-900/20 px-2 py-1 rounded-lg">
-            <Star className="w-4 h-4 text-yellow-500 fill-yellow-500" />
-            <span className="text-sm font-bold text-yellow-700 dark:text-yellow-400">{property.avg_rating || '5.0'}</span>
+    <div className="bg-white dark:bg-gray-800 rounded-xl p-6 sm:p-8 shadow-md border border-gray-300 dark:border-gray-700 hover:shadow-lg transition-shadow duration-300">
+      {/* Header */}
+      <div
+        className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 cursor-pointer group"
+        onClick={() => onClick(property.id)}
+      >
+        <div>
+          <div className="flex items-center gap-4 mb-2">
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white group-hover:text-green-600 dark:group-hover:text-green-500 transition-colors flex items-center gap-2">
+              {property.title || property.name}
+              <ArrowRight className="w-5 h-5 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all text-green-600 dark:text-green-500" />
+            </h2>
+            <span className="px-2.5 py-0.5 rounded-md bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-xs font-bold uppercase tracking-wide border border-green-100 dark:border-green-800">
+              {(property.type || '')
+                .replace(/([a-z])([A-Z])/g, '$1 $2')
+                .replace(/boardinghouse/i, 'Boarding House')
+                .replace(/bedspacer/i, 'Bed Spacer')
+                .split(/[-_\s]+/)
+                .map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+                .join(' ')}
+            </span>
           </div>
+          {(property.location || property.address) && (
+            <div className="flex items-center gap-2.5 text-gray-500 dark:text-gray-400 mt-2">
+              <MapPin className="w-4 h-4" />
+              <span className="text-sm font-medium">
+                {property.location || property.address}
+              </span>
+            </div>
+          )}
         </div>
-
-        <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400 text-sm mb-4">
-          <MapPin className="w-4 h-4 text-green-600" />
-          <span className="line-clamp-1 font-medium">{property.address || `${property.barangay}, ${property.city}`}</span>
-        </div>
-
-        <div className="flex items-center justify-between pt-4 border-t border-gray-50 dark:border-gray-700">
-           <div className="flex -space-x-2">
-              {[...Array(3)].map((_, i) => (
-                <div key={i} className="w-8 h-8 rounded-full border-2 border-white dark:border-gray-800 bg-gray-100 dark:bg-gray-700 flex items-center justify-center overflow-hidden">
-                   <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${property.id + i}`} alt="avatar" />
-                </div>
-              ))}
-              <div className="w-8 h-8 rounded-full border-2 border-white dark:border-gray-800 bg-green-50 flex items-center justify-center">
-                 <span className="text-[10px] font-bold text-green-600">+{Math.floor(Math.random() * 20)}</span>
-              </div>
-           </div>
-           <div className="flex items-center gap-1.5 text-green-600 font-bold text-sm group-hover:gap-2 transition-all">
-              <span>View Details</span>
-              <ArrowRight className="w-4 h-4" />
-           </div>
+        <div className="flex-shrink-0 flex items-center gap-2">
+          {property.video_url && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                navigate(`/properties/${property.id}`, {
+                  state: { openVideo: true },
+                });
+              }}
+              className="flex items-center gap-2.5 px-4 py-2 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 text-sm font-bold rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors"
+            >
+              <Play className="w-4 h-4 fill-current" /> Video Tour
+            </button>
+          )}
+          <span className="px-4 py-2 border border-green-600 dark:border-green-500 text-green-700 dark:text-green-400 text-sm font-bold rounded-lg group-hover:bg-green-50 dark:group-hover:bg-green-900/30 transition-colors">
+            More Details →
+          </span>
         </div>
       </div>
+
+      {/* Carousel */}
+      <PropertyCarousel
+        property={property}
+        onOpenDetails={(room, prop) => navigate(`/properties/${prop.id}`)}
+      />
     </div>
   );
 };

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import {
   Home,
@@ -11,46 +11,102 @@ import {
   Clock,
   ShieldAlert,
   FileWarning,
-  RefreshCcw,
 } from 'lucide-react';
-import { useLandlordStats, useLandlordActivities, useLandlordUpcomingPayments, useLandlordVerificationStatus } from '../../hooks/useLandlordQueries';
+import api from '../../utils/api';
+import { useUIState } from '../../contexts/UIStateContext';
+import { cacheManager } from '../../utils/cache';
 
 export default function DashboardPage({ user }) {
   const __navigate = useNavigate();
+  const { uiState, updateData } = useUIState();
   const isCaretaker = user?.role === 'caretaker';
+  const dashboardKey = isCaretaker ? 'caretaker_dashboard' : 'landlord_dashboard';
+  const cachedData = uiState.data?.[dashboardKey] || cacheManager.get(dashboardKey);
 
-  // React Query Hooks
-  const { data: stats, isLoading: statsLoading, error: statsError, refetch: refetchStats } = useLandlordStats();
-  const { data: activities, isLoading: activitiesLoading, error: activitiesError, refetch: refetchActivities } = useLandlordActivities();
-  const { data: upcomingPayments, isLoading: paymentsLoading, error: paymentsError, refetch: refetchPayments } = useLandlordUpcomingPayments();
-  const { data: verificationStatus, isLoading: verificationLoading, refetch: refetchVerification } = useLandlordVerificationStatus(isCaretaker);
+  const [stats, setStats] = useState(cachedData?.stats || null);
+  const [activities, setActivities] = useState(cachedData?.activities || []);
+  const [verificationStatus, setVerificationStatus] = useState(null);
+  const [upcomingPayments, setUpcomingPayments] = useState(
+    cachedData?.upcomingPayments || {
+      upcomingCheckouts: [],
+      unpaidBookings: [],
+      vacatingSoon: [],
+      billingHealth: {
+        dueForBillingCount: 0,
+        dueForBilling: [],
+        overdueInvoicesCount: 0,
+        overdueInvoicesAmount: 0,
+        dueSoonInvoicesCount: 0,
+        dueSoonInvoicesAmount: 0,
+        overdueInvoices: [],
+        dueSoonInvoices: [],
+      },
+    }
+  );
+  const [loading, setLoading] = useState(!cachedData);
+  const [error, setError] = useState('');
+  const initialLoadRef = React.useRef(!cachedData);
 
-  const loading = statsLoading || activitiesLoading || paymentsLoading || (verificationLoading && !isCaretaker);
-  const error = statsError || activitiesError || paymentsError;
+  const fetchVerificationStatus = React.useCallback(async () => {
+    if (isCaretaker) {
+      setVerificationStatus(null);
+      return;
+    }
 
-  const handleManualRefresh = () => {
-    refetchStats();
-    refetchActivities();
-    refetchPayments();
-    if (!isCaretaker) refetchVerification();
-  };
+    try {
+      const res = await api.get('/landlord/my-verification');
+      setVerificationStatus(res.data);
+    } catch (err) {
+      if (err.response?.status === 404) {
+        setVerificationStatus({ status: 'not_submitted' });
+      }
+    }
+  }, [isCaretaker]);
 
-  const activitiesList = activities || [];
-  const upcomingData = upcomingPayments || {
-    upcomingCheckouts: [],
-    unpaidBookings: [],
-    vacatingSoon: [],
-    billingHealth: {
-      dueForBillingCount: 0,
-      dueForBilling: [],
-      overdueInvoicesCount: 0,
-      overdueInvoicesAmount: 0,
-      dueSoonInvoicesCount: 0,
-      dueSoonInvoicesAmount: 0,
-      overdueInvoices: [],
-      dueSoonInvoices: [],
-    },
-  };
+  const fetchDashboardData = React.useCallback(async () => {
+    try {
+      if (initialLoadRef.current) setLoading(true);
+      initialLoadRef.current = false;
+      setError('');
+
+      const [statsRes, activitiesRes, paymentsRes] = await Promise.all([
+        api.get('/landlord/dashboard/stats'),
+        api.get('/landlord/dashboard/recent-activities'),
+        api.get('/landlord/dashboard/upcoming-payments')
+      ]);
+
+      const statsData = statsRes.data;
+      const activitiesData = activitiesRes.data;
+      const paymentsData = paymentsRes.data;
+
+      setStats(statsData);
+      setActivities(activitiesData);
+      setUpcomingPayments(paymentsData);
+
+      const dashboardState = {
+        stats: statsData,
+        activities: activitiesData,
+        upcomingPayments: paymentsData
+      };
+
+      updateData(dashboardKey, dashboardState);
+      cacheManager.set(dashboardKey, dashboardState);
+
+    } catch (err) {
+      console.error('Error fetching dashboard data:', err);
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }, [dashboardKey, updateData]);
+
+  useEffect(() => {
+    fetchDashboardData();
+  }, [fetchDashboardData]);
+
+  useEffect(() => {
+    fetchVerificationStatus();
+  }, [fetchVerificationStatus]);
 
   const getActivityIcon = (type) => {
     switch (type) {
@@ -289,7 +345,7 @@ export default function DashboardPage({ user }) {
       <div className="max-w-7xl mx-auto py-20 text-center">
         <XCircle className="w-16 h-16 text-red-600 mx-auto mb-4" />
         <p className="text-red-600 text-lg font-semibold mb-2">Error loading dashboard</p>
-        <button onClick={handleManualRefresh} className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700">Retry</button>
+        <button onClick={fetchDashboardData} className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700">Retry</button>
       </div>
     );
   }
@@ -360,8 +416,8 @@ export default function DashboardPage({ user }) {
         <div className={`${isCaretaker ? 'lg:col-span-2' : 'lg:col-span-2'} bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-400/50 dark:border-gray-700 p-6`}>
           <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Recent Activities</h2>
           <div className="space-y-4">
-            {activitiesList.length === 0 ? <p className="text-center py-8 text-gray-500 italic">No recent activities</p> :
-              activitiesList.slice(0, 6).map((activity, index) => (
+            {activities.length === 0 ? <p className="text-center py-8 text-gray-500 italic">No recent activities</p> :
+              activities.slice(0, 6).map((activity, index) => (
                 <button
                   key={index}
                   onClick={() => handleActivityClick(activity)}
@@ -384,8 +440,8 @@ export default function DashboardPage({ user }) {
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-300 dark:border-gray-700 p-6">
             <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Upcoming Checkouts</h2>
             <div className="space-y-4">
-              {upcomingData.upcomingCheckouts.length === 0 ? <p className="text-sm text-gray-500 text-center py-4">None scheduled</p> :
-                upcomingData.upcomingCheckouts.slice(0, 4).map((c) => (
+              {upcomingPayments.upcomingCheckouts.length === 0 ? <p className="text-sm text-gray-500 text-center py-4">None scheduled</p> :
+                upcomingPayments.upcomingCheckouts.slice(0, 4).map((c) => (
                   <div key={c.id} className={`p-4 rounded-lg border ${getUrgencyColor(c.urgency)}`}>
                     <div className="flex justify-between font-semibold text-sm text-gray-900 dark:text-white"><span>{c.tenantName}</span><span>{c.daysLeft}d</span></div>
                     <p className="text-xs mt-2 text-gray-600 dark:text-gray-400">{c.propertyTitle} - Room {c.roomNumber}</p>
@@ -399,10 +455,10 @@ export default function DashboardPage({ user }) {
             <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-2">Vacating Soon</h2>
             <p className="text-xs text-gray-500 mb-4">Tenants who submitted move-out notice</p>
             <div className="space-y-4">
-              {(upcomingData.vacatingSoon || []).length === 0 ? (
+              {(upcomingPayments.vacatingSoon || []).length === 0 ? (
                 <p className="text-sm text-gray-500 text-center py-4">No move-out notices yet</p>
               ) : (
-                (upcomingData.vacatingSoon || []).slice(0, 4).map((tenant) => (
+                (upcomingPayments.vacatingSoon || []).slice(0, 4).map((tenant) => (
                   <button
                     key={tenant.id}
                     onClick={() => openBookingDrilldown(tenant)}
@@ -426,7 +482,7 @@ export default function DashboardPage({ user }) {
               <div className="grid grid-cols-2 gap-3 mb-4">
                 <button
                   onClick={() => {
-                    const dueSoonInvoice = (upcomingData.billingHealth?.dueSoonInvoices || [])[0];
+                    const dueSoonInvoice = (upcomingPayments.billingHealth?.dueSoonInvoices || [])[0];
                     if (dueSoonInvoice) {
                       openInvoiceDrilldown(dueSoonInvoice, 'pending');
                       return;
@@ -436,11 +492,11 @@ export default function DashboardPage({ user }) {
                   className="p-3 rounded-lg border border-amber-200 bg-amber-50 dark:bg-amber-900/20 dark:border-amber-700 text-left hover:brightness-95 transition-colors"
                 >
                   <p className="text-[11px] text-amber-700 font-semibold uppercase">Due This Week</p>
-                  <p className="text-lg font-bold text-amber-800 dark:text-amber-300">{upcomingData.billingHealth?.dueForBillingCount || 0}</p>
+                  <p className="text-lg font-bold text-amber-800 dark:text-amber-300">{upcomingPayments.billingHealth?.dueForBillingCount || 0}</p>
                 </button>
                 <button
                   onClick={() => {
-                    const overdueInvoice = (upcomingData.billingHealth?.overdueInvoices || [])[0];
+                    const overdueInvoice = (upcomingPayments.billingHealth?.overdueInvoices || [])[0];
                     if (overdueInvoice) {
                       openInvoiceDrilldown(overdueInvoice, 'overdue');
                       return;
@@ -450,20 +506,20 @@ export default function DashboardPage({ user }) {
                   className="p-3 rounded-lg border border-red-200 bg-red-50 dark:bg-red-900/20 dark:border-red-700 text-left hover:brightness-95 transition-colors"
                 >
                   <p className="text-[11px] text-red-700 font-semibold uppercase">Overdue Invoices</p>
-                  <p className="text-lg font-bold text-red-800 dark:text-red-300">{upcomingData.billingHealth?.overdueInvoicesCount || 0}</p>
+                  <p className="text-lg font-bold text-red-800 dark:text-red-300">{upcomingPayments.billingHealth?.overdueInvoicesCount || 0}</p>
                 </button>
               </div>
               <div className="space-y-2 mb-4">
                 <p className="text-xs text-gray-600 dark:text-gray-400">
-                  Overdue Amount: <span className="font-bold text-gray-900 dark:text-white">{formatCurrency(upcomingData.billingHealth?.overdueInvoicesAmount || 0)}</span>
+                  Overdue Amount: <span className="font-bold text-gray-900 dark:text-white">{formatCurrency(upcomingPayments.billingHealth?.overdueInvoicesAmount || 0)}</span>
                 </p>
                 <p className="text-xs text-gray-600 dark:text-gray-400">
-                  Due Soon Amount: <span className="font-bold text-gray-900 dark:text-white">{formatCurrency(upcomingData.billingHealth?.dueSoonInvoicesAmount || 0)}</span>
+                  Due Soon Amount: <span className="font-bold text-gray-900 dark:text-white">{formatCurrency(upcomingPayments.billingHealth?.dueSoonInvoicesAmount || 0)}</span>
                 </p>
               </div>
 
               <div className="space-y-3">
-                {(upcomingData.billingHealth?.overdueInvoices || []).slice(0, 3).map((invoice) => (
+                {(upcomingPayments.billingHealth?.overdueInvoices || []).slice(0, 3).map((invoice) => (
                   <button
                     key={invoice.id}
                     onClick={() => openInvoiceDrilldown(invoice, 'overdue')}
@@ -478,7 +534,7 @@ export default function DashboardPage({ user }) {
                     </p>
                   </button>
                 ))}
-                {(upcomingData.billingHealth?.overdueInvoices || []).length === 0 && (
+                {(upcomingPayments.billingHealth?.overdueInvoices || []).length === 0 && (
                   <p className="text-sm text-gray-500 text-center py-2">No overdue invoices</p>
                 )}
               </div>
@@ -489,8 +545,8 @@ export default function DashboardPage({ user }) {
             <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-300 dark:border-gray-700 p-6">
               <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Unpaid Invoices</h2>
               <div className="space-y-4">
-                {upcomingData.unpaidBookings.length === 0 ? <p className="text-sm text-gray-500 text-center py-4">All paid up!</p> :
-                  upcomingData.unpaidBookings.slice(0, 4).map((b) => (
+                {upcomingPayments.unpaidBookings.length === 0 ? <p className="text-sm text-gray-500 text-center py-4">All paid up!</p> :
+                  upcomingPayments.unpaidBookings.slice(0, 4).map((b) => (
                     <div key={b.id} className="p-4 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800">
                       <div className="flex justify-between font-semibold text-sm text-gray-900 dark:text-white"><span>{b.tenantName}</span><span>₱{b.amount.toLocaleString()}</span></div>
                       <p className="text-xs mt-2 text-gray-600 dark:text-gray-400">{b.propertyTitle} - Room {b.roomNumber}</p>

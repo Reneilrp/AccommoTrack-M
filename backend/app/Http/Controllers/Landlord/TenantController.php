@@ -995,7 +995,8 @@ class TenantController extends Controller
             }
 
             // Apply credit to new booking's first invoice
-            if ($creditAmount > 0) {
+            // ONLY if we are not using the frontend's calculated prorated_adjustment
+            if ($creditAmount > 0 && !isset($validated['prorated_adjustment'])) {
                 $initialInvoice = Invoice::where('booking_id', $newBooking->id)
                     ->where('status', 'pending')
                     ->orderBy('id', 'asc')

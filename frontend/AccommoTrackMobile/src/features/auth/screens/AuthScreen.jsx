@@ -1510,7 +1510,7 @@ export default function AuthScreen({ onLoginSuccess, onClose, onContinueAsGuest 
                       <DateTimePicker
                         value={formData.dateOfBirth || new Date(new Date().setFullYear(new Date().getFullYear() - 18))}
                         mode="date"
-                        maximumDate={new Date(new Date().setFullYear(new Date().getFullYear() - 17))}
+                        maximumDate={new Date(new Date().setFullYear(new Date().getFullYear() - 18))}
                         display="default"
                         onChange={(event, date) => {
                           setShowDatePicker(Platform.OS === 'ios');

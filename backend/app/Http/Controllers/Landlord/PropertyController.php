@@ -237,8 +237,20 @@ class PropertyController extends Controller
             return response()->json((new PropertyResource($property->load(['images', 'amenities', 'credentials', 'rooms', 'rooms.tenants', 'rooms.bookings.occupants'])))->resolve());
         } catch (\Illuminate\Validation\ValidationException $e) {
             return response()->json(['message' => 'Validation failed', 'errors' => $e->errors()], 422);
+        } catch (\Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException $e) {
+            return response()->json(['message' => $e->getMessage()], 403);
         } catch (\Exception $e) {
-            return response()->json(['message' => 'Failed to create property', 'error' => $e->getMessage()], 500);
+            \Illuminate\Support\Facades\Log::error('PropertyController@store error', [
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'user_id' => Auth::id(),
+                'input' => $request->except(['images', 'video', 'credentials']),
+            ]);
+
+            return response()->json([
+                'message' => 'Failed to create property',
+                'error' => config('app.debug') ? $e->getMessage() : 'An internal server error occurred.',
+            ], 500);
         }
     }
 
@@ -304,8 +316,20 @@ class PropertyController extends Controller
             return response()->json((new PropertyResource($property->load(['images', 'amenities', 'credentials', 'rooms', 'rooms.tenants', 'rooms.bookings.occupants'])))->resolve());
         } catch (\Illuminate\Validation\ValidationException $e) {
             return response()->json(['message' => 'Validation failed', 'errors' => $e->errors()], 422);
+        } catch (\Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException $e) {
+            return response()->json(['message' => $e->getMessage()], 403);
         } catch (\Exception $e) {
-            return response()->json(['message' => 'Failed to update property', 'error' => $e->getMessage()], 500);
+            \Illuminate\Support\Facades\Log::error('PropertyController@update error', [
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'property_id' => $id,
+                'user_id' => Auth::id(),
+            ]);
+
+            return response()->json([
+                'message' => 'Failed to update property',
+                'error' => config('app.debug') ? $e->getMessage() : 'An internal server error occurred.',
+            ], 500);
         }
     }
 

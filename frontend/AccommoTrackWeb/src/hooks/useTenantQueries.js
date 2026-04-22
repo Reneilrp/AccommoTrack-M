@@ -120,7 +120,13 @@ export const useTenantPayments = (status = 'all', archiveFilter = 'active') => {
     queryFn: async () => {
       const response = await paymentService.getPayments(status, archiveFilter);
       if (!response.success) throw new Error(response.error || 'Failed to fetch payments');
-      return response.data || [];
+      // paymentService returns { items: [...], pagination: {...} }
+      // Always normalize to a plain array so spread/iteration never throws
+      const data = response.data;
+      if (Array.isArray(data)) return data;
+      if (data && Array.isArray(data.items)) return data.items;
+      if (data && Array.isArray(data.data)) return data.data;
+      return [];
     },
     staleTime: 5 * 60 * 1000,
   });

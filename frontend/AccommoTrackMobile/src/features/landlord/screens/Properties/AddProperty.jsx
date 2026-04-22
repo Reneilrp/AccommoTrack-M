@@ -142,8 +142,9 @@ export default function AddProperty({ navigation }) {
     visible: false,
     title: '',
     message: '',
+    options: null,
   });
-  const showAlert = (title, message) => setAlertModal({ visible: true, title, message });
+  const showAlert = (title, message, options = null) => setAlertModal({ visible: true, title, message, options });
   const hideAlert = () => setAlertModal(prev => ({ ...prev, visible: false }));
   const webviewRef = useRef(null);
   const scrollRef = useRef(null);
@@ -423,11 +424,13 @@ export default function AddProperty({ navigation }) {
           });
           if (!result.canceled) {
             const asset = result.assets[0];
+            let fileName = asset.fileName || `credential-${Date.now()}`;
+            if (!fileName.includes('.')) fileName += '.jpg';
             setCredentials((prev) => [
               ...prev,
               {
                 uri: asset.uri,
-                name: asset.fileName || `credential-${Date.now()}.jpg`,
+                name: fileName,
                 type: asset.mimeType || "image/jpeg",
               },
             ]);
@@ -448,11 +451,15 @@ export default function AddProperty({ navigation }) {
             quality: 0.8,
           });
           if (!result.canceled) {
-            const mapped = result.assets.map((asset, idx) => ({
-              uri: asset.uri,
-              name: asset.fileName || `credential-${Date.now()}-${idx}.jpg`,
-              type: asset.mimeType || "image/jpeg",
-            }));
+            const mapped = result.assets.map((asset, idx) => {
+              let fileName = asset.fileName || `credential-${Date.now()}-${idx}`;
+              if (!fileName.includes('.')) fileName += '.jpg';
+              return {
+                uri: asset.uri,
+                name: fileName,
+                type: asset.mimeType || "image/jpeg",
+              };
+            });
             setCredentials((prev) => [...prev, ...mapped]);
           }
         },
@@ -468,11 +475,18 @@ export default function AddProperty({ navigation }) {
             });
 
             if (!result.canceled && result.assets && result.assets.length > 0) {
-              const mapped = result.assets.map((asset, idx) => ({
-                uri: asset.uri,
-                name: asset.name || `credential-${Date.now()}-${idx}`,
-                type: asset.mimeType || "application/pdf",
-              }));
+              const mapped = result.assets.map((asset, idx) => {
+                let fileName = asset.name || `credential-${Date.now()}-${idx}`;
+                if (!fileName.includes('.')) {
+                  const ext = asset.mimeType === 'application/pdf' ? '.pdf' : '.jpg';
+                  fileName += ext;
+                }
+                return {
+                  uri: asset.uri,
+                  name: fileName,
+                  type: asset.mimeType || "application/pdf",
+                };
+              });
               setCredentials((prev) => [...prev, ...mapped]);
             }
           } catch (err) {
@@ -551,7 +565,7 @@ export default function AddProperty({ navigation }) {
         return "Please pin the property on the map";
     } else if (step === 4) {
       if (form.isEligible && credentials.length === 0)
-        return "Credentials are required for eligible properties";
+        return "You marked this property for verification. Please upload at least one credential document (Step 4) or uncheck 'Mark property as eligible for verification'.";
     }
     return null;
   };
@@ -596,7 +610,6 @@ export default function AddProperty({ navigation }) {
       city: form.city.trim(),
       province: form.province.trim(),
       postal_code: form.postalCode.trim(),
-      country: form.country.trim() || "Philippines",
       latitude: form.latitude,
       longitude: form.longitude,
       nearby_landmarks: form.nearbyLandmarks.trim(),
@@ -710,15 +723,75 @@ export default function AddProperty({ navigation }) {
       const res = await PropertyService.createProperty(payload);
       if (res.success) {
         setSuccessModal({ visible: true, isDraft });
-        // Reset form state so if they come back it's empty
         resetForm();
       } else {
-        showError("Error", res.error || "Failed to save property");
-        setError(res.error || "Failed to save property");
+        // Determine the most specific toast title and detail message
+        let toastTitle = "Submission Failed";
+        let toastDetail = res.error || "Failed to save property.";
+
+        if (res.status === 422 && res.validationErrors) {
+          // 422 – field-level validation failure: show every field + message
+          toastTitle = "Validation Error";
+          const allErrors = Object.entries(res.validationErrors)
+            .map(([field, msgs]) => {
+              const msg = Array.isArray(msgs) ? msgs[0] : msgs;
+              // Convert snake_case field to readable label
+              const label = field
+                .replace(/_/g, " ")
+                .replace(/\b\w/g, (c) => c.toUpperCase());
+              return `${label}: ${msg}`;
+            })
+            .slice(0, 3) // cap at 3 to keep toast readable
+            .join("\n");
+          toastDetail = allErrors;
+        } else if (res.status === 413) {
+          toastTitle = "File Too Large";
+          toastDetail =
+            "The total size of your images and video exceeds the server limit (100MB-200MB). Try uploading smaller files or a shorter video.";
+        } else if (res.status === 403) {
+          toastTitle = "Access Denied";
+          toastDetail = res.error || "You do not have permission to perform this action.";
+        } else if (res.status === 500) {
+          toastTitle = "Server Error";
+          toastDetail = "An unexpected error occurred on the server. Please try again later.";
+        } else if (
+          typeof res.error === "string" &&
+          res.error.toLowerCase().includes("subscription")
+        ) {
+          toastTitle = "Subscription Limit";
+        } else if (
+          typeof res.error === "string" &&
+          res.error.toLowerCase().includes("network")
+        ) {
+          toastTitle = "Network Error";
+          toastDetail =
+            "Could not reach the server. Check your internet connection.";
+        } else if (
+          typeof res.error === "string" &&
+          res.error.toLowerCase().includes("paymongo")
+        ) {
+          toastTitle = "PayMongo Not Verified";
+        }
+
+        showError(toastTitle, toastDetail);
+        setError(toastDetail);
       }
     } catch (err) {
-      showError("Error", err.message || "An unexpected error occurred");
-      setError(err.message || "An unexpected error occurred");
+      const raw = err.message || "An unexpected error occurred";
+      let toastTitle = "Unexpected Error";
+      let toastDetail = raw;
+
+      if (/network|unable to reach|fetch|ERR_NETWORK/i.test(raw)) {
+        toastTitle = "Network Error";
+        toastDetail =
+          "Could not reach the server. Please check your connection and try again.";
+      } else if (/timeout|timed out/i.test(raw)) {
+        toastTitle = "Request Timed Out";
+        toastDetail = "The server took too long to respond. Try again.";
+      }
+
+      showError(toastTitle, toastDetail);
+      setError(toastDetail);
     } finally {
       setSaving(false);
     }
@@ -1841,14 +1914,44 @@ export default function AddProperty({ navigation }) {
             >
               <Ionicons name="close" size={22} color="#6B7280" />
             </TouchableOpacity>
-            <View style={[styles.successIconContainer, { backgroundColor: '#FEE2E2' }]}>
-              <Ionicons name="warning-outline" size={36} color="#DC2626" />
+            
+            <View style={[styles.successIconContainer, { backgroundColor: alertModal.options ? '#E0F2FE' : '#FEE2E2' }]}>
+              <Ionicons name={alertModal.options ? "cloud-upload-outline" : "warning-outline"} size={36} color={alertModal.options ? "#0284C7" : "#DC2626"} />
             </View>
             <Text style={styles.successTitle}>{alertModal.title}</Text>
             <Text style={styles.successMessage}>{alertModal.message}</Text>
-            <TouchableOpacity style={[styles.successButton, { backgroundColor: '#DC2626' }]} onPress={hideAlert}>
-              <Text style={styles.successButtonText}>Got it</Text>
-            </TouchableOpacity>
+            
+            {alertModal.options ? (
+              <View style={{ width: '100%', marginTop: 8 }}>
+                {alertModal.options.map((option, idx) => (
+                  <TouchableOpacity
+                    key={idx}
+                    style={[
+                      styles.successButton, 
+                      { 
+                        backgroundColor: option.style === 'cancel' ? '#F3F4F6' : '#2563EB',
+                        marginTop: idx > 0 ? 8 : 0,
+                      }
+                    ]}
+                    onPress={() => {
+                      hideAlert();
+                      if (option.onPress) option.onPress();
+                    }}
+                  >
+                    <Text style={[
+                      styles.successButtonText,
+                      option.style === 'cancel' && { color: '#374151' }
+                    ]}>
+                      {option.text}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            ) : (
+              <TouchableOpacity style={[styles.successButton, { backgroundColor: '#DC2626' }]} onPress={hideAlert}>
+                <Text style={styles.successButtonText}>Got it</Text>
+              </TouchableOpacity>
+            )}
           </Pressable>
         </Pressable>
       </Modal>

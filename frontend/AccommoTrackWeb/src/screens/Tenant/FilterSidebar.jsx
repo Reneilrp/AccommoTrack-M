@@ -93,10 +93,9 @@ const FilterSidebar = ({
                   key={type}
                   onClick={() => onSelectType(type)}
                   className={`w-full text-left px-4 py-2.5 rounded-lg text-sm font-semibold transition-colors
-                    ${
-                      selectedType === type
-                        ? 'bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400'
-                        : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                    ${selectedType === type
+                      ? 'bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400'
+                      : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
                     }
                   `}
                 >
@@ -155,11 +154,10 @@ const FilterSidebar = ({
                   availabilityOnly: !prev.availabilityOnly,
                 }))
               }
-              className={`w-full flex items-center justify-between px-4 py-3 rounded-lg border-2 transition-all ${
-                localFilters.availabilityOnly
+              className={`w-full flex items-center justify-between px-4 py-3 rounded-lg border-2 transition-all ${localFilters.availabilityOnly
                   ? 'border-green-500 bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400'
                   : 'border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300'
-              }`}
+                }`}
             >
               <span className="font-semibold">Show only available rooms</span>
               {localFilters.availabilityOnly && <Check className="w-5 h-5" />}
@@ -184,11 +182,10 @@ const FilterSidebar = ({
                   }
                 >
                   <Star
-                    className={`w-7 h-7 transition-colors ${
-                      star <= localFilters.rating
+                    className={`w-7 h-7 transition-colors ${star <= localFilters.rating
                         ? 'text-yellow-400 fill-current'
                         : 'text-gray-300 dark:text-gray-600 hover:text-yellow-300'
-                    }`}
+                      }`}
                   />
                 </button>
               ))}
@@ -206,11 +203,10 @@ const FilterSidebar = ({
                   key={amenity}
                   type="button"
                   onClick={() => toggleAmenity(amenity)}
-                  className={`px-3 py-2 rounded-lg text-xs font-medium border-2 transition-all text-center ${
-                    localFilters.amenities.includes(amenity)
+                  className={`px-3 py-2 rounded-lg text-xs font-medium border-2 transition-all text-center ${localFilters.amenities.includes(amenity)
                       ? 'border-green-500 bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400'
                       : 'border-gray-200 dark:border-gray-600 hover:border-gray-300 text-gray-700 dark:text-gray-300'
-                  }`}
+                    }`}
                 >
                   {amenity}
                 </button>

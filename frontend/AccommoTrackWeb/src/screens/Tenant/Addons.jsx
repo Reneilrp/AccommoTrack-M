@@ -1,12 +1,9 @@
-import React, { useState, useEffect, useCallback, memo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { tenantService } from '../../services/tenantService';
-import { Package, ShoppingBag, Loader2 } from 'lucide-react';
+import { Package, Plus, Minus, X, Loader2, Send, ShoppingBag } from 'lucide-react';
 import { showSuccess, showError } from '../../utils/toast';
-import AddonRequestItem from './components/Addons/AddonRequestItem';
-import AddonCard from './components/Addons/AddonCard';
-import CustomAddonForm from './components/Addons/CustomAddonForm';
 
-const Addons = () => {
+export default function Addons() {
   const [addons, setAddons] = useState([]);
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -22,28 +19,67 @@ const Addons = () => {
     name: '', addon_type: 'rental', price_type: 'monthly', note: '', suggested_price: ''
   });
 
-  const loadAddons = useCallback(async () => {
+  useEffect(() => { loadAddons(); }, []);
+
+  const normalizeNote = (value) => {
+    const trimmed = String(value || '').trim();
+    return trimmed || null;
+  };
+
+  const normalizeSuggestedPrice = (value) => {
+    const raw = String(value ?? '').trim();
+    if (!raw) return null;
+
+    const numericValue = Number(raw);
+    if (!Number.isFinite(numericValue) || numericValue < 0) return null;
+
+    return numericValue;
+  };
+
+  const resolveAddonRequestPrice = (request) => {
+    const candidates = [
+      request?.price_at_booking,
+      request?.pivot?.price_at_booking,
+      request?.addon?.pivot?.price_at_booking,
+      request?.price,
+      request?.addon?.price,
+    ];
+
+    for (const candidate of candidates) {
+      const numericValue = Number(candidate);
+      if (Number.isFinite(numericValue) && numericValue > 0) {
+        return numericValue;
+      }
+    }
+
+    return 0;
+  };
+
+  const loadAddons = async () => {
     setLoading(true);
     try {
-      const [addonRes, reqRes] = await Promise.all([
-        tenantService.getAvailableAddons(),
-        tenantService.getAddonRequests(),
+      const [res, reqRes] = await Promise.allSettled([
+        tenantService.getAvailableAddons?.() || Promise.resolve({ success: false }),
+        tenantService.getAddonRequests?.() || Promise.resolve({ success: false }),
       ]);
 
-      if (addonRes.success) {
+      const addonRes = res.status === 'fulfilled' ? res.value : {};
+      if (addonRes.success && addonRes.data) {
         const addonList = addonRes.data.available || addonRes.data || [];
         setAddons(Array.isArray(addonList) ? addonList : []);
-        
-        const initialQtys = {};
-        (Array.isArray(addonList) ? addonList : []).forEach(a => { initialQtys[a.id] = 1; });
-        setQtys(prev => ({ ...initialQtys, ...prev }));
-      } else if (addonRes.status === 404) {
-        setNoBooking(true);
+        const initial = {};
+        (Array.isArray(addonList) ? addonList : []).forEach(a => { initial[a.id] = 1; });
+        setQtys(initial);
+      } else if (res.status === 'rejected') {
+        // Fix #5: Check HTTP status on the actual axios error, not on the resolved value
+        const httpStatus = res.reason?.response?.status;
+        if (httpStatus === 404) setNoBooking(true);
       }
 
-      if (reqRes.success) {
-        const pending = reqRes.data.pending || [];
-        const active = reqRes.data.active || [];
+      const reqResult = reqRes.status === 'fulfilled' ? reqRes.value : {};
+      if (reqResult.success && reqResult.data) {
+        const pending = reqResult.data.pending || [];
+        const active = reqResult.data.active || [];
         setRequests([...pending, ...active]);
       }
     } catch (err) {
@@ -51,76 +87,67 @@ const Addons = () => {
     } finally {
       setLoading(false);
     }
-  }, []);
-
-  useEffect(() => { loadAddons(); }, [loadAddons]);
-
-  const handleQtyChange = useCallback((id, val) => {
-    setQtys(prev => ({ ...prev, [id]: val }));
-  }, []);
-
-  const handleNoteChange = useCallback((id, val) => {
-    setNotes(prev => ({ ...prev, [id]: val }));
-  }, []);
-
-  const handleCustomChange = useCallback((field, val) => {
-    setCustomData(prev => ({ ...prev, [field]: val }));
-  }, []);
+  };
 
   const onRequest = async (addon, isCustom = false) => {
-    const normalizeNote = (value) => String(value || '').trim() || null;
-    const normalizeSuggestedPrice = (value) => {
-      const numericValue = Number(String(value ?? '').trim());
-      return (Number.isFinite(numericValue) && numericValue >= 0) ? numericValue : null;
-    };
+    const normalizedSuggestedPrice = normalizeSuggestedPrice(customData.suggested_price);
 
     const payload = isCustom
       ? {
-          is_custom: true,
-          name: customData.name.trim(),
-          addon_type: customData.addon_type,
-          price_type: customData.price_type,
-          quantity: 1,
-          note: normalizeNote(customData.note),
-          suggested_price: normalizeSuggestedPrice(customData.suggested_price),
-        }
+        is_custom: true,
+        name: customData.name.trim(),
+        addon_type: customData.addon_type,
+        price_type: customData.price_type,
+        quantity: 1,
+        note: normalizeNote(customData.note),
+        ...(normalizedSuggestedPrice !== null
+          ? { suggested_price: normalizedSuggestedPrice }
+          : {}),
+      }
       : {
-          addon_id: addon.id,
-          quantity: qtys[addon.id] || 1,
-          note: normalizeNote(notes[addon.id]),
-        };
+        addon_id: addon.id,
+        quantity: qtys[addon.id] || 1,
+        note: normalizeNote(notes[addon.id]),
+      };
 
     setSubmittingId(isCustom ? 'custom' : addon.id);
-    const res = await tenantService.requestAddon(payload);
-    if (res.success) {
-      showSuccess('Add-on request submitted!');
-      if (isCustom) {
+    try {
+      const res = await tenantService.requestAddon(payload);
+      if (res.success) {
+        showSuccess('Add-on request submitted!');
         setShowCustomForm(false);
         setCustomData({ name: '', addon_type: 'rental', price_type: 'monthly', note: '', suggested_price: '' });
+        await loadAddons();
       } else {
-        setNotes(prev => ({ ...prev, [addon.id]: '' }));
+        showError(res.error || 'Failed to request addon');
       }
-      await loadAddons();
-    } else {
-      showError(res.error || 'Failed to request addon');
+    } catch {
+      showError('Failed to request addon');
+    } finally {
+      setSubmittingId(null);
     }
-    setSubmittingId(null);
   };
 
-  const onCancelRequest = useCallback(async (req) => {
+  const onCancelRequest = async (req) => {
     const id = req.id || req.request_id;
-    if (!id || !window.confirm('Cancel this add-on request?')) return;
+    if (!id) return;
+    if (!window.confirm('Cancel this add-on request?')) return;
 
     setCancelingId(id);
-    const res = await tenantService.cancelAddonRequest(id);
-    if (res.success) {
-      showSuccess('Request cancelled');
-      await loadAddons();
-    } else {
-      showError(res.error || 'Failed to cancel');
+    try {
+      const res = await tenantService.cancelAddonRequest(id);
+      if (res.success) {
+        showSuccess('Request cancelled');
+        await loadAddons();
+      } else {
+        showError(res.error || 'Failed to cancel');
+      }
+    } catch {
+      showError('Failed to cancel');
+    } finally {
+      setCancelingId(null);
     }
-    setCancelingId(null);
-  }, [loadAddons]);
+  };
 
   if (loading) {
     return (
@@ -146,6 +173,13 @@ const Addons = () => {
     );
   }
 
+  const STATUS_BADGE = {
+    pending: 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400',
+    approved: 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400',
+    active: 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400',
+    rejected: 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400',
+  };
+
   return (
     <div className="max-w-4xl mx-auto space-y-6">
       <div>
@@ -160,28 +194,124 @@ const Addons = () => {
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Your Requests</h3>
           <div className="space-y-4">
-            {requests.map((r) => (
-              <AddonRequestItem 
-                key={r.id} 
-                request={r} 
-                onCancel={onCancelRequest} 
-                cancelingId={cancelingId} 
-              />
-            ))}
+            {requests.map((r) => {
+              const requestPrice = resolveAddonRequestPrice(r);
+
+              return (
+                <div key={r.id} className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+                  <div>
+                    <p className="font-medium text-gray-900 dark:text-white">{r.addon?.name || 'Add-on'}</p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                      Qty: {r.quantity || 1} • {requestPrice > 0 ? `₱${requestPrice.toLocaleString()}` : 'Free'}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <span className={`px-2.5 py-2 rounded-full text-xs font-semibold uppercase ${STATUS_BADGE[r.status] || STATUS_BADGE.pending}`}>
+                      {r.status || 'pending'}
+                    </span>
+                    {(r.status === 'pending') && (
+                      <button
+                        onClick={() => onCancelRequest(r)}
+                        disabled={cancelingId === r.id}
+                        className="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 transition-colors"
+                      >
+                        {cancelingId === r.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <X className="w-4 h-4" />}
+                      </button>
+                    )}
+                    {(r.status === 'active' || r.status === 'approved') && (
+                      <button
+                        onClick={() => onCancelRequest(r)}
+                        disabled={cancelingId === r.id}
+                        title="Cancel for next month"
+                        className="text-xs px-2 py-1 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/40 border border-red-200 dark:border-red-700 transition-colors font-semibold"
+                      >
+                        {cancelingId === r.id ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Cancel (Next Month)'}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
 
       {/* Custom Request */}
-      <CustomAddonForm 
-        show={showCustomForm}
-        onShow={() => setShowCustomForm(true)}
-        onCancel={() => setShowCustomForm(false)}
-        data={customData}
-        onChange={handleCustomChange}
-        onSubmit={() => onRequest(null, true)}
-        isSubmitting={submittingId === 'custom'}
-      />
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
+        {!showCustomForm ? (
+          <button
+            onClick={() => setShowCustomForm(true)}
+            className="flex items-center gap-2 text-sm font-medium text-green-600 dark:text-green-400 hover:text-green-700 dark:hover:text-green-300 transition-colors"
+          >
+            <Plus className="w-5 h-5" /> Request something specific...
+          </button>
+        ) : (
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Custom Request</h3>
+            <input
+              placeholder="Item name (e.g. Desk Lamp)"
+              value={customData.name}
+              onChange={(e) => setCustomData({ ...customData, name: e.target.value })}
+              className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-green-500 focus:border-transparent"
+            />
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Type</label>
+                <select
+                  value={customData.addon_type}
+                  onChange={(e) => setCustomData({ ...customData, addon_type: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
+                >
+                  <option value="rental">Rental</option>
+                  <option value="fee">Usage Fee</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Billing</label>
+                <select
+                  value={customData.price_type}
+                  onChange={(e) => setCustomData({ ...customData, price_type: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
+                >
+                  <option value="monthly">Monthly</option>
+                  <option value="one_time">One-time</option>
+                </select>
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Suggested Price (₱) <span className="text-gray-400 font-normal">(optional)</span></label>
+              <input
+                type="number"
+                min="0"
+                placeholder="e.g. 500"
+                value={customData.suggested_price}
+                onChange={(e) => setCustomData({ ...customData, suggested_price: e.target.value })}
+                className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-green-500 focus:border-transparent"
+              />
+            </div>
+            <textarea
+              placeholder="Notes for landlord..."
+              value={customData.note}
+              onChange={(e) => setCustomData({ ...customData, note: e.target.value })}
+              rows={3}
+              className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-green-500 focus:border-transparent"
+            />
+            <div className="flex justify-end gap-4">
+              <button onClick={() => setShowCustomForm(false)} className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">
+                Cancel
+              </button>
+              <button
+                onClick={() => onRequest(null, true)}
+                disabled={!customData.name || submittingId === 'custom'}
+                className="px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 flex items-center gap-2"
+              >
+                {submittingId === 'custom' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                Submit Request
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* Available Add-ons */}
       <div>
@@ -194,22 +324,54 @@ const Addons = () => {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {addons.map((addon) => (
-              <AddonCard 
-                key={addon.id}
-                addon={addon}
-                qty={qtys[addon.id] || 1}
-                note={notes[addon.id] || ''}
-                onQtyChange={handleQtyChange}
-                onNoteChange={handleNoteChange}
-                onRequest={onRequest}
-                isSubmitting={submittingId === addon.id}
-              />
+              <div key={addon.id} className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6 flex flex-col">
+                <div className="flex-1">
+                  <div className="flex items-start justify-between">
+                    <h4 className="font-semibold text-gray-900 dark:text-white">{addon.name}</h4>
+                    <span className="text-green-600 dark:text-green-400 font-bold text-sm">
+                      {addon.price ? `₱${Number(addon.price).toLocaleString()}` : 'Free'}
+                    </span>
+                  </div>
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mt-2 line-clamp-2">{addon.description || 'No description.'}</p>
+                </div>
+
+                <div className="mt-4 pt-4 border-t border-gray-100 dark:border-gray-700">
+                  <input
+                    placeholder="Add a note (optional)..."
+                    value={notes[addon.id] || ''}
+                    onChange={(e) => setNotes((prev) => ({ ...prev, [addon.id]: e.target.value }))}
+                    className="w-full px-4 py-2 mb-4 border border-gray-200 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 text-sm text-gray-900 dark:text-white"
+                  />
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => setQtys((prev) => ({ ...prev, [addon.id]: Math.max(1, (prev[addon.id] || 1) - 1) }))}
+                        className="w-8 h-8 flex items-center justify-center rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                      >
+                        <Minus className="w-4 h-4 text-gray-600 dark:text-gray-300" />
+                      </button>
+                      <span className="text-sm font-semibold text-gray-900 dark:text-white w-6 text-center">{qtys[addon.id] || 1}</span>
+                      <button
+                        onClick={() => setQtys((prev) => ({ ...prev, [addon.id]: (prev[addon.id] || 1) + 1 }))}
+                        className="w-8 h-8 flex items-center justify-center rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                      >
+                        <Plus className="w-4 h-4 text-gray-600 dark:text-gray-300" />
+                      </button>
+                    </div>
+                    <button
+                      onClick={() => onRequest(addon)}
+                      disabled={submittingId === addon.id}
+                      className="px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50"
+                    >
+                      {submittingId === addon.id ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Request'}
+                    </button>
+                  </div>
+                </div>
+              </div>
             ))}
           </div>
         )}
       </div>
     </div>
   );
-};
-
-export default memo(Addons);
+}

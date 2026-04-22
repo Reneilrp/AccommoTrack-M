@@ -600,7 +600,7 @@ const LandlordRegister = () => {
                           try { e.target.showPicker(); } catch (_ignore) { /* ignore */ }
                         }
                       }}
-                      max={new Date(new Date().getFullYear() - 20, new Date().getMonth(), new Date().getDate()).toISOString().split('T')[0]}
+                      max={new Date(new Date().getFullYear() - 21, new Date().getMonth(), new Date().getDate()).toISOString().split('T')[0]}
                       ref={el => fieldRefs.current.dob = el}
                       className={`w-full px-4 py-4 border rounded-lg focus:outline-none focus:ring-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white cursor-pointer transition-colors ${fieldErrors.dob ? 'border-red-500' : 'border-green-200 dark:border-gray-600 focus:ring-green-200'}`}
                       required

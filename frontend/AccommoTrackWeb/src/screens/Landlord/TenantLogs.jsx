@@ -1,15 +1,15 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { 
-  Loader2, 
-  CreditCard, 
-  MessageSquare, 
-  Inbox, 
-  ArrowLeft, 
-  Calendar, 
-  History, 
-  Wrench, 
-  Sparkles, 
+import {
+  Loader2,
+  CreditCard,
+  MessageSquare,
+  Inbox,
+  ArrowLeft,
+  Calendar,
+  History,
+  Wrench,
+  Sparkles,
   CalendarDays,
   Home,
   CheckCircle2,
@@ -23,6 +23,8 @@ import { useUIState } from '../../contexts/UIStateContext';
 import { cacheManager } from '../../utils/cache';
 import PriceRow from '../../components/Shared/PriceRow';
 import { showSuccess, showError } from '../../utils/toast';
+import { formatPrice } from '../../utils/price';
+import Decimal from '../../utils/decimal';
 
 export default function TenantLogs() {
   const { id } = useParams();
@@ -43,11 +45,11 @@ export default function TenantLogs() {
   const [historyData, setHistoryData] = useState(cachedData?.historyData || { bookings: [], maintenance: [], addons: [], transfers: [] });
   const [searchResults, setSearchResults] = useState([]);
   const [error, setError] = useState(null);
-  
+
   const [activeTab, setActiveTab] = useState('payments'); // 'payments', 'bookings', 'maintenance', 'addons'
-  const [paymentFilter, setPaymentFilter] = useState('all'); 
+  const [paymentFilter, setPaymentFilter] = useState('all');
   const [paymentSort] = useState({ key: 'date', dir: 'desc' });
-  const [paymentGroup, setPaymentGroup] = useState('none'); 
+  const [paymentGroup, setPaymentGroup] = useState('none');
   const [handlingTransferId, setHandlingTransferId] = useState(null);
   const [approvingTransferId, setApprovingTransferId] = useState(null);
   const [rejectingTransferId, setRejectingTransferId] = useState(null);
@@ -129,11 +131,11 @@ export default function TenantLogs() {
         transfers: (prev.transfers || []).map((item) =>
           item.id === transfer.id
             ? {
-                ...item,
-                status: nextStatus,
-                handled_at: new Date().toISOString(),
-                landlord_notes: payload.landlord_notes || item.landlord_notes || null,
-              }
+              ...item,
+              status: nextStatus,
+              handled_at: new Date().toISOString(),
+              landlord_notes: payload.landlord_notes || item.landlord_notes || null,
+            }
             : item,
         ),
       }));
@@ -183,22 +185,22 @@ export default function TenantLogs() {
       setTenant(tenantData);
       if (tenantData.history) {
         setHistoryData({
-          // Ensure we handle both array and object formats for history collections
-          bookings: Array.isArray(tenantData.history.bookings) ? tenantData.history.bookings : (tenantData.history.bookings?.items || []),
-          maintenance: Array.isArray(tenantData.history.maintenance) ? tenantData.history.maintenance : (tenantData.history.maintenance?.items || []),
-          addons: Array.isArray(tenantData.history.addons) ? tenantData.history.addons : (tenantData.history.addons?.items || []),
-          transfers: Array.isArray(tenantData.history.transfers) ? tenantData.history.transfers : (tenantData.history.transfers?.items || []),
+          bookings: tenantData.history.bookings || [],
+          maintenance: tenantData.history.maintenance || [],
+          addons: tenantData.history.addons || [],
+          transfers: tenantData.history.transfers || [],
         });
       }
 
       let payList = [];
       let paid = [];
       let dueSumCents = 0;
+
       try {
-        const payRes = await api.get(`/invoices?tenant_id=${tenantId}`);
-        // Handle the new {items, pagination} structure
-        payList = payRes.data?.items || (Array.isArray(payRes.data) ? payRes.data : (payRes.data?.data || []));
+        const payRes = await api.get(`/invoices?tenant_id=${tenantId}&t=${Date.now()}`);
+        payList = Array.isArray(payRes.data) ? payRes.data : (payRes.data?.data || payRes.data || []);
         setPayments(payList);
+
         paid = payList.filter(inv => (inv.status === 'paid') || inv.paid_at);
         const unpaid = payList.filter(inv => {
           const status = String(inv.status || '').toLowerCase();
@@ -207,7 +209,7 @@ export default function TenantLogs() {
         });
         setPreviousPayments(paid);
         dueSumCents = unpaid.reduce((sum, inv) => sum + (inv.amount_cents || inv.total_cents || 0), 0);
-        setDueAmount(dueSumCents);
+        setDueAmount(new Decimal(dueSumCents).div(100).toNumber());
 
         if (tenantData && tenantData.room) {
           setCurrentRoom(tenantData.room);
@@ -231,11 +233,11 @@ export default function TenantLogs() {
         setPayments([]);
       }
 
-      const combined = { 
-        tenant: tenantData, 
-        payments: payList, 
-        previousPayments: paid, 
-        dueAmount: dueSumCents, 
+      const combined = {
+        tenant: tenantData,
+        payments: payList,
+        previousPayments: paid,
+        dueAmount: new Decimal(dueSumCents).div(100).toNumber(),
         currentRoom: tenantData?.room || null,
         historyData: tenantData?.history || { bookings: [], maintenance: [], addons: [], transfers: [] }
       };
@@ -255,8 +257,8 @@ export default function TenantLogs() {
   // Helper formatting functions
   const getAmountNumber = (inv) => {
     const cents = inv.amount_cents ?? inv.total_cents ?? null;
-    if (typeof cents === 'number') return cents;
-    const asNum = Number(inv.amount);
+    if (typeof cents === 'number') return new Decimal(cents).div(100).toNumber();
+    const asNum = new Decimal(inv.amount || 0).toNumber();
     return Number.isFinite(asNum) ? asNum : 0;
   };
 
@@ -296,8 +298,7 @@ export default function TenantLogs() {
   }
 
   function formatAmount(inv) {
-    const val = getAmountNumber(inv);
-    return val.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    return formatPrice(getAmountNumber(inv));
   }
 
   function formatDate(d) {
@@ -355,7 +356,7 @@ export default function TenantLogs() {
   const allDue = (payments || []).filter(inv => !(inv.status === 'paid' || inv.paid_at));
   const displayedItems = [...(paymentFilter === 'due' ? [] : allPaid), ...(paymentFilter === 'paid' ? [] : allDue)].sort(sortFn);
   const groupedData = groupPayments(displayedItems, paymentGroup);
-  
+
   // Defer tab definition until data is available
   const tabs = tenant ? [
     { id: 'payments', label: 'Payments', icon: CreditCard, count: (payments || []).length },
@@ -422,7 +423,7 @@ export default function TenantLogs() {
                   </p>
                 </div>
               </div>
-              
+
               <div className="space-y-4 pt-4">
                 <div className="p-4 bg-gray-50 dark:bg-gray-900/50 rounded-xl border border-gray-100 dark:border-gray-700">
                   <p className="text-[10px] font-bold text-gray-500 dark:text-gray-500 uppercase mb-2">Current Room</p>
@@ -433,7 +434,7 @@ export default function TenantLogs() {
 
                 <div className="p-4 bg-red-50 dark:bg-red-900/10 rounded-xl border border-red-100 dark:border-red-900/30">
                   <p className="text-[10px] font-bold text-red-400 uppercase mb-2">Total Outstanding</p>
-                  <p className="font-bold text-lg text-red-700 dark:text-red-400">₱{dueAmount.toLocaleString()}</p>
+                  <p className="font-bold text-lg text-red-700 dark:text-red-400">{formatPrice(dueAmount)}</p>
                 </div>
               </div>
             </div>
@@ -457,11 +458,10 @@ export default function TenantLogs() {
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`flex items-center gap-2 px-6 py-4 text-sm font-bold transition-all border-b-2 whitespace-nowrap ${
-                    activeTab === tab.id 
-                      ? 'border-green-600 text-green-600 bg-white dark:bg-gray-800 shadow-[0_-4px_0_0_inset_#16a34a]' 
+                  className={`flex items-center gap-2 px-6 py-4 text-sm font-bold transition-all border-b-2 whitespace-nowrap ${activeTab === tab.id
+                      ? 'border-green-600 text-green-600 bg-white dark:bg-gray-800 shadow-[0_-4px_0_0_inset_#16a34a]'
                       : 'border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
-                  }`}
+                    }`}
                 >
                   <tab.icon className="w-4 h-4" />
                   {tab.label}
@@ -516,19 +516,18 @@ export default function TenantLogs() {
                           <div key={idx} className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-900/50 rounded-xl border border-gray-100 dark:border-gray-700 hover:border-green-200 dark:hover:border-green-900/50 transition-colors group">
                             <div>
                               <div className="flex items-center gap-2">
-                                <p className="text-sm font-bold text-gray-900 dark:text-white">₱{formatAmount(inv)}</p>
+                                <p className="text-sm font-bold text-gray-900 dark:text-white">{formatAmount(inv)}</p>
                                 <span className="text-[10px] font-bold text-gray-500 dark:text-gray-500">#{inv.reference || inv.id}</span>
                               </div>
                               <p className="text-[10px] text-gray-500 uppercase mt-0.5">{formatDate(inv.paid_at || inv.due_date || inv.created_at)}</p>
                             </div>
                             <div className="flex items-center gap-4">
-                              <span className={`px-2 py-2 rounded text-[10px] font-bold uppercase ${
-                                (inv.status === 'paid' || inv.paid_at) ? 'bg-green-100 text-green-700' : 
-                                (inv.status === 'cancelled' || inv.status === 'void') ? 'bg-gray-200 text-gray-600' : 'bg-red-100 text-red-700'
-                              }`}>
+                              <span className={`px-2 py-2 rounded text-[10px] font-bold uppercase ${(inv.status === 'paid' || inv.paid_at) ? 'bg-green-100 text-green-700' :
+                                  (inv.status === 'cancelled' || inv.status === 'void') ? 'bg-gray-200 text-gray-600' : 'bg-red-100 text-red-700'
+                                }`}>
                                 {
-                                  (inv.status === 'paid' || inv.paid_at) ? 'PAID' : 
-                                  (inv.status === 'cancelled' || inv.status === 'void') ? 'CANCELLED' : 'DUE'
+                                  (inv.status === 'paid' || inv.paid_at) ? 'PAID' :
+                                    (inv.status === 'cancelled' || inv.status === 'void') ? 'CANCELLED' : 'DUE'
                                 }
                               </span>
                               <button onClick={() => navigate('/payments')} className="opacity-0 group-hover:opacity-100 p-2.5 hover:bg-white dark:hover:bg-gray-800 rounded-lg text-gray-500 transition-all">
@@ -557,18 +556,17 @@ export default function TenantLogs() {
                           <div>
                             <div className="flex items-center gap-2">
                               <h4 className="font-bold text-gray-900 dark:text-white">{booking.room?.property?.title || 'Property'}</h4>
-                              <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
-                                booking.status === 'confirmed' ? 'bg-green-100 text-green-700' : 
-                                booking.status === 'pending' ? 'bg-amber-100 text-amber-700' : 
-                                booking.status === 'completed' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-700'
-                              }`}>
+                              <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${booking.status === 'confirmed' ? 'bg-green-100 text-green-700' :
+                                  booking.status === 'pending' ? 'bg-amber-100 text-amber-700' :
+                                    booking.status === 'completed' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-700'
+                                }`}>
                                 {booking.status}
                               </span>
                             </div>
                             <p className="text-xs text-gray-500 font-medium mt-0.5">Room {booking.room?.room_number} • {booking.booking_reference}</p>
                           </div>
                           <div className="text-right">
-                            <p className="text-sm font-bold text-gray-900 dark:text-white">₱{parseFloat(booking.total_amount).toLocaleString()}</p>
+                            <p className="text-sm font-bold text-gray-900 dark:text-white">{formatPrice(booking.total_amount)}</p>
                             <p className="text-[10px] text-gray-500 font-bold uppercase">{booking.payment_status}</p>
                           </div>
                         </div>
@@ -610,11 +608,10 @@ export default function TenantLogs() {
                               <span className="text-sm font-bold text-gray-900 dark:text-white">Room {req.requested_room?.room_number}</span>
                             </div>
                           </div>
-                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
-                            req.status === 'approved' ? 'bg-green-100 text-green-700' : 
-                            req.status === 'pending' ? 'bg-amber-100 text-amber-700' : 
-                            req.status === 'rejected' ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-700'
-                          }`}>
+                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${req.status === 'approved' ? 'bg-green-100 text-green-700' :
+                              req.status === 'pending' ? 'bg-amber-100 text-amber-700' :
+                                req.status === 'rejected' ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-700'
+                            }`}>
                             {req.status}
                           </span>
                         </div>
@@ -628,11 +625,11 @@ export default function TenantLogs() {
                               {getTransferRequestedCheckout(req) ? 'Start New Lease' : 'Keep Current Lease End'}
                             </p>
                           </div>
-                            <div className="p-3 bg-gray-100 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
-                              <p className="text-[10px] font-bold text-gray-500 uppercase mb-1">Checkout Date</p>
+                          <div className="p-3 bg-gray-100 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+                            <p className="text-[10px] font-bold text-gray-500 uppercase mb-1">Checkout Date</p>
                             <p className="text-xs font-semibold text-gray-900 dark:text-gray-200 inline-flex items-center gap-1.5">
                               <CalendarDays className="w-3.5 h-3.5 text-gray-500" />
-                                {formatDate(getTransferRequestedCheckout(req) || getCurrentLeaseCheckoutForTransfer(req))}
+                              {formatDate(getTransferRequestedCheckout(req) || getCurrentLeaseCheckoutForTransfer(req))}
                             </p>
                           </div>
                         </div>
@@ -643,49 +640,49 @@ export default function TenantLogs() {
                                 <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-100 dark:border-blue-800">
                                   <p className="text-[10px] font-bold text-blue-800 dark:text-blue-300 uppercase mb-2">Rent Proration Details</p>
                                   {getTransferForm(req.id).loadingProration ? (
-                                    <div className="text-blue-600 text-xs flex items-center gap-2"><Loader2 className="w-4 h-4 animate-spin"/> Calculating...</div>
+                                    <div className="text-blue-600 text-xs flex items-center gap-2"><Loader2 className="w-4 h-4 animate-spin" /> Calculating...</div>
                                   ) : getTransferForm(req.id).prorationDetails ? (
                                     <>
                                       <div className="flex justify-between text-sm">
                                         <span className="text-gray-600 dark:text-gray-400">Transfer Processing Fee:</span>
                                         <span className="font-semibold text-red-600 dark:text-red-400">
-                                          -₱{Number(getTransferForm(req.id).transfer_fee || 0).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                          -{formatPrice(getTransferForm(req.id).transfer_fee || 0)}
                                         </span>
                                       </div>
                                       <div className="flex justify-between text-sm pt-2 border-t dark:border-gray-700">
                                         <span className="font-bold text-gray-700 dark:text-gray-300">Net Credit Available:</span>
                                         <span className="font-black text-green-600 dark:text-green-400">
-                                          ₱{Number((getTransferForm(req.id).prorationDetails.credit_available || 0) - (Number(getTransferForm(req.id).transfer_fee) || 0)).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                          {formatPrice(new Decimal(getTransferForm(req.id).prorationDetails.credit_available || 0).minus(new Decimal(getTransferForm(req.id).transfer_fee || 0)).toNumber())}
                                         </span>
                                       </div>
                                       <div className="flex justify-between text-sm">
                                         <span className="text-gray-600 dark:text-gray-400">New Room Cost:</span>
-                                        <span className="font-bold">₱{Number(getTransferForm(req.id).prorationDetails.new_room_cost || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}</span>
+                                        <span className="font-bold">{formatPrice(getTransferForm(req.id).prorationDetails.new_room_cost || 0)}</span>
                                       </div>
                                       <div className="flex justify-between text-sm pt-2 border-t dark:border-gray-700">
                                         <span className="text-gray-600 dark:text-gray-400">
-                                          {getTransferForm(req.id).prorationDetails.suggested_adjustment > 0 
-                                            ? 'Additional Charge (to be paid):' 
-                                            : getTransferForm(req.id).prorationDetails.suggested_adjustment < 0 
-                                            ? 'Credit Applied (from balance):' 
-                                            : 'Suggested Adjustment:'}
+                                          {getTransferForm(req.id).prorationDetails.suggested_adjustment > 0
+                                            ? 'Additional Charge (to be paid):'
+                                            : getTransferForm(req.id).prorationDetails.suggested_adjustment < 0
+                                              ? 'Credit Applied (from balance):'
+                                              : 'Suggested Adjustment:'}
                                         </span>
                                         <span className={`font-black ${getTransferForm(req.id).prorationDetails.suggested_adjustment > 0 ? 'text-amber-600' : getTransferForm(req.id).prorationDetails.suggested_adjustment < 0 ? 'text-green-600' : 'text-gray-600'}`}>
-                                          {getTransferForm(req.id).prorationDetails.suggested_adjustment > 0 ? '+' : getTransferForm(req.id).prorationDetails.suggested_adjustment < 0 ? '-' : ''}₱{Number(Math.abs(getTransferForm(req.id).prorationDetails.suggested_adjustment || 0)).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                          {getTransferForm(req.id).prorationDetails.suggested_adjustment > 0 ? '+' : getTransferForm(req.id).prorationDetails.suggested_adjustment < 0 ? '-' : ''}{formatPrice(Math.abs(getTransferForm(req.id).prorationDetails.suggested_adjustment || 0))}
                                         </span>
                                       </div>
                                     </>
                                   ) : (
                                     <p className="text-xs text-red-500">Failed to calculate proration.</p>
                                   )}
-                                  
+
                                   <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
                                     <div>
                                       <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">
                                         Transfer Fee (₱)
                                       </label>
-                                      <input 
-                                        type="number" 
+                                      <input
+                                        type="number"
                                         step="0.01"
                                         value={getTransferForm(req.id).transfer_fee}
                                         onChange={(e) => updateTransferForm(req.id, { transfer_fee: e.target.value })}
@@ -694,8 +691,8 @@ export default function TenantLogs() {
                                     </div>
                                     <div>
                                       <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Room Rate Adjustment (₱)</label>
-                                      <input 
-                                        type="number" 
+                                      <input
+                                        type="number"
                                         step="0.01"
                                         value={getTransferForm(req.id).prorated_adjustment}
                                         onChange={e => updateTransferForm(req.id, { prorated_adjustment: e.target.value })}
@@ -825,10 +822,9 @@ export default function TenantLogs() {
                             <h4 className="text-sm font-bold text-gray-900 dark:text-white">{req.title}</h4>
                             <p className="text-xs text-gray-500 mt-2 line-clamp-2">{req.description}</p>
                           </div>
-                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
-                            req.status === 'completed' ? 'bg-green-100 text-green-700' : 
-                            req.status === 'pending' ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'
-                          }`}>
+                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${req.status === 'completed' ? 'bg-green-100 text-green-700' :
+                              req.status === 'pending' ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'
+                            }`}>
                             {req.status.replace('_', ' ')}
                           </span>
                         </div>
@@ -862,11 +858,10 @@ export default function TenantLogs() {
                           </div>
                         </div>
                         <div className="text-right">
-                          <p className="text-sm font-bold text-green-600">₱{parseFloat(addon.price).toLocaleString()}</p>
-                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
-                            addon.status === 'active' ? 'bg-green-100 text-green-700' : 
-                            addon.status === 'pending' ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700'
-                          }`}>
+                          <p className="text-sm font-bold text-green-600">{formatPrice(addon.price)}</p>
+                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${addon.status === 'active' ? 'bg-green-100 text-green-700' :
+                              addon.status === 'pending' ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700'
+                            }`}>
                             {addon.status}
                           </span>
                         </div>
@@ -883,7 +878,7 @@ export default function TenantLogs() {
         {searchResults.length > 0 && (
           <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 border border-gray-100 dark:border-gray-700 shadow-sm mt-6">
             <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-4 flex items-center gap-2">
-              <MessageSquare className="w-4 h-4 text-green-500"/> Alternate Tenant Matches
+              <MessageSquare className="w-4 h-4 text-green-500" /> Alternate Tenant Matches
             </h3>
             <ul className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {searchResults.map((m) => {

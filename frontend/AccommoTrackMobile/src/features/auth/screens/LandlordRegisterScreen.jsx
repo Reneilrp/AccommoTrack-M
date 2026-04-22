@@ -643,9 +643,9 @@ export default function LandlordRegisterScreen({ navigation, onRegisterSuccess }
                 </View>
                 {showDatePicker && (
                   <DateTimePicker
-                    value={form.dob ? new Date(form.dob) : new Date(2000, 0, 1)}
+                    value={form.dob ? new Date(form.dob) : new Date(new Date().getFullYear() - 21, 0, 1)}
                     mode="date"
-                    maximumDate={new Date()}
+                    maximumDate={new Date(new Date().setFullYear(new Date().getFullYear() - 21))}
                     onChange={(e, selectedDate) => {
                       setShowDatePicker(Platform.OS === 'ios');
                       if (selectedDate) handleChange('dob', selectedDate);

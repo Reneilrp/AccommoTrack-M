@@ -1,29 +1,9 @@
-import React, { useState, useEffect, useCallback, memo } from 'react';
-import { tenantService } from '../../services/tenantService';
+import React, { useState, useEffect } from 'react';
+import api from '../../utils/api';
 import { Star, Edit3, Trash2, Loader2, MessageSquare, Plus } from 'lucide-react';
 import { showSuccess, showError } from '../../utils/toast';
 
-const StarRating = memo(({ rating, onChange, interactive = false }) => (
-  <div className="flex gap-2">
-    {[1, 2, 3, 4, 5].map((s) => (
-      <button
-        key={s}
-        type="button"
-        disabled={!interactive}
-        onClick={() => interactive && onChange?.(s)}
-        className={`transition-colors ${interactive ? 'cursor-pointer hover:scale-110' : 'cursor-default'}`}
-      >
-        <Star
-          className={`w-6 h-6 ${s <= rating ? 'text-yellow-400 fill-yellow-400' : 'text-gray-300 dark:text-gray-600'}`}
-        />
-      </button>
-    ))}
-  </div>
-));
-
-StarRating.displayName = 'StarRating';
-
-const Reviews = () => {
+export default function Reviews() {
   const [reviews, setReviews] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -33,61 +13,64 @@ const Reviews = () => {
   const [submitting, setSubmitting] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
 
-  const fetchReviews = useCallback(async () => {
-    setLoading(true);
-    const res = await tenantService.getReviews();
-    if (res.success) {
-      setReviews(res.data);
-    } else {
-      showError(res.error);
-    }
-    setLoading(false);
-  }, []);
+  useEffect(() => { fetchReviews(); fetchBookings(); }, []);
 
-  const fetchBookings = useCallback(async () => {
-    const res = await tenantService.getBookings();
-    if (res.success) {
-      const eligible = (res.data || []).filter(
+  const fetchReviews = async () => {
+    setLoading(true);
+    try {
+      const res = await api.get('/tenant/reviews');
+      const data = res.data?.data || res.data || [];
+      setReviews(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.error('Failed to load reviews', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchBookings = async () => {
+    try {
+      const res = await api.get('/tenant/bookings');
+      const data = res.data?.data || res.data || [];
+      // Fix #1: Only show confirmed/completed bookings — backend rejects others
+      const eligible = (Array.isArray(data) ? data : []).filter(
         (b) => ['confirmed', 'completed'].includes(b.status)
       );
       setBookings(eligible);
+    } catch (err) {
+      console.error('Failed to load bookings', err);
     }
-  }, []);
-
-  useEffect(() => { 
-    fetchReviews(); 
-    fetchBookings(); 
-  }, [fetchReviews, fetchBookings]);
+  };
 
   const handleSubmitReview = async (e) => {
     e.preventDefault();
     if (!form.booking_id) { showError('Please select a confirmed or completed booking'); return; }
-    
     setSubmitting(true);
-    const payload = { 
-      property_id: form.property_id, 
-      booking_id: form.booking_id, 
-      rating: form.rating, 
-      comment: form.comment 
-    };
-
-    const res = editingReview 
-      ? await tenantService.updateReview(editingReview.id, payload)
-      : await tenantService.submitReview(payload);
-
-    if (res.success) {
-      showSuccess(editingReview ? 'Review updated!' : 'Review submitted!');
-      setShowForm(false);
-      setEditingReview(null);
-      setForm({ property_id: '', booking_id: '', rating: 5, comment: '' });
-      fetchReviews();
-    } else {
-      showError(res.error);
+    try {
+      const payload = { property_id: form.property_id, booking_id: form.booking_id, rating: form.rating, comment: form.comment };
+      let res;
+      if (editingReview) {
+        res = await api.put(`/tenant/reviews/${editingReview.id}`, payload);
+      } else {
+        res = await api.post('/tenant/reviews', payload);
+      }
+      if (res.data?.success !== false) {
+        showSuccess(editingReview ? 'Review updated!' : 'Review submitted!');
+        setShowForm(false);
+        setEditingReview(null);
+        setForm({ property_id: '', booking_id: '', rating: 5, comment: '' });
+        await fetchReviews();
+      } else {
+        showError(res.data?.message || 'Failed to submit review');
+      }
+    } catch (err) {
+      showError(err.response?.data?.message || 'Failed to submit review');
+    } finally {
+      setSubmitting(false);
     }
-    setSubmitting(false);
   };
 
-  const handleEdit = useCallback((review) => {
+  const handleEdit = (review) => {
     setEditingReview(review);
     setForm({
       property_id: review.property_id,
@@ -96,20 +79,39 @@ const Reviews = () => {
       comment: review.comment || ''
     });
     setShowForm(true);
-  }, []);
+  };
 
   const handleDelete = async (id) => {
     if (!window.confirm('Delete this review?')) return;
     setDeletingId(id);
-    const res = await tenantService.deleteReview(id);
-    if (res.success) {
+    try {
+      await api.delete(`/tenant/reviews/${id}`);
       showSuccess('Review deleted');
-      fetchReviews();
-    } else {
-      showError(res.error);
+      await fetchReviews();
+    } catch {
+      showError('Failed to delete review');
+    } finally {
+      setDeletingId(null);
     }
-    setDeletingId(null);
   };
+
+  const StarRating = ({ rating, onChange, interactive = false }) => (
+    <div className="flex gap-2">
+      {[1, 2, 3, 4, 5].map((s) => (
+        <button
+          key={s}
+          type="button"
+          disabled={!interactive}
+          onClick={() => interactive && onChange?.(s)}
+          className={`transition-colors ${interactive ? 'cursor-pointer hover:scale-110' : 'cursor-default'}`}
+        >
+          <Star
+            className={`w-6 h-6 ${s <= rating ? 'text-yellow-400 fill-yellow-400' : 'text-gray-300 dark:text-gray-600'}`}
+          />
+        </button>
+      ))}
+    </div>
+  );
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
@@ -252,6 +254,4 @@ const Reviews = () => {
       </div>
     </div>
   );
-};
-
-export default memo(Reviews);
+}

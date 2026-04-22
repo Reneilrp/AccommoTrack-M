@@ -292,7 +292,7 @@ export default function PaymentDetail() {
     PaymentService.getWalletBalance()
       .then((result) => {
         if (!mounted || !result?.success) return;
-        const balance = Number(result.data ?? 0);
+        const balance = Number(result.data ?? 0) / 100;
         setWalletBalance(Number.isFinite(balance) ? balance : 0);
       })
       .catch(() => {

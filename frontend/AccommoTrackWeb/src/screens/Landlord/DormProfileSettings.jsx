@@ -1,111 +1,2335 @@
-import React, { useState, useEffect, useCallback } from "react";
-import { ArrowLeft, Save, Loader2 } from "lucide-react";
-import { showSuccess, showError } from "../../utils/toast";
-import propertyService from "../../services/propertyService";
-import LocationSection from "./components/DormProfile/LocationSection";
-import AmenitiesSection from "./components/DormProfile/AmenitiesSection";
-import HouseRulesSection from "./components/DormProfile/HouseRulesSection";
-import GallerySection from "./components/DormProfile/GallerySection";
-import LegalDocsSection from "./components/DormProfile/LegalDocsSection";
+import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
+import { useNavigate } from "react-router-dom";
+import {
+  ArrowLeft,
+  X,
+  Image,
+  Upload,
+  FileText,
+  Loader2,
+  Edit,
+  Plus,
+  Trash,
+  Save,
+  GripVertical,
+  Star,
+  Video,
+  Play,
+} from "lucide-react";
+import { showSuccess, showError, showLoading } from "../../utils/toast";
+import api from "../../utils/api";
+import { usePreferences } from "../../contexts/PreferencesContext";
 
-export default function DormProfileSettings({ propertyId, onBack }) {
-  const [loading, setLoading] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
+// Editable map (react-leaflet)
+import { MapContainer, TileLayer, Marker, useMapEvents } from "react-leaflet";
+import L from "leaflet";
+import "leaflet/dist/leaflet.css";
+import markerIcon2x from "leaflet/dist/images/marker-icon-2x.png";
+import markerIcon from "leaflet/dist/images/marker-icon.png";
+import markerShadow from "leaflet/dist/images/marker-shadow.png";
+
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: markerIcon2x,
+  iconUrl: markerIcon,
+  shadowUrl: markerShadow,
+});
+
+// Create a specific icon instance to ensure Vite/Bundlers resolve URLs correctly
+const __defaultMarkerIcon = new L.Icon({
+  iconRetinaUrl: markerIcon2x,
+  iconUrl: markerIcon,
+  shadowUrl: markerShadow,
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+  popupAnchor: [1, -34],
+  tooltipAnchor: [16, -28],
+  shadowSize: [41, 41],
+});
+
+// Create a green SVG marker icon (data URL) so it's bundled reliably and appears green
+const greenMarkerSvg = encodeURIComponent(`
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+    <path fill="#10B981" d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/>
+    <circle cx="12" cy="9" r="3" fill="#ffffff" />
+  </svg>
+`);
+const greenMarkerUrl = `data:image/svg+xml;utf8,${greenMarkerSvg}`;
+const greenMarkerIcon = new L.Icon({
+  iconUrl: greenMarkerUrl,
+  iconSize: [28, 42],
+  iconAnchor: [14, 42],
+  popupAnchor: [0, -36],
+});
+
+const parseBooleanFlag = (value, fallback = false) => {
+  if (value === undefined || value === null) return fallback;
+  if (typeof value === "boolean") return value;
+  if (typeof value === "number") return value === 1;
+
+  if (typeof value === "string") {
+    const normalized = value.trim().toLowerCase();
+    if (["1", "true", "yes", "on"].includes(normalized)) return true;
+    if (["0", "false", "no", "off", ""].includes(normalized)) return false;
+  }
+
+  return fallback;
+};
+
+export default function DormProfileSettings({
+  propertyId,
+  onBack,
+  __onDeleteRequested,
+}) {
+  const { effectiveTheme } = usePreferences();
+  const user = (() => { try { return JSON.parse(localStorage.getItem('userData') || '{}'); } catch { return {}; } })();
+  const __navigate = useNavigate();
   const [isEditing, setIsEditing] = useState(true);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [fieldErrors, setFieldErrors] = useState({});
   const [dormData, setDormData] = useState(null);
+  const [newRule, setNewRule] = useState("");
+  const [newCustomAmenity, setNewCustomAmenity] = useState("");
+  // Deletion flow state (copied from MyProperties for local handling)
+  const [deleteConfirm, setDeleteConfirm] = useState({
+    show: false,
+    property: null,
+  });
+  const [passwordModal, setPasswordModal] = useState({
+    show: false,
+    property: null,
+  });
+  const [password, setPassword] = useState("");
+  const [passwordError, setPasswordError] = useState("");
+  const [verifying, setVerifying] = useState(false);
+  const [deletedCredentialIds, setDeletedCredentialIds] = useState([]);
+  const [deletedImageIds, setDeletedImageIds] = useState([]);
+  const [draggedImageIndex, setDraggedImageIndex] = useState(null);
+  // Video tour state
+  const [videoUrl, setVideoUrl] = useState(null);
+  const [videoId, setVideoId] = useState(null);
+  const [videoFile, setVideoFile] = useState(null);
+  const [videoPreview, setVideoPreview] = useState(null);
+  const [deleteExistingVideo, setDeleteExistingVideo] = useState(false);
 
-  const fetchDormData = useCallback(async () => {
-    setLoading(true);
-    const res = await propertyService.getPropertyDetails(propertyId);
-    if (res.success) {
-      setDormData(res.data);
-    } else {
-      showError("Failed to load property details");
+  // GCash QR state
+  const [gcashQrFile, setGcashQrFile] = useState(null);
+  const [gcashQrPreview, setGcashQrPreview] = useState(null);
+  const [deleteExistingGcashQr, setDeleteExistingGcashQr] = useState(false);
+
+  // Map tiles based on theme
+  const tileUrl =
+    effectiveTheme === "dark"
+      ? "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+      : "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
+
+  useEffect(() => {
+    if (propertyId) {
+      fetchPropertyDetails();
     }
-    setLoading(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [propertyId]);
 
-  useEffect(() => { fetchDormData(); }, [fetchDormData]);
+  const fetchPropertyDetails = async () => {
+    try {
+      setLoading(true);
+      setError("");
+      const res = await api.get(`/landlord/properties/${propertyId}`);
+      const data = res.data;
 
-  const handleSave = async () => {
-    setSubmitting(true);
-    const res = await propertyService.updateProperty(propertyId, dormData);
-    if (res.success) {
-      showSuccess("Property profile updated successfully");
-      setIsEditing(false);
-    } else {
-      showError(res.error);
+      // Parse amenities from relationship or amenities_list
+      const amenitiesData = data.amenities_list || data.amenities || [];
+      const parsedAmenities = parseAmenities(amenitiesData);
+
+      // data.images from backend contains only plain image URL strings (videos are excluded by PropertyResource)
+      const imageRecords = data.images || [];
+
+      // Video is returned as a separate top-level field by PropertyResource
+      if (data.video_url) {
+        setVideoId(true); // truthy flag only — actual ID not exposed by backend
+        setVideoUrl(data.video_url);
+      } else {
+        setVideoId(null);
+        setVideoUrl(null);
+      }
+      setVideoFile(null);
+      setVideoPreview(null);
+      setDeleteExistingVideo(false);
+
+      setGcashQrFile(null);
+      setGcashQrPreview(data.gcash_qr_path || null);
+      setDeleteExistingGcashQr(false);
+
+      // Parse images - backend returns objects with image_url property that's already a full URL
+      // Keep full image objects to preserve id, is_primary, and display_order
+      const images = imageRecords
+        .map((img, idx) => {
+          // If it's already a string URL, convert to object format
+          if (typeof img === "string") {
+            return {
+              id: null,
+              url: img,
+              is_primary: idx === 0,
+              display_order: idx,
+            };
+          }
+          // If it's an object with image_url property, normalize structure
+          if (img && typeof img === "object" && img.image_url) {
+            return {
+              id: img.id || null,
+              url: img.image_url,
+              is_primary: Boolean(img.is_primary),
+              display_order: img.display_order ?? idx,
+            };
+          }
+          // Fallback
+          return null;
+        })
+        .filter(Boolean)
+        .sort((a, b) => a.display_order - b.display_order);
+
+      const hasMaleRooms = (data.rooms || []).some(r => r.sex_restriction === 'male');
+      const hasFemaleRooms = (data.rooms || []).some(r => r.sex_restriction === 'female');
+
+      setDormData({
+        id: data.id,
+        name: data.title,
+        type: data.property_type,
+        sex_restriction: data.sex_restriction || "mixed",
+        hasMaleRooms,
+        hasFemaleRooms,
+        description: data.description || "",
+        address: {
+          street: data.street_address,
+          barangay: data.barangay || "",
+          city: data.city,
+          province: data.province,
+          zipCode: data.postal_code || "",
+          country: data.country || "Philippines",
+        },
+        amenities: parsedAmenities,
+        customAmenities:
+          data.customAmenities || data.additional_amenities || [],
+        credentials: (data.credentials || []).map((c) => ({
+          id: c.id ?? null,
+          original_name:
+            c.original_name ?? c.originalName ?? c.name ?? "Document",
+          file_url: c.file_url ?? c.file_path ?? c.url ?? null,
+          mime: c.mime ?? null,
+          created_at: c.created_at ?? null,
+        })),
+        rules: data.property_rules
+          ? typeof data.property_rules === "string"
+            ? JSON.parse(data.property_rules)
+            : data.property_rules
+          : [],
+        status: data.current_status,
+        nearbyLandmarks: data.nearby_landmarks || "",
+        max_occupants: data.max_occupants || 1,
+        number_of_bedrooms: data.number_of_bedrooms || 0,
+        number_of_bathrooms: data.number_of_bathrooms || 0,
+        floor_area: data.floor_area || 0,
+        floor_level: data.floor_level || "",
+        total_floors: data.total_floors || 1,
+        require_1month_advance: parseBooleanFlag(data.require_1month_advance, false),
+        allow_partial_payments: parseBooleanFlag(data.allow_partial_payments, true),
+        force_wallet_refunds: parseBooleanFlag(data.force_wallet_refunds, true),
+        normal_booking_limit: data.normal_booking_limit ?? 1,
+        proxy_booking_limit: data.proxy_booking_limit ?? 3,
+        min_partial_payment_pct: data.min_partial_payment_pct ?? 20,
+        require_reservation_fee: parseBooleanFlag(data.require_reservation_fee, false),
+        reservation_fee_amount: data.reservation_fee_amount || '',
+        reservation_fee_gap_days:
+          data.reservation_fee_gap_days !== undefined
+            ? String(data.reservation_fee_gap_days)
+            : "3",
+        gcash_name: data.gcash_name || '',
+        gcash_number: data.gcash_number || '',
+        gcash_qr_path: data.gcash_qr_path || '',
+        is_published: parseBooleanFlag(data.is_published, false),
+        transfer_fee: data.transfer_fee || 0,
+        latitude: data.latitude,
+        longitude: data.longitude,
+        images: images,
+      });
+      // Reset any staged deletions when reloading from server
+      setDeletedCredentialIds([]);
+      setDeletedImageIds([]);
+    } catch (err) {
+      console.error("Error fetching property:", err);
+      setError(err.message);
+    } finally {
+      setLoading(false);
     }
-    setSubmitting(false);
   };
 
-  if (loading) {
+  // Deletion handlers (copied/adapted from MyProperties.jsx)
+  const handleDeleteProperty = async (propertyId) => {
+    // When invoked from this page, we already have dormData available
+    const property =
+      dormData && dormData.id === propertyId
+        ? dormData
+        : { id: propertyId, title: dormData?.name };
+    setPasswordModal({ show: true, property });
+    setPassword("");
+    setPasswordError("");
+  };
+
+  const verifyPassword = async () => {
+    if (!password) {
+      setPasswordError("Please enter your password");
+      return;
+    }
+
+    try {
+      setVerifying(true);
+      setPasswordError("");
+
+      const response = await api.post("/landlord/properties/verify-password", {
+        password: password,
+      });
+
+      if (response.data.verified) {
+        // Password verified, show confirmation modal (keep password for final deletion)
+        setPasswordModal({ show: false, property: passwordModal.property });
+        setDeleteConfirm({ show: true, property: passwordModal.property });
+        setPasswordError("");
+      }
+    } catch (err) {
+      const errorMessage = err.response?.data?.message || "Incorrect password";
+      setPasswordError(errorMessage);
+    } finally {
+      setVerifying(false);
+    }
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteConfirm.property) return;
+    try {
+      setLoading(true);
+      const toastId = showLoading("Deleting property...");
+      if (onBack) onBack();
+
+      const response = await api.delete(`/landlord/properties/${deleteConfirm.property.id}`, {
+        data: { password: password },
+      });
+
+      if (response.data.success) {
+        showSuccess(response.data.message || "Property deleted successfully", { id: toastId });
+        setDormData(null);
+        onBack();
+      } else {
+        showError(response.data.message || "Failed to delete property", { id: toastId });
+      }
+    } catch (err) {
+      console.error("Error deleting property:", err);
+      const errorMessage =
+        err.response?.data?.message || "Failed to delete property";
+      showError(errorMessage);
+      // If password is wrong, re-open the password modal so user can retry
+      if (err.response?.data?.error === "password_incorrect") {
+        setDeleteConfirm({ show: false, property: null });
+        setPasswordModal({ show: true, property: deleteConfirm.property });
+        setPassword("");
+        setPasswordError(err.response?.data?.message || "Incorrect password");
+      }
+    } finally {
+      setLoading(false);
+      setDeleteConfirm({ show: false, property: null });
+      setPassword("");
+    }
+  };
+
+  const parseAmenities = (amenitiesData) => {
+    // Return only the amenities that were actually added to the property
+    if (
+      !amenitiesData ||
+      (Array.isArray(amenitiesData) && amenitiesData.length === 0)
+    ) {
+      return [];
+    }
+
+    // If it's an array of strings (amenity names), return as-is
+    if (Array.isArray(amenitiesData)) {
+      return amenitiesData
+        .map((a) => (typeof a === "string" ? a : String(a)).trim())
+        .filter(Boolean);
+    }
+
+    // If it's a string, try to parse as JSON
+    if (typeof amenitiesData === "string") {
+      try {
+        const parsed = JSON.parse(amenitiesData);
+        if (Array.isArray(parsed)) {
+          return parsed
+            .map((a) => (typeof a === "string" ? a : String(a)).trim())
+            .filter(Boolean);
+        }
+        // If it's an object with boolean values, extract enabled ones
+        return Object.entries(parsed)
+          .filter(([__key, value]) => value === true)
+          .map(([key]) => key.replace(/([A-Z])/g, " $1").trim());
+      } catch {
+        return [];
+      }
+    }
+
+    // If it's an object with boolean values, extract enabled ones
+    if (typeof amenitiesData === "object") {
+      return Object.entries(amenitiesData)
+        .filter(([__key, value]) => value === true)
+        .map(([key]) => key.replace(/([A-Z])/g, " $1").trim());
+    }
+
+    return [];
+  };
+
+  const handleInputChange = (field, value) => {
+    setDormData((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handleAddressChange = (field, value) => {
+    setDormData((prev) => ({
+      ...prev,
+      address: { ...prev.address, [field]: value },
+    }));
+  };
+
+  // Update coordinates from the map
+  const handleMapChange = (lat, lng) => {
+    setDormData((prev) => ({ ...prev, latitude: lat, longitude: lng }));
+  };
+
+  const handleRemoveAmenity = (index) => {
+    setDormData((prev) => ({
+      ...prev,
+      amenities: prev.amenities.filter((_, i) => i !== index),
+    }));
+  };
+
+  const handleAddRule = () => {
+    if (newRule.trim()) {
+      setDormData((prev) => ({
+        ...prev,
+        rules: [...prev.rules, newRule],
+      }));
+      setNewRule("");
+    }
+  };
+
+  const handleRemoveRule = (index) => {
+    setDormData((prev) => ({
+      ...prev,
+      rules: prev.rules.filter((_, i) => i !== index),
+    }));
+  };
+
+  const handleImageUpload = async (e) => {
+    const files = Array.from(e.target.files);
+    if (files.length === 0) return;
+
+    const validFiles = [];
+    for (const file of files) {
+      if (!["image/png", "image/jpeg", "image/jpg"].includes(file.type)) {
+        showError(`${file.name}: unsupported file type`);
+        continue;
+      }
+      if (file.size > 10 * 1024 * 1024) {
+        showError(`${file.name}: file too large (max 10 MB)`);
+        continue;
+      }
+      validFiles.push(file);
+    }
+
+    if (validFiles.length === 0) return;
+
+    // Store File objects so they can be uploaded when user saves
+    setDormData((prev) => ({
+      ...prev,
+      images: [...(prev.images || []), ...validFiles],
+    }));
+  };
+
+  const handleVideoUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    if (file.size > 200 * 1024 * 1024) {
+      showError("Video is too large. Maximum size is 200MB.");
+      return;
+    }
+
+    const videoEl = document.createElement("video");
+    videoEl.preload = "metadata";
+    videoEl.onloadedmetadata = () => {
+      window.URL.revokeObjectURL(videoEl.src);
+      if (videoEl.duration > 45) {
+        showError("Video must be 45 seconds or less.");
+        return;
+      }
+      if (videoPreview) URL.revokeObjectURL(videoPreview);
+      setVideoFile(file);
+      setVideoPreview(URL.createObjectURL(file));
+      setDeleteExistingVideo(false);
+    };
+    videoEl.src = URL.createObjectURL(file);
+  };
+
+  const removeVideo = () => {
+    if (videoPreview) URL.revokeObjectURL(videoPreview);
+    setVideoFile(null);
+    setVideoPreview(null);
+    if (videoId) setDeleteExistingVideo(true); // flag existing video for deletion on save
+    setVideoUrl(null);
+    setVideoId(null);
+  };
+
+  const handleCredentialUpload = (e) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+
+    // Store File objects as credential entries so they can be uploaded on save
+    const newCreds = files.map((f) => ({ file: f, original_name: f.name }));
+    setDormData((prev) => ({
+      ...prev,
+      credentials: [...(prev.credentials || []), ...newCreds],
+    }));
+  };
+
+  const handleRemoveCredential = (index) => {
+    setDormData((prev) => {
+      const creds = Array.isArray(prev.credentials)
+        ? [...prev.credentials]
+        : [];
+      if (index < 0 || index >= creds.length) return prev;
+      const removed = creds[index];
+      const newCreds = creds.filter((_, i) => i !== index);
+      // If it was an existing credential with an id, mark it for deletion
+      if (removed && removed.id) {
+        setDeletedCredentialIds((prevIds) => {
+          // avoid duplicates
+          if (prevIds.includes(removed.id)) return prevIds;
+          return [...prevIds, removed.id];
+        });
+      }
+      return { ...prev, credentials: newCreds };
+    });
+  };
+
+  const handleAddCustomAmenity = (amenity) => {
+    const value = (amenity || "").trim();
+    if (!value) return;
+    // Check if amenity already exists (case-insensitive)
+    const exists = dormData.amenities.some(
+      (a) => a.toLowerCase() === value.toLowerCase(),
+    );
+    if (exists) return;
+    setDormData((prev) => ({
+      ...prev,
+      amenities: [...(prev.amenities || []), value],
+    }));
+    setNewCustomAmenity("");
+  };
+
+  const __handleRemoveCustomAmenity = (index) => {
+    setDormData((prev) => ({
+      ...prev,
+      customAmenities: (prev.customAmenities || []).filter(
+        (_, i) => i !== index,
+      ),
+    }));
+  };
+
+  const handleRemoveImage = (index) => {
+    setDormData((prev) => {
+      const images = Array.isArray(prev.images) ? [...prev.images] : [];
+
+      // Enforce minimum 1 image rule
+      const totalAfterRemove = images.length - 1;
+
+      if (totalAfterRemove < 1) {
+        showError("Property must have at least 1 image");
+        return prev;
+      }
+
+      const removed = images[index];
+      const newImages = images.filter((_, i) => i !== index);
+
+      // If removed image was an existing one with ID, mark for deletion
+      if (removed && removed.id) {
+        setDeletedImageIds((prevIds) => {
+          if (prevIds.includes(removed.id)) return prevIds;
+          return [...prevIds, removed.id];
+        });
+      }
+
+      // If we removed the primary image, set the first remaining as primary
+      if (removed && removed.is_primary && newImages.length > 0) {
+        newImages[0] = { ...newImages[0], is_primary: true };
+      }
+
+      return { ...prev, images: newImages };
+    });
+  };
+
+  const handleSetPrimaryImage = (index) => {
+    setDormData((prev) => {
+      const images = (prev.images || []).map((img, i) => ({
+        ...img,
+        is_primary: i === index,
+      }));
+      return { ...prev, images };
+    });
+  };
+
+  // Drag and drop handlers for image reordering
+  const handleDragStart = (e, index) => {
+    setDraggedImageIndex(index);
+    e.dataTransfer.effectAllowed = "move";
+  };
+
+  const handleDragOver = (e, index) => {
+    e.preventDefault();
+    if (draggedImageIndex === null || draggedImageIndex === index) return;
+  };
+
+  const handleDrop = (e, dropIndex) => {
+    e.preventDefault();
+    if (draggedImageIndex === null || draggedImageIndex === dropIndex) {
+      setDraggedImageIndex(null);
+      return;
+    }
+
+    setDormData((prev) => {
+      const images = [...(prev.images || [])];
+      const [draggedItem] = images.splice(draggedImageIndex, 1);
+      images.splice(dropIndex, 0, draggedItem);
+
+      // Update display_order for all images
+      const reorderedImages = images.map((img, idx) => ({
+        ...img,
+        display_order: idx,
+      }));
+
+      return { ...prev, images: reorderedImages };
+    });
+
+    setDraggedImageIndex(null);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedImageIndex(null);
+  };
+
+  const handleSave = async () => {
+    if (isEditing && dormData.images.length === 0) {
+      showError("Property must have at least 1 image");
+      return;
+    }
+
+    if (dormData.require_reservation_fee) {
+      if (!dormData.gcash_name || !dormData.gcash_number || (!gcashQrPreview && !gcashQrFile)) {
+        showError("Complete your GCash details.");
+        return;
+      }
+      const gcashRegex = /^(09|\+639)\d{9}$/;
+      if (!gcashRegex.test(dormData.gcash_number)) {
+        showError("Invalid GCash Number format.");
+        return;
+      }
+    }
+
+    // Request final verification from landlord to ensure security
+    const confirmGcash = window.confirm(
+      "Please double check your GCash Name and Number.\nIncorrect details will result in lost payments. Proceed with save?"
+    );
+    if (!confirmGcash) {
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError("");
+
+      // Amenities is now just an array of strings
+      const amenitiesArray = Array.isArray(dormData.amenities)
+        ? dormData.amenities
+        : [];
+
+      // Include custom amenities (if any) and merge with the amenities
+      const customAmenities = Array.isArray(dormData.customAmenities)
+        ? dormData.customAmenities.map((a) => (a || "").trim()).filter(Boolean)
+        : [];
+      const merged = Array.from(
+        new Set([...amenitiesArray, ...customAmenities]),
+      );
+
+      const isGenderRestricted = ['dormitory', 'boardingHouse', 'bedSpacer'].includes(dormData.type);
+      const parsedGapDays = Number.parseInt(dormData.reservation_fee_gap_days, 10);
+      const reservationFeeGapDays = Number.isNaN(parsedGapDays)
+        ? 3
+        : Math.max(0, parsedGapDays);
+
+      const updateData = {
+        title: dormData.name,
+        description: dormData.description,
+        property_type: dormData.type,
+        sex_restriction: isGenderRestricted ? dormData.sex_restriction : 'mixed',
+        street_address: dormData.address.street,
+        barangay: dormData.address.barangay,
+        city: dormData.address.city,
+        province: dormData.address.province,
+        postal_code: dormData.address.zipCode,
+        country: dormData.address.country,
+        amenities: merged,
+        property_rules: JSON.stringify(dormData.rules),
+        nearby_landmarks: dormData.nearbyLandmarks,
+        number_of_bathrooms: parseInt(dormData.number_of_bathrooms) || 0,
+        floor_level: dormData.floor_level,
+        total_floors: parseInt(dormData.total_floors) || 1,
+        total_rooms: parseInt(dormData.total_rooms) || 0,
+        require_1month_advance: dormData.require_1month_advance ? 1 : 0,
+        allow_partial_payments: dormData.allow_partial_payments ? 1 : 0,
+        force_wallet_refunds: dormData.force_wallet_refunds ? 1 : 0,
+        normal_booking_limit: parseInt(dormData.normal_booking_limit) || 1,
+        proxy_booking_limit: parseInt(dormData.proxy_booking_limit) || 3,
+        min_partial_payment_pct: parseInt(dormData.min_partial_payment_pct) || 20,
+        require_reservation_fee: dormData.require_reservation_fee ? 1 : 0,
+        reservation_fee_amount: dormData.require_reservation_fee ? dormData.reservation_fee_amount : 0,
+        reservation_fee_gap_days: reservationFeeGapDays,
+        gcash_name: dormData.require_reservation_fee ? dormData.gcash_name : "",
+        gcash_number: dormData.require_reservation_fee ? dormData.gcash_number : "",
+        transfer_fee: parseFloat(dormData.transfer_fee) || 0,
+        latitude: parseFloat(dormData.latitude) || null,
+        longitude: parseFloat(dormData.longitude) || null,
+        is_published: dormData.status === 'active' ? (dormData.is_published ? 1 : 0) : 0,
+        current_status: dormData.status,
+      };
+
+      // If there are any new File objects in images, send multipart/form-data
+      const imageFiles = (dormData.images || []).filter(
+        (i) => i instanceof File,
+      );
+      const credentialFiles = (dormData.credentials || [])
+        .filter((c) => c && c.file instanceof File)
+        .map((c) => c.file);
+      const hasVideoChanges = videoFile || (deleteExistingVideo && videoId);
+      const hasGcashQrChanges = gcashQrFile || deleteExistingGcashQr;
+
+      // Get primary image ID (if it's an existing image)
+      const primaryImage = (dormData.images || []).find(
+        (img) => img && img.is_primary && img.id,
+      );
+      const primaryImageId = primaryImage?.id || null;
+
+      // Get image order for existing images (id -> display_order)
+      const imageOrder = (dormData.images || [])
+        .filter((img) => img && img.id)
+        .map((img) => ({ id: img.id, display_order: img.display_order }));
+
+      let __response;
+      // Use multipart if we have any new images, credential files, or video changes
+      if (
+        imageFiles.length > 0 ||
+        credentialFiles.length > 0 ||
+        hasVideoChanges ||
+        hasGcashQrChanges
+      ) {
+        const fd = new FormData();
+
+        // Append updateData fields. Arrays should be appended as indexed entries.
+        Object.entries(updateData).forEach(([key, value]) => {
+          if (value === null || value === undefined) return;
+          if (Array.isArray(value)) {
+            value.forEach((v, idx) => {
+              fd.append(`${key}[${idx}]`, v);
+            });
+          } else {
+            fd.append(key, String(value));
+          }
+        });
+
+        // Append image files (only File instances). Use `images[]` keys so PHP
+        // receives them as an array of uploaded files. This avoids potential
+        // interpretation differences with indexed bracket keys.
+        imageFiles.forEach((file) => {
+          fd.append("images[]", file);
+        });
+
+        // Append credential files (only new File instances). Use `credentials[]` keys
+        // so Laravel receives them as an array of uploaded files.
+        credentialFiles.forEach((file) => {
+          fd.append("credentials[]", file);
+        });
+
+        // Append video tour changes
+        if (videoFile) {
+          fd.append("video", videoFile);
+        } else if (deleteExistingVideo && videoId) {
+          fd.append("delete_video", "1");
+        }
+
+        // Append GCash QR Code changes
+        if (gcashQrFile) {
+          fd.append("gcash_qr_path", gcashQrFile);
+        } else if (deleteExistingGcashQr) {
+          fd.append("delete_gcash_qr", "1");
+        }
+
+        // Append ids of credentials the user removed so backend can delete them
+        if (deletedCredentialIds.length > 0) {
+          deletedCredentialIds.forEach((id) =>
+            fd.append("deleted_credentials[]", String(id)),
+          );
+        }
+
+        // Append ids of images the user removed so backend can delete them
+        if (deletedImageIds.length > 0) {
+          deletedImageIds.forEach((id) =>
+            fd.append("deleted_images[]", String(id)),
+          );
+        }
+
+        // Append primary image ID if set
+        if (primaryImageId) {
+          fd.append("primary_image_id", String(primaryImageId));
+        }
+
+        // Append image order
+        if (imageOrder.length > 0) {
+          fd.append("image_order", JSON.stringify(imageOrder));
+        }
+
+        // Use POST with method override when sending multipart FormData because
+        // PHP (and therefore Laravel) doesn't populate $_FILES for PUT requests
+        // reliably. Append _method=PUT so Laravel treats this as an update.
+        fd.append("_method", "PUT");
+        __response = await api.post(`/landlord/properties/${propertyId}`, fd, {
+          headers: {
+            Accept: "application/json",
+            // Ensure we don't send an explicit Content-Type from our axios
+            // defaults. Setting it to `undefined` lets the browser add the
+            // proper multipart/form-data boundary so PHP can parse the files.
+            "Content-Type": undefined,
+          },
+        });
+      } else {
+        // If there are deleted credential IDs but no file uploads, include them
+        const payload = { ...updateData };
+        if (deletedCredentialIds.length > 0) {
+          payload.deleted_credentials = deletedCredentialIds;
+        }
+        if (deletedImageIds.length > 0) {
+          payload.deleted_images = deletedImageIds;
+        }
+        if (primaryImageId) {
+          payload.primary_image_id = primaryImageId;
+        }
+        if (imageOrder.length > 0) {
+          payload.image_order = imageOrder;
+        }
+        if (deleteExistingVideo && videoId) {
+          payload.delete_video = true;
+        }
+        if (deleteExistingGcashQr) {
+          payload.delete_gcash_qr = true;
+        }
+        __response = await api.put(`/landlord/properties/${propertyId}`, payload);
+      }
+
+      showSuccess("Property updated successfully!");
+      setIsEditing(false);
+      setFieldErrors({});
+      // Clear staged deletions after successful save
+      setDeletedCredentialIds([]);
+      setDeletedImageIds([]);
+      setDeleteExistingVideo(false);
+      setDeleteExistingGcashQr(false);
+      fetchPropertyDetails();
+    } catch (err) {
+      console.error("Error updating property:", err);
+      // If server responded with validation errors (Laravel returns 422),
+      // surface the messages to the user and log the full response for debugging.
+      if (err.response) {
+        const data = err.response.data || {};
+        console.error("Server response:", data);
+        let msg = data.message || "Validation error";
+
+        if (data.errors && typeof data.errors === "object") {
+          // Map backend snake_case keys to frontend camelCase keys if necessary
+          const mappedErrors = {};
+          Object.entries(data.errors).forEach(([key, val]) => {
+            // Basic mapping
+            const frontendKey =
+              key === "title"
+                ? "name"
+                : key === "street_address"
+                  ? "street"
+                  : key === "number_of_bedrooms"
+                    ? "bedrooms"
+                    : key === "number_of_bathrooms"
+                      ? "bathrooms"
+                      : key === "max_occupants"
+                        ? "maxOccupants"
+                        : key === "total_rooms"
+                          ? "totalRooms"
+                          : key;
+            mappedErrors[frontendKey] = Array.isArray(val)
+              ? val.join(" • ")
+              : String(val);
+          });
+          setFieldErrors(mappedErrors);
+
+          const fieldMsgs = Object.values(data.errors).flat().filter(Boolean);
+          if (fieldMsgs.length) {
+            msg = `Please fix highlighted errors`;
+          }
+        }
+        setError(msg);
+        showError("Failed to update property");
+      } else {
+        setError(err.message || "Failed to update property");
+        showError(
+          "Failed to update property: " + (err.message || "Unknown error"),
+        );
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSubmitDraft = async () => {
+    try {
+      setLoading(true);
+      setError("");
+
+      const response = await api.put(`/landlord/properties/${propertyId}`, {
+        current_status: "pending",
+        is_draft: false,
+      });
+
+      if (response.status === 200) {
+        showSuccess("Property submitted for admin approval");
+        fetchPropertyDetails();
+      } else {
+        const message = response.data?.message || "Failed to submit draft";
+        setError(message);
+      }
+    } catch (err) {
+      console.error("Error submitting draft:", err);
+      const backendMessage = err?.response?.data?.message;
+      const message = backendMessage || err.message || "Failed to submit draft";
+      setError(message);
+      showError(message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading && !dormData) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <Loader2 className="w-8 h-8 animate-spin text-green-600" />
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-green-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-600 dark:text-gray-300">
+            Loading property details...
+          </p>
+        </div>
       </div>
     );
   }
 
-  return (
-    <div className="max-w-5xl mx-auto space-y-8 pb-20">
-      <div className="flex items-center justify-between sticky top-0 z-20 py-4 bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800">
-        <div className="flex items-center gap-4">
-          <button onClick={onBack} className="p-2 hover:bg-gray-200 dark:hover:bg-gray-800 rounded-full transition-colors">
-            <ArrowLeft className="w-6 h-6 text-gray-600 dark:text-gray-300" />
-          </button>
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{dormData?.title || "Property Profile"}</h1>
-            <p className="text-xs text-gray-500 uppercase font-bold tracking-widest mt-0.5">Settings & Customization</p>
+  if (error && !dormData) {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+        <div className="text-center">
+          <div className="bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-lg p-6 max-w-md">
+            <p className="text-red-700 dark:text-red-400 mb-4">{error}</p>
+            <button
+              onClick={onBack}
+              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+            >
+              Back to Properties
+            </button>
           </div>
         </div>
-        <button
-          onClick={handleSave}
-          disabled={submitting}
-          className="flex items-center gap-2 px-6 py-3 bg-green-600 hover:bg-green-700 text-white rounded-2xl font-bold transition-all shadow-lg hover:shadow-green-500/20 disabled:opacity-50"
-        >
-          {submitting ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
-          Save Changes
-        </button>
       </div>
+    );
+  }
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-2 space-y-8">
-          <LocationSection 
-            lat={dormData?.latitude} 
-            lng={dormData?.longitude} 
-            address={dormData?.address}
-            onLocationSelect={(lat, lng) => setDormData({ ...dormData, latitude: lat, longitude: lng })}
-            onAddressChange={(val) => setDormData({ ...dormData, address: val })}
-            isEditing={isEditing}
-          />
+  if (!dormData) return null;
 
-          <AmenitiesSection 
-            selectedAmenities={dormData?.amenities || []}
-            customAmenities={dormData?.custom_amenities || []}
-            onToggleAmenity={() => {}}
-            isEditing={isEditing}
-          />
+  return (
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+      {/* Header */}
+      <header className="sticky top-0 z-[1100] bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+          <div className="grid grid-cols-3 items-center">
+            {/* Left: Back button */}
+            <div className="flex items-center">
+              <button
+                onClick={onBack}
+                className="flex items-center gap-2 text-green-600 hover:text-green-800 dark:text-green-500 dark:hover:text-green-400"
+                aria-label="Back to Properties"
+              >
+                <ArrowLeft className="w-5 h-5" />
+                <span className="sr-only">Back to Properties</span>
+              </button>
+            </div>
 
-          <HouseRulesSection 
-            rules={dormData?.house_rules || []}
-            isEditing={isEditing}
-          />
+            {/* Center: Title */}
+            <div className="text-center">
+              <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+                Property Profile & Settings
+              </h1>
+            </div>
+
+            {/* Right: Actions */}
+            <div className="flex items-center justify-end gap-4">
+              {isEditing && (
+                <>
+                  <button
+                    onClick={() => handleDeleteProperty(dormData?.id)}
+                    disabled={loading}
+                    className="w-10 h-10 bg-red-600 text-white rounded-full flex items-center justify-center hover:bg-red-700 transition-colors disabled:opacity-50 mr-2 shadow-lg shadow-red-500/20"
+                    title="Delete Property"
+                    aria-label="Delete Property"
+                  >
+                    <Trash className="w-4 h-4" />
+                    <span className="sr-only">Delete property</span>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setIsEditing(false);
+                      fetchPropertyDetails();
+                    }}
+                    disabled={loading}
+                    className="w-10 h-10 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-full flex items-center justify-center hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors disabled:opacity-50"
+                    title="Cancel"
+                    aria-label="Cancel"
+                  >
+                    <X className="w-4 h-4" />
+                    <span className="sr-only">Cancel</span>
+                  </button>
+                </>
+              )}
+
+              {!isEditing && dormData?.status === "draft" && (
+                <button
+                  onClick={handleSubmitDraft}
+                  disabled={loading}
+                  className="px-4 py-2 bg-yellow-500 text-white rounded-lg hover:bg-green-600 transition-colors font-bold shadow-md shadow-yellow-500/20 disabled:opacity-50 mr-2"
+                >
+                  {loading ? "Submitting..." : "Submit for Approval"}
+                </button>
+              )}
+
+              {isEditing ? (
+                <button
+                  onClick={() => handleSave()}
+                  disabled={loading}
+                  className="w-10 h-10 bg-green-600 text-white rounded-full flex items-center justify-center hover:bg-green-700 transition-colors font-medium disabled:opacity-50 shadow-lg shadow-green-500/20"
+                  title="Save Changes"
+                  aria-label="Save Changes"
+                >
+                  {loading ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Save className="w-4 h-4" />
+                  )}
+                  <span className="sr-only">Save changes</span>
+                </button>
+              ) : (
+                <button
+                  onClick={() => setIsEditing(true)}
+                  disabled={loading}
+                  aria-label="Edit Property"
+                  className="w-10 h-10 bg-white dark:bg-gray-700 text-green-600 dark:text-green-500 rounded-full flex items-center justify-center hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors disabled:opacity-50 shadow-md border border-gray-100 dark:border-gray-700"
+                >
+                  <Edit className="w-5 h-5" />
+                </button>
+              )}
+            </div>
+          </div>
         </div>
+      </header>
 
-        <div className="space-y-8">
-          <GallerySection 
-            images={dormData?.images || []}
-            video={dormData?.video}
-            isEditing={isEditing}
-          />
+      {error && (
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+          <div className="bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-lg p-4 flex items-center justify-between">
+            <p className="text-red-700 dark:text-red-400 text-sm">{error}</p>
+            <button
+              onClick={() => setError("")}
+              className="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+        </div>
+      )}
 
-          <LegalDocsSection 
-            docs={dormData?.documents || []}
-            isEditing={isEditing}
-          />
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Main Content */}
+          <div className="lg:col-span-2 space-y-6">
+            {/* Basic Information */}
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mb-4">
+                <h2 className="text-lg font-semibold text-gray-900 dark:text-white shrink-0">
+                  Basic Information
+                </h2>
+                {Object.keys(fieldErrors).some((k) =>
+                  ["name", "type", "description"].includes(k),
+                ) && (
+                    <p className="text-red-600 text-xs font-bold animate-in fade-in slide-in-from-left-2">
+                      {["name", "type", "description"]
+                        .map((k) => fieldErrors[k])
+                        .filter(Boolean)
+                        .join(" • ")}
+                    </p>
+                  )}
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Property Name
+                  </label>
+                  <input
+                    type="text"
+                    value={dormData.name}
+                    onChange={(e) => handleInputChange("name", e.target.value)}
+                    disabled={!isEditing}
+                    className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-500 dark:bg-gray-700 dark:text-white dark:disabled:bg-gray-800 dark:disabled:text-gray-400 ${fieldErrors.name ? "border-red-500" : "border-gray-300 dark:border-gray-600"}`}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Property Type
+                  </label>
+                  <select
+                    value={['dormitory', 'apartment', 'boardingHouse', 'bedSpacer'].includes(dormData.type) ? dormData.type : 'others'}
+                    onChange={(e) => handleInputChange("type", e.target.value)}
+                    disabled={!isEditing}
+                    className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-500 dark:bg-gray-700 dark:text-white dark:disabled:bg-gray-800 dark:disabled:text-gray-400 capitalize ${fieldErrors.type ? "border-red-500" : "border-gray-300 dark:border-gray-600"}`}
+                  >
+                    <option value="dormitory">Dormitory</option>
+                    <option value="apartment">Apartment</option>
+                    <option value="boardingHouse">Boarding House</option>
+                    <option value="bedSpacer">Bed Spacer</option>
+                    <option value="others">Others / Specify</option>
+                  </select>
+                </div>
+
+                {!['dormitory', 'apartment', 'boardingHouse', 'bedSpacer'].includes(dormData.type) && (
+                  <div className="mt-2">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Specify Property Type
+                    </label>
+                    <input
+                      type="text"
+                      value={dormData.type === 'others' ? '' : dormData.type}
+                      placeholder="e.g., Vacation Home, Guest House"
+                      onChange={(e) => handleInputChange("type", e.target.value)}
+                      disabled={!isEditing}
+                      className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 dark:bg-gray-700 dark:text-white"
+                    />
+                  </div>
+                )}
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {['dormitory', 'boardingHouse', 'bedSpacer'].includes(dormData.type) && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Sex Restriction
+                      </label>
+                      <select
+                        value={dormData.sex_restriction}
+                        onChange={(e) => handleInputChange("sex_restriction", e.target.value)}
+                        disabled={!isEditing}
+                        className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 dark:bg-gray-700 dark:text-white capitalize"
+                      >
+                        <option value="mixed">Mixed (Any Sex)</option>
+                        <option
+                          value="male"
+                          disabled={dormData.hasFemaleRooms}
+                          title={dormData.hasFemaleRooms ? "Contains Female rooms" : ""}
+                        >
+                          Boys Only {isEditing && dormData.hasFemaleRooms ? "(Disabled: Has Female Rooms)" : ""}
+                        </option>
+                        <option
+                          value="female"
+                          disabled={dormData.hasMaleRooms}
+                          title={dormData.hasMaleRooms ? "Contains Male rooms" : ""}
+                        >
+                          Girls Only {isEditing && dormData.hasMaleRooms ? "(Disabled: Has Male Rooms)" : ""}
+                        </option>
+                      </select>
+                    </div>
+                  )}
+
+                  <div className={['dormitory', 'boardingHouse', 'bedSpacer'].includes(dormData.type) ? "" : "col-span-full md:col-span-1"}>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Status
+                    </label>
+                    <select
+                      value={dormData.status}
+                      onChange={(e) =>
+                        handleInputChange("status", e.target.value)
+                      }
+                      disabled={!isEditing}
+                      className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-500 dark:bg-gray-700 dark:text-white dark:disabled:bg-gray-800 dark:disabled:text-gray-400 capitalize"
+                    >
+                      {dormData.status === 'pending' && (
+                        <option value="pending">Pending Approval</option>
+                      )}
+                      <option value="active" disabled={dormData.status === 'pending'}>Active</option>
+                      <option value="inactive" disabled={dormData.status === 'pending'}>Inactive</option>
+                      <option value="maintenance">Maintenance</option>
+                    </select>
+                    {isEditing && dormData.status === 'pending' && (
+                      <p className="mt-2 text-xs text-amber-600 dark:text-amber-400 italic">
+                        * Properties with Pending status cannot be set to Active/Inactive until approved by the admin.
+                      </p>
+                    )}
+
+                    <label
+                      className={`mt-4 flex items-start space-x-3 ${!isEditing || dormData.status !== 'active'
+                        ? 'opacity-60 cursor-not-allowed'
+                        : 'cursor-pointer'
+                        }`}
+                    >
+                      <input
+                        type="checkbox"
+                        disabled={!isEditing || dormData.status !== 'active'}
+                        checked={dormData.status === 'active' && dormData.is_published !== false}
+                        onChange={(e) => handleInputChange('is_published', e.target.checked)}
+                        className="mt-1 w-4 h-4 text-green-600 bg-gray-100 border-gray-300 rounded focus:ring-green-500 disabled:opacity-50"
+                      />
+                      <span className="text-sm text-gray-700 dark:text-gray-300">
+                        Show this property on public listings
+                      </span>
+                    </label>
+                    {dormData.status !== 'active' && (
+                      <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                        Public visibility can only be enabled when property status is Active.
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Description
+                  </label>
+                  <textarea
+                    value={dormData.description}
+                    onChange={(e) =>
+                      handleInputChange("description", e.target.value)
+                    }
+                    disabled={!isEditing}
+                    rows={5}
+                    className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-500 dark:bg-gray-700 dark:text-white dark:disabled:bg-gray-800 dark:disabled:text-gray-400 ${fieldErrors.description ? "border-red-500" : "border-gray-300 dark:border-gray-600"}`}
+                  />
+                </div>
+
+                <div className="pt-4 border-t border-gray-100 dark:border-gray-700">
+                  <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-4">Property Specifications</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Bathrooms
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={dormData.number_of_bathrooms}
+                        onChange={(e) => handleInputChange("number_of_bathrooms", e.target.value)}
+                        disabled={!isEditing}
+                        className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 dark:bg-gray-700 dark:text-white ${fieldErrors.bathrooms ? "border-red-500" : "border-gray-300 dark:border-gray-600"}`}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Total Rooms
+                      </label>
+                      <input
+                        type="number"
+                        min="1"
+                        value={dormData.total_rooms || ""}
+                        onChange={(e) => handleInputChange("total_rooms", e.target.value)}
+                        disabled={!isEditing}
+                        className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 dark:bg-gray-700 dark:text-white ${fieldErrors.total_rooms ? "border-red-500" : "border-gray-300 dark:border-gray-600"}`}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Total Floors
+                      </label>
+                      <input
+                        type="number"
+                        min="1"
+                        value={dormData.total_floors}
+                        onChange={(e) => handleInputChange("total_floors", e.target.value)}
+                        disabled={!isEditing}
+                        className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 dark:bg-gray-700 dark:text-white ${fieldErrors.totalFloors ? "border-red-500" : "border-gray-300 dark:border-gray-600"}`}
+                      />
+                    </div>
+                    {parseInt(dormData.total_floors) > 1 && (
+                      <div className="md:col-span-3">
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                          Managed Floors (Select floors you manage)
+                        </label>
+                        <div className="flex flex-wrap gap-2">
+                          {Array.from({ length: parseInt(dormData.total_floors) }, (_, i) => i + 1).map((floor) => (
+                            <label
+                              key={floor}
+                              className={`flex items-center justify-center w-10 h-10 rounded-lg border-2 cursor-pointer transition-all ${!isEditing ? "opacity-60 cursor-not-allowed" : ""
+                                } ${(dormData.floor_level || "").split(",").includes(String(floor))
+                                  ? "bg-green-500 border-green-500 text-white"
+                                  : "border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-500 hover:border-green-200"
+                                }`}
+                            >
+                              <input
+                                type="checkbox"
+                                className="hidden"
+                                disabled={!isEditing}
+                                checked={(dormData.floor_level || "").split(",").includes(String(floor))}
+                                onChange={(e) => {
+                                  if (!isEditing) return;
+                                  const current = (dormData.floor_level || "").split(",").filter(f => f && !isNaN(f));
+                                  const next = e.target.checked
+                                    ? [...current, String(floor)].sort((a, b) => Number(a) - Number(b))
+                                    : current.filter((f) => f !== String(floor));
+                                  handleInputChange("floor_level", next.join(","));
+                                }}
+                              />
+                              {floor}
+                            </label>
+                          ))}
+                        </div>
+                        <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                          Selected floors will be the only ones available when adding rooms.
+                        </p>
+                      </div>
+                    )}
+
+                    <div className="md:col-span-3 pt-4 border-t border-gray-100 dark:border-gray-700 mt-2">
+                      <label className="flex items-start space-x-4 cursor-pointer group mb-6">
+                        <div className="flex items-center h-5 mt-0.5">
+                          <input
+                            type="checkbox"
+                            disabled={!isEditing}
+                            checked={dormData.require_1month_advance || false}
+                            onChange={(e) => handleInputChange('require_1month_advance', e.target.checked)}
+                            className="w-5 h-5 text-green-600 bg-gray-100 border-gray-300 rounded focus:ring-green-500 dark:focus:ring-green-600 dark:ring-offset-gray-800 disabled:opacity-50 transition-colors"
+                          />
+                        </div>
+                        <div className="flex flex-col">
+                          <span className="text-sm font-medium text-gray-900 dark:text-white group-hover:text-green-600 dark:group-hover:text-green-400 transition-colors">
+                            Require 1-Month Advance Payment
+                          </span>
+                          <span className="text-sm text-gray-500 dark:text-gray-400 mt-2">
+                            If enabled, tenants will be billed for their first month's rent plus an additional month as an advance payment upon booking confirmation. This acts as the default for new rooms.
+                          </span>
+                        </div>
+                      </label>
+
+                      <label className={`flex items-start space-x-4 group ${(!user?.is_paymongo_ready) ? 'opacity-60' : 'cursor-pointer'} mt-6`}>
+                        <div className="flex items-center h-5 mt-0.5">
+                          <input
+                            type="checkbox"
+                            disabled={!isEditing || !user?.is_paymongo_ready}
+                            checked={dormData.require_reservation_fee || false}
+                            onChange={(e) => handleInputChange('require_reservation_fee', e.target.checked)}
+                            className="w-5 h-5 text-green-600 bg-gray-100 border-gray-300 rounded focus:ring-green-500 dark:focus:ring-green-600 dark:ring-offset-gray-800 disabled:opacity-50 transition-colors"
+                          />
+                        </div>
+                        <div className="flex flex-col w-full">
+                          <span className="text-sm font-medium text-gray-900 dark:text-white transition-colors">
+                            Require Instant Reservation Fee
+                          </span>
+                          <span className="text-sm text-gray-500 dark:text-gray-400 mt-2">
+                            If enabled, tenants must pay a non-refundable reservation fee immediately to secure their booking request.
+                            {!user?.is_paymongo_ready && (
+                              <span className="text-red-500 block mt-2">You must complete PayMongo onboarding to enable instant payments.</span>
+                            )}
+                          </span>
+                          {dormData.require_reservation_fee && (
+                            <div className="mt-4 space-y-4">
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                  Reservation Fee Amount (₱)
+                                </label>
+                                <input
+                                  type="number"
+                                  min="0"
+                                  step="0.01"
+                                  disabled={!isEditing}
+                                  value={dormData.reservation_fee_amount}
+                                  onChange={(e) => handleInputChange('reservation_fee_amount', e.target.value)}
+                                  className="w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 dark:bg-gray-800 dark:border-gray-600 dark:text-white disabled:opacity-50 transition-all duration-200 shadow-sm"
+                                  placeholder="e.g. 500"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                  Require fee when move-in is more than (days)
+                                </label>
+                                <input
+                                  type="number"
+                                  min="0"
+                                  step="1"
+                                  disabled={!isEditing}
+                                  value={dormData.reservation_fee_gap_days ?? "3"}
+                                  onChange={(e) => handleInputChange("reservation_fee_gap_days", e.target.value)}
+                                  className="w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 dark:bg-gray-800 dark:border-gray-600 dark:text-white disabled:opacity-50 transition-all duration-200 shadow-sm"
+                                  placeholder="3"
+                                />
+                                <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                                  Default is 3 days. Reservation fee applies only when the booking gap is above this value.
+                                </p>
+                              </div>
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div>
+                                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                    GCash Account Name
+                                  </label>
+                                  <input
+                                    type="text"
+                                    disabled={!isEditing}
+                                    value={dormData.gcash_name}
+                                    onChange={(e) => handleInputChange('gcash_name', e.target.value)}
+                                    className="w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 dark:bg-gray-800 dark:border-gray-600 dark:text-white disabled:opacity-50 transition-all duration-200 shadow-sm"
+                                    placeholder="e.g. Juan De La Cruz"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                    GCash Number
+                                  </label>
+                                  <input
+                                    type="text"
+                                    disabled={!isEditing}
+                                    value={dormData.gcash_number}
+                                    onChange={(e) => handleInputChange('gcash_number', e.target.value)}
+                                    className="w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 dark:bg-gray-800 dark:border-gray-600 dark:text-white disabled:opacity-50 transition-all duration-200 shadow-sm"
+                                    placeholder="e.g. 09123456789"
+                                  />
+                                </div>
+                              </div>
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                  GCash QR Code Image
+                                </label>
+                                {(gcashQrPreview) ? (
+                                  <div className="relative inline-block border rounded-lg overflow-hidden bg-gray-50 dark:bg-gray-800 dark:border-gray-600 p-2">
+                                    <img src={gcashQrPreview} alt="GCash QR" className="max-h-48 w-auto object-contain" />
+                                    {isEditing && (
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          setGcashQrPreview(null);
+                                          setGcashQrFile(null);
+                                          setDeleteExistingGcashQr(true);
+                                        }}
+                                        className="absolute top-2 right-2 p-1.5 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors shadow-sm focus:outline-none"
+                                      >
+                                        <Trash size={14} />
+                                      </button>
+                                    )}
+                                  </div>
+                                ) : (
+                                  <label className={`w-full max-w-sm flex flex-col items-center justify-center px-4 py-6 bg-white border-2 border-dashed rounded-lg dark:bg-gray-800 ${isEditing ? 'cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 border-gray-300 dark:border-gray-600 transition-colors' : 'opacity-60 border-gray-200 dark:border-gray-700 cursor-not-allowed'}`}>
+                                    <Upload className="w-8 h-8 text-gray-400 mb-2" />
+                                    <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Click to upload GCash QR Code</span>
+                                    <span className="text-xs text-gray-500 dark:text-gray-500 mt-1">PNG, JPG, JPEG</span>
+                                    {isEditing && (
+                                      <input
+                                        type="file"
+                                        className="hidden"
+                                        accept="image/png, image/jpeg, image/jpg"
+                                        onChange={(e) => {
+                                          const file = e.target.files[0];
+                                          if (file) {
+                                            if (file.size > 5 * 1024 * 1024) {
+                                              showError("File size must be less than 5MB");
+                                              return;
+                                            }
+                                            setGcashQrFile(file);
+                                            const reader = new FileReader();
+                                            reader.onloadend = () => setGcashQrPreview(reader.result);
+                                            reader.readAsDataURL(file);
+                                            setDeleteExistingGcashQr(false);
+                                          }
+                                        }}
+                                      />
+                                    )}
+                                  </label>
+                                )}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </label>
+
+                      <label className="flex items-start space-x-4 cursor-pointer group mt-6">
+                        <div className="flex items-center h-5 mt-0.5">
+                          <input
+                            type="checkbox"
+                            disabled={!isEditing}
+                            checked={dormData.allow_partial_payments !== false}
+                            onChange={(e) => handleInputChange('allow_partial_payments', e.target.checked)}
+                            className="w-5 h-5 text-green-600 bg-gray-100 border-gray-300 rounded focus:ring-green-500 dark:focus:ring-green-600 dark:ring-offset-gray-800 disabled:opacity-50 transition-colors"
+                          />
+                        </div>
+                        <div className="flex flex-col">
+                          <span className="text-sm font-medium text-gray-900 dark:text-white group-hover:text-green-600 dark:group-hover:text-green-400 transition-colors">
+                            Allow Partial Payments
+                          </span>
+                          <span className="text-sm text-gray-500 dark:text-gray-400 mt-2">
+                            If enabled, tenants can pay their invoice balance in smaller increments. If disabled, they will be required to pay the full remaining invoice balance in a single transaction.
+                          </span>
+                        </div>
+                      </label>
+
+                      <label className="flex items-start space-x-4 cursor-pointer group mt-6">
+                        <div className="flex items-center h-5 mt-0.5">
+                          <input
+                            type="checkbox"
+                            disabled={!isEditing}
+                            checked={dormData.force_wallet_refunds !== false}
+                            onChange={(e) => handleInputChange('force_wallet_refunds', e.target.checked)}
+                            className="w-5 h-5 text-green-600 bg-gray-100 border-gray-300 rounded focus:ring-green-500 dark:focus:ring-green-600 dark:ring-offset-gray-800 disabled:opacity-50 transition-colors"
+                          />
+                        </div>
+                        <div className="flex flex-col">
+                          <span className="text-sm font-medium text-gray-900 dark:text-white group-hover:text-green-600 dark:group-hover:text-green-400 transition-colors">
+                            Force Excess Refunds to App Wallet
+                          </span>
+                          <span className="text-sm text-gray-500 dark:text-gray-400 mt-2">
+                            If enabled, excess credits from room transfers will automatically be converted to tenant wallet credits. If disabled, tenants can choose between wallet credits or requesting manual cash refunds.
+                          </span>
+                        </div>
+                      </label>
+
+                      {/* Booking Limits & Partial Minimum */}
+                      <div className="mt-8 pt-6 border-t border-gray-100 dark:border-gray-700">
+                        <label className="block text-sm font-semibold text-gray-900 dark:text-white mb-1">
+                          Normal Booking Limit (per property)
+                        </label>
+                        <input
+                          type="number"
+                          min="1" max="4"
+                          value={dormData.normal_booking_limit || 1}
+                          onChange={(e) => handleInputChange('normal_booking_limit', e.target.value)}
+                          className="w-full bg-gray-50 border border-gray-300 text-gray-900 rounded-lg p-2.5 transition focus:ring-green-500 focus:border-green-500"
+                        />
+                      </div>
+                      <div className="mt-4">
+                        <label className="block text-sm font-semibold text-gray-900 dark:text-white mb-1">
+                          Proxy Booking Limit (per property)
+                        </label>
+                        <input
+                          type="number"
+                          min="1" max="4"
+                          value={dormData.proxy_booking_limit || 3}
+                          onChange={(e) => handleInputChange('proxy_booking_limit', e.target.value)}
+                          className="w-full bg-gray-50 border border-gray-300 text-gray-900 rounded-lg p-2.5 transition focus:ring-green-500 focus:border-green-500"
+                        />
+                      </div>
+
+                      <div className="mt-4 mb-4">
+                        <label className="block text-sm font-semibold text-gray-900 dark:text-white mb-1">
+                          Minimum Partial Payment (%)
+                        </label>
+                        <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">
+                          Minimum percentage a tenant can pay if partial payments are allowed.
+                        </p>
+                        <input
+                          type="number"
+                          min="1" max="100"
+                          value={dormData.min_partial_payment_pct || 20}
+                          onChange={(e) => handleInputChange('min_partial_payment_pct', e.target.value)}
+                          className="w-full bg-gray-50 border border-gray-300 text-gray-900 rounded-lg p-2.5 transition focus:ring-green-500 focus:border-green-500"
+                          disabled={dormData.allow_partial_payments === false}
+                        />
+                      </div>
+
+
+                      <div className="mt-8 pt-6 border-t border-gray-100 dark:border-gray-700">
+                        <label className="block text-sm font-semibold text-gray-900 dark:text-white mb-1">
+                          Room Transfer Processing Fee (₱)
+                        </label>
+                        <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">
+                          The default fee quoted to tenants during a transfer request. You can update this amount anytime.
+                        </p>
+                        <div className="relative max-w-[200px]">
+                          <span className="absolute left-3 top-2.5 text-gray-500 dark:text-gray-400">₱</span>
+                          <input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            disabled={!isEditing}
+                            value={dormData.transfer_fee}
+                            onChange={(e) => handleInputChange('transfer_fee', e.target.value)}
+                            className="w-full pl-7 pr-4 py-2 bg-gray-50 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 dark:bg-gray-800 dark:border-gray-600 dark:text-white disabled:opacity-50 transition-all duration-200"
+                            placeholder="0.00"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Location */}
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mb-4">
+                <h2 className="text-lg font-semibold text-gray-900 dark:text-white shrink-0">
+                  Location
+                </h2>
+                {Object.keys(fieldErrors).some((k) =>
+                  [
+                    "street",
+                    "barangay",
+                    "city",
+                    "province",
+                    "zipCode",
+                    "latitude",
+                    "longitude",
+                  ].includes(k),
+                ) && (
+                    <p className="text-red-600 text-xs font-bold animate-in fade-in slide-in-from-left-2">
+                      {[
+                        "street",
+                        "barangay",
+                        "city",
+                        "province",
+                        "zipCode",
+                        "latitude",
+                        "longitude",
+                      ]
+                        .map((k) => fieldErrors[k])
+                        .filter(Boolean)
+                        .join(" • ")}
+                    </p>
+                  )}
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Street Address
+                  </label>
+                  <input
+                    type="text"
+                    value={dormData.address.street}
+                    onChange={(e) =>
+                      handleAddressChange("street", e.target.value)
+                    }
+                    disabled={!isEditing}
+                    className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-500 dark:bg-gray-700 dark:text-white dark:disabled:bg-gray-800 dark:disabled:text-gray-400 ${fieldErrors.street ? "border-red-500" : "border-gray-300 dark:border-gray-600"}`}
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Barangay
+                    </label>
+                    <input
+                      type="text"
+                      value={dormData.address.barangay}
+                      onChange={(e) =>
+                        handleAddressChange("barangay", e.target.value)
+                      }
+                      disabled={!isEditing}
+                      className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-500 dark:bg-gray-700 dark:text-white dark:disabled:bg-gray-800 dark:disabled:text-gray-400 ${fieldErrors.barangay ? "border-red-500" : "border-gray-300 dark:border-gray-600"}`}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      City
+                    </label>
+                    <input
+                      type="text"
+                      value={dormData.address.city}
+                      onChange={(e) =>
+                        handleAddressChange("city", e.target.value)
+                      }
+                      disabled={!isEditing}
+                      className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-500 dark:bg-gray-700 dark:text-white dark:disabled:bg-gray-800 dark:disabled:text-gray-400 ${fieldErrors.city ? "border-red-500" : "border-gray-300 dark:border-gray-600"}`}
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Province
+                    </label>
+                    <input
+                      type="text"
+                      value={dormData.address.province}
+                      onChange={(e) =>
+                        handleAddressChange("province", e.target.value)
+                      }
+                      disabled={!isEditing}
+                      className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-500 dark:bg-gray-700 dark:text-white dark:disabled:bg-gray-800 dark:disabled:text-gray-400 ${fieldErrors.province ? "border-red-500" : "border-gray-300 dark:border-gray-600"}`}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Zip Code
+                    </label>
+                    <input
+                      type="text"
+                      value={dormData.address.zipCode}
+                      onChange={(e) =>
+                        handleAddressChange("zipCode", e.target.value)
+                      }
+                      disabled={!isEditing}
+                      className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-500 dark:bg-gray-700 dark:text-white dark:disabled:bg-gray-800 dark:disabled:text-gray-400 ${fieldErrors.zipCode ? "border-red-500" : "border-gray-300 dark:border-gray-600"}`}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Nearby Landmarks
+                  </label>
+                  <textarea
+                    value={dormData.nearbyLandmarks}
+                    onChange={(e) =>
+                      handleInputChange("nearbyLandmarks", e.target.value)
+                    }
+                    disabled={!isEditing}
+                    rows={2}
+                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-500 dark:bg-gray-700 dark:text-white dark:disabled:bg-gray-800 dark:disabled:text-gray-400"
+                    placeholder="e.g., Near SM Mall, 5 minutes from LRT Station"
+                  />
+                </div>
+
+                {/* Editable Map */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Map (drag marker or click map to set location)
+                  </label>
+                  <div className="w-full h-72 rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700">
+                    <MapContainer
+                      center={[
+                        dormData.latitude ?? 14.5995,
+                        dormData.longitude ?? 120.9842,
+                      ]}
+                      zoom={13}
+                      style={{ height: "100%", width: "100%" }}
+                      whenCreated={(map) =>
+                        setTimeout(() => map.invalidateSize(), 200)
+                      }
+                    >
+                      <TileLayer
+                        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
+                        url={tileUrl}
+                      />
+                      <Marker
+                        position={[
+                          dormData.latitude ?? 14.5995,
+                          dormData.longitude ?? 120.9842,
+                        ]}
+                        draggable={isEditing}
+                        icon={greenMarkerIcon}
+                        eventHandlers={{
+                          dragend: (e) => {
+                            const p = e.target.getLatLng();
+                            handleMapChange(p.lat, p.lng);
+                          },
+                        }}
+                      />
+                      <MapClickHandler onMapClick={handleMapChange} />
+                    </MapContainer>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Latitude
+                    </label>
+                    <input
+                      type="text"
+                      value={dormData.latitude || ""}
+                      onChange={(e) =>
+                        handleInputChange("latitude", e.target.value)
+                      }
+                      disabled={!isEditing}
+                      className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-500 dark:bg-gray-700 dark:text-white dark:disabled:bg-gray-800 dark:disabled:text-gray-400 ${fieldErrors.latitude ? "border-red-500" : "border-gray-300 dark:border-gray-600"}`}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Longitude
+                    </label>
+                    <input
+                      type="text"
+                      value={dormData.longitude || ""}
+                      onChange={(e) =>
+                        handleInputChange("longitude", e.target.value)
+                      }
+                      disabled={!isEditing}
+                      className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-500 dark:bg-gray-700 dark:text-white dark:disabled:bg-gray-800 dark:disabled:text-gray-400 ${fieldErrors.longitude ? "border-red-500" : "border-gray-300 dark:border-gray-600"}`}
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Property Images */}
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+                Property Images
+              </h2>
+
+              {dormData.images.length > 0 ? (
+                <div className="grid grid-cols-4 gap-4">
+                  {dormData.images.map((img, index) => {
+                    // Handle both File objects and image objects from server
+                    const isFile = img instanceof File;
+                    const imageUrl = isFile
+                      ? URL.createObjectURL(img)
+                      : img?.url || img;
+                    const isPrimary = !isFile && img?.is_primary;
+                    const imageId = !isFile ? img?.id : null;
+
+                    return (
+                      <div
+                        key={imageId || `new-${index}`}
+                        className={`relative aspect-square bg-gray-100 dark:bg-gray-700 rounded-lg overflow-hidden group ${isEditing ? "cursor-move" : ""
+                          } ${draggedImageIndex === index ? "opacity-50 ring-2 ring-green-500" : ""} ${isPrimary ? "ring-2 ring-yellow-400" : ""
+                          }`}
+                        draggable={isEditing}
+                        onDragStart={(e) =>
+                          isEditing && handleDragStart(e, index)
+                        }
+                        onDragOver={(e) =>
+                          isEditing && handleDragOver(e, index)
+                        }
+                        onDrop={(e) => isEditing && handleDrop(e, index)}
+                        onDragEnd={handleDragEnd}
+                      >
+                        <img
+                          src={imageUrl}
+                          alt={`Property ${index + 1}`}
+                          className="w-full h-full object-cover pointer-events-none"
+                          onError={(e) => {
+                            e.target.src =
+                              "https://via.placeholder.com/400x400?text=Image+Not+Found";
+                          }}
+                        />
+
+                        {/* Primary badge */}
+                        {isPrimary && (
+                          <div className="absolute top-2 left-2 px-2 py-2 bg-yellow-400 text-yellow-900 text-xs font-semibold rounded-full flex items-center gap-2">
+                            <Star className="w-3 h-3 fill-current" />
+                            Cover
+                          </div>
+                        )}
+
+                        {/* Drag handle indicator */}
+                        {isEditing && (
+                          <div className="absolute top-2 left-2 p-2 bg-black/50 text-white rounded opacity-0 group-hover:opacity-100 transition-opacity">
+                            <GripVertical className="w-4 h-4" />
+                          </div>
+                        )}
+
+                        {/* Action buttons on hover */}
+                        {isEditing && (
+                          <div className="absolute bottom-2 right-2 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                            {/* Set as primary button (only for non-primary, non-File images) */}
+                            {!isPrimary && !isFile && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleSetPrimaryImage(index);
+                                }}
+                                className="p-2.5 bg-yellow-500 text-white rounded-full hover:bg-yellow-600 transition-colors"
+                                title="Set as cover image"
+                              >
+                                <Star className="w-3 h-3" />
+                              </button>
+                            )}
+                            {/* Delete button */}
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleRemoveImage(index);
+                              }}
+                              className="p-2.5 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors"
+                              title="Remove image"
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                  {isEditing && dormData.images.length < 10 && (
+                    <label
+                      htmlFor="image-upload-edit"
+                      className="aspect-square border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg flex items-center justify-center cursor-pointer hover:border-gray-400 dark:hover:border-gray-500 transition-colors"
+                    >
+                      <Plus className="w-8 h-8 text-gray-500" />
+                    </label>
+                  )}
+                </div>
+              ) : (
+                <div className="text-center py-8 bg-gray-50 dark:bg-gray-700 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600">
+                  <Image className="w-12 h-12 text-gray-500 mx-auto mb-4" />
+                  <p className="text-gray-600 dark:text-gray-400 text-sm">
+                    No images added yet
+                  </p>
+                  <p className="text-gray-500 dark:text-gray-500 text-xs mt-2">
+                    At least 1 image is required
+                  </p>
+                </div>
+              )}
+
+              {isEditing && (
+                <div className="mt-4">
+                  <input
+                    type="file"
+                    multiple
+                    accept="image/png,image/jpeg"
+                    onChange={handleImageUpload}
+                    className="hidden"
+                    id="image-upload-edit"
+                  />
+                  <label
+                    htmlFor="image-upload-edit"
+                    className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium"
+                  >
+                    <Upload className="w-5 h-5" />
+                    Upload Images
+                  </label>
+                </div>
+              )}
+            </div>
+
+            {/* Property Video Tour */}
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
+              <div className="mb-4">
+                <h2 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+                  <Video className="w-5 h-5 text-green-600" />
+                  Property Video Tour
+                  <span className="text-sm font-normal text-gray-500 dark:text-gray-400">
+                    (Optional)
+                  </span>
+                </h2>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
+                  Max <strong>45 seconds</strong> and <strong>200MB</strong>.
+                  Uploading a new video replaces the existing one.
+                </p>
+              </div>
+
+              {(videoPreview || videoUrl) && !deleteExistingVideo ? (
+                <div className="relative w-full rounded-xl overflow-hidden border border-gray-200 dark:border-gray-600 bg-black">
+                  <video
+                    src={videoPreview || videoUrl}
+                    className="w-full max-h-64 object-contain"
+                    controls
+                  />
+                  {isEditing && (
+                    <button
+                      type="button"
+                      onClick={removeVideo}
+                      className="absolute top-2 right-2 p-2.5 bg-red-600 hover:bg-red-700 text-white rounded-full transition-colors shadow-lg"
+                      title="Remove video"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  )}
+                  <div className="absolute bottom-2 left-2 bg-black/60 text-white text-xs px-2 py-2 rounded font-bold flex items-center gap-2">
+                    <Video className="w-3 h-3" />
+                    {videoPreview ? "NEW VIDEO (unsaved)" : "VIDEO TOUR"}
+                  </div>
+                </div>
+              ) : isEditing ? (
+                <label
+                  htmlFor="video-upload-edit"
+                  className="flex flex-col items-center justify-center w-full h-36 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-xl cursor-pointer hover:border-green-500 dark:hover:border-green-500 bg-gray-50 dark:bg-gray-700/50 transition-colors group"
+                >
+                  <div className="flex flex-col items-center gap-2 text-gray-500 group-hover:text-green-500 transition-colors">
+                    <Play className="w-10 h-10" />
+                    <span className="text-sm font-medium">
+                      Click to upload video
+                    </span>
+                    <span className="text-xs">
+                      MP4, MOV, AVI (max 200MB, 45s)
+                    </span>
+                  </div>
+                  <input
+                    id="video-upload-edit"
+                    type="file"
+                    accept="video/*"
+                    className="hidden"
+                    onChange={handleVideoUpload}
+                  />
+                </label>
+              ) : (
+                <div className="text-center py-6 bg-gray-50 dark:bg-gray-700 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600">
+                  <Play className="w-10 h-10 text-gray-500 mx-auto mb-2" />
+                  <p className="text-gray-500 dark:text-gray-400 text-sm">
+                    No video tour uploaded
+                  </p>
+                </div>
+              )}
+
+              {isEditing &&
+                (videoPreview || videoUrl) &&
+                !deleteExistingVideo && (
+                  <div className="mt-4">
+                    <label
+                      htmlFor="video-replace-edit"
+                      className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors font-medium text-sm"
+                    >
+                      <Upload className="w-4 h-4" />
+                      Replace Video
+                    </label>
+                    <input
+                      id="video-replace-edit"
+                      type="file"
+                      accept="video/*"
+                      className="hidden"
+                      onChange={handleVideoUpload}
+                    />
+                  </div>
+                )}
+            </div>
+          </div>
+
+          {/* Sidebar */}
+          <div className="space-y-6">
+            {/* Amenities */}
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+                Amenities
+              </h2>
+
+              <div className="space-y-4 mb-4">
+                {!dormData.amenities || dormData.amenities.length === 0 ? (
+                  <p className="text-gray-500 dark:text-gray-400 text-sm">
+                    No amenities added yet
+                  </p>
+                ) : (
+                  dormData.amenities.map((amenity, index) => (
+                    <div
+                      key={index}
+                      className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-lg"
+                    >
+                      <span className="text-sm text-gray-700 dark:text-gray-300">
+                        {amenity}
+                      </span>
+                      {isEditing && (
+                        <button
+                          onClick={() => handleRemoveAmenity(index)}
+                          className="text-red-600 hover:text-red-700"
+                        >
+                          <X className="w-5 h-5" />
+                        </button>
+                      )}
+                    </div>
+                  ))
+                )}
+              </div>
+
+              {isEditing && (
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={newCustomAmenity}
+                    onChange={(e) => setNewCustomAmenity(e.target.value)}
+                    onKeyPress={(e) =>
+                      e.key === "Enter" &&
+                      handleAddCustomAmenity(newCustomAmenity)
+                    }
+                    placeholder="Add an amenity..."
+                    className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 dark:bg-gray-700 dark:text-white"
+                  />
+                  <button
+                    onClick={() => handleAddCustomAmenity(newCustomAmenity)}
+                    className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+                  >
+                    Add
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Property Rules */}
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+                Property Rules
+              </h2>
+
+              <div className="space-y-4 mb-4">
+                {dormData.rules.length === 0 ? (
+                  <p className="text-gray-500 dark:text-gray-400 text-sm">
+                    No rules added yet
+                  </p>
+                ) : (
+                  dormData.rules.map((rule, index) => (
+                    <div
+                      key={index}
+                      className="flex items-start gap-4 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg"
+                    >
+                      <span className="text-green-600 mt-0.5">•</span>
+                      <span className="flex-1 text-sm text-gray-700 dark:text-gray-300">
+                        {rule}
+                      </span>
+                      {isEditing && (
+                        <button
+                          onClick={() => handleRemoveRule(index)}
+                          className="text-red-600 hover:text-red-700"
+                        >
+                          <X className="w-5 h-5" />
+                        </button>
+                      )}
+                    </div>
+                  ))
+                )}
+              </div>
+
+              {isEditing && (
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={newRule}
+                    onChange={(e) => setNewRule(e.target.value)}
+                    placeholder="Add a new rule..."
+                    className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                    onKeyPress={(e) => e.key === "Enter" && handleAddRule()}
+                  />
+                  <button
+                    onClick={handleAddRule}
+                    className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium"
+                  >
+                    Add
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Credentials (Read-only view) */}
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+                Credentials
+              </h2>
+              {!dormData.credentials || dormData.credentials.length === 0 ? (
+                <p className="text-gray-500 dark:text-gray-400 text-sm">
+                  No credential documents uploaded
+                </p>
+              ) : (
+                <div className="space-y-4">
+                  {dormData.credentials.map((cred, idx) => {
+                    const name =
+                      cred.original_name ||
+                      cred.originalName ||
+                      cred.file?.name ||
+                      `Document ${idx + 1}`;
+                    const url =
+                      cred.file_url ||
+                      cred.file_path ||
+                      (cred.file ? URL.createObjectURL(cred.file) : null);
+                    return (
+                      <div
+                        key={idx}
+                        className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600"
+                      >
+                        <div className="flex items-center gap-4">
+                          <FileText className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+                          <div className="text-sm text-gray-700 dark:text-gray-300">
+                            {name}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-4">
+                          {url ? (
+                            <a
+                              href={url}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-sm text-green-600 hover:underline"
+                            >
+                              View
+                            </a>
+                          ) : (
+                            <span className="text-sm text-gray-500 dark:text-gray-500">
+                              Unavailable
+                            </span>
+                          )}
+                          {isEditing && (
+                            <button
+                              onClick={() => handleRemoveCredential(idx)}
+                              title="Remove"
+                              className="p-2 text-red-600 hover:text-red-800"
+                            >
+                              <Trash className="w-4 h-4" />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {isEditing && (
+                <div className="mt-4">
+                  <input
+                    type="file"
+                    multiple
+                    accept="application/pdf,image/*"
+                    onChange={handleCredentialUpload}
+                    className="hidden"
+                    id="credential-upload-edit"
+                  />
+                  <label
+                    htmlFor="credential-upload-edit"
+                    className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors font-medium"
+                  >
+                    <Upload className="w-4 h-4" />
+                    Upload Documents
+                  </label>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       </div>
+      {/* Password Verification Modal */}
+      {passwordModal.show &&
+        passwordModal.property &&
+        createPortal(
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[1200]">
+            <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md w-full mx-4">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+                Verify Password
+              </h3>
+              <p className="text-gray-600 dark:text-gray-400 mb-4">
+                Please enter your password to confirm deletion of "
+                {passwordModal.property.title || passwordModal.property.name}".
+              </p>
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Password
+                </label>
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => {
+                    setPassword(e.target.value);
+                    setPasswordError("");
+                  }}
+                  onKeyPress={(e) => {
+                    if (e.key === "Enter" && !verifying) {
+                      verifyPassword();
+                    }
+                  }}
+                  className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 dark:bg-gray-700 dark:text-white ${passwordError
+                    ? "border-red-500"
+                    : "border-gray-300 dark:border-gray-600"
+                    }`}
+                  placeholder="Enter your password"
+                  autoFocus
+                />
+                {passwordError && (
+                  <p className="mt-2 text-sm text-red-600 dark:text-red-400">
+                    {passwordError}
+                  </p>
+                )}
+              </div>
+              <div className="flex justify-end gap-4">
+                <button
+                  onClick={() => {
+                    setPasswordModal({ show: false, property: null });
+                    setPassword("");
+                    setPasswordError("");
+                  }}
+                  className="px-4 py-2 text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                  disabled={verifying}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={verifyPassword}
+                  disabled={verifying || !password}
+                  className="px-4 py-2 text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {verifying ? "Verifying..." : "Verify"}
+                </button>
+              </div>
+            </div>
+          </div>,
+          document.body,
+        )}
+
+      {/* Delete Confirmation Modal */}
+      {deleteConfirm.show &&
+        deleteConfirm.property &&
+        createPortal(
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[1200]">
+            <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md w-full mx-4">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+                Confirm Deletion
+              </h3>
+              <p className="text-gray-600 dark:text-gray-400 mb-4">
+                Are you sure you want to delete "
+                {deleteConfirm.property.title || deleteConfirm.property.name}"?
+                {deleteConfirm.property.total_rooms > 0 && (
+                  <span className="block mt-2 text-red-600 dark:text-red-400 font-medium">
+                    This will also delete all{" "}
+                    {deleteConfirm.property.total_rooms} associated room(s).
+                  </span>
+                )}
+                <span className="block mt-2 dark:text-gray-400">
+                  This action cannot be undone.
+                </span>
+              </p>
+              <div className="flex justify-end gap-4">
+                <button
+                  onClick={() => {
+                    setDeleteConfirm({ show: false, property: null });
+                    setPassword("");
+                  }}
+                  className="px-4 py-2 text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={confirmDelete}
+                  className="px-4 py-2 text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors"
+                >
+                  Delete Property
+                </button>
+              </div>
+            </div>
+          </div>,
+          document.body,
+        )}
     </div>
   );
+}
+
+// Helper component to capture map clicks and forward coordinates
+function MapClickHandler({ onMapClick }) {
+  useMapEvents({
+    click(e) {
+      if (onMapClick) onMapClick(e.latlng.lat, e.latlng.lng);
+    },
+  });
+  return null;
 }

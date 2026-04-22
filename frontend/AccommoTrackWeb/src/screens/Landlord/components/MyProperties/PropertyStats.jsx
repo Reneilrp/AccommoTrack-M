@@ -12,16 +12,16 @@ const PropertyStats = ({ stats }) => {
   ];
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
       {cards.map((card, i) => (
-        <div key={i} className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700">
+        <div key={i} className="relative overflow-hidden bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-300 dark:border-gray-700">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">{card.label}</p>
-              <h3 className="text-2xl font-bold text-gray-900 dark:text-white mt-1">{card.value}</h3>
+              <p className="text-xs font-bold text-gray-500 dark:text-gray-500 uppercase tracking-wider mb-2">{card.label}</p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-white mt-2">{card.value}</p>
             </div>
-            <div className={`w-12 h-12 ${card.bg} dark:bg-opacity-10 rounded-xl flex items-center justify-center`}>
-              <card.icon className={`w-6 h-6 ${card.color}`} />
+            <div className={`w-10 h-10 ${card.bg} dark:bg-opacity-20 rounded-lg flex items-center justify-center`}>
+              <card.icon className={`w-5 h-5 ${card.color}`} />
             </div>
           </div>
         </div>
