@@ -120,6 +120,10 @@ export default function AddProperty({ onBack, onSave }) {
     forceWalletRefunds: true,
     requireReservationFee: false,
     reservationFeeAmount: '',
+    normalBookingLimit: '1',
+    proxyBookingLimit: '3',
+    minPartialPaymentPct: '20',
+    transferLimit: '1',
     images: []
   });
 
@@ -461,6 +465,10 @@ export default function AddProperty({ onBack, onSave }) {
       force_wallet_refunds: formData.forceWalletRefunds ? '1' : '0',
       require_reservation_fee: formData.requireReservationFee ? '1' : '0',
       reservation_fee_amount: formData.requireReservationFee ? formData.reservationFeeAmount : 0,
+      normal_booking_limit: parseInt(formData.normalBookingLimit) || 1,
+      proxy_booking_limit: parseInt(formData.proxyBookingLimit) || 3,
+      min_partial_payment_pct: parseInt(formData.minPartialPaymentPct) || 20,
+      transfer_limit: parseInt(formData.transferLimit) || 1,
     };
   };
 
@@ -939,6 +947,64 @@ export default function AddProperty({ onBack, onSave }) {
                         </span>
                       </div>
                     </label>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8 pt-6 border-t border-gray-100 dark:border-gray-700">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                          Self Booking Limit
+                        </label>
+                        <input
+                          type="number"
+                          min="1"
+                          max="4"
+                          value={formData.normalBookingLimit}
+                          onChange={(e) => handleInputChange('normalBookingLimit', e.target.value)}
+                          className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 outline-none text-gray-900 dark:text-white transition-all"
+                        />
+                        <p className="mt-1 text-xs text-gray-500">Max active bookings per tenant. Default: 1</p>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                          Proxy Booking Limit
+                        </label>
+                        <input
+                          type="number"
+                          min="1"
+                          max="4"
+                          value={formData.proxyBookingLimit}
+                          onChange={(e) => handleInputChange('proxyBookingLimit', e.target.value)}
+                          className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 outline-none text-gray-900 dark:text-white transition-all"
+                        />
+                        <p className="mt-1 text-xs text-gray-500">Max proxy bookings per tenant. Default: 3</p>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                          Min Partial Payment (%)
+                        </label>
+                        <input
+                          type="number"
+                          min="1"
+                          max="100"
+                          value={formData.minPartialPaymentPct}
+                          onChange={(e) => handleInputChange('minPartialPaymentPct', e.target.value)}
+                          className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 outline-none text-gray-900 dark:text-white transition-all"
+                        />
+                        <p className="mt-1 text-xs text-gray-500">Minimum percentage for partial payments. Default: 20%</p>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                          Transfer Limit (per tenant)
+                        </label>
+                        <input
+                          type="number"
+                          min="0"
+                          value={formData.transferLimit}
+                          onChange={(e) => handleInputChange('transferLimit', e.target.value)}
+                          className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 outline-none text-gray-900 dark:text-white transition-all"
+                        />
+                        <p className="mt-1 text-xs text-gray-500">Max times a tenant can request a room transfer. Default: 1</p>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>

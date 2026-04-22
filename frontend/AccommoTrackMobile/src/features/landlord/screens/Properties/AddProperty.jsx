@@ -96,6 +96,7 @@ const initialForm = {
   reservationFeeAmount: "",
   normalBookingLimit: "1",
   proxyBookingLimit: "3",
+  transferLimit: "1",
   minPartialPaymentPct: "20",
 };
 
@@ -638,6 +639,7 @@ export default function AddProperty({ navigation }) {
         : "0",
       normal_booking_limit: form.normalBookingLimit || "1",
       proxy_booking_limit: form.proxyBookingLimit || "3",
+      transfer_limit: form.transferLimit || "1",
       min_partial_payment_pct: form.minPartialPaymentPct || "20",
     };
 
@@ -1524,6 +1526,22 @@ export default function AddProperty({ navigation }) {
                 />
                 <Text style={{ fontSize: 10, color: theme.colors.textSecondary }}>
                   Default: 20%
+                </Text>
+              </View>
+
+              <View style={{ marginTop: 16 }}>
+                <Text style={styles.label}>Transfer Limit (per tenant)</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="0-99"
+                  keyboardType="numeric"
+                  value={form.transferLimit}
+                  onChangeText={(val) => {
+                    updateForm("transferLimit", val);
+                  }}
+                />
+                <Text style={{ fontSize: 10, color: theme.colors.textSecondary }}>
+                  Max times a tenant can request a room transfer. Default: 1.
                 </Text>
               </View>
             </View>

@@ -1376,7 +1376,8 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
                                 const pendingRequestForThisBooking = booking?.id ? pendingTransferRequests.find(
                                   (request) => Number(request.booking_id) === Number(booking.id),
                                 ) : null;
-                                const limitReached = monthlyTransferCount >= 2;
+                                const transferLimit = property?.transfer_limit ?? 1;
+                                const limitReached = monthlyTransferCount >= transferLimit;
                                 const now = new Date();
                                 const nextMonthStart = new Date(now.getFullYear(), now.getMonth() + 1, 1);
                                 const daysUntilTransferReset = Math.max(
@@ -1391,7 +1392,7 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
                                   buttonTitle = 'You already have a pending transfer request for this booking';
                                 } else if (limitReached) {
                                   buttonText = 'Limit Reached';
-                                  buttonTitle = `Monthly transfer limit reached. Try again in ${daysUntilTransferReset} day${daysUntilTransferReset === 1 ? '' : 's'}.`;
+                                  buttonTitle = `Transfer limit reached for this property. Try again in ${daysUntilTransferReset} day${daysUntilTransferReset === 1 ? '' : 's'}.`;
                                 }
                                 return (
                                   <div className="flex items-center gap-2">
@@ -1399,7 +1400,7 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
                                       onClick={() => {
                                         if (isPendingForThisBooking) return;
                                         if (limitReached) {
-                                          showError(`Transfer limit reached. You can request again in ${daysUntilTransferReset} day${daysUntilTransferReset === 1 ? '' : 's'}.`);
+                                          showError(`Transfer limit reached for this property. You can request again in ${daysUntilTransferReset} day${daysUntilTransferReset === 1 ? '' : 's'}.`);
                                           return;
                                         }
                                         onRequestTransfer?.();

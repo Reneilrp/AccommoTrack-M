@@ -88,9 +88,19 @@ class TransferController extends Controller
             })
             ->values();
 
+        $currentMonth = now()->startOfMonth();
+        $transfersCount = TransferRequest::where('tenant_id', $tenantId)
+            ->whereIn('status', ['pending', 'approved'])
+            ->where('created_at', '>=', $currentMonth)
+            ->count();
+
         return response()->json([
             'success' => true,
             'data' => RoomResource::collection($rooms)->resolve(),
+            'meta' => [
+                'transfer_limit' => (int) ($property->transfer_limit ?? 1),
+                'transfers_count' => $transfersCount,
+            ],
             'message' => 'Eligible transfer rooms fetched successfully.',
         ]);
     }

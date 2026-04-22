@@ -83,11 +83,8 @@ class PropertyService
                 : 0.0;
             $reservationFeeGapDaysRaw = $validated['reservation_fee_gap_days'] ?? 3;
             $reservationFeeGapDays = max(0, (int) $reservationFeeGapDaysRaw);
-            $normalBookingLimit = min(4, max(1, (int) ($validated['normal_booking_limit'] ?? 1)));
-            $proxyBookingLimit = min(4, max(1, (int) ($validated['proxy_booking_limit'] ?? 3)));
-            $minPartialPaymentPct = min(100, max(1, (int) ($validated['min_partial_payment_pct'] ?? 20)));
 
-            $property = Property::create([
+            $propertyData = [
                 'landlord_id' => $user->id,
                 'title' => $validated['title'],
                 'description' => $validated['description'] ?? null,
@@ -113,22 +110,33 @@ class PropertyService
                 'available_rooms' => 0,
                 'is_published' => $isPublished,
                 'is_available' => $isAvailable,
-                'is_eligible' => $validated['is_eligible'] ?? false,
+                'is_eligible' => (bool) ($validated['is_eligible'] ?? false),
                 'require_1month_advance' => (bool) ($validated['require_1month_advance'] ?? false),
-                'allow_partial_payments' => array_key_exists('allow_partial_payments', $validated)
-                    ? (bool) $validated['allow_partial_payments']
-                    : true,
-                'force_wallet_refunds' => array_key_exists('force_wallet_refunds', $validated)
-                    ? (bool) $validated['force_wallet_refunds']
-                    : true,
-                'normal_booking_limit' => $normalBookingLimit,
-                'proxy_booking_limit' => $proxyBookingLimit,
-                'min_partial_payment_pct' => $minPartialPaymentPct,
                 'require_reservation_fee' => (bool) ($validated['require_reservation_fee'] ?? false),
                 'reservation_fee' => $reservationFeeAmount,
                 'reservation_fee_gap_days' => $reservationFeeGapDays,
                 'accepted_payments' => $validated['accepted_payments'] ?? null,
-            ]);
+            ];
+
+            // Only include these fields if they were actually provided in the request
+            // This prevents crashes if the database columns haven't been added yet (backward compatibility)
+            if (isset($validated['allow_partial_payments'])) {
+                $propertyData['allow_partial_payments'] = (bool) $validated['allow_partial_payments'];
+            }
+            if (isset($validated['force_wallet_refunds'])) {
+                $propertyData['force_wallet_refunds'] = (bool) $validated['force_wallet_refunds'];
+            }
+            if (isset($validated['normal_booking_limit'])) {
+                $propertyData['normal_booking_limit'] = min(4, max(1, (int) $validated['normal_booking_limit']));
+            }
+            if (isset($validated['proxy_booking_limit'])) {
+                $propertyData['proxy_booking_limit'] = min(4, max(1, (int) $validated['proxy_booking_limit']));
+            }
+            if (isset($validated['min_partial_payment_pct'])) {
+                $propertyData['min_partial_payment_pct'] = min(100, max(1, (int) $validated['min_partial_payment_pct']));
+            }
+
+            $property = Property::create($propertyData);
 
             $this->handleFileUploads($property, app('request'));
 
@@ -244,6 +252,10 @@ class PropertyService
 
             if (array_key_exists('min_partial_payment_pct', $validated)) {
                 $validated['min_partial_payment_pct'] = min(100, max(1, (int) $validated['min_partial_payment_pct']));
+            }
+
+            if (array_key_exists('transfer_limit', $validated)) {
+                $validated['transfer_limit'] = max(0, (int) $validated['transfer_limit']);
             }
 
             if (array_key_exists('require_reservation_fee', $validated)) {

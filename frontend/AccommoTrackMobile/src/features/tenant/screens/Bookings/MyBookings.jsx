@@ -1406,11 +1406,12 @@ export default function MyBookings() {
       return;
     }
 
-    if (monthlyTransferCount >= 2) {
+    const transferLimit = property?.transfer_limit ?? 1;
+    if (monthlyTransferCount >= transferLimit) {
       const daysUntilReset = getDaysUntilTransferReset();
       showAlert(
         'Transfer Limit Reached',
-        `Room transfers are limited to 2 per month. Try again in ${daysUntilReset} day${daysUntilReset === 1 ? '' : 's'}.`,
+        `Room transfers are limited to ${transferLimit} per month for this property. Try again in ${daysUntilReset} day${daysUntilReset === 1 ? '' : 's'}.`,
       );
       return;
     }
@@ -1731,7 +1732,8 @@ export default function MyBookings() {
     const pendingTransferForBooking = pendingTransferRequests.find(
       (item) => Number(item?.booking_id) === Number(booking.id),
     );
-    const transferLimitReached = monthlyTransferCount >= 2;
+    const transferLimit = property?.transfer_limit ?? 1;
+    const transferLimitReached = monthlyTransferCount >= transferLimit;
     const daysUntilTransferReset = getDaysUntilTransferReset();
     const transferButtonDisabled = submittingTransfer || Boolean(pendingTransferForBooking) || transferLimitReached;
     const startDateRaw = booking.startDate || booking.start_date;

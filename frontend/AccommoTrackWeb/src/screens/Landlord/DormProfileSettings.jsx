@@ -249,6 +249,10 @@ export default function DormProfileSettings({
         gcash_qr_path: data.gcash_qr_path || '',
         is_published: parseBooleanFlag(data.is_published, false),
         transfer_fee: data.transfer_fee || 0,
+        transfer_limit: data.transfer_limit ?? 1,
+        normal_booking_limit: data.normal_booking_limit ?? 1,
+        proxy_booking_limit: data.proxy_booking_limit ?? 3,
+        min_partial_payment_pct: data.min_partial_payment_pct ?? 20,
         latitude: data.latitude,
         longitude: data.longitude,
         images: images,
@@ -701,6 +705,7 @@ export default function DormProfileSettings({
         gcash_name: dormData.require_reservation_fee ? dormData.gcash_name : "",
         gcash_number: dormData.require_reservation_fee ? dormData.gcash_number : "",
         transfer_fee: parseFloat(dormData.transfer_fee) || 0,
+        transfer_limit: parseInt(dormData.transfer_limit) || 1,
         latitude: parseFloat(dormData.latitude) || null,
         longitude: parseFloat(dormData.longitude) || null,
         is_published: dormData.status === 'active' ? (dormData.is_published ? 1 : 0) : 0,
@@ -1578,6 +1583,26 @@ export default function DormProfileSettings({
                             onChange={(e) => handleInputChange('transfer_fee', e.target.value)}
                             className="w-full pl-7 pr-4 py-2 bg-gray-50 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 dark:bg-gray-800 dark:border-gray-600 dark:text-white disabled:opacity-50 transition-all duration-200"
                             placeholder="0.00"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="mt-8 pt-6 border-t border-gray-100 dark:border-gray-700">
+                        <label className="block text-sm font-semibold text-gray-900 dark:text-white mb-1">
+                          Transfer Limit (per tenant)
+                        </label>
+                        <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">
+                          The maximum number of times a tenant can request a room transfer.
+                        </p>
+                        <div className="relative max-w-[200px]">
+                          <input
+                            type="number"
+                            min="0"
+                            disabled={!isEditing}
+                            value={dormData.transfer_limit}
+                            onChange={(e) => handleInputChange('transfer_limit', e.target.value)}
+                            className="w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 dark:bg-gray-800 dark:border-gray-600 dark:text-white disabled:opacity-50 transition-all duration-200"
+                            placeholder="1"
                           />
                         </div>
                       </div>
