@@ -14,6 +14,131 @@ describe('adminService (web)', () => {
     jest.clearAllMocks();
   });
 
+  it('getUsers parses legacy laravel paginator payloads', async () => {
+    api.get.mockResolvedValue({
+      data: {
+        current_page: 1,
+        last_page: 1,
+        per_page: 50,
+        total: 2,
+        from: 1,
+        to: 2,
+        data: [
+          {
+            id: 201,
+            role: 'landlord',
+            email: 'landlord@example.com',
+            properties: [{ id: 10 }],
+          },
+          {
+            id: 202,
+            role: 'tenant',
+            email: 'tenant@example.com',
+          },
+        ],
+      },
+    });
+
+    const result = await adminService.getUsers({ page: 1 });
+
+    expect(api.get).toHaveBeenCalledWith('/admin/users', {
+      params: { page: 1 },
+    });
+
+    expect(result.success).toBe(true);
+    expect(result.data.items).toHaveLength(2);
+    expect(result.data.items[0].properties_count).toBe(1);
+    expect(result.data.pagination).toEqual({
+      currentPage: 1,
+      lastPage: 1,
+      perPage: 50,
+      total: 2,
+      from: 1,
+      to: 2,
+      hasMorePages: false,
+    });
+  });
+
+  it('getUsers parses wrapped items/pagination payloads', async () => {
+    api.get.mockResolvedValue({
+      data: {
+        success: true,
+        data: {
+          items: [
+            {
+              id: 301,
+              role: 'landlord',
+              email: 'wrapped-landlord@example.com',
+              properties: [{ id: 90 }, { id: 91 }],
+            },
+          ],
+          pagination: {
+            currentPage: 3,
+            lastPage: 5,
+            perPage: 20,
+            total: 81,
+            from: 41,
+            to: 60,
+            hasMorePages: true,
+          },
+        },
+        message: '',
+      },
+    });
+
+    const result = await adminService.getUsers({ role: 'landlord' });
+
+    expect(api.get).toHaveBeenCalledWith('/admin/users', {
+      params: { role: 'landlord' },
+    });
+
+    expect(result.success).toBe(true);
+    expect(result.data.items).toHaveLength(1);
+    expect(result.data.items[0].properties_count).toBe(2);
+    expect(result.data.pagination).toEqual({
+      currentPage: 3,
+      lastPage: 5,
+      perPage: 20,
+      total: 81,
+      from: 41,
+      to: 60,
+      hasMorePages: true,
+    });
+  });
+
+  it('searchUserByEmail supports paginated payloads', async () => {
+    api.get.mockResolvedValue({
+      data: {
+        success: true,
+        data: {
+          current_page: 1,
+          last_page: 1,
+          per_page: 50,
+          total: 1,
+          data: [
+            {
+              id: 999,
+              email: 'find-me@example.com',
+              role: 'tenant',
+            },
+          ],
+        },
+      },
+    });
+
+    const result = await adminService.searchUserByEmail('find-me@example.com');
+
+    expect(result).toEqual({
+      success: true,
+      data: {
+        id: 999,
+        email: 'find-me@example.com',
+        role: 'tenant',
+      },
+      message: 'User found',
+    });
+  });
+
   it('getPaymentOversightQueue strips empty query values and normalizes records', async () => {
     api.get.mockResolvedValue({
       data: {

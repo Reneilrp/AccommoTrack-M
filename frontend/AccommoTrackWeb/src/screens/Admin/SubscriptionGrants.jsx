@@ -2,6 +2,8 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { CalendarClock, Gift, Loader2, RefreshCcw, Search } from 'lucide-react';
 import { showSuccess, showError } from '../../utils/toast';
 import adminService from '../../services/adminService';
+import Decimal from '../../utils/decimal';
+import formatPrice from '../../utils/price';
 
 const getLocalDateInputValue = () => {
   const now = new Date();
@@ -65,11 +67,13 @@ const formatDateTime = (value) => {
 };
 
 const formatMoneyFromCents = (value, currency = 'PHP') => {
-  const amount = Number(value || 0);
-  return amount.toLocaleString('en-PH', {
-    style: 'currency',
-    currency: currency || 'PHP',
-  });
+  let cents = 0;
+  try {
+    cents = new Decimal(value || 0);
+  } catch {
+    cents = new Decimal(0);
+  }
+  return formatPrice(cents.dividedBy(100).toNumber(), { currency });
 };
 
 const formatFeatureLabel = (value) => {
@@ -148,11 +152,13 @@ export default function SubscriptionGrants() {
   const [focusedActionPanel, setFocusedActionPanel] = useState('');
 
   const filteredLandlords = useMemo(() => {
-    return [...landlords].sort((a, b) => {
-      const aName = buildLandlordLabel(a).toLowerCase();
-      const bName = buildLandlordLabel(b).toLowerCase();
-      return aName.localeCompare(bName);
-    });
+    return [...landlords]
+      .filter((user) => String(user.role).toLowerCase() === 'landlord')
+      .sort((a, b) => {
+        const aName = buildLandlordLabel(a).toLowerCase();
+        const bName = buildLandlordLabel(b).toLowerCase();
+        return aName.localeCompare(bName);
+      });
   }, [landlords]);
 
   const selectedLandlord = useMemo(
@@ -203,17 +209,24 @@ export default function SubscriptionGrants() {
   const fetchLandlords = useCallback(async (search = '') => {
     try {
       setSearchingLandlords(true);
-      const res = await adminService.getUsers({ 
-        role: 'landlord', 
+      const res = await adminService.getUsers({
+        role: 'landlord',
         search: search || undefined,
-        per_page: 20 
+        per_page: 100
       });
-      
+
       if (res.success) {
-        setLandlords(res.data.items || []);
+        const items = res.data.items || [];
+        // subscription is only for landlords
+        setLandlords(items.filter((u) => String(u.role).toLowerCase() === 'landlord'));
+      } else {
+        setLandlords([]);
+        showError(res.error || res.message || 'Failed to load landlords.');
       }
     } catch (err) {
       console.error('Failed to search landlords', err);
+      setLandlords([]);
+      showError(err?.response?.data?.message || err?.message || 'Failed to load landlords.');
     } finally {
       setSearchingLandlords(false);
     }
@@ -601,11 +614,10 @@ export default function SubscriptionGrants() {
               key={tab.id}
               type="button"
               onClick={() => setActiveActionTab(tab.id)}
-              className={`px-3 py-2 rounded-lg text-sm font-semibold ${
-                activeActionTab === tab.id
+              className={`px-3 py-2 rounded-lg text-sm font-semibold ${activeActionTab === tab.id
                   ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300'
                   : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-200'
-              }`}
+                }`}
             >
               {tab.label}
             </button>
@@ -620,9 +632,8 @@ export default function SubscriptionGrants() {
           <form
             id="subscription-grant-panel"
             onSubmit={handleGrantSubmit}
-            className={`rounded-2xl border border-gray-200 dark:border-gray-700 p-5 space-y-3 ${
-              focusedActionPanel === 'grant' ? 'ring-2 ring-blue-300 dark:ring-blue-600' : ''
-            }`}
+            className={`rounded-2xl border border-gray-200 dark:border-gray-700 p-5 space-y-3 ${focusedActionPanel === 'grant' ? 'ring-2 ring-blue-300 dark:ring-blue-600' : ''
+              }`}
           >
             <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Grant Plan</h2>
 
@@ -659,22 +670,20 @@ export default function SubscriptionGrants() {
                 <button
                   type="button"
                   onClick={() => setGrantForm((prev) => ({ ...prev, mode: 'duration_months' }))}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-medium border ${
-                    grantForm.mode === 'duration_months'
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium border ${grantForm.mode === 'duration_months'
                       ? 'bg-blue-600 text-white border-blue-600'
                       : 'border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200'
-                  }`}
+                    }`}
                 >
                   Duration (months)
                 </button>
                 <button
                   type="button"
                   onClick={() => setGrantForm((prev) => ({ ...prev, mode: 'ends_at' }))}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-medium border ${
-                    grantForm.mode === 'ends_at'
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium border ${grantForm.mode === 'ends_at'
                       ? 'bg-blue-600 text-white border-blue-600'
                       : 'border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200'
-                  }`}
+                    }`}
                 >
                   End date
                 </button>
@@ -742,9 +751,8 @@ export default function SubscriptionGrants() {
           <form
             id="subscription-extend-panel"
             onSubmit={handleExtendSubmit}
-            className={`rounded-2xl border border-gray-200 dark:border-gray-700 p-5 space-y-3 ${
-              focusedActionPanel === 'extend' ? 'ring-2 ring-emerald-300 dark:ring-emerald-600' : ''
-            }`}
+            className={`rounded-2xl border border-gray-200 dark:border-gray-700 p-5 space-y-3 ${focusedActionPanel === 'extend' ? 'ring-2 ring-emerald-300 dark:ring-emerald-600' : ''
+              }`}
           >
             <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Extend Grant</h2>
 
@@ -766,22 +774,20 @@ export default function SubscriptionGrants() {
                 <button
                   type="button"
                   onClick={() => setExtendForm((prev) => ({ ...prev, mode: 'add_months' }))}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-medium border ${
-                    extendForm.mode === 'add_months'
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium border ${extendForm.mode === 'add_months'
                       ? 'bg-blue-600 text-white border-blue-600'
                       : 'border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200'
-                  }`}
+                    }`}
                 >
                   Add months
                 </button>
                 <button
                   type="button"
                   onClick={() => setExtendForm((prev) => ({ ...prev, mode: 'ends_at' }))}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-medium border ${
-                    extendForm.mode === 'ends_at'
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium border ${extendForm.mode === 'ends_at'
                       ? 'bg-blue-600 text-white border-blue-600'
                       : 'border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200'
-                  }`}
+                    }`}
                 >
                   Set end date
                 </button>
@@ -839,9 +845,8 @@ export default function SubscriptionGrants() {
           <form
             id="subscription-revoke-panel"
             onSubmit={handleRevokeSubmit}
-            className={`rounded-2xl border border-gray-200 dark:border-gray-700 p-5 space-y-3 ${
-              focusedActionPanel === 'revoke' ? 'ring-2 ring-red-300 dark:ring-red-600' : ''
-            }`}
+            className={`rounded-2xl border border-gray-200 dark:border-gray-700 p-5 space-y-3 ${focusedActionPanel === 'revoke' ? 'ring-2 ring-red-300 dark:ring-red-600' : ''
+              }`}
           >
             <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Revoke Grant</h2>
 

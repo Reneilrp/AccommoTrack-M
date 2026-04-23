@@ -121,37 +121,93 @@ const buildQueryParams = (params = {}) => {
   }, {});
 };
 
-const normalizePagination = (payload) => {
+const hasPaginationFields = (value) => {
+  if (!isPlainObject(value)) {
+    return false;
+  }
+
+  return (
+    value.current_page !== undefined ||
+    value.currentPage !== undefined ||
+    value.last_page !== undefined ||
+    value.lastPage !== undefined ||
+    value.per_page !== undefined ||
+    value.perPage !== undefined ||
+    value.total !== undefined
+  );
+};
+
+const resolvePaginationPayload = (payload) => {
   if (!isPlainObject(payload)) {
+    return null;
+  }
+
+  const candidates = [
+    payload,
+    isPlainObject(payload.pagination) ? payload.pagination : null,
+    isPlainObject(payload.meta) ? payload.meta : null,
+    isPlainObject(payload.data) ? payload.data : null,
+    isPlainObject(payload.data?.pagination) ? payload.data.pagination : null,
+    isPlainObject(payload.data?.meta) ? payload.data.meta : null,
+  ].filter(Boolean);
+
+  return candidates.find((candidate) => hasPaginationFields(candidate)) || null;
+};
+
+const normalizePagination = (payload) => {
+  const source = resolvePaginationPayload(payload);
+
+  if (!source) {
     return { ...EMPTY_PAGINATION };
   }
 
-  const currentPage = toInt(payload.current_page ?? payload.currentPage, 1);
-  const lastPage = toInt(payload.last_page ?? payload.lastPage, 1);
-  const perPage = toInt(payload.per_page ?? payload.perPage, 0);
-  const total = toInt(payload.total, 0);
+  const currentPage = toInt(source.current_page ?? source.currentPage, 1);
+  const lastPage = toInt(source.last_page ?? source.lastPage, 1);
+  const perPage = toInt(source.per_page ?? source.perPage, 0);
+  const total = toInt(source.total, 0);
 
   return {
     currentPage,
     lastPage,
     perPage,
     total,
-    from: toNullableInt(payload.from),
-    to: toNullableInt(payload.to),
-    hasMorePages: toBoolean(payload.has_more_pages ?? payload.hasMorePages, currentPage < lastPage),
+    from: toNullableInt(source.from),
+    to: toNullableInt(source.to),
+    hasMorePages: toBoolean(source.has_more_pages ?? source.hasMorePages, currentPage < lastPage),
   };
 };
 
-const getPaginatedItems = (payload) => {
-  if (isPlainObject(payload) && Array.isArray(payload.data)) {
-    return payload.data;
-  }
-
+const extractCollectionItems = (payload) => {
   if (Array.isArray(payload)) {
     return payload;
   }
 
+  if (!isPlainObject(payload)) {
+    return [];
+  }
+
+  const directArrayKeys = ['data', 'items', 'users', 'results', 'rows', 'records', 'list'];
+  for (const key of directArrayKeys) {
+    if (Array.isArray(payload[key])) {
+      return payload[key];
+    }
+  }
+
+  const nestedObjectKeys = ['data', 'payload', 'result'];
+  for (const key of nestedObjectKeys) {
+    if (isPlainObject(payload[key])) {
+      const nestedItems = extractCollectionItems(payload[key]);
+      if (nestedItems.length > 0) {
+        return nestedItems;
+      }
+    }
+  }
+
   return [];
+};
+
+const getPaginatedItems = (payload) => {
+  return extractCollectionItems(payload);
 };
 
 const normalizeManualMethod = (method) => {
@@ -812,7 +868,7 @@ const adminService = {
     try {
       const response = await api.get('/admin/users');
       const envelope = normalizeEnvelope(response?.data);
-      const users = Array.isArray(envelope.data) ? envelope.data : [];
+      const users = extractCollectionItems(envelope.data);
       
       const user = users.find(u => u.email?.toLowerCase() === email.toLowerCase());
       
