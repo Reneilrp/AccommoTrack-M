@@ -529,7 +529,7 @@ export default function DormProfileSettings({ route, navigation }) {
       return;
     }
 
-    await proceedWithSave();
+    setShowGcashConfirm(true);
   };
 
   const proceedWithSave = async () => {
@@ -1463,22 +1463,25 @@ export default function DormProfileSettings({ route, navigation }) {
               <View style={{ width: 60, height: 60, borderRadius: 30, backgroundColor: theme.colors.primary + '15', justifyContent: 'center', alignItems: 'center', marginBottom: 15 }}>
                 <Ionicons name="shield-checkmark" size={30} color={theme.colors.primary} />
               </View>
-              <Text style={styles.passwordModalTitle}>Double Check GCash</Text>
+              <Text style={styles.passwordModalTitle}>Confirm Changes</Text>
               <Text style={[styles.passwordModalText, { textAlign: 'center', marginTop: 10 }]}>
-                Please double check your GCash Name and Number. Incorrect details will result in lost payments.
+                Are you sure you want to save these changes to your property profile?
               </Text>
             </View>
 
-            <View style={{ backgroundColor: theme.colors.backgroundSecondary, padding: 15, borderRadius: 12, marginBottom: 20 }}>
-              <View style={{ marginBottom: 10 }}>
-                <Text style={{ fontSize: 12, fontWeight: '700', color: theme.colors.textSecondary, textTransform: 'uppercase' }}>Name</Text>
-                <Text style={{ fontSize: 16, fontWeight: '600', color: theme.colors.text }}>{form.gcashName}</Text>
+            {(form.gcashName || form.gcashNumber) && (
+              <View style={{ backgroundColor: theme.colors.primary + '10', padding: 15, borderRadius: 12, marginBottom: 20, borderLeftWidth: 4, borderLeftColor: theme.colors.primary }}>
+                <Text style={{ fontSize: 11, fontWeight: '700', color: theme.colors.primary, textTransform: 'uppercase', marginBottom: 8 }}>GCash Payment Details</Text>
+                <View style={{ marginBottom: 10 }}>
+                  <Text style={{ fontSize: 10, fontWeight: '700', color: theme.colors.textSecondary, textTransform: 'uppercase' }}>Account Name</Text>
+                  <Text style={{ fontSize: 14, fontWeight: '600', color: theme.colors.text }}>{form.gcashName || 'Not Set'}</Text>
+                </View>
+                <View>
+                  <Text style={{ fontSize: 10, fontWeight: '700', color: theme.colors.textSecondary, textTransform: 'uppercase' }}>Account Number</Text>
+                  <Text style={{ fontSize: 14, fontWeight: '600', color: theme.colors.text }}>{form.gcashNumber || 'Not Set'}</Text>
+                </View>
               </View>
-              <View>
-                <Text style={{ fontSize: 12, fontWeight: '700', color: theme.colors.textSecondary, textTransform: 'uppercase' }}>Number</Text>
-                <Text style={{ fontSize: 16, fontWeight: '600', color: theme.colors.text }}>{form.gcashNumber}</Text>
-              </View>
-            </View>
+            )}
 
             <View style={styles.passwordModalActions}>
               <TouchableOpacity

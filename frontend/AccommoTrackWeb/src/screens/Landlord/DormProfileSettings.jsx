@@ -642,11 +642,9 @@ export default function DormProfileSettings({
         showError("Invalid GCash Number format.");
         return;
       }
-      setShowGcashConfirm(true);
-      return;
     }
 
-    await proceedWithSave();
+    setShowGcashConfirm(true);
   };
 
   const proceedWithSave = async () => {
@@ -672,6 +670,8 @@ export default function DormProfileSettings({
       const reservationFeeGapDays = Number.isNaN(parsedGapDays)
         ? 3
         : Math.max(0, parsedGapDays);
+
+      const transferLimit = (dormData.transfer_limit !== undefined && dormData.transfer_limit !== null && dormData.transfer_limit !== '') ? parseInt(dormData.transfer_limit) : 0;
 
       const updateData = {
         title: dormData.name,
@@ -703,7 +703,7 @@ export default function DormProfileSettings({
         gcash_name: dormData.require_reservation_fee ? dormData.gcash_name : "",
         gcash_number: dormData.require_reservation_fee ? dormData.gcash_number : "",
         transfer_fee: parseFloat(dormData.transfer_fee) || 0,
-        transfer_limit: (dormData.transfer_limit !== undefined && dormData.transfer_limit !== null && dormData.transfer_limit !== '') ? parseInt(dormData.transfer_limit) : 1,
+        transfer_limit: transferLimit,
         latitude: parseFloat(dormData.latitude) || null,
         longitude: parseFloat(dormData.longitude) || null,
         is_published: dormData.status === 'active' ? (dormData.is_published ? 1 : 0) : 0,
@@ -741,7 +741,7 @@ export default function DormProfileSettings({
       ) {
         const fd = new FormData();
 
-        // Append updateData fields. Arrays should be appended as indexed entries.
+        // Append updateData fields. 
         Object.entries(updateData).forEach(([key, value]) => {
           if (value === null || value === undefined) return;
           if (Array.isArray(value)) {
@@ -749,6 +749,7 @@ export default function DormProfileSettings({
               fd.append(`${key}[${idx}]`, v);
             });
           } else {
+            // Explicitly cast everything to string for FormData
             fd.append(key, String(value));
           }
         });
