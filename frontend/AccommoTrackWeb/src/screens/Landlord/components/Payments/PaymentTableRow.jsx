@@ -1,5 +1,6 @@
 import React, { memo } from 'react';
 import { Eye, FileText } from 'lucide-react';
+import formatPrice from '../../../../utils/price';
 
 const PaymentTableRow = ({ payment, onView, onPrint, getStatusColor }) => {
   return (
@@ -23,7 +24,7 @@ const PaymentTableRow = ({ payment, onView, onPrint, getStatusColor }) => {
         </div>
       </td>
       <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900 dark:text-white">
-        ₱{Number(payment.total_amount).toLocaleString()}
+        {formatPrice(payment.total_amount)}
       </td>
       <td className="px-6 py-4 whitespace-nowrap">
         <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase border ${getStatusColor(payment.status)}`}>

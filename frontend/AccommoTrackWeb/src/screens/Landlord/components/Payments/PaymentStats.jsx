@@ -1,5 +1,6 @@
 import React, { memo } from 'react';
 import { PhilippinePeso, Clock, CheckCircle, AlertCircle } from 'lucide-react';
+import formatPrice from '../../../../utils/price';
 
 const PaymentStats = ({ stats }) => {
   const statCards = [
@@ -17,7 +18,7 @@ const PaymentStats = ({ stats }) => {
             <div>
               <p className="text-sm font-medium text-gray-500 dark:text-gray-400">{stat.label}</p>
               <h3 className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
-                ₱{Number(stat.value || 0).toLocaleString()}
+                {formatPrice(stat.value)}
               </h3>
             </div>
             <div className={`w-12 h-12 ${stat.bg} rounded-xl flex items-center justify-center`}>

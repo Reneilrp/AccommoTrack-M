@@ -31,7 +31,7 @@ class PublicReceiptController extends Controller
         $signature = $request->query('sig');
         $expectedSignature = hash_hmac('sha256', (string) $reference, config('app.key'));
         
-        $isAuthentic = $signature && hash_equals($expectedSignature, $signature);
+        $isAuthentic = $signature && hash_equals($expectedSignature, strtolower($signature));
 
         // Mask tenant name for privacy (e.g., John Doe -> J*** D***)
         $firstName = $invoice->tenant->first_name ?? '';
@@ -59,8 +59,8 @@ class PublicReceiptController extends Controller
         }
 
         $expectedSignature = hash_hmac('sha256', (string) $reference, config('app.key'));
-        if (!hash_equals($expectedSignature, $signature)) {
-            return response()->json(['success' => false, 'message' => 'Forged or tampered document detected.', 'expected' => $expectedSignature, 'received' => $signature], 403);
+        if (!hash_equals($expectedSignature, strtolower($signature))) {
+            return response()->json(['success' => false, 'message' => 'Forged or tampered document detected.'], 403);
         }
 
         $invoice = Invoice::with(['tenant', 'property'])

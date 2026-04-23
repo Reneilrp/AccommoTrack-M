@@ -1,5 +1,6 @@
 import React, { useState, memo } from 'react';
 import { X, Loader2, RotateCcw, AlertCircle, Info } from 'lucide-react';
+import formatPrice from '../../../../utils/price';
 
 const RefundModal = ({ isOpen, onClose, payment, onSubmit, submitting, formatDate }) => {
   const [refundAmount, setRefundAmount] = useState(payment?.total_amount || 0);
@@ -29,7 +30,7 @@ const RefundModal = ({ isOpen, onClose, payment, onSubmit, submitting, formatDat
           <div className="bg-purple-50 dark:bg-purple-900/10 p-4 rounded-xl border border-purple-100 dark:border-purple-800/30 flex gap-3">
             <Info className="w-5 h-5 text-purple-600 shrink-0" />
             <div className="text-xs text-purple-700 dark:text-purple-300 space-y-1">
-              <p>Total Paid: <strong>₱{Number(payment.total_amount).toLocaleString()}</strong></p>
+              <p>Total Paid: <strong>{formatPrice(payment.total_amount)}</strong></p>
               <p>Processed on: {formatDate(payment.created_at)}</p>
             </div>
           </div>

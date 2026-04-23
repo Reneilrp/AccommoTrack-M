@@ -392,16 +392,14 @@ export default function Payments() {
     }
 
     const totalPaid = new Decimal(
-      totals.total_paid ??
-      (Number.isFinite(Number(totals.total_paid_cents))
+      totals.total_paid_cents !== undefined
         ? new Decimal(totals.total_paid_cents).div(100).toNumber()
-        : 0),
+        : (totals.total_paid ?? 0)
     ).toNumber();
     const totalBalance = new Decimal(
-      totals.total_balance ??
-      (Number.isFinite(Number(totals.total_balance_cents))
+      totals.total_balance_cents !== undefined
         ? new Decimal(totals.total_balance_cents).div(100).toNumber()
-        : 0),
+        : (totals.total_balance ?? 0)
     ).toNumber();
 
     return {
@@ -1522,8 +1520,7 @@ export default function Payments() {
                           <p className="font-bold text-red-600 dark:text-red-400">
                             <PriceRow amount={selRemaining} />
                           </p>
-                        </div>
-                      </div>
+                        </div>                      </div>
                     </>
                   );
                 })()}

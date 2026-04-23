@@ -114,7 +114,7 @@ class TenantPaymentController extends Controller
                 ->whereIn('status', ['succeeded', 'paid', 'partially_refunded', 'refunded'])
                 ->whereMonth('created_at', now()->month)
                 ->whereYear('created_at', now()->year)
-                ->selectRaw('SUM(amount_cents - refunded_amount_cents) as net_cents')
+                ->selectRaw('SUM(amount_cents - COALESCE(refunded_amount_cents, 0)) as net_cents')
                 ->value('net_cents') ?? 0;
 
             // Count of active paid/partial invoices this month

@@ -313,7 +313,7 @@ export default function TenantPayments({ user }) {
                 <div>
                   <p className="text-xs font-bold text-gray-500 dark:text-gray-500 uppercase tracking-wider mb-2">Paid This Month</p>
                   <p className="text-2xl font-bold text-green-600 mt-2">
-                    {paymentService.formatAmount(toPrice(stats?.totalPaidThisMonth))}
+                    {paymentService.formatAmount(toPrice(stats?.totalPaidThisMonth) / 100)}
                   </p>
                 </div>
                 <div className="w-10 h-10 bg-green-50 dark:bg-green-900/20 rounded-lg flex items-center justify-center">
