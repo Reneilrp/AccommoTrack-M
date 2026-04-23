@@ -62,7 +62,7 @@ const WalletTab = () => {
               <p className="text-green-50 text-base font-black uppercase tracking-wide mb-2">Available Balance</p>
               <div className="flex items-baseline gap-1 justify-center md:justify-end">
                 <span className="text-4xl font-black tracking-tighter">
-                  {formatPrice(balance, { isCents: true })}
+                  {formatPrice(balance)}
                 </span>
               </div>
             </div>
@@ -132,7 +132,7 @@ const WalletTab = () => {
                           {log.description || (isDebit ? 'Wallet Usage' : 'Credit Adjustment')}
                         </p>
                         <p className={`text-lg font-black shrink-0 ${isDebit ? 'text-amber-600 dark:text-amber-400' : 'text-green-600 dark:text-green-400'}`}>
-                          {isDebit ? '-' : '+'}{formatPrice(logAmount, { isCents: true })}
+                          {isDebit ? '-' : '+'}{formatPrice(logAmount)}
                         </p>
                       </div>
 

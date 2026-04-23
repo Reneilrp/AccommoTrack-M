@@ -347,7 +347,7 @@ export default function PaymentDetail() {
     }
 
     if (parsed > remainingBalance) {
-      return `Amount cannot exceed ${formatPrice(remainingBalance, { isCents: true })}`;
+      return `Amount cannot exceed ${formatPrice(remainingBalance)}`;
     }
 
     if (!allowPartialPayments && parsed !== remainingBalance) {
@@ -639,7 +639,7 @@ export default function PaymentDetail() {
             <View style={styles.summaryHeader}>
               <View style={styles.summaryMain}>
                 <Text style={styles.summaryLabel}>Total Balance</Text>
-                <Text style={styles.summaryAmount}>{formatPrice(remainingBalance, { isCents: true })}</Text>
+                <Text style={styles.summaryAmount}>{formatPrice(remainingBalance)}</Text>
               </View>
               <View style={styles.summaryStatus}>
                 <Text style={styles.summaryStatusText}>{invoice.status}</Text>
@@ -684,7 +684,7 @@ export default function PaymentDetail() {
             <Text style={styles.cardSectionTitle}>Bill Breakdown</Text>
             <View style={styles.infoRow}>
               <Text style={styles.infoRowLabel}>Base Amount</Text>
-              <Text style={styles.infoRowValue}>{formatPrice(invoice.subtotal_cents ?? invoice.amount_cents ?? invoice.amount ?? 0, { isCents: true })}</Text>
+              <Text style={styles.infoRowValue}>{formatPrice(invoice.subtotal_cents ?? invoice.amount_cents ?? invoice.amount ?? 0)}</Text>
             </View>
             
             {addonTotalCents > 0 && addonLines.map((line) => (
@@ -692,7 +692,7 @@ export default function PaymentDetail() {
                 <Text style={styles.infoRowLabel}>
                   {line.name}{line.quantity > 1 ? ` x ${line.quantity}` : ''}
                 </Text>
-                <Text style={styles.infoRowValue}>{formatPrice(line.amountCents, { isCents: true })}</Text>
+                <Text style={styles.infoRowValue}>{formatPrice(line.amountCents)}</Text>
               </View>
             ))}
 
@@ -701,7 +701,7 @@ export default function PaymentDetail() {
             <View style={styles.infoRow}>
               <Text style={[styles.infoRowLabel, { fontWeight: '700', color: theme.colors.text }]}>Total Bill</Text>
               <Text style={[styles.infoRowValue, { fontSize: 16, color: theme.colors.primary }]}>
-                {formatPrice(invoice.total_cents ?? invoice.amount_cents ?? invoice.amount ?? 0, { isCents: true })}
+                {formatPrice(invoice.total_cents ?? invoice.amount_cents ?? invoice.amount ?? 0)}
               </Text>
             </View>
           </View>
@@ -740,13 +740,13 @@ export default function PaymentDetail() {
                 </View>
                 <View style={styles.refundStatRow}>
                   <Text style={styles.refundStatLabel}>Prorated Amount</Text>
-                  <Text style={styles.refundStatValue}>{formatPrice( ( (invoice.transactions?.filter(t => (t.amount_cents || t.amount || 0) > 0 && REFUND_ELIGIBLE_STATUSES.includes(String(t.status || '').toLowerCase())).reduce((sum, t) => sum + (t.amount_cents || t.amount || 0), 0) || 0) * stayProgress.refundableUnits) / stayProgress.totalUnits, { isCents: true } )}</Text>
+                  <Text style={styles.refundStatValue}>{formatPrice( ( (invoice.transactions?.filter(t => (t.amount_cents || t.amount || 0) > 0 && REFUND_ELIGIBLE_STATUSES.includes(String(t.status || '').toLowerCase())).reduce((sum, t) => sum + (t.amount_cents || t.amount || 0), 0) || 0) * stayProgress.refundableUnits) / stayProgress.totalUnits )}</Text>
                 </View>
                 <View style={[styles.separator, { marginVertical: 8, backgroundColor: 'rgba(126,34,206,0.1)' }]} />
                 <View style={styles.refundStatRow}>
                   <Text style={[styles.refundStatLabel, { fontWeight: '800', color: theme.colors.text }]}>Net Refunded</Text>
                   <Text style={[styles.refundStatValue, { fontSize: 15, color: theme.colors.purple }]}>
-                    {formatPrice(invoice.transactions?.reduce((s, t) => s + (t.refunded_amount_cents || t.refunded_amount || 0), 0), { isCents: true })}
+                    {formatPrice(invoice.transactions?.reduce((s, t) => s + (t.refunded_amount_cents || t.refunded_amount || 0), 0))}
                   </Text>
                 </View>
               </View>

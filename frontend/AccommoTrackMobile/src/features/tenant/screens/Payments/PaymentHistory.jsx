@@ -57,7 +57,7 @@ const formatDate = (d) => {
   }
 };
 
-const formatCurrency = (amount) => formatPrice(amount, { isCents: true });
+const formatCurrency = (amount) => formatPrice(amount);
 
 // ─── Payment Card ─────────────────────────────────────────────────────────────
 

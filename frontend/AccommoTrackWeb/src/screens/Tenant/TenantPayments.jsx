@@ -20,7 +20,7 @@ const DEFAULT_TOGGLES = systemToggleService.getDefaults();
 
 const toPrice = (val) => {
   try {
-    return new Decimal(val || 0).div(100).toNumber();
+    return new Decimal(val || 0).toNumber();
   } catch (__e) {
     return 0;
   }

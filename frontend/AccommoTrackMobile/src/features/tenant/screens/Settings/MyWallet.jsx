@@ -52,7 +52,7 @@ const TransactionItem = ({ item, theme }) => {
         fontWeight: '900', 
         color: isDebit ? "#D97706" : "#059669" 
       }}>
-        {isDebit ? '-' : '+'}{formatPrice(item.amount_cents || item.amount || 0, { isCents: true })}
+        {isDebit ? '-' : '+'}{formatPrice(item.amount_cents || item.amount || 0)}
       </Text>
     </View>
   );
@@ -113,7 +113,7 @@ export default function MyWallet() {
             </View>
             <Text style={styles.balanceLabel}>Available Balance</Text>
             <Text style={styles.balanceValue}>
-              {formatPrice(balance, { isCents: true })}
+              {formatPrice(balance)}
             </Text>
             <Text style={styles.balanceSubtext}>
               Automatically applied to your next payments.

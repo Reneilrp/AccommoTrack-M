@@ -222,18 +222,18 @@ export default function InvoiceCheckout() {
       return showError('Tenant payments are temporarily unavailable while payment compliance updates are in progress.');
     }
 
-    const remainingCents = new Decimal(remainingBalance).mul(100);
-    const balanceCents = new Decimal(walletBalance);
+    const remainingAmt = new Decimal(remainingBalance);
+    const balanceAmt = new Decimal(walletBalance);
     
-    const amountCents = Decimal.min(remainingCents, balanceCents).toDecimalPlaces(0).toNumber();
+    const amountToApply = Decimal.min(remainingAmt, balanceAmt).toDecimalPlaces(2).toNumber();
 
-    if (amountCents <= 0) {
+    if (amountToApply <= 0) {
       return showError('No remaining balance or wallet credits available.');
     }
 
     setProcessing(true);
     try {
-      const result = await paymentService.applyWalletCredit(id, amountCents);
+      const result = await paymentService.applyWalletCredit(id, amountToApply);
       if (result.success) {
         showSuccess('Wallet credits applied successfully!');
         navigate('/payments');
@@ -651,9 +651,9 @@ export default function InvoiceCheckout() {
                           </div>
                           <div>
                             <p className="font-bold text-gray-900 dark:text-white text-lg uppercase tracking-tight">Apply Wallet Credits</p>
-                            <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Apply up to {formatPrice(Decimal.min(new Decimal(remainingBalance).mul(100), new Decimal(walletBalance)).toNumber(), { isCents: true })} from property credits</p>
+                            <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Apply up to {formatPrice(Decimal.min(new Decimal(remainingBalance), new Decimal(walletBalance)).toNumber())} from property credits</p>
                             <p className="text-xs text-purple-600 dark:text-purple-400 font-bold mt-1">
-                              Available for this property: {formatPrice(walletBalance, { isCents: true })}
+                              Available for this property: {formatPrice(walletBalance)}
                             </p>
                             <p className="text-[10px] text-purple-500/80 dark:text-purple-400/80 mt-2 font-medium italic">
                               *Credits are property-specific and earned from transfers/refunds within this property.

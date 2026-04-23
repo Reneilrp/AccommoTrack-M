@@ -122,7 +122,7 @@ const TenantDashboard = ({ user }) => {
   }, []);
 
   const formatCents = useCallback((amount) => {
-    return formatPrice(amount, { isCents: true });
+    return formatPrice(amount);
   }, []);
 
   const formatDate = useCallback((dateString) => {
