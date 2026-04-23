@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { RefreshCw, Plus, Loader2, ArrowLeft, Sparkles, BellRing, Check } from 'lucide-react';
 import { showSuccess, showError } from '../../utils/toast';
 import api from '../../utils/api';
@@ -8,10 +8,9 @@ import AddonModal from './components/Addons/AddonModal';
 import AddonRequestTable from './components/Addons/AddonRequestTable';
 import ActiveAddonTab from './components/Addons/ActiveAddonTab';
 
-export default function AddonManagement({ user }) {
+export default function AddonManagement({ user: _user }) {
   const navigate = useNavigate();
   const [addons, setAddons] = useState([]);
-  const [stats, setStats] = useState({ total: 0, pending: 0, revenue: 0, approved: 0 });
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [selectedAddon, setSelectedAddon] = useState(null);

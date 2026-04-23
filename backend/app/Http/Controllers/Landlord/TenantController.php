@@ -868,10 +868,12 @@ class TenantController extends Controller
         try {
             \Illuminate\Support\Facades\DB::beginTransaction();
 
+            $transferInvoices = [];
+
             // 1. Handle damage charges if provided
             if (! empty($validated['damage_charge']) && $validated['damage_charge'] > 0) {
                 $reference = 'DMG-'.date('Ymd').'-'.strtoupper(\Illuminate\Support\Str::random(6));
-                Invoice::create([
+                $dmgInvoice = Invoice::create([
                     'reference' => $reference,
                     'landlord_id' => $context['landlord_id'],
                     'property_id' => $oldRoom->property_id,
@@ -883,23 +885,25 @@ class TenantController extends Controller
                     'issued_at' => now(),
                     'due_date' => now(),
                 ]);
+                $transferInvoices[] = $dmgInvoice;
             }
 
             // 1.1 Handle transfer fee invoice
             if (! empty($validated['transfer_fee']) && $validated['transfer_fee'] > 0) {
                 $reference = 'TRF-'.date('Ymd').'-'.strtoupper(\Illuminate\Support\Str::random(6));
-                Invoice::create([
+                $trfInvoice = Invoice::create([
                     'reference' => $reference,
                     'landlord_id' => $context['landlord_id'],
                     'property_id' => $newRoom->property_id,
                     'tenant_id' => $tenant->id,
                     'description' => 'Transfer fee from '.($oldRoom ? $oldRoom->room_number : 'previous room').' to '.$newRoom->room_number,
-                    'amount_cents' => $validated['transfer_fee'],
+                    'amount_cents' => (int) round($validated['transfer_fee'] * 100),
                     'currency' => 'PHP',
                     'status' => 'pending',
                     'issued_at' => now(),
                     'due_date' => now(),
                 ]);
+                $transferInvoices[] = $trfInvoice;
             }
 
             // 2. End current booking/assignment
@@ -1005,48 +1009,13 @@ class TenantController extends Controller
                 'skip_initial_rent_invoice' => $skipInitialRent,
             ]);
 
-            // Apply credit to new booking's first invoice
-
-            // ONLY if we are not using the frontend's calculated prorated_adjustment
-            // APPLY credit ONLY if no manual override was provided OR if the override is 0
-            if ($creditAmount > 0 && (!isset($validated['prorated_adjustment']) || round((float) $validated['prorated_adjustment'], 2) === 0.00)) {
-                $initialInvoice = Invoice::where('booking_id', $newBooking->id)
-                    ->where('status', 'pending')
-                    ->orderBy('id', 'asc')
-                    ->first();
-
-                if ($initialInvoice) {
-                    $this->refundService->applyCreditToInvoice($initialInvoice, $creditAmount, [
-                        'transfer_from_booking_id' => $activeBooking->id,
-                        'transfer_from_room' => $oldRoom ? $oldRoom->room_number : 'N/A',
-                        'transfer_to_room' => $newRoom->room_number,
-                        'credit_calculation' => $creditCalculation ?? [],
-                    ], $validated['refund_preference'] ?? 'wallet');
-
-                    $newBooking->payment_status = match ($initialInvoice->status) {
-                        'paid' => 'paid',
-                        'partial' => 'partial',
-                        default => 'unpaid',
-                    };
-                    $newBooking->save();
-                } else {
-                    TenantCredit::create([
-                        'tenant_id' => $tenant->id,
-                        'property_id' => $newRoom->property_id,
-                        'room_id' => $newRoom->id,
-                        'amount_cents' => (int) round($creditAmount * 100),
-                        'type' => 'credit',
-                        'description' => 'Transfer credit (no pending invoice to apply)',
-                    ]);
-                }
-            }
-
             // Handle manual prorated adjustment if provided (for room rate differences)
+            $adjustmentInvoice = null;
             if (isset($validated['prorated_adjustment']) && round((float) $validated['prorated_adjustment'], 2) !== 0.00) {
                 $adj = round((float) $validated['prorated_adjustment'], 2);
                 if ($adj > 0) {
                     $reference = 'ADJ-'.date('Ymd').'-'.strtoupper(\Illuminate\Support\Str::random(6));
-                    Invoice::create([
+                    $adjustmentInvoice = Invoice::create([
                         'reference' => $reference,
                         'landlord_id' => $context['landlord_id'],
                         'property_id' => $newRoom->property_id,
@@ -1059,10 +1028,7 @@ class TenantController extends Controller
                         'issued_at' => now(),
                         'due_date' => now()->addDays(3),
                     ]);
-
-                    // Also record as a debit in the wallet if they have balance? 
-                    // No, usually we just create an invoice. 
-                    // But if the landlord wanted to adjust the wallet directly, they would use a negative value.
+                    $transferInvoices[] = $adjustmentInvoice;
                 } else {
                     TenantCredit::create([
                         'tenant_id' => $tenant->id,
@@ -1071,6 +1037,61 @@ class TenantController extends Controller
                         'amount_cents' => (int) round(abs($adj) * 100),
                         'type' => 'credit',
                         'description' => 'Room transfer rate adjustment credit',
+                    ]);
+                }
+            }
+
+            // 3.6. Apply credit to all transfer-related invoices first (damage, fee, adjustment)
+            if ($creditAmount > 0) {
+                foreach ($transferInvoices as $inv) {
+                    if ($creditAmount <= 0.01) break;
+                    
+                    $invoiceAmount = $inv->amount_cents / 100;
+                    $applied = min($creditAmount, $invoiceAmount);
+                    
+                    $this->refundService->applyCreditToInvoice($inv, $applied, [
+                        'transfer_from_booking_id' => $activeBooking->id,
+                        'transfer_from_room' => $oldRoom ? $oldRoom->room_number : 'N/A',
+                        'transfer_to_room' => $newRoom->room_number,
+                    ], $validated['refund_preference'] ?? 'wallet');
+                    
+                    $creditAmount -= $applied;
+                }
+
+                // If credit remains and no manual override was provided (or it's 0), try to apply to initial rent
+                if ($creditAmount > 0.01 && (!isset($validated['prorated_adjustment']) || round((float) $validated['prorated_adjustment'], 2) === 0.00)) {
+                    $initialInvoice = Invoice::where('booking_id', $newBooking->id)
+                        ->where('status', 'pending')
+                        ->orderBy('id', 'asc')
+                        ->first();
+
+                    if ($initialInvoice) {
+                        $this->refundService->applyCreditToInvoice($initialInvoice, $creditAmount, [
+                            'transfer_from_booking_id' => $activeBooking->id,
+                            'transfer_from_room' => $oldRoom ? $oldRoom->room_number : 'N/A',
+                            'transfer_to_room' => $newRoom->room_number,
+                            'credit_calculation' => $creditCalculation ?? [],
+                        ], $validated['refund_preference'] ?? 'wallet');
+
+                        $newBooking->payment_status = match ($initialInvoice->status) {
+                            'paid' => 'paid',
+                            'partial' => 'partial',
+                            default => 'unpaid',
+                        };
+                        $newBooking->save();
+                        $creditAmount = 0;
+                    }
+                }
+
+                // If still credit left, put in wallet
+                if ($creditAmount > 0.01) {
+                    TenantCredit::create([
+                        'tenant_id' => $tenant->id,
+                        'property_id' => $newRoom->property_id,
+                        'room_id' => $newRoom->id,
+                        'amount_cents' => (int) round($creditAmount * 100),
+                        'type' => 'credit',
+                        'description' => 'Transfer credit (excess or no pending invoice)',
                     ]);
                 }
             }

@@ -59,6 +59,30 @@ const validateAssignmentDateRange = (moveInDate, endDate) => {
   };
 };
 
+const StatCard = ({ label, value, icon: Icon, color = 'gray' }) => {
+  const colors = {
+    gray: { bg: 'bg-gray-50 dark:bg-gray-900/20', text: 'text-gray-600 dark:text-gray-400', border: 'bg-gray-400 dark:bg-gray-600' },
+    green: { bg: 'bg-green-50 dark:bg-green-900/20', text: 'text-green-600 dark:text-green-400', border: 'bg-green-500' },
+    blue: { bg: 'bg-blue-50 dark:bg-blue-900/20', text: 'text-blue-600 dark:text-blue-400', border: 'bg-blue-500' },
+    yellow: { bg: 'bg-yellow-50 dark:bg-yellow-900/20', text: 'text-yellow-600 dark:text-yellow-400', border: 'bg-yellow-500' },
+    red: { bg: 'bg-red-50 dark:bg-red-900/20', text: 'text-red-600 dark:text-red-400', border: 'bg-red-500' },
+  };
+  return (
+    <div className="relative overflow-hidden bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-300 dark:border-gray-700">
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-xs font-bold text-gray-500 dark:text-gray-500 uppercase tracking-wider mb-2">{label}</p>
+          <p className={`text-2xl font-bold ${color === 'gray' ? 'text-gray-900 dark:text-white' : colors[color].text}`}>{value}</p>
+        </div>
+        <div className={`w-10 h-10 ${colors[color].bg} rounded-lg flex items-center justify-center`}>
+          {Icon && <Icon className={`w-5 h-5 ${color === 'gray' ? 'text-gray-500 dark:text-gray-400' : colors[color].text}`} />}
+        </div>
+      </div>
+      <div className={`absolute bottom-0 left-0 right-0 h-1 ${colors[color].border} opacity-20`} />
+    </div>
+  );
+};
+
 export default function TenantManagement() {
   const { uiState, updateData } = useUIState();
   const location = useLocation();
@@ -657,11 +681,11 @@ export default function TenantManagement() {
   });
 
   const stats = {
-    total: tenants.length,
-    active: tenants.filter(t => t.tenantProfile?.status === 'active').length,
-    paid: tenants.filter(t => t.latestBooking?.payment_status === 'paid').length,
-    pending: tenants.filter(t => t.latestBooking?.payment_status === 'unpaid').length,
-    overdue: tenants.filter(t => t.latestBooking?.payment_status === 'overdue').length
+    total: tenants.filter(Boolean).length,
+    active: tenants.filter(t => t?.tenantProfile?.status === 'active').length,
+    paid: tenants.filter(t => t?.latestBooking?.payment_status === 'paid').length,
+    pending: tenants.filter(t => t?.latestBooking?.payment_status === 'unpaid').length,
+    overdue: tenants.filter(t => t?.latestBooking?.payment_status === 'overdue').length
   };
 
   return (
@@ -689,10 +713,10 @@ export default function TenantManagement() {
                 className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
                 value={selectedPropertyId || ''}
                 onChange={(e) => setSelectedPropertyId(Number(e.target.value))}
-                disabled={loading}
+                disabled={loading && __properties.length === 0}
               >
                 {__properties.length === 0 ? (
-                  <option>Loading Properties...</option>
+                  <option value="">{loading ? 'Loading Properties...' : 'No Properties Found'}</option>
                 ) : (
                   __properties.map(property => (
                     <option key={property.id} value={property.id}>
@@ -757,7 +781,27 @@ export default function TenantManagement() {
           </div>
         </div>
 
-        {viewMode === 'card' ? (
+        {loading && tenants.length === 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-100 dark:border-gray-700 space-y-4">
+                <div className="flex justify-between">
+                  <Skeleton className="w-24 h-5 rounded" />
+                  <Skeleton className="w-16 h-5 rounded" />
+                </div>
+                <Skeleton className="w-full h-8 rounded" />
+                <div className="space-y-2">
+                  <Skeleton className="w-full h-4 rounded" />
+                  <Skeleton className="w-2/3 h-4 rounded" />
+                </div>
+                <div className="flex gap-2">
+                  <Skeleton className="flex-1 h-10 rounded-lg" />
+                  <Skeleton className="flex-1 h-10 rounded-lg" />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : viewMode === 'card' ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredTenants.length === 0 ? (
               <div className="col-span-full text-center py-12 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-100 dark:border-gray-700">
@@ -859,29 +903,6 @@ export default function TenantManagement() {
 }
 
 // Helper components for modals and stats
-const StatCard = ({ label, value, icon: Icon, color = 'gray' }) => {
-  const colors = {
-    gray: { bg: 'bg-gray-50 dark:bg-gray-900/20', text: 'text-gray-600 dark:text-gray-400', border: 'bg-gray-400 dark:bg-gray-600' },
-    green: { bg: 'bg-green-50 dark:bg-green-900/20', text: 'text-green-600 dark:text-green-400', border: 'bg-green-500' },
-    blue: { bg: 'bg-blue-50 dark:bg-blue-900/20', text: 'text-blue-600 dark:text-blue-400', border: 'bg-blue-500' },
-    yellow: { bg: 'bg-yellow-50 dark:bg-yellow-900/20', text: 'text-yellow-600 dark:text-yellow-400', border: 'bg-yellow-500' },
-    red: { bg: 'bg-red-50 dark:bg-red-900/20', text: 'text-red-600 dark:text-red-400', border: 'bg-red-500' },
-  };
-  return (
-    <div className="relative overflow-hidden bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-300 dark:border-gray-700">
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-xs font-bold text-gray-500 dark:text-gray-500 uppercase tracking-wider mb-2">{label}</p>
-          <p className={`text-2xl font-bold ${color === 'gray' ? 'text-gray-900 dark:text-white' : colors[color].text}`}>{value}</p>
-        </div>
-        <div className={`w-10 h-10 ${colors[color].bg} rounded-lg flex items-center justify-center`}>
-          <Icon className={`w-5 h-5 ${colors[color].text}`} />
-        </div>
-      </div>
-    </div>
-  );
-};
-
 const ClaimCodeModal = ({ data, isGenerating, onCopy, onClose }) => {
   const expiryLabel = data?.expiresAt
     ? new Date(data.expiresAt).toLocaleString()
@@ -1429,6 +1450,7 @@ const TenantListView = ({
           </thead>
           <tbody className="divide-y divide-gray-50 dark:divide-gray-700/60">
             {tenants.map((tenant) => {
+              if (!tenant) return null;
               const profile = tenant.tenantProfile;
               const late = isLate(tenant);
               const expiring = isExpiring(tenant);

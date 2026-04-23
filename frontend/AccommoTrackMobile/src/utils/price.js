@@ -18,7 +18,7 @@ export function formatPrice(value, {
     // Ensure accurate precision before formatting
     const d = new Decimal(value || 0);
     num = isCents ? d.div(100).toNumber() : d.toNumber();
-  } catch (err) {
+  } catch (_err) {
     num = 0;
   }
 
@@ -34,7 +34,7 @@ export function formatPrice(value, {
       minimumFractionDigits: digits,
       maximumFractionDigits: Math.max(digits, 2)
     }).format(num);
-  } catch (err) {
+  } catch (_err) {
     // Fallback formatting for React Native environments without full Intl support
     const symbol = currency === 'PHP' ? '₱' : (currency + ' ');
     const formatted = num.toLocaleString(undefined, {
@@ -62,7 +62,7 @@ export function formatPerPerson(total, capacity, opts) {
     const c = new Decimal(capacity || 1);
     const per = c.gt(0) ? t.div(c) : t;
     return formatPrice(per.toNumber(), opts);
-  } catch (err) {
+  } catch (_err) {
     return formatPrice(0, opts);
   }
 }

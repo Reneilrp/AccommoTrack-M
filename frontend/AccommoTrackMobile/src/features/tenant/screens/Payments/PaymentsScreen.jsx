@@ -382,7 +382,7 @@ export default function PaymentsScreen() {
     return list.sort((a, b) => new Date(b.date || b.created_at) - new Date(a.date || a.created_at));
   }, [payments, timeRange, searchQuery]);
 
-  const formatCurrency = (amount) => formatPrice(amount);
+  const formatCurrency = (amount) => formatPrice(amount, { isCents: true });
 
   const formatDate = (dateString) => {
     if (!dateString) return 'None';

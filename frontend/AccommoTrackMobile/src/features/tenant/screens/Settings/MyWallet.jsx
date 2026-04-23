@@ -113,7 +113,7 @@ export default function MyWallet() {
             </View>
             <Text style={styles.balanceLabel}>Available Balance</Text>
             <Text style={styles.balanceValue}>
-              {formatPrice(balance)}
+              {formatPrice(balance, { isCents: true })}
             </Text>
             <Text style={styles.balanceSubtext}>
               Automatically applied to your next payments.

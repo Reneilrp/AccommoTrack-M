@@ -83,26 +83,42 @@ class LandlordDashboardService
             $currentMonthStart = now()->startOfMonth();
             $currentMonthEnd = now()->endOfMonth();
 
-            // Use indexed range queries instead of whereMonth/whereYear
-            $monthlyRevenue = Booking::where('landlord_id', $landlordId)
-                ->where('status', 'confirmed')
-                ->where('payment_status', 'paid')
-                ->whereBetween('created_at', [$currentMonthStart, $currentMonthEnd])
-                ->sum('monthly_rent');
+            // Use Ledger (Transactions) as the source of truth for Revenue
+            $baseRevenueQuery = PaymentTransaction::query()
+                ->join('invoices', 'payment_transactions.invoice_id', '=', 'invoices.id')
+                ->where('invoices.landlord_id', $landlordId)
+                ->where('payment_transactions.amount_cents', '>', 0)
+                ->whereIn('payment_transactions.status', ['succeeded', 'paid', 'partially_refunded', 'refunded'])
+                ->when($assignedPropertyIds, fn($q) => $q->whereIn('invoices.property_id', $assignedPropertyIds));
 
-            // Aggregate total revenue stats in one query if possible
-            $revenueTotals = Booking::where('landlord_id', $landlordId)
-                ->where('status', 'confirmed')
-                ->selectRaw("
-                    SUM(CASE WHEN payment_status = 'paid' THEN total_amount ELSE 0 END) as total,
-                    SUM(CASE WHEN payment_status IN ('unpaid', 'partial') THEN total_amount ELSE 0 END) as expected
-                ")
-                ->first();
+            $monthlyRevenue = (clone $baseRevenueQuery)
+                ->whereBetween('payment_transactions.created_at', [$currentMonthStart, $currentMonthEnd])
+                ->sum(DB::raw('payment_transactions.amount_cents - payment_transactions.refunded_amount_cents')) / 100;
+
+            $totalRevenue = (clone $baseRevenueQuery)
+                ->sum(DB::raw('payment_transactions.amount_cents - payment_transactions.refunded_amount_cents')) / 100;
+
+            // Expected revenue (outstanding balances on pending/partial invoices)
+            $expectedRevenueQuery = Invoice::where('landlord_id', $landlordId)
+                ->whereIn('status', ['pending', 'partial'])
+                ->when($assignedPropertyIds, fn($q) => $q->whereIn('property_id', $assignedPropertyIds));
+
+            $totalExpectedCents = (clone $expectedRevenueQuery)->sum('amount_cents');
+            
+            // Subquery to get IDs for transaction filter
+            $pendingInvoiceIds = (clone $expectedRevenueQuery)->pluck('id');
+            
+            $alreadyPaidOnExpectedCents = PaymentTransaction::query()
+                ->whereIn('invoice_id', $pendingInvoiceIds)
+                ->whereIn('status', ['succeeded', 'paid', 'partially_refunded'])
+                ->sum(DB::raw('amount_cents - refunded_amount_cents'));
+
+            $expectedRevenue = max(0, $totalExpectedCents - $alreadyPaidOnExpectedCents) / 100;
 
             $response['revenue'] = [
-                'monthly' => (float)$monthlyRevenue, 
-                'total' => (float)$revenueTotals->total, 
-                'expected' => (float)$revenueTotals->expected
+                'monthly' => (float)$monthlyRevenue,
+                'total' => (float)$totalRevenue,
+                'expected' => (float)$expectedRevenue
             ];
         }
 
@@ -467,11 +483,11 @@ class LandlordDashboardService
             })
             ->select(
                 'invoices.property_id',
-                DB::raw('COALESCE(SUM(payment_transactions.amount_cents - payment_transactions.refunded_amount_cents), 0) as total_paid_cents')
+                DB::raw('COALESCE(SUM(payment_transactions.amount_cents - payment_transactions.refunded_amount_cents), 0) / 100 as total_paid')
             )
             ->groupBy('invoices.property_id')
-            ->pluck('total_paid_cents', 'invoices.property_id')
-            ->map(fn ($totalPaidCents) => (float) $totalPaidCents);
+            ->pluck('total_paid', 'invoices.property_id')
+            ->map(fn ($totalPaid) => (float) $totalPaid);
 
         return [
             'properties' => $properties,

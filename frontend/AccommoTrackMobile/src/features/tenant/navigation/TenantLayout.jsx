@@ -92,6 +92,7 @@ export default function TenantLayout({ onLogout, isGuest = false, onAuthRequired
     'MyReviews',
     'PaymentDetail',
     'PaymentHistory',
+    'PaymentArchive',
     'Notifications',
     'Messages',
     'Cart'
@@ -116,6 +117,7 @@ export default function TenantLayout({ onLogout, isGuest = false, onAuthRequired
     'MyReviews',
     'PaymentDetail',
     'PaymentHistory',
+    'PaymentArchive',
     'Notifications',
     'Cart'
   ]);

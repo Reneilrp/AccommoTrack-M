@@ -48,11 +48,30 @@ function AppContent() {
     updateAvailable,
     isForceUpdate,
     isLoading: isVersionLoading,
+    checkForOTAUpdate,
+    fetchAndReloadOTA,
   } = useAppVersion();
 
   // Show startup update prompt at most once per app open.
   const [showStartupUpdateModal, setShowStartupUpdateModal] = React.useState(false);
   const [hasPromptedThisLaunch, setHasPromptedThisLaunch] = React.useState(false);
+
+  // Check for OTA updates (JS hotfixes) on launch
+  React.useEffect(() => {
+    const checkOTA = async () => {
+      const update = await checkForOTAUpdate();
+      if (update.isAvailable) {
+        // For preview mode, we can auto-fetch or notify the user.
+        // Let's auto-fetch so they always have the latest fixes.
+        try {
+          await fetchAndReloadOTA();
+        } catch (e) {
+          console.error('Auto OTA failed:', e);
+        }
+      }
+    };
+    checkOTA();
+  }, [checkForOTAUpdate, fetchAndReloadOTA]);
 
   const clearToastTimers = React.useCallback(() => {
     if (toastShowTimerRef.current) {

@@ -31,7 +31,7 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
-const formatCurrency = (amount) => formatPrice(amount);
+const formatCurrency = (amount) => formatPrice(amount, { isCents: true });
 
 const formatDate = (value) => {
   if (!value) {

@@ -14,12 +14,13 @@ import { showSuccess, showError, showLoading } from '../../utils/toast';
 import { CircleDollarSign, ClipboardCheck, Calendar, Search, RefreshCw, Loader2, Receipt, X, FileText, AlertCircle } from 'lucide-react';
 import createEcho from '../../utils/echo';
 import systemToggleService from '../../services/systemToggleService';
+import Decimal from '../../utils/decimal';
 
 const DEFAULT_TOGGLES = systemToggleService.getDefaults();
 
 const toPrice = (val) => {
   try {
-    return Number((val || 0) / 100);
+    return new Decimal(val || 0).div(100).toNumber();
   } catch (__e) {
     return 0;
   }
@@ -75,10 +76,10 @@ export default function TenantPayments({ user }) {
 
   // Sync wallet balance to UI state if needed
   useEffect(() => {
-    if (stats?.walletBalance !== undefined) {
-      updateScreenState('wallet', { balance: toPrice(stats.walletBalance) });
+    if (stats?.totalCredits !== undefined) {
+      updateScreenState('wallet', { balance: toPrice(stats.totalCredits) });
     }
-  }, [stats?.walletBalance, updateScreenState]);
+  }, [stats?.totalCredits, updateScreenState]);
 
   const fetchLogs = useCallback(async (page = 1) => {
     setWalletLogsPage(page);

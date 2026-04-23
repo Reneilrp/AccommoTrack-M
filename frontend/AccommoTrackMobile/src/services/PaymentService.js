@@ -5,9 +5,9 @@ import Decimal from "../utils/decimal.js";
 const normalizeAmount = (value) => {
   if (value === null || value === undefined) return 0;
   try {
-    // If the value is a large integer, it's likely cents. 
-    // We use Decimal for precision and consistency across the platform.
-    return new Decimal(value).div(100).toNumber();
+    // We return the raw numeric value (usually cents from the backend).
+    // The UI is responsible for formatting using formatPrice(val, { isCents: true }).
+    return new Decimal(value).toNumber();
   } catch (err) {
     console.error('[PaymentService] Amount normalization error:', err);
     return 0;

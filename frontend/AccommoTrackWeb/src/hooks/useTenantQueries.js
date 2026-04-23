@@ -42,7 +42,7 @@ export const useTenantDashboardBundle = () => {
       return {
         stay: stayRes.success ? stayRes.data : null,
         stats: statsRes.success ? statsRes.data : null,
-        activities: activityRes.success ? activityRes.data : [],
+        activities: activityRes.success ? (activityRes.data?.items || activityRes.data || []) : [],
         breakdown: breakdownRes.success ? breakdownRes.data : { upcoming_months: [] },
       };
     },

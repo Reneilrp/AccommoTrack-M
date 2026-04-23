@@ -147,6 +147,18 @@ const toActionableInstallError = (error) => {
   return base;
 };
 
+export const canInstallApk = async () => {
+  if (Platform.OS !== 'android') return true;
+  try {
+    // In many modern Android versions, we can check if the app has permission 
+    // to install other apps. If we can't check explicitly via IntentLauncher, 
+    // we return true and handle errors during installation.
+    return true; 
+  } catch {
+    return true;
+  }
+};
+
 export const downloadAndInstallUpdate = async ({
   downloadUrl,
   onProgress,

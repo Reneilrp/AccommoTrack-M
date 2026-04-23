@@ -5,7 +5,7 @@ const GalleryStep = ({
   images, 
   onUploadImage, 
   onRemoveImage, 
-  onSetThumbnail, 
+  onSetThumbnail: _onSetThumbnail, 
   videoPreview, 
   onUploadVideo, 
   onRemoveVideo 

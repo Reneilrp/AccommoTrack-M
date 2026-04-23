@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import systemToggleService from '../../services/systemToggleService';
 import ActionCenter from './components/ActionCenter';
+import { formatPrice } from '../../utils/price';
 
 const ROOM_COLORS = ['#22c55e', '#60a5fa', '#a78bfa', '#fbbf24', '#f87171'];
 const DEFAULT_TOGGLES = systemToggleService.getDefaults();
@@ -28,8 +29,15 @@ const TenantDashboard = ({ user }) => {
   const cachedData = uiState.data.dashboard;
   const stayData = dashboardData?.stay || cachedData?.stayData || null;
   const stats = dashboardData?.stats || cachedData?.stats || null;
-  const activities = useMemo(() => dashboardData?.activities || cachedData?.activities || [], [dashboardData?.activities, cachedData?.activities]);
-  const upcomingSchedule = useMemo(() => dashboardData?.breakdown?.upcoming_months || cachedData?.upcomingSchedule || [], [dashboardData?.breakdown?.upcoming_months, cachedData?.upcomingSchedule]);
+  const activities = useMemo(() => {
+    const raw = dashboardData?.activities || cachedData?.activities || [];
+    return Array.isArray(raw) ? raw : (raw?.items || []);
+  }, [dashboardData?.activities, cachedData?.activities]);
+
+  const upcomingSchedule = useMemo(() => {
+    const raw = dashboardData?.breakdown?.upcoming_months || cachedData?.upcomingSchedule || [];
+    return Array.isArray(raw) ? raw : (raw?.upcoming_months || raw?.items || []);
+  }, [dashboardData?.breakdown?.upcoming_months, cachedData?.upcomingSchedule]);
 
   const loading = queryLoading && !cachedData;
 
@@ -109,9 +117,8 @@ const TenantDashboard = ({ user }) => {
   }, [user?.id, refetch]);
 
   // ── Helpers ──
-  const formatCurrency = useCallback((amount) => {
-    const val = Number(amount);
-    return new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' }).format(isNaN(val) ? 0 : val);
+  const formatCents = useCallback((amount) => {
+    return formatPrice(amount, { isCents: true });
   }, []);
 
   const formatDate = useCallback((dateString) => {
@@ -318,7 +325,7 @@ const TenantDashboard = ({ user }) => {
         priority: 'high',
         type: 'payment',
         title: 'Action Required: Balance Overdue',
-        message: `You have an outstanding balance of ${formatCurrency(unpaidBalance)} that is past its due date. Please settle it immediately.`,
+        message: `You have an outstanding balance of ${formatCents(unpaidBalance)} that is past its due date. Please settle it immediately.`,
         actionText: !tenantPaymentsTempDisabled ? 'Pay Now' : null,
         target: '/payments',
         originalType: 'overdueBalance'
@@ -332,7 +339,7 @@ const TenantDashboard = ({ user }) => {
         priority: 'normal',
         type: 'payment',
         title: 'Action Required: Balance Due',
-        message: `You have an outstanding balance of ${formatCurrency(unpaidBalance)}. Please settle it to avoid late fees.`,
+        message: `You have an outstanding balance of ${formatCents(unpaidBalance)}. Please settle it to avoid late fees.`,
         actionText: !tenantPaymentsTempDisabled ? 'Pay Now' : null,
         target: '/payments',
         originalType: 'balanceDue'
@@ -378,7 +385,7 @@ const TenantDashboard = ({ user }) => {
     return alerts;
   }, [
     dismissedNotifications, stats, unpaidBalance, pendingCheckIns,
-    upcomingBooking, tenantPaymentsTempDisabled, formatCurrency, formatDate
+    upcomingBooking, tenantPaymentsTempDisabled, formatCents, formatDate
   ]);
 
   const handleAlertDismiss = (alert) => {
@@ -409,7 +416,7 @@ const TenantDashboard = ({ user }) => {
           {[
             { icon: Home, label: 'Active Rooms', value: '0', color: 'green' },
             { icon: Calendar, label: 'Days Stayed', value: '0', color: 'blue' },
-            { icon: Zap, label: 'Monthly Rent', value: formatCurrency(0), color: 'purple' },
+            { icon: Zap, label: 'Monthly Rent', value: formatCents(0), color: 'purple' },
             { icon: CheckCircle2, label: 'All Paid Up', value: '0', color: 'green' },
           ].map((card, i) => (
             <div key={i} className="bg-white dark:bg-[#1e2332] border border-gray-200 dark:border-[#2a3045] rounded-[14px] p-6 relative overflow-hidden flex flex-col">
@@ -458,12 +465,12 @@ const TenantDashboard = ({ user }) => {
       key: 'days', icon: Calendar, value: totalDaysStayed.toString(), label: 'Days Stayed', color: 'blue',
     },
     {
-      key: 'rent', icon: Zap, value: formatCurrency(totalMonthlySummary), label: 'Monthly Base', color: 'purple',
+      key: 'rent', icon: Zap, value: formatCents(totalMonthlySummary), label: 'Monthly Base', color: 'purple',
     },
     {
       key: 'status',
       icon: unpaidBalance > 0 ? AlertTriangle : CheckCircle2,
-      value: unpaidBalance > 0 ? formatCurrency(unpaidBalance) : 'Fully Paid',
+      value: unpaidBalance > 0 ? formatCents(unpaidBalance) : 'Fully Paid',
       label: unpaidBalance > 0 ? 'Balance Due' : 'Payment Status',
       color: unpaidBalance > 0 ? 'red' : 'green',
     },
@@ -745,16 +752,16 @@ const TenantDashboard = ({ user }) => {
                       <td className="py-4 text-[14px] font-bold text-center text-gray-900 dark:text-slate-100 whitespace-nowrap">
                         {row.billingPolicy === 'daily' ? (
                           <span>
-                            {formatCurrency(row.baseRent)} <span className="text-gray-500 dark:text-slate-400 font-semibold">/day</span>
+                            {formatCents(row.baseRent)} <span className="text-gray-500 dark:text-slate-400 font-semibold">/day</span>
                           </span>
                         ) : (
                           <span>
-                            {formatCurrency(row.baseRent)} <span className="text-gray-500 dark:text-slate-400 font-semibold">/month</span>
+                            {formatCents(row.baseRent)} <span className="text-gray-500 dark:text-slate-400 font-semibold">/month</span>
                           </span>
                         )}
                       </td>
                       <td className="py-4 text-[14px] font-bold text-center text-gray-900 dark:text-slate-100">
-                        {formatCurrency(row.addOns)}
+                        {formatCents(row.addOns)}
                       </td>
                       <td className="py-4 text-center">
                         <span className={`inline-block px-3 py-1 rounded-full text-[11px] font-semibold border ${row.requiresAdvance
@@ -764,7 +771,7 @@ const TenantDashboard = ({ user }) => {
                           {row.requiresAdvance ? 'Yes' : 'No'}
                         </span>
                       </td>
-                      <td className="py-4 text-[14px] font-bold text-center text-purple-600 dark:text-purple-400">{formatCurrency(row.grandTotal)}</td>
+                      <td className="py-4 text-[14px] font-bold text-center text-purple-600 dark:text-purple-400">{formatCents(row.grandTotal)}</td>
                     </tr>
                   ))
                 ) : (
@@ -778,15 +785,15 @@ const TenantDashboard = ({ user }) => {
           <div className="px-6 py-4 bg-gray-50 dark:bg-[#252b3b]/40 border-t border-gray-100 dark:border-[#2a3045] flex items-center justify-end gap-8">
             <div className="text-right">
               <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-slate-500">Total Base Rent</p>
-              <p className="text-[18px] font-bold text-gray-900 dark:text-slate-100">{formatCurrency(totalBaseRent)}</p>
+              <p className="text-[18px] font-bold text-gray-900 dark:text-slate-100">{formatCents(totalBaseRent)}</p>
             </div>
             <div className="text-right">
               <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-slate-500">Total Add-Ons</p>
-              <p className="text-[18px] font-bold text-blue-600 dark:text-blue-400">{formatCurrency(totalAddOns)}</p>
+              <p className="text-[18px] font-bold text-blue-600 dark:text-blue-400">{formatCents(totalAddOns)}</p>
             </div>
             <div className="text-right">
               <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-slate-500">Grand Total</p>
-              <p className="text-[18px] font-bold text-purple-600 dark:text-purple-400">{formatCurrency(totalGrandRent)}</p>
+              <p className="text-[18px] font-bold text-purple-600 dark:text-purple-400">{formatCents(totalGrandRent)}</p>
             </div>
           </div>
         </div>
@@ -798,7 +805,7 @@ const TenantDashboard = ({ user }) => {
             <h3 className="text-[16px] font-bold text-gray-900 dark:text-slate-100">Unpaid Balance - Detailed Breakdown</h3>
             <div className="flex items-center gap-3">
               <span className="text-[13px] px-3 py-1 rounded-full bg-red-100 text-red-700 border border-red-200 dark:bg-red-500/15 dark:text-red-400 dark:border-red-500/25 font-semibold">
-                {formatCurrency(unpaidBalance)} Due
+                {formatCents(unpaidBalance)} Due
               </span>
               <button
                 type="button"
@@ -837,7 +844,7 @@ const TenantDashboard = ({ user }) => {
                         {row.dueDate}
                       </td>
                       <td className={`py-4 text-[14px] font-bold text-right ${row.status === 'pending' ? 'text-amber-600 dark:text-amber-400' : 'text-red-600 dark:text-red-400'}`}>
-                        {formatCurrency(row.amount)}
+                        {formatCents(row.amount)}
                       </td>
                       <td className="py-4 text-right">
                         <span className={`inline-block px-3 py-1 rounded-full text-[11px] font-semibold border ${row.status === 'overdue'
@@ -861,7 +868,7 @@ const TenantDashboard = ({ user }) => {
                   <tr>
                     <td colSpan={2} className="pt-5 pb-3 text-[14px] italic text-gray-500 dark:text-slate-500">Partial payment applied</td>
                     <td className="pt-5 pb-3 text-[14px] text-gray-500 dark:text-slate-500 text-right">—</td>
-                    <td className="pt-5 pb-3 text-[14px] font-bold text-right text-green-600 dark:text-green-400">-{formatCurrency(totalPaid)}</td>
+                    <td className="pt-5 pb-3 text-[14px] font-bold text-right text-green-600 dark:text-green-400">-{formatCents(totalPaid)}</td>
                     <td className="pt-5 pb-3 text-right">
                       <span className="inline-block px-3 py-1 rounded-full text-[11px] font-semibold border bg-green-50 text-green-700 border-green-200 dark:bg-green-500/10 dark:text-green-400 dark:border-green-500/20">
                         Paid
@@ -876,15 +883,15 @@ const TenantDashboard = ({ user }) => {
           <div className="px-6 py-4 bg-gray-50 dark:bg-[#252b3b]/40 border-t border-gray-100 dark:border-[#2a3045] flex items-center justify-end gap-8">
             <div className="text-right">
               <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-slate-500">Total Billed</p>
-              <p className="text-[18px] font-bold text-gray-900 dark:text-slate-100">{formatCurrency(unpaidBalance + totalPaid)}</p>
+              <p className="text-[18px] font-bold text-gray-900 dark:text-slate-100">{formatCents(unpaidBalance + totalPaid)}</p>
             </div>
             <div className="text-right">
               <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-slate-500">Paid</p>
-              <p className="text-[18px] font-bold text-green-600 dark:text-green-400">{formatCurrency(totalPaid)}</p>
+              <p className="text-[18px] font-bold text-green-600 dark:text-green-400">{formatCents(totalPaid)}</p>
             </div>
             <div className="text-right">
               <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-slate-500">Unpaid Balance</p>
-              <p className="text-[18px] font-bold text-red-600 dark:text-red-400">{formatCurrency(unpaidBalance)}</p>
+              <p className="text-[18px] font-bold text-red-600 dark:text-red-400">{formatCents(unpaidBalance)}</p>
             </div>
           </div>
         </div>
@@ -1000,22 +1007,22 @@ const TenantDashboard = ({ user }) => {
               <div className="space-y-4 mb-6">
                 <div className="flex justify-between items-center">
                   <span className="text-[15px] text-gray-500 dark:text-slate-400">Total Charges</span>
-                  <span className="text-[15px] font-semibold text-gray-900 dark:text-slate-100">{formatCurrency(totalMonthlySummary)}</span>
+                  <span className="text-[15px] font-semibold text-gray-900 dark:text-slate-100">{formatCents(totalMonthlySummary)}</span>
                 </div>
+
                 <div className="flex justify-between items-center">
                   <span className="text-[15px] text-gray-500 dark:text-slate-400">Total Paid</span>
-                  <span className="text-[15px] font-semibold text-green-600 dark:text-green-400">−{formatCurrency(totalPaid)}</span>
+                  <span className="text-[15px] font-semibold text-green-600 dark:text-green-400">−{formatCents(totalPaid)}</span>
                 </div>
-              </div>
+                </div>
 
-              <div className="pt-6 border-t border-gray-100 dark:border-[#2a3045]">
+                <div className="pt-6 border-t border-gray-100 dark:border-[#2a3045]">
                 <div className="flex justify-between items-center mb-6">
                   <span className="text-[16px] font-bold text-gray-900 dark:text-slate-100">Balance</span>
                   <span className={`text-[20px] font-bold ${unpaidBalance > 0 ? 'text-red-500 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}>
-                    {formatCurrency(unpaidBalance)}
+                    {formatCents(unpaidBalance)}
                   </span>
                 </div>
-
                 {unpaidBalance > 0 ? (
                   <button
                     onClick={() => navigate('/payments')}
@@ -1056,7 +1063,7 @@ const TenantDashboard = ({ user }) => {
                           </p>
                           <div className="flex items-center gap-2 mt-2">
                             <span className="text-[14px] font-semibold text-gray-500 dark:text-slate-500">
-                              {formatCurrency(schedule.month_total || schedule.amount)}
+                              {formatCents(schedule.month_total || schedule.amount)}
                             </span>
                             {isNext && <span className="text-[10px] font-black tracking-wider uppercase px-2 py-0.5 rounded bg-orange-100/80 text-orange-700 dark:bg-orange-500/20 dark:text-orange-400">Next Due</span>}
                           </div>

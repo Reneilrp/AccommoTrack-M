@@ -171,15 +171,15 @@ class AnalyticsService
         
         $revenueStats = $this->baseCollectedInvoiceQuery($landlordId, $propertyId)
             ->selectRaw("
-                SUM(amount_cents) as total_cents,
-                SUM(CASE WHEN paid_at >= '{$now->startOfMonth()}' AND paid_at <= '{$now->endOfMonth()}' THEN amount_cents ELSE 0 END) as monthly_cents,
-                SUM(CASE WHEN paid_at >= '{$prevMonth->startOfMonth()}' AND paid_at <= '{$prevMonth->endOfMonth()}' THEN amount_cents ELSE 0 END) as prev_monthly_cents
+                SUM(amount_cents) / 100 as total_pesos,
+                SUM(CASE WHEN paid_at >= '{$now->startOfMonth()}' AND paid_at <= '{$now->endOfMonth()}' THEN amount_cents ELSE 0 END) / 100 as monthly_pesos,
+                SUM(CASE WHEN paid_at >= '{$prevMonth->startOfMonth()}' AND paid_at <= '{$prevMonth->endOfMonth()}' THEN amount_cents ELSE 0 END) / 100 as prev_monthly_pesos
             ")
             ->first();
 
-        $totalRevenue = (float)($revenueStats->total_cents ?? 0);
-        $monthlyRevenue = (float)($revenueStats->monthly_cents ?? 0);
-        $prevMonthRevenue = (float)($revenueStats->prev_monthly_cents ?? 0);
+        $totalRevenue = (float)($revenueStats->total_pesos ?? 0);
+        $monthlyRevenue = (float)($revenueStats->monthly_pesos ?? 0);
+        $prevMonthRevenue = (float)($revenueStats->prev_monthly_pesos ?? 0);
 
         $revenueGrowth = 0;
         if ($prevMonthRevenue > 0) {
@@ -224,15 +224,15 @@ class AnalyticsService
         };
 
         // Cash-basis trend from paid invoices.
-        $resultsCents = (clone $collectedInRangeQuery)
+        $resultsPesos = (clone $collectedInRangeQuery)
             ->select(
                 DB::raw($grouping),
-                DB::raw('SUM(amount_cents) as revenue_cents')
+                DB::raw('SUM(amount_cents) / 100 as revenue_pesos')
             )
             ->groupBy(DB::raw(preg_replace('/ as period$/', '', $grouping)))
             ->orderBy('period')
             ->get()
-            ->pluck('revenue_cents', 'period')
+            ->pluck('revenue_pesos', 'period')
             ->toArray();
 
         // Fill gaps to ensure current periods are shown even if 0
@@ -240,19 +240,19 @@ class AnalyticsService
         if ($timeRange === 'week') {
             for ($i = 0; $i < 7; $i++) {
                 $date = (clone $dateRange['start'])->addDays($i)->format('Y-m-d');
-                $trend[] = ['month' => $date, 'revenue' => (float) ($resultsCents[$date] ?? 0)];
+                $trend[] = ['month' => $date, 'revenue' => (float) ($resultsPesos[$date] ?? 0)];
             }
         } elseif ($timeRange === 'month') {
             $maxWeek = (int) ceil(now()->day / 7);
             // Ensure we at least show up to the current week of the month
             for ($w = 1; $w <= max(4, $maxWeek); $w++) {
                 $key = "Week $w";
-                $trend[] = ['month' => $key, 'revenue' => (float) ($resultsCents[$key] ?? 0)];
+                $trend[] = ['month' => $key, 'revenue' => (float) ($resultsPesos[$key] ?? 0)];
             }
         } elseif ($timeRange === 'year') {
             for ($m = 1; $m <= 12; $m++) {
                 $monthKey = now()->year.'-'.str_pad($m, 2, '0', STR_PAD_LEFT);
-                $trend[] = ['month' => $monthKey, 'revenue' => (float) ($resultsCents[$monthKey] ?? 0)];
+                $trend[] = ['month' => $monthKey, 'revenue' => (float) ($resultsPesos[$monthKey] ?? 0)];
             }
         }
 
@@ -260,15 +260,15 @@ class AnalyticsService
         $now = now();
         $revenueStats = $this->baseCollectedInvoiceQuery($landlordId, $propertyId)
             ->selectRaw("
-                SUM(amount_cents) as total_cents,
-                SUM(CASE WHEN paid_at >= '{$now->startOfMonth()}' AND paid_at <= '{$now->endOfMonth()}' THEN amount_cents ELSE 0 END) as monthly_cents,
-                SUM(CASE WHEN paid_at >= '{$dateRange['start']}' AND paid_at <= '{$dateRange['end']}' THEN amount_cents ELSE 0 END) as period_cents
+                SUM(amount_cents) / 100 as total_pesos,
+                SUM(CASE WHEN paid_at >= '{$now->startOfMonth()}' AND paid_at <= '{$now->endOfMonth()}' THEN amount_cents ELSE 0 END) / 100 as monthly_pesos,
+                SUM(CASE WHEN paid_at >= '{$dateRange['start']}' AND paid_at <= '{$dateRange['end']}' THEN amount_cents ELSE 0 END) / 100 as period_pesos
             ")
             ->first();
 
-        $totalRevenue = (float)($revenueStats->total_cents ?? 0);
-        $actualMonthly = (float)($revenueStats->monthly_cents ?? 0);
-        $totalPeriodRevenue = (float)($revenueStats->period_cents ?? 0);
+        $totalRevenue = (float)($revenueStats->total_pesos ?? 0);
+        $actualMonthly = (float)($revenueStats->monthly_pesos ?? 0);
+        $totalPeriodRevenue = (float)($revenueStats->period_pesos ?? 0);
 
         // Expected (potential) vs actual collected revenue for current month.
         $expectedMonthly = $this->calculatePotentialRevenue($landlordId, $propertyId);
@@ -582,8 +582,8 @@ class AnalyticsService
             'partial' => $partial,
             'overdue' => $overdue,
             'payment_rate' => $paymentRate,
-            'collected' => (float)$collectedCents,
-            'outstanding' => (float)(($stats->total_cents ?? 0) - $collectedCents),
+            'collected' => (float)($collectedCents / 100),
+            'outstanding' => (float)((($stats->total_cents ?? 0) - $collectedCents) / 100),
         ];
     }
 

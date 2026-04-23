@@ -43,6 +43,28 @@ export function useAppVersion() {
   const isForceUpdate = toBool(query.data?.mobile_force_update);
   const updateAvailable = compareVersions(latestVersion, currentVersion) > 0;
 
+  const checkForOTAUpdate = async () => {
+    try {
+      if (__DEV__) return { isAvailable: false };
+      const update = await Updates.checkForUpdateAsync();
+      if (update.isAvailable) {
+        return { isAvailable: true, manifest: update.manifest };
+      }
+    } catch (e) {
+      console.log('OTA check failed:', e);
+    }
+    return { isAvailable: false };
+  };
+
+  const fetchAndReloadOTA = async () => {
+    try {
+      await Updates.fetchUpdateAsync();
+      await Updates.reloadAsync();
+    } catch (e) {
+      throw new Error('Failed to install OTA update: ' + e.message);
+    }
+  };
+
   return {
     currentVersion,
     latestVersion,
@@ -55,5 +77,7 @@ export function useAppVersion() {
     otaUpdateId: Updates.updateId,
     otaCreatedAt: Updates.createdAt ? new Date(Updates.createdAt).toLocaleString() : null,
     otaChannel: Updates.channel,
+    checkForOTAUpdate,
+    fetchAndReloadOTA,
   };
 }

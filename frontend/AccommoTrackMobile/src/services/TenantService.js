@@ -4,7 +4,7 @@ import Decimal from "../utils/decimal.js";
 const normalizeAmount = (value) => {
   if (value === null || value === undefined) return 0;
   try {
-    return new Decimal(value).div(100).toNumber();
+    return new Decimal(value).toNumber();
   } catch (err) {
     return 0;
   }

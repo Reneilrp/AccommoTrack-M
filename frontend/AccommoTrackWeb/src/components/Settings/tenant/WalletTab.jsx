@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useUIState } from '../../../contexts/UIStateContext';
 import { Wallet, History, ArrowUpRight, ArrowDownLeft, Clock, AlertCircle } from 'lucide-react';
 import paymentService from '../../../services/paymentService';
+import { formatPrice } from '../../../utils/price';
 
 const WalletTab = () => {
   const { uiState } = useUIState();
@@ -10,13 +11,13 @@ const WalletTab = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  const balance = cachedProfile?.wallet_balance !== undefined ? parseFloat(cachedProfile.wallet_balance) / 100 : 0;
+  const balance = cachedProfile?.wallet_balance !== undefined ? cachedProfile.wallet_balance : 0;
   useEffect(() => {
     const fetchLogs = async () => {
       setLoading(true);
       const res = await paymentService.getWalletLogs();
       if (res.success) {
-        setLogs(res.data?.data || []);
+        setLogs(res.data?.items || res.data?.data || []);
       } else {
         setError(res.error);
       }
@@ -43,7 +44,7 @@ const WalletTab = () => {
         <div className="bg-gradient-to-br from-green-500 via-emerald-600 to-teal-700 p-8 text-white relative overflow-hidden">
           <div className="absolute -right-8 -bottom-8 w-48 h-48 bg-white/10 rounded-full blur-3xl"></div>
           <div className="absolute -left-4 -top-4 w-32 h-32 bg-green-400/20 rounded-full blur-2xl"></div>
-          
+
           <div className="relative z-10 flex flex-col md:flex-row justify-between items-center gap-6">
             <div className="flex-1">
               <div className="flex items-center gap-3 mb-4">
@@ -56,18 +57,18 @@ const WalletTab = () => {
                 Credits are automatically applied to your invoices. Track your balance and adjustments here.
               </p>
             </div>
-            
+
             <div className="text-center md:text-right">
-              <p className="text-green-200 text-xs font-bold uppercase tracking-widest mb-1">Available Balance</p>
+              <p className="text-green-50 text-base font-black uppercase tracking-wide mb-2">Available Balance</p>
               <div className="flex items-baseline gap-1 justify-center md:justify-end">
                 <span className="text-4xl font-black tracking-tighter">
-                  ₱{balance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  {formatPrice(balance, { isCents: true })}
                 </span>
               </div>
             </div>
           </div>
         </div>
-        
+
         <div className="px-8 py-4 bg-gray-50/50 dark:bg-gray-700/30 border-t border-gray-100 dark:border-gray-700">
           <div className="flex flex-col gap-2">
             <div className="flex items-center gap-2 text-[11px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
@@ -120,21 +121,21 @@ const WalletTab = () => {
           ) : (
             logs.map((log) => {
               const isDebit = log.type === 'debit';
-              const logAmountCents = Number(log.amount_cents || 0) / 100;
+              const logAmount = log.amount_cents || log.amount || 0;
               return (
                 <div key={log.id} className="px-6 py-5 hover:bg-gray-50/50 dark:hover:bg-gray-700/20 transition-colors group">
                   <div className="flex items-center gap-4">
-                    
+
                     <div className="flex-1 min-w-0">
                       <div className="flex flex-col md:flex-row md:items-center justify-between gap-1">
                         <p className="font-bold text-gray-900 dark:text-white truncate">
                           {log.description || (isDebit ? 'Wallet Usage' : 'Credit Adjustment')}
                         </p>
                         <p className={`text-lg font-black shrink-0 ${isDebit ? 'text-amber-600 dark:text-amber-400' : 'text-green-600 dark:text-green-400'}`}>
-                          {isDebit ? '-' : '+'} ₱{logAmountCents.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                          {isDebit ? '-' : '+'}{formatPrice(logAmount, { isCents: true })}
                         </p>
                       </div>
-                      
+
                       <div className="flex items-center gap-3 mt-1">
                         <div className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400 font-medium">
                           <Clock className="w-3 h-3" />
@@ -170,5 +171,6 @@ const WalletTab = () => {
     </div>
   );
 };
+
 
 export default WalletTab;

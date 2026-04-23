@@ -6,6 +6,8 @@ import PriceRow from '../../components/Shared/PriceRow';
 import { showSuccess, showError } from '../../utils/toast';
 import systemToggleService from '../../services/systemToggleService';
 import paymentService from '../../services/paymentService';
+import { formatPrice } from '../../utils/price';
+import Decimal from '../../utils/decimal';
 
 const DEFAULT_TOGGLES = systemToggleService.getDefaults();
 
@@ -143,7 +145,7 @@ export default function InvoiceCheckout() {
     paymentService.getPropertyCreditBalance(propertyId).then((result) => {
       if (!mounted) return;
       if (result.success) {
-        setWalletBalance((result.data || 0) / 100);
+        setWalletBalance(result.data || 0);
       }
     }).catch(() => {
       // Non-critical
@@ -220,13 +222,14 @@ export default function InvoiceCheckout() {
       return showError('Tenant payments are temporarily unavailable while payment compliance updates are in progress.');
     }
 
-    const amountToPay = Math.min(remainingBalance, walletBalance);
+    const remainingCents = new Decimal(remainingBalance).mul(100);
+    const balanceCents = new Decimal(walletBalance);
+    
+    const amountCents = Decimal.min(remainingCents, balanceCents).toDecimalPlaces(0).toNumber();
 
-    if (amountToPay <= 0) {
+    if (amountCents <= 0) {
       return showError('No remaining balance or wallet credits available.');
     }
-
-    const amountCents = Math.round(amountToPay * 100);
 
     setProcessing(true);
     try {
@@ -282,7 +285,7 @@ export default function InvoiceCheckout() {
     setProcessing(true);
     try {
       const formData = new FormData();
-      formData.append('amount_cents', Math.round(amountToPay * 100));
+      formData.append('amount_cents', Math.round(new Decimal(amountToPay).mul(100).toNumber()));
       formData.append('method', offlineDetails.method);
       if (offlineDetails.reference) formData.append('reference', offlineDetails.reference);
       if (offlineDetails.notes) formData.append('notes', offlineDetails.notes);
@@ -648,9 +651,9 @@ export default function InvoiceCheckout() {
                           </div>
                           <div>
                             <p className="font-bold text-gray-900 dark:text-white text-lg uppercase tracking-tight">Apply Wallet Credits</p>
-                            <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Apply up to ₱{Math.min(remainingBalance, walletBalance).toLocaleString()} from property credits</p>
+                            <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Apply up to {formatPrice(Decimal.min(new Decimal(remainingBalance).mul(100), new Decimal(walletBalance)).toNumber(), { isCents: true })} from property credits</p>
                             <p className="text-xs text-purple-600 dark:text-purple-400 font-bold mt-1">
-                              Available for this property: ₱{walletBalance.toLocaleString()}
+                              Available for this property: {formatPrice(walletBalance, { isCents: true })}
                             </p>
                             <p className="text-[10px] text-purple-500/80 dark:text-purple-400/80 mt-2 font-medium italic">
                               *Credits are property-specific and earned from transfers/refunds within this property.
