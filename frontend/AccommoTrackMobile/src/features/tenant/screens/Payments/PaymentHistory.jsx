@@ -13,7 +13,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
-import { useQuery } from '@tanstack/react-query';
+import { useInfiniteQuery } from '@tanstack/react-query';
 import PaymentService from '../../../../services/PaymentService.js';
 import { useTheme } from '../../../../contexts/ThemeContext.jsx';
 import {
@@ -21,6 +21,7 @@ import {
   useTenantFocusRefetch,
   useTenantRefreshHandler,
 } from '../../hooks/useTenantQueryHelpers.js';
+import { formatPrice } from '../../../../utils/price.js';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -56,10 +57,7 @@ const formatDate = (d) => {
   }
 };
 
-const formatCurrency = (amount) => {
-  const v = Number(amount) || 0;
-  return `₱${new Intl.NumberFormat('en-PH', { minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(v)}`;
-};
+const formatCurrency = (amount) => formatPrice(amount);
 
 // ─── Payment Card ─────────────────────────────────────────────────────────────
 
@@ -129,55 +127,65 @@ export default function PaymentHistory() {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState('all');
 
-  // ── All payments ────────────────────────────────────────────────────────────
-  const allPaymentsQuery = useQuery({
-    queryKey: [...tenantQueryKeys.paymentHistory(), 'all'],
-    queryFn: async () => {
-      const res = await PaymentService.getPayments('all', 'all');
-      if (res?.success && Array.isArray(res.data)) return res.data;
-      return [];
+  // ── Infinite Query for payments ─────────────────────────────────────────────
+  const paymentsInfiniteQuery = useInfiniteQuery({
+    queryKey: [...tenantQueryKeys.paymentHistory(), activeFilter],
+    queryFn: async ({ pageParam = 1 }) => {
+      const res = await PaymentService.getPayments({ 
+        status: activeFilter, 
+        archiveFilter: 'all',
+        page: pageParam 
+      });
+      if (!res?.success) throw new Error(res.error || 'Failed to load payments');
+      return res.data; // { items, pagination }
     },
-    placeholderData: (prev) => prev,
+    getNextPageParam: (lastPage) => {
+      const { current_page, last_page } = lastPage.pagination;
+      return current_page < last_page ? current_page + 1 : undefined;
+    },
+    initialPageParam: 1,
   });
 
+  const payments = useMemo(() => {
+    return paymentsInfiniteQuery.data?.pages.flatMap((page) => page.items) || [];
+  }, [paymentsInfiniteQuery.data]);
 
-  const allPayments = useMemo(() => allPaymentsQuery.data || [], [allPaymentsQuery.data]);
-  const loading = allPaymentsQuery.isLoading;
+  const loading = paymentsInfiniteQuery.isPending;
+  const isFetchingNextPage = paymentsInfiniteQuery.isFetchingNextPage;
 
   const refetchers = useMemo(
-    () => [allPaymentsQuery.refetch],
-    [allPaymentsQuery.refetch],
+    () => [paymentsInfiniteQuery.refetch],
+    [paymentsInfiniteQuery.refetch],
   );
 
   useTenantFocusRefetch({ refetchers });
   const onRefresh = useTenantRefreshHandler({ setRefreshing, refetchers });
 
-  // ── Filter helpers ──────────────────────────────────────────────────────────
+  // ── Filter helpers (Local Search) ──────────────────────────────────────────
 
-  const applyFilter = useCallback((list) => {
+  const filteredPayments = useMemo(() => {
     const q = (searchQuery || '').trim().toLowerCase();
-    return list
-      .filter((p) => {
-        const status = (p.status || '').toLowerCase();
-        const matchFilter = activeFilter === 'all' || status === activeFilter ||
-          (activeFilter === 'pending' && ['pending', 'unpaid', 'awaiting verification'].includes(status));
-        if (!matchFilter) return false;
-        if (!q) return true;
-        const prop = (p.propertyName || '').toLowerCase();
-        const ref = (p.referenceNo || '').toLowerCase();
-        const room = (p.roomNumber || '').toLowerCase();
-        const method = (p.method || '').toLowerCase();
-        return prop.includes(q) || ref.includes(q) || room.includes(q) || method.includes(q);
-      })
-      .sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
-  }, [searchQuery, activeFilter]);
+    if (!q) return payments;
 
-  const filteredAll = useMemo(() => applyFilter(allPayments), [applyFilter, allPayments]);
+    return payments.filter((p) => {
+      const prop = (p.propertyName || '').toLowerCase();
+      const ref = (p.referenceNo || '').toLowerCase();
+      const room = (p.roomNumber || '').toLowerCase();
+      const method = (p.method || '').toLowerCase();
+      return prop.includes(q) || ref.includes(q) || room.includes(q) || method.includes(q);
+    });
+  }, [searchQuery, payments]);
 
   const handlePaymentPress = useCallback((payment) => {
     const id = payment.invoiceId || payment.invoice_id || payment.id;
     if (id) navigation.navigate('PaymentDetail', { invoiceId: id });
   }, [navigation]);
+
+  const loadMore = () => {
+    if (paymentsInfiniteQuery.hasNextPage && !isFetchingNextPage) {
+      paymentsInfiniteQuery.fetchNextPage();
+    }
+  };
 
   // ─────────────────────────────────────────────────────────────────────────────
 
@@ -243,8 +251,10 @@ export default function PaymentHistory() {
       </View>
 
       <FlatList
-        data={filteredAll}
+        data={filteredPayments}
         keyExtractor={(item) => String(item.id || Math.random())}
+        onEndReached={loadMore}
+        onEndReachedThreshold={0.3}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[theme.colors.primary]} />}
         ListHeaderComponent={
           <>
@@ -252,12 +262,21 @@ export default function PaymentHistory() {
             <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingTop: 14, paddingBottom: 10, gap: 8 }}>
               <Ionicons name="receipt-outline" size={16} color={theme.colors.primary} />
               <Text style={{ fontSize: 13, fontWeight: '700', color: theme.colors.text }}>Full Log</Text>
-              <Text style={{ fontSize: 12, color: theme.colors.textSecondary }}>({filteredAll.length} records)</Text>
+              <Text style={{ fontSize: 12, color: theme.colors.textSecondary }}>
+                ({filteredPayments.length}{paymentsInfiniteQuery.hasNextPage ? '+' : ''} records)
+              </Text>
             </View>
           </>
         }
         renderItem={({ item }) => (
           <PaymentCard payment={item} theme={theme} onPress={() => handlePaymentPress(item)} />
+        )}
+        ListFooterComponent={() => (
+          isFetchingNextPage ? (
+            <View style={{ paddingVertical: 20 }}>
+              <ActivityIndicator size="small" color={theme.colors.primary} />
+            </View>
+          ) : null
         )}
         ListEmptyComponent={
           loading ? (

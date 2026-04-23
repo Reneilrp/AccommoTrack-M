@@ -30,6 +30,7 @@ import {
   useTenantFocusRefetch,
   useTenantRefreshHandler,
 } from '../../hooks/useTenantQueryHelpers.js';
+import { formatPrice } from '../../../../utils/price.js';
 
 export default function PaymentsScreen() {
   const { width: viewportWidth } = useWindowDimensions();
@@ -81,6 +82,7 @@ export default function PaymentsScreen() {
     queryFn: async ({ pageParam = 1 }) => {
       const response = await PaymentService.getPayments({
         status: statusFilter,
+        archiveFilter: 'active',
         page: pageParam,
       });
       if (!response.success) {
@@ -380,13 +382,7 @@ export default function PaymentsScreen() {
     return list.sort((a, b) => new Date(b.date || b.created_at) - new Date(a.date || a.created_at));
   }, [payments, timeRange, searchQuery]);
 
-  const formatCurrency = (amount) => {
-    const value = Number(amount) || 0;
-    return `₱${new Intl.NumberFormat('en-PH', {
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(value)}`;
-  };
+  const formatCurrency = (amount) => formatPrice(amount);
 
   const formatDate = (dateString) => {
     if (!dateString) return 'None';
@@ -561,21 +557,6 @@ export default function PaymentsScreen() {
               ))}
             </View>
 
-            {/* Payment Logs Button */}
-            <TouchableOpacity
-              onPress={() => navigation.navigate('PaymentHistory')}
-              style={{
-                width: 38,
-                height: 38,
-                borderRadius: 10,
-                backgroundColor: theme.colors.primary,
-                alignItems: 'center',
-                justifyContent: 'center',
-                marginRight: 16,
-              }}
-            >
-              <Ionicons name="reader-outline" size={18} color="#fff" />
-            </TouchableOpacity>
           </View>
 
           {/* Payment List */}

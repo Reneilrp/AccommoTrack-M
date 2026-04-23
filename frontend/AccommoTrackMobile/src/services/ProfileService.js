@@ -1,5 +1,15 @@
 import api, { normalizeResponse, normalizeError } from './api.js';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import Decimal from "../utils/decimal.js";
+
+const normalizeAmount = (value) => {
+  if (value === null || value === undefined) return 0;
+  try {
+    return new Decimal(value).div(100).toNumber();
+  } catch (err) {
+    return 0;
+  }
+};
 
 const ProfileService = {
   /**
@@ -30,6 +40,9 @@ const ProfileService = {
       const res = normalizeResponse(response);
       if (res.success && res.data?.user) {
         res.data = res.data.user;
+      }
+      if (res.success && res.data?.wallet_balance !== undefined) {
+        res.data.wallet_balance = normalizeAmount(res.data.wallet_balance);
       }
       return res;
     } catch (error) {
@@ -108,6 +121,9 @@ const ProfileService = {
         res.message = response.data?.message || 'Profile updated successfully';
         if (res.data?.user) {
           res.data = res.data.user;
+        }
+        if (res.data?.wallet_balance !== undefined) {
+          res.data.wallet_balance = normalizeAmount(res.data.wallet_balance);
         }
       }
       return res;

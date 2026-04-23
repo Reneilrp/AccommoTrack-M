@@ -13,7 +13,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
 import { getStyles } from '../../../../styles/Landlord/MaintenanceRequests.js';
 import MaintenanceService from '../../../../services/MaintenanceService.js';
 import PropertyService from '../../../../services/PropertyService.js';
@@ -104,10 +104,10 @@ export default function MaintenanceRequests({ route }) {
     }
   }, [properties, selectedPropertyId, singlePropertyId]);
 
-  const requestsQuery = useQuery({
+  const requestsInfiniteQuery = useInfiniteQuery({
     queryKey: landlordQueryKeys.maintenanceRequests({ statusFilter, propertyScope: effectivePropertyScope }),
-    queryFn: async () => {
-      const params = { status: statusFilter };
+    queryFn: async ({ pageParam = 1 }) => {
+      const params = { status: statusFilter, page: pageParam };
       if (effectivePropertyScope && effectivePropertyScope !== 'all') {
         params.property_id = effectivePropertyScope;
       }
@@ -117,8 +117,13 @@ export default function MaintenanceRequests({ route }) {
         throw new Error(res.error || 'Failed to load maintenance requests');
       }
 
-      return res.data || [];
+      return res.data; // { items, pagination }
     },
+    getNextPageParam: (lastPage) => {
+      const { current_page, last_page } = lastPage.pagination;
+      return current_page < last_page ? current_page + 1 : undefined;
+    },
+    initialPageParam: 1,
     placeholderData: (previousData) => previousData,
   });
 
@@ -126,11 +131,15 @@ export default function MaintenanceRequests({ route }) {
     mutationFn: ({ id, status }) => MaintenanceService.updateStatus(id, status),
   });
 
-  const requests = requestsQuery.data || EMPTY_REQUESTS;
-  const loading = (propertiesQuery.isPending && properties.length === 0) || requestsQuery.isPending;
+  const requests = React.useMemo(() => {
+    return requestsInfiniteQuery.data?.pages.flatMap((page) => page.items) || [];
+  }, [requestsInfiniteQuery.data]);
+
+  const loading = (propertiesQuery.isPending && properties.length === 0) || requestsInfiniteQuery.isPending;
+  const isFetchingNextPage = requestsInfiniteQuery.isFetchingNextPage;
   const updating = updateStatusMutation.isPending;
   const refetchProperties = propertiesQuery.refetch;
-  const refetchRequests = requestsQuery.refetch;
+  const refetchRequests = requestsInfiniteQuery.refetch;
   const maintenanceRefetchers = React.useMemo(
     () => [refetchProperties, refetchRequests],
     [refetchProperties, refetchRequests],
@@ -144,12 +153,11 @@ export default function MaintenanceRequests({ route }) {
   });
 
   useEffect(() => {
-    const fetchError = requestsQuery.error?.message || propertiesQuery.error?.message;
+    const fetchError = requestsInfiniteQuery.error?.message || propertiesQuery.error?.message;
     if (fetchError) {
       showError('Error', fetchError || 'Failed to load maintenance requests');
     }
-  }, [requestsQuery.error, propertiesQuery.error]);
-
+    }, [requestsInfiniteQuery.error, propertiesQuery.error]);
   useEffect(() => {
     if (!selectedRequest?.id) {
       return;
@@ -367,6 +375,19 @@ export default function MaintenanceRequests({ route }) {
           renderItem={renderItem}
           keyExtractor={item => String(item.id)}
           contentContainerStyle={styles.listContent}
+          onEndReached={() => {
+            if (requestsInfiniteQuery.hasNextPage && !isFetchingNextPage) {
+              requestsInfiniteQuery.fetchNextPage();
+            }
+          }}
+          onEndReachedThreshold={0.3}
+          ListFooterComponent={() => (
+            isFetchingNextPage ? (
+              <View style={{ paddingVertical: 20 }}>
+                <ActivityIndicator size="small" color={theme.colors.primary} />
+              </View>
+            ) : null
+          )}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}

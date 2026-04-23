@@ -249,13 +249,22 @@ api.interceptors.request.use(async (config) => {
   try {
     if (!config.headers) config.headers = {};
 
-    const isFormDataPayload = typeof FormData !== 'undefined' && config.data instanceof FormData;
+    const isFormDataPayload =
+      config.data &&
+      (config.data instanceof FormData ||
+        config.data.constructor?.name === 'FormData' ||
+        typeof config.data.append === 'function' ||
+        Array.isArray(config.data._parts));
+
     if (isFormDataPayload) {
-      if (typeof config.headers?.delete === 'function') {
-        config.headers.delete('Content-Type');
-      } else {
-        delete config.headers['Content-Type'];
-        delete config.headers['content-type'];
+      const hasContentType = config.headers?.['Content-Type'] || config.headers?.['content-type'];
+      if (!hasContentType) {
+        if (typeof config.headers?.delete === 'function') {
+          config.headers.delete('Content-Type');
+        } else {
+          delete config.headers['Content-Type'];
+          delete config.headers['content-type'];
+        }
       }
     }
 

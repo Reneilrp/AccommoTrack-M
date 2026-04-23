@@ -23,6 +23,7 @@ import {
   useTenantFocusRefetch,
   useTenantRefreshHandler,
 } from '../../hooks/useTenantQueryHelpers.js';
+import { formatPrice } from '../../../../utils/price.js';
 import { useAuthStore } from '../../../../stores/auth/authStore.js';
 import createEcho from '../../../../services/echo.js';
 
@@ -30,11 +31,7 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
-const pesoFormatter = new Intl.NumberFormat('en-US', {
-  maximumFractionDigits: 0,
-});
-
-const formatCurrency = (amount) => `₱${pesoFormatter.format(Number(amount || 0))}`;
+const formatCurrency = (amount) => formatPrice(amount);
 
 const formatDate = (value) => {
   if (!value) {

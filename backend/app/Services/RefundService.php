@@ -12,12 +12,12 @@ class RefundService
 {
     private function toCents(?float $amount): int
     {
-        return max(0, (float) ($amount ?? 0));
+        return (int) round(($amount ?? 0) * 100);
     }
 
     private function fromCents($amountCents): float
     {
-        return (float) $amountCents;
+        return (float) ($amountCents / 100);
     }
 
     /**
@@ -46,7 +46,7 @@ class RefundService
         $remainingDays = max(0, (int) $today->diffInDays($nextBillingDate, false));
 
         // Keep all computations in centavos to prevent floating-point cent leakage.
-        $monthlyRentCents = $this->toCents((float) ($booking->monthly_rent ?? 0));
+        $monthlyRentCents = $this->toCents((float) $booking->resolveEffectiveMonthlyRent());
         $dailyRateCents = (int) round($monthlyRentCents / $daysInCycle);
         $unusedValueCents = (int) round(($monthlyRentCents * $remainingDays) / $daysInCycle);
 
@@ -123,19 +123,40 @@ class RefundService
         $creditCents = max(0, (int) round($creditAmount * 100));
         $appliedCreditCents = min((int) $invoice->amount_cents, $creditCents);
         $excessCreditCents = max(0, $creditCents - $appliedCreditCents);
-        $newAmountCents = max(0, (int) $invoice->amount_cents - $appliedCreditCents);
+
+        if ($appliedCreditCents > 0) {
+            \App\Models\PaymentTransaction::create([
+                'invoice_id' => $invoice->id,
+                'tenant_id' => $invoice->tenant_id,
+                'amount_cents' => $appliedCreditCents,
+                'currency' => $invoice->currency ?? 'PHP',
+                'status' => 'succeeded',
+                'method' => 'wallet',
+            ]);
+        }
+
+        $totalPaidCents = \App\Models\PaymentTransaction::where('invoice_id', $invoice->id)
+            ->whereIn('status', ['succeeded', 'paid', 'partially_refunded'])
+            ->sum('amount_cents');
+
+        $totalRefundedCents = \App\Models\PaymentTransaction::where('invoice_id', $invoice->id)
+            ->whereIn('status', ['succeeded', 'paid', 'partially_refunded'])
+            ->sum('refunded_amount_cents');
+
+        $netPaidCents = $totalPaidCents - $totalRefundedCents;
+        $balanceCents = max(0, (int) $invoice->amount_cents - $netPaidCents);
 
         $description = $invoice->description.' (Credit of ₱'.number_format($appliedCreditCents / 100, 2).' applied from previous room)';
 
         $updateData = [
-            'amount_cents' => $newAmountCents,
             'description' => $description,
         ];
 
-        // If fully credited, mark as paid
-        if ($newAmountCents == 0) {
+        if ($balanceCents == 0) {
             $updateData['status'] = 'paid';
             $updateData['paid_at'] = now();
+        } elseif ($netPaidCents > 0) {
+            $updateData['status'] = 'partial';
         }
 
         // Store credit metadata
@@ -193,5 +214,60 @@ class RefundService
             'refund_amount' => $refundAmount,
             'refund_processed_at' => now(),
         ]);
+
+        $refundCents = max(0, (int) round($refundAmount * 100));
+        if ($refundCents === 0) return;
+
+        // Find the most recent paid or transferred rent invoice for this booking
+        $latestInvoice = \App\Models\Invoice::where('booking_id', $booking->id)
+            ->where('invoice_type', 'rent')
+            ->whereIn('status', ['paid', 'transferred'])
+            ->orderBy('id', 'desc')
+            ->first();
+
+        if ($latestInvoice) {
+            \App\Models\PaymentTransaction::create([
+                'invoice_id' => $latestInvoice->id,
+                'tenant_id' => $latestInvoice->tenant_id,
+                'amount_cents' => -1 * $refundCents,
+                'currency' => $latestInvoice->currency ?? 'PHP',
+                'status' => 'refunded',
+                'method' => 'wallet',
+            ]);
+
+            // Allocate refund to positive transactions to correct dashboard analytics
+            $positiveTxs = \App\Models\PaymentTransaction::where('invoice_id', $latestInvoice->id)
+                ->where('amount_cents', '>', 0)
+                ->whereIn('status', ['succeeded', 'paid', 'partially_refunded'])
+                ->orderBy('id', 'asc')
+                ->get();
+
+            $remainingRefund = $refundCents;
+            foreach ($positiveTxs as $tx) {
+                if ($remainingRefund <= 0) break;
+                
+                $refundable = max(0, (int) $tx->amount_cents - (int) ($tx->refunded_amount_cents ?? 0));
+                if ($refundable <= 0) continue;
+
+                $allocation = min($remainingRefund, $refundable);
+                $tx->refunded_amount_cents = (int) ($tx->refunded_amount_cents ?? 0) + $allocation;
+
+                if ($tx->refunded_amount_cents >= $tx->amount_cents) {
+                    $tx->status = 'refunded';
+                } elseif ($tx->refunded_amount_cents > 0) {
+                    $tx->status = 'partially_refunded';
+                }
+                $tx->save();
+
+                $remainingRefund -= $allocation;
+            }
+
+            $newAmount = max(0, $latestInvoice->amount_cents - $refundCents);
+            $latestInvoice->update([
+                'amount_cents' => $newAmount,
+                'total_cents' => $newAmount,
+                'subtotal_cents' => $newAmount,
+            ]);
+        }
     }
 }

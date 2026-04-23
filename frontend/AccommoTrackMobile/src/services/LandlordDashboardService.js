@@ -1,4 +1,14 @@
 import api, { normalizeResponse, normalizeError } from './api.js';
+import Decimal from "../utils/decimal.js";
+
+const normalizeAmount = (value) => {
+  if (value === null || value === undefined) return 0;
+  try {
+    return new Decimal(value).div(100).toNumber();
+  } catch (err) {
+    return 0;
+  }
+};
 
 /**
  * Landlord dashboard aggregated data fetcher mirroring the web admin endpoints.
@@ -25,7 +35,37 @@ const LandlordDashboardService = {
                 25000 // Slightly longer timeout for the bundle
             );
 
-            return normalizeResponse(response);
+            const res = normalizeResponse(response);
+            if (res.success && res.data) {
+                const d = res.data;
+                if (d.stats) {
+                    d.stats.total_revenue = normalizeAmount(d.stats.total_revenue);
+                    d.stats.collected_this_month = normalizeAmount(d.stats.collected_this_month);
+                }
+                if (Array.isArray(d.activities)) {
+                    d.activities = d.activities.map(a => ({
+                        ...a,
+                        amount: normalizeAmount(a.amount_cents || a.amount)
+                    }));
+                }
+                if (d.upcomingPayments?.unpaidBookings) {
+                    d.upcomingPayments.unpaidBookings = d.upcomingPayments.unpaidBookings.map(b => ({
+                        ...b,
+                        total_due: normalizeAmount(b.total_due)
+                    }));
+                }
+                if (d.revenueChart?.data) {
+                    d.revenueChart.data = d.revenueChart.data.map(v => normalizeAmount(v));
+                }
+                if (Array.isArray(d.propertyPerformance)) {
+                    d.propertyPerformance = d.propertyPerformance.map(p => ({
+                        ...p,
+                        revenue: normalizeAmount(p.revenue)
+                    }));
+                }
+            }
+
+            return res;
         } catch (error) {
             console.warn('Dashboard bundle failed, falling back to individual requests:', error.message);
             
@@ -97,7 +137,14 @@ const LandlordDashboardService = {
     async fetchPropertyActivities(propertyId) {
         try {
             const response = await api.get(`/landlord/dashboard/recent-activities?property_id=${propertyId}`);
-            return normalizeResponse(response);
+            const res = normalizeResponse(response);
+            if (res.success && Array.isArray(res.data)) {
+                res.data = res.data.map(a => ({
+                    ...a,
+                    amount: normalizeAmount(a.amount_cents || a.amount)
+                }));
+            }
+            return res;
         } catch (error) {
             console.error('Failed to fetch property activities:', error);
             return normalizeError(error);

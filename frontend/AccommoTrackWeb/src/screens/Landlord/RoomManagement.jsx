@@ -311,7 +311,7 @@ export default function RoomManagement() {
         if (!cachedProps) setLoadingProperties(true);
         const response = await landlordService.getAccessibleProperties();
         const data = response.success
-          ? (Array.isArray(response.data) ? response.data : (Array.isArray(response.data?.data) ? response.data.data : []))
+          ? (response.data?.items || (Array.isArray(response.data) ? response.data : (Array.isArray(response.data?.data) ? response.data.data : [])))
           : [];
         setProperties(data);
         updateData('accessible_properties', data);
@@ -376,7 +376,7 @@ export default function RoomManagement() {
       const roomsRes = await roomService.getRoomsByProperty(selectedPropertyId, { t: Date.now() });
 
       const roomsData = roomsRes.success
-        ? (Array.isArray(roomsRes.data) ? roomsRes.data : (Array.isArray(roomsRes.data?.data) ? roomsRes.data.data : []))
+        ? (roomsRes.data?.items || (Array.isArray(roomsRes.data) ? roomsRes.data : (Array.isArray(roomsRes.data?.data) ? roomsRes.data.data : [])))
         : [];
       const statsData = deriveRoomStats(roomsData);
       setRooms(roomsData);
@@ -417,7 +417,7 @@ export default function RoomManagement() {
     try {
       const response = await landlordService.getAccessibleProperties();
       const data = response.success
-        ? (Array.isArray(response.data) ? response.data : (Array.isArray(response.data?.data) ? response.data.data : []))
+        ? (response.data?.items || (Array.isArray(response.data) ? response.data : (Array.isArray(response.data?.data) ? response.data.data : [])))
         : [];
       setProperties(data);
     } catch (err) {
@@ -444,6 +444,8 @@ export default function RoomManagement() {
       require1MonthAdvance: room.require_1month_advance === null || room.require_1month_advance === undefined
         ? null
         : !!room.require_1month_advance,
+      capacity: room.capacity || 1,
+      description: room.description || '',
       amenities: room.amenities || [],
       rules: room.rules || [],
       images: room.images || [],
@@ -499,12 +501,21 @@ export default function RoomManagement() {
   const handleRemoveEditImage = (index) => {
     const imageToRemove = editPreviewImages[index];
 
-    // Check if it's an existing image (string URL) or new image (blob URL)
-    if (typeof imageToRemove === 'string' && !imageToRemove.startsWith('blob:')) {
-      // Existing image - mark for deletion
-      setEditImagesToDelete(prev => [...prev, imageToRemove]);
+    // Check if it's an existing image (object with id) or new image (blob URL)
+    if (imageToRemove && typeof imageToRemove === 'object' && imageToRemove.id) {
+      // Existing image object - mark its ID for deletion
+      setEditImagesToDelete(prev => [...prev, imageToRemove.id]);
+    } else if (typeof imageToRemove === 'string' && !imageToRemove.startsWith('blob:')) {
+      // Existing image string (legacy) - try to find it in original images to get ID
+      const original = (selectedRoom?.images || []).find(img => 
+        (typeof img === 'string' && img === imageToRemove) || 
+        (img && typeof img === 'object' && (img.image_url === imageToRemove || img.url === imageToRemove))
+      );
+      if (original && original.id) {
+        setEditImagesToDelete(prev => [...prev, original.id]);
+      }
     } else {
-      // New image - just remove from new images array
+      // New image (blob URL) - just remove from new images array
       const blobIndex = editPreviewImages.slice(0, index).filter(img =>
         typeof img === 'string' && img.startsWith('blob:')
       ).length;
@@ -531,17 +542,23 @@ export default function RoomManagement() {
         'Bed Spacer': 'bedSpacer'
       };
 
-      const floorNumber = parseInt(selectedRoom.floor.match(/\d+/)[0]);
+      const floorMatch = String(selectedRoom.floor || '').match(/\d+/);
+      const floorNumber = floorMatch ? parseInt(floorMatch[0]) : 1;
 
       const updateData = new FormData();
       updateData.append('room_number', selectedRoom.roomNumber);
       updateData.append('room_type', roomTypeMap[selectedRoom.type] || 'single');
       updateData.append('sex_restriction', selectedRoom.sexRestriction);
       updateData.append('floor', floorNumber);
-      updateData.append('monthly_rate', new Decimal(selectedRoom.price || 0).toInteger().toNumber());
+      
+      const priceVal = parseFloat(selectedRoom.price);
+      updateData.append('monthly_rate', !isNaN(priceVal) ? new Decimal(priceVal).round().toNumber() : 0);
 
       if (selectedRoom.dailyRate !== undefined && selectedRoom.dailyRate !== '') {
-        updateData.append('daily_rate', new Decimal(selectedRoom.dailyRate || 0).toInteger().toNumber());
+        const dailyVal = parseFloat(selectedRoom.dailyRate);
+        if (!isNaN(dailyVal)) {
+          updateData.append('daily_rate', new Decimal(dailyVal).round().toNumber());
+        }
       }
       if (selectedRoom.billingPolicy) {
         updateData.append('billing_policy', selectedRoom.billingPolicy);
@@ -1039,7 +1056,7 @@ export default function RoomManagement() {
                   <input
                     type="number"
                     value={selectedRoom.price}
-                    onChange={(e) => setSelectedRoom({ ...selectedRoom, price: e.target.value ? new Decimal(e.target.value).toInteger().toNumber() : '' })}
+                    onChange={(e) => setSelectedRoom({ ...selectedRoom, price: e.target.value })}
                     className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent dark:bg-gray-700 dark:text-white ${fieldErrors.monthly_rate ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'}`}
                     min="0"
                     step="1"
@@ -1231,7 +1248,7 @@ export default function RoomManagement() {
                   <input
                     type="number"
                     value={selectedRoom.dailyRate || ''}
-                    onChange={(e) => setSelectedRoom({ ...selectedRoom, dailyRate: e.target.value ? new Decimal(e.target.value).toInteger().toNumber() : '' })}
+                    onChange={(e) => setSelectedRoom({ ...selectedRoom, dailyRate: e.target.value })}
                     className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
                     min="0"
                     step="1"

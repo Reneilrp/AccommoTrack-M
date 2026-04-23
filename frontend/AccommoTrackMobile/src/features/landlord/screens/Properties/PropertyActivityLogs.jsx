@@ -20,6 +20,7 @@ import {
   useLandlordFocusRefetch,
   useLandlordRefreshHandler,
 } from '../../hooks/useLandlordQueryHelpers.js';
+import { formatPrice } from '../../../../utils/price.js';
 
 const FILTERS = ['All', 'Dorm Settings', 'Room Management', 'Payments', 'Due'];
 const EMPTY_LOGS = [];
@@ -175,7 +176,6 @@ export default function PropertyActivityLogs({ route, navigation }) {
     const statusTone = resolveStatusTone(item);
     const typeLabel = String(item?.type || '').trim();
     const hasAmount = item?.amount !== null && item?.amount !== undefined && item?.amount !== '';
-    const hasAmountCents = item?.amount_cents !== null && item?.amount_cents !== undefined;
 
     return (
       <View style={styles.logItem}>
@@ -188,12 +188,10 @@ export default function PropertyActivityLogs({ route, navigation }) {
             ) : null}
             <Text style={styles.logTitle}>{item.title || item.action || item.type || 'Activity'}</Text>
           </View>
-
-          {(hasAmount || hasAmountCents) ? (
+          
+          {hasAmount ? (
             <Text style={styles.logAmount}>
-              {hasAmount
-                ? String(item.amount)
-                : `₱${(Number(item.amount_cents || 0) / 100).toLocaleString('en-PH', { maximumFractionDigits: 2 })}`}
+              {formatPrice(item.amount)}
             </Text>
           ) : null}
         </View>

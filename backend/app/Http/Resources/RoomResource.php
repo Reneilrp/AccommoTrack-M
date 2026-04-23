@@ -176,9 +176,15 @@ class RoomResource extends JsonResource
             'description' => $this->description,
             'rules' => $this->rules ?? [],
             'amenities' => $this->whenLoaded('amenities', fn () => $this->amenities->pluck('name')->toArray(), []),
-            'images' => $this->whenLoaded('images', fn () => $this->images->pluck('image_url')->map(function ($url) {
-                return str_starts_with($url, 'http') ? $url : \Illuminate\Support\Facades\Storage::url($url);
-            })->toArray(), []),
+            'images' => $this->whenLoaded('images', function () {
+                return $this->images->map(function ($image) {
+                    $url = $image->image_url;
+                    return [
+                        'id' => $image->id,
+                        'image_url' => str_starts_with($url, 'http') ? $url : \Illuminate\Support\Facades\Storage::url($url),
+                    ];
+                })->toArray();
+            }, []),
             'landlord' => $this->whenLoaded('property', fn () => $this->property->landlord ? [
                 'id' => $this->property->landlord->id,
                 'first_name' => $this->property->landlord->first_name,

@@ -11,6 +11,14 @@ const cacheManager = cacheStore;
 
 const isFormData = (data) => data instanceof FormData;
 
+const MULTIPART_CONFIG = {
+  headers: {
+    "Content-Type": "multipart/form-data",
+    Accept: "application/json",
+  },
+  transformRequest: (data) => data,
+};
+
 const CACHE_KEYS = {
   PUBLIC_PROPERTIES: "public_properties",
   PUBLIC_PROPERTY: "public_property_", // + id
@@ -390,10 +398,9 @@ const PropertyService = {
    */
   async createProperty(propertyData) {
     try {
-      // Do NOT set Content-Type manually — Axios + React Native must auto-generate
-      // the multipart/form-data boundary. Overriding it strips the boundary and
-      // causes the server to return a 500 it can't parse the body.
-      const response = await api.post(`/landlord/properties`, propertyData);
+      // Set Content-Type: multipart/form-data with transformRequest: (data) => data
+      // as requested to ensure FormData is handled correctly by Axios/RN.
+      const response = await api.post(`/landlord/properties`, propertyData, MULTIPART_CONFIG);
 
       await cacheManager.invalidate(CACHE_KEYS.LANDLORD_PROPERTIES);
       await cacheManager.clearAll();
@@ -428,10 +435,10 @@ const PropertyService = {
         propertyData.append("_method", "PUT");
       }
 
-      // Do NOT set Content-Type manually — let Axios/RN inject the boundary
       const response = await api.post(
         `/landlord/properties/${propertyId}`,
         payload,
+        MULTIPART_CONFIG
       );
 
       await cacheManager.invalidate(CACHE_KEYS.LANDLORD_PROPERTIES);
@@ -496,12 +503,17 @@ const PropertyService = {
    * Fetch rooms for a property
    * Matches: GET /api/landlord/properties/{id}/rooms
    */
-  async getRooms(propertyId) {
+  async getRooms(propertyId, page = 1) {
     try {
       const response = await api.get(
         `/landlord/properties/${propertyId}/rooms`,
+        { params: { page } }
       );
-      return normalizeResponse(response);
+      return {
+        success: true,
+        data: normalizePaginatedResponse(response),
+        error: null
+      };
     } catch (error) {
       console.error("Error fetching rooms:", error);
       return normalizeError(error);
@@ -530,7 +542,8 @@ const PropertyService = {
    */
   async createRoom(roomData) {
     try {
-      const response = await api.post(`/landlord/rooms`, roomData);
+      const response = await api.post(`/landlord/rooms`, roomData, MULTIPART_CONFIG);
+      await cacheManager.invalidate(CACHE_KEYS.LANDLORD_PROPERTIES);
       return normalizeResponse(response);
     } catch (error) {
       console.error("Error creating room:", error);
@@ -547,10 +560,14 @@ const PropertyService = {
       let payload = roomData;
       if (isFormData(roomData)) {
         roomData.append("_method", "PUT");
-        return api.post(`/rooms/${roomId}`, payload).then(res => normalizeResponse(res));
+        return api.post(`/rooms/${roomId}`, payload, MULTIPART_CONFIG).then(async (res) => {
+          await cacheManager.invalidate(CACHE_KEYS.LANDLORD_PROPERTIES);
+          return normalizeResponse(res);
+        });
       }
 
       const response = await api.put(`/rooms/${roomId}`, payload);
+      await cacheManager.invalidate(CACHE_KEYS.LANDLORD_PROPERTIES);
       return normalizeResponse(response);
     } catch (error) {
       console.error("Error updating room:", error);
@@ -565,6 +582,7 @@ const PropertyService = {
   async deleteRoom(roomId) {
     try {
       const response = await api.delete(`/rooms/${roomId}`);
+      await cacheManager.invalidate(CACHE_KEYS.LANDLORD_PROPERTIES);
       return normalizeResponse(response);
     } catch (error) {
       console.error("Error deleting room:", error);

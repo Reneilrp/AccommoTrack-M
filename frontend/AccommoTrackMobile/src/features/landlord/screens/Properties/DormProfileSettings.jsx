@@ -591,32 +591,36 @@ export default function DormProfileSettings({ route, navigation }) {
       if (form.deleteExistingGcashQr) payload.append('delete_gcash_qr', '1');
 
       form.images.filter(img => !img.isExisting).forEach((img, idx) => {
+        const imageUri = Platform.OS === 'ios' ? img.uri.replace('file://', '') : img.uri;
         payload.append('images[]', {
-          uri: img.uri,
+          uri: imageUri,
           name: `image_${idx}.jpg`,
           type: 'image/jpeg'
         });
       });
 
       if (form.video && !form.video.isExisting) {
+        const videoUri = Platform.OS === 'ios' ? form.video.uri.replace('file://', '') : form.video.uri;
         payload.append('video', {
-          uri: form.video.uri,
+          uri: videoUri,
           name: 'video_tour.mp4',
           type: 'video/mp4'
         });
       }
 
       if (form.gcashQr && !form.gcashQr.isExisting) {
+        const qrUri = Platform.OS === 'ios' ? form.gcashQr.uri.replace('file://', '') : form.gcashQr.uri;
         payload.append('gcash_qr_path', {
-          uri: form.gcashQr.uri,
+          uri: qrUri,
           name: 'gcash_qr.jpg',
           type: 'image/jpeg'
         });
       }
 
       form.credentials.filter(c => !c.isExisting).forEach((c, idx) => {
+        const credUri = Platform.OS === 'ios' ? c.uri.replace('file://', '') : c.uri;
         payload.append('credentials[]', {
-          uri: c.uri,
+          uri: credUri,
           name: c.name || `credential_${idx}`,
           type: c.type || (c.name?.toLowerCase().endsWith('.pdf') ? 'application/pdf' : 'image/jpeg')
         });

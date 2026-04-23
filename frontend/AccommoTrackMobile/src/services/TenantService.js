@@ -1,4 +1,14 @@
 import api, { normalizeResponse, normalizeError, normalizePaginatedResponse } from "./api.js";
+import Decimal from "../utils/decimal.js";
+
+const normalizeAmount = (value) => {
+  if (value === null || value === undefined) return 0;
+  try {
+    return new Decimal(value).div(100).toNumber();
+  } catch (err) {
+    return 0;
+  }
+};
 
 const toNonEmptyString = (value) => {
   if (value === null || value === undefined) return "";
@@ -84,7 +94,16 @@ class TenantService {
   async getDashboardStats() {
     try {
       const response = await api.get(`/tenant/dashboard/stats`);
-      return normalizeResponse(response);
+      const res = normalizeResponse(response);
+      if (res.success && res.data) {
+        res.data = {
+          ...res.data,
+          totalPaid: normalizeAmount(res.data.totalPaid),
+          balanceDue: normalizeAmount(res.data.balanceDue),
+          monthlyRent: normalizeAmount(res.data.monthlyRent),
+        };
+      }
+      return res;
     } catch (error) {
       return normalizeError(error);
     }
@@ -96,7 +115,32 @@ class TenantService {
   async getDashboardBundle() {
     try {
       const response = await api.get(`/tenant/dashboard/bundle`);
-      return normalizeResponse(response);
+      const res = normalizeResponse(response);
+      if (res.success && res.data) {
+        const d = res.data;
+        if (d.stats) {
+          d.stats = {
+            ...d.stats,
+            totalPaid: normalizeAmount(d.stats.totalPaid),
+            balanceDue: normalizeAmount(d.stats.balanceDue),
+            monthlyRent: normalizeAmount(d.stats.monthlyRent),
+            walletBalance: normalizeAmount(d.stats.walletBalance || d.stats.wallet_balance),
+          };
+        }
+        if (d.breakdown?.upcoming_months) {
+            d.breakdown.upcoming_months = d.breakdown.upcoming_months.map(m => ({
+                ...m,
+                month_total: normalizeAmount(m.month_total),
+                bookings: (m.bookings || []).map(b => ({
+                    ...b,
+                    rent: normalizeAmount(b.rent),
+                    addons: normalizeAmount(b.addons),
+                    total: normalizeAmount(b.total)
+                }))
+            }));
+        }
+      }
+      return res;
     } catch (error) {
       return normalizeError(error);
     }

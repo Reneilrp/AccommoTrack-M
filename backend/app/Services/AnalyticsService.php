@@ -312,7 +312,7 @@ class AnalyticsService
     {
         $query = Invoice::query()
             ->where('landlord_id', $landlordId)
-            ->where('status', 'paid')
+            ->whereIn('status', ['paid', 'transferred'])
             ->whereNotNull('paid_at');
 
         if ($propertyId) {

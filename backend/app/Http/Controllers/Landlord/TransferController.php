@@ -220,25 +220,33 @@ class TransferController extends Controller
         $remainingDays = (int) ($creditCalculation['remaining_days'] ?? 0);
         $daysInCycle = $creditCalculation['days_in_cycle'] ?? 30;
 
-        $newMonthlyRentCents = (float) ($newRoom->monthly_rate ?? $newRoom->price ?? 0);
-        $costOfNewRoomForRemainingDaysCents = ($newMonthlyRentCents * $remainingDays) / $daysInCycle;
-        $oldRoomUnusedValueCents = (float) ($creditCalculation['unused_value_cents']
-            ?? ((float) ($creditCalculation['unused_value'] ?? 0)));
+        $newBillingPolicy = strtolower((string) ($newRoom->billing_policy ?? 'monthly'));
+        
+        if ($newBillingPolicy === 'daily') {
+            $newDailyRate = (float) ($newRoom->daily_rate ?? $newRoom->price ?? 0);
+            $costOfNewRoomForRemainingDays = $newDailyRate * $remainingDays;
+        } else {
+            // For monthly rooms, we assume the tenant is moving their existing billing cycle
+            $newMonthlyRent = (float) ($newRoom->monthly_rate ?? $newRoom->price ?? 0);
+            $costOfNewRoomForRemainingDays = ($newMonthlyRent * $remainingDays) / $daysInCycle;
+        }
+
+        $oldRoomUnusedValue = (float) ($creditCalculation['unused_value'] ?? 0);
 
         // Positive means tenant needs to pay more, negative means tenant gets extra credit.
-        $suggestedAdjustmentCents = $costOfNewRoomForRemainingDaysCents - $oldRoomUnusedValueCents;
-        $suggestedAdjustment = $suggestedAdjustmentCents;
+        $suggestedAdjustment = $costOfNewRoomForRemainingDays - $oldRoomUnusedValue;
 
         return response()->json([
-            'suggested_adjustment' => $suggestedAdjustment,
+            'suggested_adjustment' => round($suggestedAdjustment, 2),
             'remaining_days' => $remainingDays,
-            'old_room_unused_value' => (float) $oldRoomUnusedValueCents,
-            'new_room_cost' => (float) $costOfNewRoomForRemainingDaysCents,
+            'old_room_unused_value' => round((float) $oldRoomUnusedValue, 2),
+            'new_room_cost' => round((float) $costOfNewRoomForRemainingDays, 2),
             'credit_available' => $creditCalculation['final_credit'],
             'paid_amount' => $creditCalculation['paid_amount'],
             'damage_charge' => $creditCalculation['damage_charge'],
             'transfer_fee' => $creditCalculation['transfer_fee'],
             'penalty' => $creditCalculation['penalty'],
+            'days_in_cycle' => $daysInCycle,
         ]);
     }
 }

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, FlatList, ActivityIndicator, RefreshControl, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useQuery } from '@tanstack/react-query';
+import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import tenantService from '../../../../services/TenantService.js';
 import { useTheme } from '../../../../contexts/ThemeContext.jsx';
 import { getStyles } from '../../../../styles/Tenant/MaintenanceStyles.js';
@@ -17,26 +17,28 @@ export default function MyRequests({ hideHeader = false, historyOnly = false, na
   const styles = React.useMemo(() => getStyles(theme), [theme]);
   const [refreshing, setRefreshing] = useState(false);
 
-  const maintenanceRequestsQuery = useQuery({
+  const maintenanceInfiniteQuery = useInfiniteQuery({
     queryKey: tenantQueryKeys.maintenanceRequests(),
-    queryFn: async () => {
-      try {
-        const res = await tenantService.getMyMaintenanceRequests();
-        if (!res?.success || !res?.data) return [];
-
-        const data = res.data?.data || res.data || [];
-        return Array.isArray(data) ? data : [];
-      } catch (err) {
-        console.error('Load maintenance requests', err);
-        return [];
-      }
+    queryFn: async ({ pageParam = 1 }) => {
+      const res = await tenantService.getMyMaintenanceRequests(pageParam);
+      if (!res?.success) throw new Error(res?.error || 'Failed to load maintenance requests');
+      return res.data; // { items, pagination }
     },
+    getNextPageParam: (lastPage) => {
+      const { current_page, last_page } = lastPage.pagination;
+      return current_page < last_page ? current_page + 1 : undefined;
+    },
+    initialPageParam: 1,
     placeholderData: (previousData) => previousData,
   });
 
-  const requests = maintenanceRequestsQuery.data || [];
-  const loading = maintenanceRequestsQuery.isLoading;
-  const refetchMaintenanceRequests = maintenanceRequestsQuery.refetch;
+  const requests = React.useMemo(() => {
+    return maintenanceInfiniteQuery.data?.pages.flatMap((page) => page.items) || [];
+  }, [maintenanceInfiniteQuery.data]);
+
+  const loading = maintenanceInfiniteQuery.isPending && requests.length === 0;
+  const isFetchingNextPage = maintenanceInfiniteQuery.isFetchingNextPage;
+  const refetchMaintenanceRequests = maintenanceInfiniteQuery.refetch;
   const maintenanceRequestsRefetchers = React.useMemo(
     () => [refetchMaintenanceRequests],
     [refetchMaintenanceRequests],
@@ -61,6 +63,19 @@ export default function MyRequests({ hideHeader = false, historyOnly = false, na
       <FlatList
           data={requests}
           keyExtractor={(item) => (item.id || item.request_id || String(item.created_at || Math.random())).toString()}
+          onEndReached={() => {
+            if (maintenanceInfiniteQuery.hasNextPage && !isFetchingNextPage) {
+              maintenanceInfiniteQuery.fetchNextPage();
+            }
+          }}
+          onEndReachedThreshold={0.3}
+          ListFooterComponent={() => (
+            isFetchingNextPage ? (
+              <View style={{ paddingVertical: 20 }}>
+                <ActivityIndicator size="small" color={theme.colors.primary} />
+              </View>
+            ) : null
+          )}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
           renderItem={({ item }) => (
           <TouchableOpacity 

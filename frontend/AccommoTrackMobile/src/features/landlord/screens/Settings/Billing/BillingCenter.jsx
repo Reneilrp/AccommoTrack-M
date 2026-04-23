@@ -20,6 +20,7 @@ import {
   useLandlordFocusRefetch,
   useLandlordRefreshHandler,
 } from '../../../hooks/useLandlordQueryHelpers.js';
+import { formatPrice } from '../../../../../utils/price.js';
 
 const TABS = [
   { id: 'billing', label: 'Billing', icon: 'receipt-outline' },
@@ -28,14 +29,7 @@ const TABS = [
   { id: 'history', label: 'History', icon: 'time-outline' },
 ];
 
-const formatCurrency = (value) => {
-  const amount = Number(value || 0);
-  return new Intl.NumberFormat('en-PH', {
-    style: 'currency',
-    currency: 'PHP',
-    minimumFractionDigits: 2,
-  }).format(amount);
-};
+const formatCurrency = (value) => formatPrice(value);
 
 const formatDate = (value) => {
   if (!value) return '-';
@@ -74,13 +68,13 @@ const normalizeInvoicesPayload = (payload) => {
 };
 
 const computeInvoiceTotals = (invoice) => {
-  const total = Number(invoice?.amount_cents ? invoice.amount_cents / 100 : invoice?.amount || 0);
+  const total = Number(invoice?.amount || 0);
 
   const paid = (invoice?.transactions || [])
     .filter((tx) => ['succeeded', 'paid', 'partially_refunded'].includes((tx.status || '').toLowerCase()))
     .reduce((sum, tx) => {
-      const amount = Number(tx.amount_cents ? tx.amount_cents / 100 : tx.amount || 0);
-      const refunded = Number(tx.refunded_amount_cents ? tx.refunded_amount_cents / 100 : 0);
+      const amount = Number(tx.amount || 0);
+      const refunded = Number(tx.refunded_amount || 0); // Assuming refunded_amount is also normalized if present
       return sum + Math.max(amount - refunded, 0);
     }, 0);
 
@@ -148,7 +142,7 @@ const buildHistory = (invoices) => {
         timestamp: tx.created_at || tx.updated_at,
         title: 'Payment update',
         detail: `${reference} ${tx.method ? `(${tx.method})` : ''} ${formatCurrency(
-          Number(tx.amount_cents ? tx.amount_cents / 100 : tx.amount || 0),
+          Number(tx.amount || 0),
         )} marked ${String(tx.status || 'pending').replace(/_/g, ' ')}.`,
         type: 'payment',
       });
@@ -259,7 +253,7 @@ export default function BillingCenterScreen({ navigation }) {
             roomLabel: buildRoomLabel(invoice),
             method: tx.method || 'unknown',
             status: tx.status || 'pending',
-            amount: Number(tx.amount_cents ? tx.amount_cents / 100 : tx.amount || 0),
+            amount: Number(tx.amount || 0),
             createdAt: tx.created_at || tx.updated_at,
           })),
         )
@@ -298,18 +292,9 @@ export default function BillingCenterScreen({ navigation }) {
     if (!totals) return fallback;
 
     return {
-      totalInvoiced: Number(
-        totals.total_billed ??
-        ((Number.isFinite(Number(totals.total_billed_cents)) ? Number(totals.total_billed_cents) : 0) / 100),
-      ),
-      totalPaid: Number(
-        totals.total_paid ??
-        ((Number.isFinite(Number(totals.total_paid_cents)) ? Number(totals.total_paid_cents) : 0) / 100),
-      ),
-      totalOutstanding: Number(
-        totals.total_balance ??
-        ((Number.isFinite(Number(totals.total_balance_cents)) ? Number(totals.total_balance_cents) : 0) / 100),
-      ),
+      totalInvoiced: Number(totals.total_billed ?? 0),
+      totalPaid: Number(totals.total_paid ?? 0),
+      totalOutstanding: Number(totals.total_balance ?? 0),
       pendingVerification: Number(totals.pending_verification_count || 0),
       overdue: Number(totals.overdue_count || 0),
     };

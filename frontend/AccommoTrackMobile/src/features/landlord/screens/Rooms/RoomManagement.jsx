@@ -24,7 +24,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import * as ImagePicker from "expo-image-picker";
 
 import { Ionicons } from "@expo/vector-icons";
-import { useQuery } from "@tanstack/react-query";
+import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import PropertyService from "../../../../services/PropertyService.js";
 import BookingService from "../../../../services/BookingService.js";
 import { getImageUrl } from "../../../../utils/imageUtils.js";
@@ -281,6 +281,8 @@ export default function RoomManagementScreen({ navigation, route }) {
     amenities: [],
     rules: [],
     durationPricing: createInitialDurationPricing(),
+    existingImages: [],
+    deletedImageIds: [],
   });
 
   const [newAmenity, setNewAmenity] = useState("");
@@ -327,21 +329,21 @@ export default function RoomManagementScreen({ navigation, route }) {
     placeholderData: (previousData) => previousData,
   });
 
-  const roomsQuery = useQuery({
+  const roomsInfiniteQuery = useInfiniteQuery({
     queryKey: landlordQueryKeys.roomsByProperty(selectedPropertyId),
     enabled: Boolean(selectedPropertyId),
-    queryFn: async () => {
-      const response = await PropertyService.getRooms(selectedPropertyId);
+    queryFn: async ({ pageParam = 1 }) => {
+      const response = await PropertyService.getRooms(selectedPropertyId, pageParam);
       if (!response.success) {
         throw new Error(response.error || "Failed to load rooms");
       }
-
-      const data = response.data;
-      if (Array.isArray(data)) return data;
-      if (Array.isArray(data?.data)) return data.data;
-      return EMPTY_ROOMS;
+      return response.data; // { items, pagination }
     },
-    placeholderData: (previousData) => previousData,
+    getNextPageParam: (lastPage) => {
+      const { current_page, last_page } = lastPage.pagination;
+      return current_page < last_page ? current_page + 1 : undefined;
+    },
+    initialPageParam: 1,
   });
 
   const roomStatsQuery = useQuery({
@@ -371,32 +373,33 @@ export default function RoomManagementScreen({ navigation, route }) {
       if (!response.success) {
         throw new Error(response.error || "Failed to load tenants");
       }
-
-      const data = response.data;
+      const data = response.data?.items || response.data?.data || response.data;
       if (Array.isArray(data)) return data;
-      if (Array.isArray(data?.data)) return data.data;
       return EMPTY_TENANTS;
     },
     placeholderData: (previousData) => previousData,
   });
 
   const properties = propertiesQuery.data || EMPTY_PROPERTIES;
-  const rooms = roomsQuery.data || EMPTY_ROOMS;
+  const rooms = useMemo(() => {
+    return roomsInfiniteQuery.data?.pages.flatMap((page) => page.items) || [];
+  }, [roomsInfiniteQuery.data]);
   const stats = roomStatsQuery.data || DEFAULT_STATS;
   const allTenants = allTenantsQuery.data || EMPTY_TENANTS;
   const loadingProperties = propertiesQuery.isPending && properties.length === 0;
   const loadingRooms =
-    Boolean(selectedPropertyId) && roomsQuery.isPending && rooms.length === 0;
+    Boolean(selectedPropertyId) && roomsInfiniteQuery.isPending && rooms.length === 0;
+  const isFetchingNextPage = roomsInfiniteQuery.isFetchingNextPage;
   const loading = loadingProperties || loadingRooms;
   const fetchError =
     propertiesQuery.error?.message ||
-    roomsQuery.error?.message ||
+    roomsInfiniteQuery.error?.message ||
     roomStatsQuery.error?.message ||
     allTenantsQuery.error?.message ||
     "";
 
   const refetchProperties = propertiesQuery.refetch;
-  const refetchRooms = roomsQuery.refetch;
+  const refetchRooms = roomsInfiniteQuery.refetch;
   const refetchRoomStats = roomStatsQuery.refetch;
   const refetchAllTenants = allTenantsQuery.refetch;
   const propertyAndTenantRefetchers = useMemo(
@@ -823,6 +826,8 @@ export default function RoomManagementScreen({ navigation, route }) {
         : !!room.require_1month_advance,
       durationPricing: normalizedDurationPricing,
       occupied: room.occupied || 0,
+      existingImages: room.images || [],
+      deletedImageIds: [],
     });
     setSelectedImages([]);
     setFieldErrors({});
@@ -957,42 +962,55 @@ export default function RoomManagementScreen({ navigation, route }) {
     setModalLoading(true);
     try {
       const payload = new FormData();
-      payload.append("property_id", selectedPropertyId);
-      payload.append("room_number", formData.roomNumber.trim());
-      payload.append("room_type", formData.roomType);
-      payload.append("sex_restriction", formData.sexRestriction);
-      payload.append("floor", formData.floor);
-      payload.append("capacity", isApartment ? "1" : formData.capacity);
-      payload.append("billing_policy", formData.billingPolicy);
-      payload.append("pricing_model", formData.pricingModel);
-      // Only send min_stay_days for non-monthly billing (monthly auto-enforces 30 days)
+      payload.append("property_id", String(selectedPropertyId));
+      payload.append("room_number", String(formData.roomNumber.trim()));
+      payload.append("room_type", String(formData.roomType));
+      payload.append("sex_restriction", String(formData.sexRestriction));
+      payload.append("floor", String(formData.floor));
+      payload.append("capacity", String(isApartment ? "1" : formData.capacity));
+      payload.append("billing_policy", String(formData.billingPolicy));
+      payload.append("pricing_model", String(formData.pricingModel));
+
       if (formData.billingPolicy !== "monthly" && formData.minStayDays) {
-        payload.append("min_stay_days", formData.minStayDays);
+        payload.append("min_stay_days", String(formData.minStayDays));
       }
-      payload.append("description", formData.description || "");
-      payload.append("status", formData.status);
-      // Only send if explicitly set; null means inherit from property
+      payload.append("description", String(formData.description || ""));
+      payload.append("status", String(formData.status));
+
       if (formData.require1MonthAdvance !== null) {
         payload.append("require_1month_advance", formData.require1MonthAdvance ? "1" : "0");
       }
 
-      const durationPricingPayload = buildDurationPricingPayload(
-        formData.durationPricing,
-      );
+      const durationPricingPayload = buildDurationPricingPayload(formData.durationPricing);
       if (Object.keys(durationPricingPayload).length > 0) {
         payload.append("duration_pricing", JSON.stringify(durationPricingPayload));
       }
 
+      if (formData.monthlyRate) {
+        payload.append("monthly_rate", String(formData.monthlyRate));
+      }
+      if (formData.dailyRate) {
+        payload.append("daily_rate", String(formData.dailyRate));
+      }
 
-      if (formData.monthlyRate)
-        payload.append("monthly_rate", formData.monthlyRate);
-      if (formData.dailyRate) payload.append("daily_rate", formData.dailyRate);
+      formData.amenities.forEach((a) => payload.append("amenities[]", a));
+      formData.rules.forEach((r) => payload.append("rules[]", r));
 
-      formData.amenities.forEach((a, i) =>
-        payload.append(`amenities[${i}]`, a),
+      formData.deletedImageIds.forEach((id) =>
+        payload.append("deleted_images[]", String(id)),
       );
-      formData.rules.forEach((r, i) => payload.append(`rules[${i}]`, r));
-      selectedImages.forEach((img, i) => payload.append(`images[${i}]`, img));
+
+      selectedImages.forEach((image, index) => {
+        const filename = image.uri.split("/").pop();
+        const imageUri =
+          Platform.OS === "ios" ? image.uri.replace("file://", "") : image.uri;
+
+        payload.append("images[]", {
+          uri: imageUri,
+          name: filename || `image_${index}.jpg`,
+          type: image.type || "image/jpeg",
+        });
+      });
 
       const res =
         modalMode === "add"
@@ -1372,6 +1390,19 @@ export default function RoomManagementScreen({ navigation, route }) {
           />
         }
         showsVerticalScrollIndicator={false}
+        onEndReached={() => {
+          if (roomsInfiniteQuery.hasNextPage && !isFetchingNextPage) {
+            roomsInfiniteQuery.fetchNextPage();
+          }
+        }}
+        onEndReachedThreshold={0.3}
+        ListFooterComponent={() => (
+          isFetchingNextPage ? (
+            <View style={{ paddingVertical: 20 }}>
+              <ActivityIndicator size="small" color={theme.colors.primary} />
+            </View>
+          ) : null
+        )}
       />
 
       {/* Room Details Modal */}
@@ -2253,13 +2284,35 @@ export default function RoomManagementScreen({ navigation, route }) {
 
             <Text style={[styles.sectionTitle, { marginTop: 24 }]}>Room Images</Text>
             <View style={styles.imageGrid}>
+              {formData.existingImages.map((img, i) => (
+                <View key={`existing-${img.id || i}`} style={styles.imagePreview}>
+                  <Image
+                    source={{ uri: getImageUrl(img.image_url || img.url) }}
+                    style={{ width: "100%", height: "100%" }}
+                  />
+                  <TouchableOpacity
+                    style={styles.imageRemove}
+                    onPress={() => {
+                      setFormData((prev) => ({
+                        ...prev,
+                        existingImages: prev.existingImages.filter(
+                          (_, idx) => idx !== i,
+                        ),
+                        deletedImageIds: [...prev.deletedImageIds, img.id],
+                      }));
+                    }}
+                  >
+                    <Ionicons name="close" size={14} color="#FFFFFF" />
+                  </TouchableOpacity>
+                </View>
+              ))}
               {selectedImages.map((img, i) => (
-                <View key={i} style={styles.imagePreview}>
+                <View key={`new-${i}`} style={styles.imagePreview}>
                   <Image
                     source={{ uri: img.uri }}
                     style={{ width: "100%", height: "100%" }}
                   />
-                  {i === 0 && (
+                  {formData.existingImages.length === 0 && i === 0 && (
                     <View
                       style={{
                         position: "absolute",

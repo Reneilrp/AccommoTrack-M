@@ -20,11 +20,12 @@ import { useUIState } from '../../contexts/UIStateContext';
 import { cacheManager } from '../../utils/cache';
 import AssignWorkerModal from '../../components/Maintenance/AssignWorkerModal';
 
-export default function LandlordMaintenance() {
+export default function LandlordMaintenance({ user, accessRole }) {
   const navigate = useNavigate();
   const location = useLocation();
   const queryParams = new URLSearchParams(location.search);
   const propertyId = queryParams.get('property_id');
+  const isCaretaker = accessRole === 'caretaker' || user?.role === 'caretaker';
   const { uiState, updateScreenState, updateData } = useUIState();
   const cachedData = uiState.data?.landlord_maintenance || cacheManager.get('landlord_maintenance');
   const savedState = uiState.maintenance || {};
@@ -215,15 +216,17 @@ export default function LandlordMaintenance() {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-8 space-y-6">
         {/* Summary Stats */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <StatCard
-            label="Assigned to Me"
-            value={summary?.assigned_to_me ?? 0}
-            icon={UserCheck}
-            color="text-brand-600"
-            bgColor="bg-brand-50"
-            loading={loadingSummary}
-          />
+        <div className={`grid grid-cols-2 ${isCaretaker ? 'lg:grid-cols-4' : 'lg:grid-cols-3'} gap-4`}>
+          {isCaretaker && (
+            <StatCard
+              label="Assigned to Me"
+              value={summary?.assigned_to_me ?? 0}
+              icon={UserCheck}
+              color="text-brand-600"
+              bgColor="bg-brand-50"
+              loading={loadingSummary}
+            />
+          )}
           <StatCard
             label="Pending"
             value={summary?.pending ?? 0}

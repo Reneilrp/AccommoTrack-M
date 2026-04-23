@@ -32,6 +32,7 @@ import {
   useTenantFocusRefetch,
   useTenantRefreshHandler,
 } from "../../hooks/useTenantQueryHelpers.js";
+import { formatPrice } from "../../../../utils/price.js";
 
 const REVIEWS_PAGE_SIZE = 5;
 
@@ -1449,11 +1450,11 @@ export default function PropertyDetailsScreen({
                             Room {room.room_number}
                           </Text>
                           <Text style={styles.roomPrice} numberOfLines={1}>
-                            ₱{(() => {
-                              const amount = room.billing_policy === 'daily'
+                            {(() => {
+                              const amount = room.billing_policy === "daily"
                                 ? (room.daily_rate || Math.round(room.monthly_rate / 30))
                                 : room.monthly_rate;
-                              return amount.toLocaleString();
+                              return formatPrice(amount);
                             })()}
                           </Text>
                         </View>

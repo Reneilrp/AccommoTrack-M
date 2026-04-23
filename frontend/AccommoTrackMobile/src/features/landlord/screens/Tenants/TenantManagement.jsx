@@ -18,7 +18,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { useQuery } from '@tanstack/react-query';
+import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import PropertyService from '../../../../services/PropertyService.js';
 import { getStyles } from '../../../../styles/Landlord/Tenants.js';
 import { useTheme } from '../../../../contexts/ThemeContext.jsx';
@@ -290,30 +290,38 @@ export default function TenantsScreen({ navigation, route }) {
     placeholderData: (previousData) => previousData,
   });
 
-  const tenantsQuery = useQuery({
+  const tenantsInfiniteQuery = useInfiniteQuery({
     queryKey: landlordQueryKeys.tenantsByProperty(selectedPropertyId),
     enabled: Boolean(selectedPropertyId),
-    queryFn: async () => {
-      const response = await PropertyService.getTenants({ property_id: selectedPropertyId });
+    queryFn: async ({ pageParam = 1 }) => {
+      const response = await PropertyService.getTenants({ 
+        property_id: selectedPropertyId,
+        page: pageParam
+      });
       if (!response.success) {
         throw new Error(response.error || 'Failed to load tenants');
       }
-      const data = response.data;
-      if (Array.isArray(data)) return data;
-      if (Array.isArray(data?.data)) return data.data;
-      return [];
+      return response.data; // { items, pagination }
     },
-    placeholderData: (previousData) => previousData,
+    getNextPageParam: (lastPage) => {
+      const { current_page, last_page } = lastPage.pagination;
+      return current_page < last_page ? current_page + 1 : undefined;
+    },
+    initialPageParam: 1,
   });
 
   const properties = propertiesQuery.data || EMPTY_PROPERTIES;
-  const tenants = tenantsQuery.data || EMPTY_TENANTS;
+  const tenants = useMemo(() => {
+    return tenantsInfiniteQuery.data?.pages.flatMap((page) => page.items) || [];
+  }, [tenantsInfiniteQuery.data]);
+
   const loadingProperties = propertiesQuery.isPending && properties.length === 0;
-  const loadingTenants = tenantsQuery.isPending && tenants.length === 0;
+  const loadingTenants = tenantsInfiniteQuery.isPending && tenants.length === 0;
+  const isFetchingNextPage = tenantsInfiniteQuery.isFetchingNextPage;
   const loading = loadingProperties || loadingTenants;
-  const fetchError = tenantsQuery.error?.message || propertiesQuery.error?.message || '';
+  const fetchError = tenantsInfiniteQuery.error?.message || propertiesQuery.error?.message || '';
   const refetchProperties = propertiesQuery.refetch;
-  const refetchTenants = tenantsQuery.refetch;
+  const refetchTenants = tenantsInfiniteQuery.refetch;
   const tenantManagementRefetchers = useMemo(
     () => [refetchProperties, refetchTenants],
     [refetchProperties, refetchTenants],
@@ -1174,6 +1182,19 @@ export default function TenantsScreen({ navigation, route }) {
           isTablet ? { alignItems: 'center' } : null,
         ]}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor="#16a34a" />}
+        onEndReached={() => {
+          if (tenantsInfiniteQuery.hasNextPage && !isFetchingNextPage) {
+            tenantsInfiniteQuery.fetchNextPage();
+          }
+        }}
+        onEndReachedThreshold={0.3}
+        ListFooterComponent={() => (
+          isFetchingNextPage ? (
+            <View style={{ paddingVertical: 20 }}>
+              <ActivityIndicator size="small" color={theme.colors.primary} />
+            </View>
+          ) : null
+        )}
         ListEmptyComponent={loadingTenants ? <ActivityIndicator style={styles.loadingIndicator} color="#16a34a" /> : <View style={styles.emptyState}><Text style={styles.emptyTitle}>No tenants found</Text></View>}
       />
 

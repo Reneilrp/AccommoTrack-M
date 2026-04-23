@@ -541,10 +541,14 @@ export default function Payments() {
       if (!response.success) {
         throw new Error(response.error || "Failed to load invoices");
       }
-      const list = Array.isArray(response.data)
+      const list = response.data?.items || (Array.isArray(response.data)
         ? response.data
-        : (response.data?.data || response.data || []);
+        : (response.data?.data || response.data || []));
 
+      if (!Array.isArray(list)) {
+         setInvoices([]);
+         return;
+      }
       let finalBookingsMap = { ...bookingsMap };
       const bookingIds = Array.from(
         new Set(list.map((i) => i.booking_id).filter(Boolean)),
@@ -2223,7 +2227,7 @@ function ExportModal({ invoices, bookingsMap, onClose }) {
     try {
       const response = await roomService.getRoomsByProperty(propertyId);
       const list = response.success
-        ? (Array.isArray(response.data) ? response.data : (Array.isArray(response.data?.data) ? response.data.data : []))
+        ? (response.data?.items || (Array.isArray(response.data) ? response.data : (Array.isArray(response.data?.data) ? response.data.data : [])))
         : [];
       setRooms(list);
     } catch (__err) {

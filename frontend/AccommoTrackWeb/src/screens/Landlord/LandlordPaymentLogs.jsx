@@ -154,7 +154,7 @@ export default function LandlordPaymentLogs() {
       if (logType === 'subscription') {
         const res = await invoiceService.getSubscriptionInvoices({ t: Date.now() });
         if (res.success) {
-          const list = Array.isArray(res.data) ? res.data : (res.data?.data || []);
+          const list = res.data?.items || (Array.isArray(res.data) ? res.data : (res.data?.data || []));
           setAllInvoices(list);
           setArchivedInvoices([]); // Subscriptions don't use archive logic for now
         } else {
@@ -167,14 +167,14 @@ export default function LandlordPaymentLogs() {
         ]);
 
         if (allRes.success) {
-          const list = Array.isArray(allRes.data) ? allRes.data : (allRes.data?.data || []);
+          const list = allRes.data?.items || (Array.isArray(allRes.data) ? allRes.data : (allRes.data?.data || []));
           setAllInvoices(list);
         } else {
           setError(allRes.error || 'Failed to load invoices');
         }
 
         if (archiveRes.success) {
-          const list = Array.isArray(archiveRes.data) ? archiveRes.data : (archiveRes.data?.data || []);
+          const list = archiveRes.data?.items || (Array.isArray(archiveRes.data) ? archiveRes.data : (archiveRes.data?.data || []));
           setArchivedInvoices(list);
         }
       }

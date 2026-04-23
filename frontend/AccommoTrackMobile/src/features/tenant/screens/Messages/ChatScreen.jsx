@@ -124,7 +124,7 @@ export default function ChatScreen({ navigation, route }) {
         placeholderData: (previousData) => previousData,
     });
 
-    const messages = messagesQuery.data || EMPTY_MESSAGES;
+    const messages = messagesQuery.data?.items || (Array.isArray(messagesQuery.data) ? messagesQuery.data : EMPTY_MESSAGES);
     const isLoading = messagesQuery.isLoading;
     const refetchMessages = messagesQuery.refetch;
     const messageRefetchers = React.useMemo(

@@ -10,12 +10,14 @@ import Decimal from './decimal.js';
 export function formatPrice(value, { 
   currency = 'PHP', 
   locale = 'en-PH', 
-  minimumFractionDigits = 2 
+  minimumFractionDigits = 2,
+  isCents = false
 } = {}) {
   let num;
   try {
     // Ensure accurate precision before formatting
-    num = new Decimal(value || 0).toNumber();
+    const d = new Decimal(value || 0);
+    num = isCents ? d.div(100).toNumber() : d.toNumber();
   } catch (err) {
     num = 0;
   }

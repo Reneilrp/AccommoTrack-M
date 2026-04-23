@@ -653,35 +653,48 @@ export default function AddProperty({ navigation }) {
     const methods = form.acceptedPayments.length
       ? form.acceptedPayments
       : ["cash"];
-    methods.forEach((method, index) => {
-      payload.append(`accepted_payments[${index}]`, method);
+    methods.forEach((method) => {
+      payload.append("accepted_payments[]", method);
     });
 
-    form.amenities.forEach((amenity, index) => {
-      payload.append(`amenities[${index}]`, amenity);
+    form.amenities.forEach((amenity) => {
+      payload.append("amenities[]", amenity);
     });
 
     selectedImages.forEach((image, index) => {
-      payload.append(`images[${index}]`, {
-        uri: image.uri,
-        name: image.name,
-        type: image.type,
+      const filename = image.name || `property-${Date.now()}-${index}.jpg`;
+      const imageUri =
+        Platform.OS === "ios" ? image.uri.replace("file://", "") : image.uri;
+
+      payload.append("images[]", {
+        uri: imageUri,
+        name: filename,
+        type: image.type || "image/jpeg",
       });
     });
 
     if (selectedVideo) {
+      const videoUri =
+        Platform.OS === "ios"
+          ? selectedVideo.uri.replace("file://", "")
+          : selectedVideo.uri;
+
       payload.append("video", {
-        uri: selectedVideo.uri,
+        uri: videoUri,
         name: selectedVideo.name,
         type: selectedVideo.type,
       });
     }
 
     credentials.forEach((file, index) => {
-      payload.append(`credentials[${index}]`, {
-        uri: file.uri,
-        name: file.name,
-        type: file.type,
+      const filename = file.name || `credential-${Date.now()}-${index}`;
+      const fileUri =
+        Platform.OS === "ios" ? file.uri.replace("file://", "") : file.uri;
+
+      payload.append("credentials[]", {
+        uri: fileUri,
+        name: filename,
+        type: file.type || "application/octet-stream",
       });
     });
 

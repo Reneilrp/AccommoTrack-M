@@ -43,6 +43,7 @@ import {
   tenantQueryKeys,
   useTenantRefreshHandler,
 } from '../../hooks/useTenantQueryHelpers.js';
+import { formatPrice } from '../../../../utils/price.js';
 
 // Helper function to get proper image URL
 const getRoomImageUrl = (imageUrl) => {
@@ -1482,9 +1483,9 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
           {/* Price */}
           <View style={styles.priceContainer}>
             <Text style={styles.price}>
-              ₱{(() => {
+              {(() => {
                 const rate = isDailyContract ? (activeRoom.daily_rate || Math.round(activeRoom.monthly_rate / 30)) : activeRoom.monthly_rate;
-                return (Number(rate) || 0).toLocaleString();
+                return formatPrice(rate);
               })()}
             </Text>
             <Text style={styles.priceLabel}>{isDailyContract ? '/day' : '/month'}</Text>
@@ -2242,12 +2243,12 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
                   <View style={[styles.summaryRow, { borderTopWidth: 1, borderTopColor: '#bbf7d0', paddingTop: 8, marginTop: 8 }]}>
                     <Text style={styles.summaryLabelBold}>Total Amount</Text>
                     <Text style={styles.summaryValueBold}>
-                      {isPricingLoading ? '...' : `₱${( // Use selectedPlanTotal which already accounts for promo
+                      {isPricingLoading ? '...' : formatPrice(
                         (Number(selectedPlanTotal) || 0) +
                         (activeRoom.requires_advance ? Number(activeRoom.monthly_rate) : 0) +
                         (isReservationRequired ? reservationFeeAmount : 0) +
                         selectedAddonsTotal
-                      ).toLocaleString()}`}
+                      )}
                     </Text>
                   </View>
 
@@ -2275,12 +2276,12 @@ export default function RoomDetailsScreen({ route, isGuest = false, onAuthRequir
                   <View style={{ marginTop: 8 }}>
                     {pricingBreakdown && pricingBreakdown.months > 0 && (
                       <Text style={[styles.summaryNote, { marginBottom: 2 }]}>
-                        Rent: ₱{(Number(activeRoom.monthly_rate) || 0).toLocaleString()}/month × {pricingBreakdown.months}
+                        Rent: {formatPrice(activeRoom.monthly_rate)}/month × {pricingBreakdown.months}
                       </Text>
                     )}
                     {pricingBreakdown && pricingBreakdown.remaining_days > 0 && (
                       <Text style={[styles.summaryNote, { marginBottom: 2 }]}>
-                        Rent: ₱{(Number(activeRoom.daily_rate || Math.round(activeRoom.monthly_rate / 30)) || 0).toLocaleString()}/day × {pricingBreakdown.remaining_days}
+                        Rent: {formatPrice(activeRoom.daily_rate || Math.round(activeRoom.monthly_rate / 30))}/day × {pricingBreakdown.remaining_days}
                       </Text>
                     )}
                     {activeRoom.requires_advance && (

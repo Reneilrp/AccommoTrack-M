@@ -10,6 +10,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { tenantQueryKeys } from '../../hooks/useTenantQueryHelpers.js';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { getStyles } from '../../../../styles/Tenant/WalletStyles.js';
+import { formatPrice } from '../../../../utils/price.js';
 
 const TransactionItem = ({ item, theme }) => {
   const isDebit = item.type === 'debit';
@@ -51,7 +52,7 @@ const TransactionItem = ({ item, theme }) => {
         fontWeight: '900', 
         color: isDebit ? "#D97706" : "#059669" 
       }}>
-        {isDebit ? '-' : '+'}₱{(parseFloat(item.amount_cents) / 100).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+        {isDebit ? '-' : '+'}{formatPrice(item.amount_cents || item.amount || 0, { isCents: true })}
       </Text>
     </View>
   );
@@ -78,14 +79,14 @@ export default function MyWallet() {
     queryKey: ['wallet-logs'],
     queryFn: async () => {
       const res = await PaymentService.getWalletLogs();
-      if (res.success) return res.data?.data || [];
+      if (res.success) return res.data?.items || [];
       return [];
     },
   });
 
   useEffect(() => {
     if (profileQuery.data?.wallet_balance !== undefined) {
-      setBalance(parseFloat(profileQuery.data.wallet_balance) / 100);
+      setBalance(parseFloat(profileQuery.data.wallet_balance));
     }
   }, [profileQuery.data]);
 
@@ -112,7 +113,7 @@ export default function MyWallet() {
             </View>
             <Text style={styles.balanceLabel}>Available Balance</Text>
             <Text style={styles.balanceValue}>
-              ₱{balance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              {formatPrice(balance)}
             </Text>
             <Text style={styles.balanceSubtext}>
               Automatically applied to your next payments.

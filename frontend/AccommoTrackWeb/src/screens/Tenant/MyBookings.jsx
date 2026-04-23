@@ -86,11 +86,12 @@ const MyBookings = () => {
   // Handle history data merging (for "load more")
   useEffect(() => {
     if (historyData) {
+      const bookings = historyData.items || historyData.bookings || [];
       if (historyPage === 1) {
-        setHistory(historyData);
+        setHistory({ bookings, pagination: historyData.pagination });
       } else {
         setHistory(prev => ({
-          bookings: [...prev.bookings, ...historyData.bookings],
+          bookings: [...prev.bookings, ...bookings],
           pagination: historyData.pagination
         }));
       }

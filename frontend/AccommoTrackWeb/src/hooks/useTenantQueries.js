@@ -68,7 +68,10 @@ export const useTenantStayBundle = () => {
       const pendingCheckIns = stayRes.data?.pendingCheckIns || stayRes.data?.data?.pendingCheckIns || [];
       const upcomingBooking = stayRes.data?.upcomingBooking || stayRes.data?.upcoming_booking || stayRes.data?.data?.upcomingBooking || null;
       
-      const bookingsList = bookingsRes.success ? (bookingsRes.data?.bookings || bookingsRes.data || []) : [];
+      const rawBookings = bookingsRes.success ? bookingsRes.data : [];
+      const bookingsList = Array.isArray(rawBookings) 
+        ? rawBookings 
+        : (rawBookings?.items || rawBookings?.data || []);
       
       return {
         stays,
@@ -148,22 +151,24 @@ export const useTenantPaymentStats = () => {
 };
 
 /**
- * Fetch Tenant Wallet Logs
- */
-export const useTenantWalletLogs = (page = 1) => {
-  return useQuery({
-    queryKey: tenantQueryKeys.walletLogs(page),
-    queryFn: async () => {
-      const response = await paymentService.getWalletLogs(page);
-      if (!response.success) throw new Error(response.error || 'Failed to fetch wallet logs');
-      
-      const payload = response.data || {};
-      return {
-        data: Array.isArray(payload.data) ? payload.data : (Array.isArray(payload) ? payload : []),
-        meta: payload.meta || payload || null
-      };
-    },
-    staleTime: 5 * 60 * 1000,
+ export const useTenantWalletLogs = (page = 1) => {
+   return useQuery({
+     queryKey: tenantQueryKeys.walletLogs(page),
+     queryFn: async () => {
+       const response = await paymentService.getWalletLogs(page);
+       if (!response.success) throw new Error(response.error || 'Failed to fetch wallet logs');
+
+       const payload = response.data || {};
+       const items = Array.isArray(payload.items) ? payload.items : (Array.isArray(payload.data) ? payload.data : []);
+
+       return {
+         data: items,
+         meta: payload.pagination || null
+       };
+     },
+     staleTime: 5 * 60 * 1000,
+   });
+ };
     placeholderData: keepPreviousData,
   });
 };

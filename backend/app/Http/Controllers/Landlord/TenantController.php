@@ -927,6 +927,14 @@ class TenantController extends Controller
                             'description' => \Illuminate\Support\Facades\DB::raw("CONCAT(description, ' (Deferred due to room transfer)')"),
                         ]);
 
+                    // Update previously paid invoices of the old booking to 'transferred' status
+                    \App\Models\Invoice::where('booking_id', $activeBooking->id)
+                        ->where('status', 'paid')
+                        ->update([
+                            'status' => 'transferred',
+                            'description' => \Illuminate\Support\Facades\DB::raw("CONCAT(description, ' (Transferred to new room)')"),
+                        ]);
+
                     // End the physical stay first, then close the old booking lifecycle.
                     $oldRoom->removeTenant($tenant->id);
 
@@ -971,17 +979,9 @@ class TenantController extends Controller
                 'notes' => 'Transferred from '.($oldRoom ? $oldRoom->room_number : 'previous room').'. Reason: '.$validated['reason'],
             ], $tenant->id);
 
-            // Confirm the booking immediately. Skip double-billing if we already charge the prorated difference manually.
-            $proratedAdjustment = round((float) ($validated['prorated_adjustment'] ?? 0), 2);
-            $skipInitialRent = $proratedAdjustment !== 0.00 || ($creditCalculation['final_credit'] ?? 0) > 0;
-
-            $this->bookingService->updateStatus($newBooking, [
-                'status' => 'confirmed',
-                'skip_initial_rent_invoice' => $skipInitialRent,
-            ]);
-
             // 3.5. Calculate and Apply Prorated Credit
             $creditAmount = 0;
+            $creditCalculation = [];
             if ($activeBooking) {
                 $damageCharge = $validated['damage_charge'] ?? 0;
                 $transferFee = $validated['transfer_fee'] ?? 0;
@@ -994,10 +994,22 @@ class TenantController extends Controller
                 }
             }
 
+            // Confirm the booking immediately. Skip double-billing if we already charge the prorated difference manually.
+            $proratedAdjustment = round((float) ($validated['prorated_adjustment'] ?? 0), 2);
+            // Only skip initial rent if a manual adjustment is provided, otherwise we want the default invoice
+            // so we can apply the prorated credit against it.
+            $skipInitialRent = $proratedAdjustment !== 0.00;
+
+            $this->bookingService->updateStatus($newBooking, [
+                'status' => 'confirmed',
+                'skip_initial_rent_invoice' => $skipInitialRent,
+            ]);
+
             // Apply credit to new booking's first invoice
 
             // ONLY if we are not using the frontend's calculated prorated_adjustment
-            if ($creditAmount > 0 && !isset($validated['prorated_adjustment'])) {
+            // APPLY credit ONLY if no manual override was provided OR if the override is 0
+            if ($creditAmount > 0 && (!isset($validated['prorated_adjustment']) || round((float) $validated['prorated_adjustment'], 2) === 0.00)) {
                 $initialInvoice = Invoice::where('booking_id', $newBooking->id)
                     ->where('status', 'pending')
                     ->orderBy('id', 'asc')
@@ -1022,7 +1034,7 @@ class TenantController extends Controller
                         'tenant_id' => $tenant->id,
                         'property_id' => $newRoom->property_id,
                         'room_id' => $newRoom->id,
-                        'amount_cents' => $creditAmount,
+                        'amount_cents' => (int) round($creditAmount * 100),
                         'type' => 'credit',
                         'description' => 'Transfer credit (no pending invoice to apply)',
                     ]);
@@ -1047,6 +1059,10 @@ class TenantController extends Controller
                         'issued_at' => now(),
                         'due_date' => now()->addDays(3),
                     ]);
+
+                    // Also record as a debit in the wallet if they have balance? 
+                    // No, usually we just create an invoice. 
+                    // But if the landlord wanted to adjust the wallet directly, they would use a negative value.
                 } else {
                     TenantCredit::create([
                         'tenant_id' => $tenant->id,

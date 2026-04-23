@@ -70,7 +70,7 @@ export default function TenantManagement() {
   const getInitialPropertyId = () => {
     const params = new URLSearchParams(location.search || '');
     const fromUrl = params.get('property');
-    if (fromUrl) return Number(fromUrl);
+    if (fromUrl && !isNaN(Number(fromUrl))) return Number(fromUrl);
     if (cachedProps && cachedProps.length > 0) return cachedProps[0].id;
     return '';
   };
@@ -81,7 +81,7 @@ export default function TenantManagement() {
   const tenantCacheKey = selectedPropertyId ? `tenants_property_${selectedPropertyId}` : null;
   const cachedTenants = tenantCacheKey ? (uiState.data?.[tenantCacheKey] || cacheManager.get(tenantCacheKey)) : null;
 
-  const [tenants, setTenants] = useState(cachedTenants || []);
+  const [tenants, setTenants] = useState(Array.isArray(cachedTenants) ? cachedTenants : []);
   const [transferringTenant, setTransferringTenant] = useState(null);
   const [showTransferModal, setShowTransferModal] = useState(false);
   const [availableRooms, setAvailableRooms] = useState([]);
@@ -187,7 +187,7 @@ export default function TenantManagement() {
         if (!cachedProps) setLoading(true);
         const response = await landlordService.getAccessibleProperties();
         const data = response.success
-          ? (Array.isArray(response.data) ? response.data : (Array.isArray(response.data?.data) ? response.data.data : []))
+          ? (response.data?.items || (Array.isArray(response.data) ? response.data : (Array.isArray(response.data?.data) ? response.data.data : [])))
           : [];
         setProperties(data);
         updateData('accessible_properties', data);
@@ -216,7 +216,7 @@ export default function TenantManagement() {
 
       const response = await landlordService.getTenants({ property_id: selectedPropertyId, t: Date.now() });
       const data = response.success
-        ? (Array.isArray(response.data) ? response.data : (Array.isArray(response.data?.data) ? response.data.data : []))
+        ? (response.data?.items || (Array.isArray(response.data) ? response.data : (Array.isArray(response.data?.data) ? response.data.data : [])))
         : [];
 
       const list = Array.isArray(data) ? data : [];
@@ -261,7 +261,7 @@ export default function TenantManagement() {
 
       const response = await roomService.getRoomsByProperty(propertyId);
       const list = response.success
-        ? (Array.isArray(response.data) ? response.data : (Array.isArray(response.data?.data) ? response.data.data : []))
+        ? (response.data?.items || (Array.isArray(response.data) ? response.data : (Array.isArray(response.data?.data) ? response.data.data : [])))
         : [];
       // Filter for available rooms, excluding current one
       setAvailableRooms(list.filter(r => isRoomBookable(r) && r.id !== tenant.room?.id));
@@ -394,7 +394,7 @@ export default function TenantManagement() {
     try {
       const response = await roomService.getRoomsByProperty(propertyId);
       const list = response.success
-        ? (Array.isArray(response.data) ? response.data : (Array.isArray(response.data?.data) ? response.data.data : []))
+        ? (response.data?.items || (Array.isArray(response.data) ? response.data : (Array.isArray(response.data?.data) ? response.data.data : [])))
         : [];
       setAvailableRoomsForAssign(list.filter(r => isRoomBookable(r)));
     } catch {
@@ -431,7 +431,7 @@ export default function TenantManagement() {
     try {
       const response = await roomService.getRoomsByProperty(selectedPropertyId);
       const list = response.success
-        ? (Array.isArray(response.data) ? response.data : (Array.isArray(response.data?.data) ? response.data.data : []))
+        ? (response.data?.items || (Array.isArray(response.data) ? response.data : (Array.isArray(response.data?.data) ? response.data.data : [])))
         : [];
       setAvailableRoomsForCreate(list.filter(r => isRoomBookable(r)));
     } catch (err) {
@@ -638,7 +638,8 @@ export default function TenantManagement() {
   };
 
   const filteredTenants = tenants.filter(tenant => {
-    const fullName = `${tenant.first_name} ${tenant.last_name}`.toLowerCase();
+    if (!tenant) return false;
+    const fullName = `${tenant.first_name || ''} ${tenant.last_name || ''}`.toLowerCase();
     const email = (tenant.email || '').toLowerCase();
     const roomNumber = tenant.room?.room_number || '';
     const q = (searchQuery || '').toLowerCase();
@@ -680,6 +681,27 @@ export default function TenantManagement() {
           </div>
           <div className="text-center">
             <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Tenant Management</h1>
+          </div>
+
+          <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-4">
+            {!isFromProperty && (
+              <select
+                className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                value={selectedPropertyId || ''}
+                onChange={(e) => setSelectedPropertyId(Number(e.target.value))}
+                disabled={loading}
+              >
+                {__properties.length === 0 ? (
+                  <option>Loading Properties...</option>
+                ) : (
+                  __properties.map(property => (
+                    <option key={property.id} value={property.id}>
+                      {property.title}
+                    </option>
+                  ))
+                )}
+              </select>
+            )}
           </div>
         </div>
       </header>

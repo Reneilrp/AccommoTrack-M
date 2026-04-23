@@ -5,9 +5,10 @@ import { showSuccess, showError } from '../../../utils/toast';
 import invoiceService from '../../../services/invoiceService';
 import Decimal from '../../../utils/decimal';
 
-const toDecimal = (val) => {
+const toDecimal = (val, isCents = false) => {
   try {
-    return new Decimal(val || 0);
+    const d = new Decimal(val || 0);
+    return isCents ? d.div(100) : d;
   } catch (__e) {
     return new Decimal(0);
   }
@@ -50,12 +51,12 @@ const normalizeStatus = (status) => {
 };
 
 const computeInvoiceTotals = (invoice) => {
-  const total = toDecimal(invoice?.amount_cents ?? invoice?.amount);
+  const total = toDecimal(invoice?.amount_cents ?? invoice?.amount, !!invoice?.amount_cents);
   const paid = (invoice?.transactions || [])
     .filter((tx) => ['succeeded', 'paid', 'partially_refunded'].includes((tx.status || '').toLowerCase()))
     .reduce((sum, tx) => {
-      const amount = toDecimal(tx.amount_cents ?? tx.amount);
-      const refunded = toDecimal(tx.refunded_amount_cents ?? tx.refunded_amount);
+      const amount = toDecimal(tx.amount_cents ?? tx.amount, !!tx.amount_cents);
+      const refunded = toDecimal(tx.refunded_amount_cents ?? tx.refunded_amount, !!tx.refunded_amount_cents);
       return sum.plus(Decimal.max(amount.minus(refunded), 0));
     }, new Decimal(0));
 
@@ -86,7 +87,7 @@ const buildHistory = (invoices) => {
         timestamp: tx.created_at || tx.updated_at,
         title: 'Payment update',
         detail: `${reference} ${tx.method ? `(${tx.method})` : ''} ${currency(
-          toDecimal(tx.amount_cents ?? tx.amount).toNumber()
+          toDecimal(tx.amount_cents ?? tx.amount, !!tx.amount_cents).toNumber()
         )} marked ${String(tx.status || 'pending').replace('_', ' ')}.`,
         type: 'payment',
       });

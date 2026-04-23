@@ -195,9 +195,7 @@ export default function Bookings({ user, accessRole = 'landlord' }) {
       if (!uiState.data?.landlord_bookings) setLoading(true);
       const response = await bookingService.getBookings();
       if (response.success) {
-        const list = Array.isArray(response.data)
-          ? response.data
-          : (Array.isArray(response.data?.data) ? response.data.data : []);
+        const list = response.data?.items || (Array.isArray(response.data) ? response.data : (Array.isArray(response.data?.data) ? response.data.data : []));
         setBookings(list);
         updateData('landlord_bookings', prev => ({ ...prev, bookings: list }));
         setError(null);

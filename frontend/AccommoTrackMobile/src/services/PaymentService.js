@@ -1,5 +1,18 @@
 import api, { normalizeResponse, normalizeError, normalizePaginatedResponse } from "./api.js";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import Decimal from "../utils/decimal.js";
+
+const normalizeAmount = (value) => {
+  if (value === null || value === undefined) return 0;
+  try {
+    // If the value is a large integer, it's likely cents. 
+    // We use Decimal for precision and consistency across the platform.
+    return new Decimal(value).div(100).toNumber();
+  } catch (err) {
+    console.error('[PaymentService] Amount normalization error:', err);
+    return 0;
+  }
+};
 
 const toNonEmptyString = (value) => {
   if (value === null || value === undefined) return "";
@@ -32,6 +45,8 @@ const normalizeInvoiceItem = (invoice) => {
     ...invoice,
     room_number: resolvedRoomNumber || invoice.room_number || "",
     roomNumber: resolvedRoomNumber || invoice.roomNumber || "",
+    amount: normalizeAmount(invoice.amount),
+    remainingBalance: normalizeAmount(invoice.remainingBalance),
     booking: invoice.booking
       ? {
           ...invoice.booking,
@@ -50,6 +65,12 @@ const normalizeInvoiceItem = (invoice) => {
             : invoice.booking.room,
         }
       : invoice.booking,
+    transactions: Array.isArray(invoice.transactions) 
+      ? invoice.transactions.map(tx => ({
+          ...tx,
+          amount: normalizeAmount(tx.amount_cents || tx.amount)
+        }))
+      : invoice.transactions,
   };
 };
 
@@ -57,21 +78,27 @@ class PaymentService {
   /**
    * Get all payments for the authenticated tenant
    */
-  async getPayments(status = "all", archiveFilter = null) {
+  async getPayments(options = {}) {
     try {
-      const params = {};
-      if (status && status !== "all") params.status = status;
+      const { status = 'all', archiveFilter = null, page = 1 } = options;
+      const params = { page };
+      if (status && status !== 'all') params.status = status;
       if (archiveFilter) params.archive_filter = archiveFilter;
 
-      const response = await api.get("/tenant/payments", { params });
+      const response = await api.get('/tenant/payments', { params });
+      const normalized = normalizePaginatedResponse(response);
+      
+      if (normalized.items && Array.isArray(normalized.items)) {
+        normalized.items = normalized.items.map(normalizeInvoiceItem);
+      }
 
       return {
         success: true,
-        data: normalizePaginatedResponse(response),
-        error: null
+        data: normalized,
+        error: null,
       };
     } catch (error) {
-      console.error("Error fetching payments:", error);
+      console.error('Error fetching payments:', error);
       return normalizeError(error);
     }
   }
@@ -82,7 +109,18 @@ class PaymentService {
   async getStats() {
     try {
       const response = await api.get(`/tenant/payments/stats`);
-      return normalizeResponse(response);
+      const res = normalizeResponse(response);
+      
+      if (res.success && res.data) {
+        res.data = {
+          ...res.data,
+          totalPaidThisMonth: normalizeAmount(res.data.totalPaidThisMonth),
+          pendingAmount: normalizeAmount(res.data.pendingAmount),
+          totalCredits: normalizeAmount(res.data.totalCredits),
+        };
+      }
+      
+      return res;
     } catch (error) {
       console.error("Error fetching payment stats:", error);
       return normalizeError(error);
@@ -202,9 +240,15 @@ class PaymentService {
   async getInvoices(params = {}) {
     try {
       const response = await api.get(`/invoices`, { params });
+      const normalized = normalizePaginatedResponse(response);
+      
+      if (normalized.items && Array.isArray(normalized.items)) {
+        normalized.items = normalized.items.map(normalizeInvoiceItem);
+      }
+
       return {
         success: true,
-        data: normalizePaginatedResponse(response),
+        data: normalized,
         error: null
       };
     } catch (error) {
@@ -235,7 +279,20 @@ class PaymentService {
   async getInvoiceSummary(params = {}) {
     try {
       const response = await api.get('/invoices/summary', { params });
-      return normalizeResponse(response);
+      const res = normalizeResponse(response);
+      
+      if (res.success && res.data?.totals) {
+        const t = res.data.totals;
+        res.data.totals = {
+          ...t,
+          total_billed: normalizeAmount(t.total_billed_cents || t.total_billed),
+          total_paid: normalizeAmount(t.total_paid_cents || t.total_paid),
+          total_balance: normalizeAmount(t.total_balance_cents || t.total_balance),
+          total_refunded: normalizeAmount(t.total_refunded_cents || t.total_refunded),
+        };
+      }
+      
+      return res;
     } catch (error) {
       console.error('Error fetching invoice summary:', error);
       return normalizeError(error);
@@ -458,13 +515,22 @@ class PaymentService {
   async getWalletLogs(page = 1) {
     try {
       const response = await api.get(`/tenant/wallet-credit/logs?page=${page}`);
+      const normalized = normalizePaginatedResponse(response);
+
+      if (normalized.items && Array.isArray(normalized.items)) {
+        normalized.items = normalized.items.map((log) => ({
+          ...log,
+          amount: normalizeAmount(log.amount_cents || log.amount),
+        }));
+      }
+
       return {
         success: true,
-        data: normalizePaginatedResponse(response),
-        error: null
+        data: normalized,
+        error: null,
       };
     } catch (error) {
-      console.error("Error fetching wallet logs:", error);
+      console.error('Error fetching wallet logs:', error);
       return normalizeError(error);
     }
   }

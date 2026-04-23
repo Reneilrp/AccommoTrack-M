@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useQuery } from '@tanstack/react-query';
+import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { useNavigation } from '@react-navigation/native';
 import { getStyles } from '../../../../styles/Landlord/Reviews.js';
 import ReviewService from '../../../../services/ReviewService.js';
@@ -83,10 +83,10 @@ export default function Reviews({ route }) {
     }
   }, [properties, selectedPropertyId, singlePropertyId]);
 
-  const reviewsQuery = useQuery({
+  const reviewsInfiniteQuery = useInfiniteQuery({
     queryKey: landlordQueryKeys.reviews(effectivePropertyScope),
-    queryFn: async () => {
-      const params = {};
+    queryFn: async ({ pageParam = 1 }) => {
+      const params = { page: pageParam };
       if (effectivePropertyScope && effectivePropertyScope !== 'all') {
         params.property_id = effectivePropertyScope;
       }
@@ -96,12 +96,20 @@ export default function Reviews({ route }) {
         throw new Error(response.error || 'Failed to fetch reviews');
       }
 
-      return Array.isArray(response.data) ? response.data : EMPTY_REVIEWS;
+      return response.data; // { items, pagination }
     },
+    getNextPageParam: (lastPage) => {
+      const { current_page, last_page } = lastPage.pagination;
+      return current_page < last_page ? current_page + 1 : undefined;
+    },
+    initialPageParam: 1,
     placeholderData: (previousData) => previousData,
   });
 
-  const reviews = reviewsQuery.data || EMPTY_REVIEWS;
+  const reviews = useMemo(() => {
+    return reviewsInfiniteQuery.data?.pages.flatMap((page) => page.items) || [];
+  }, [reviewsInfiniteQuery.data]);
+
   const filteredReviews = useMemo(() => {
     if (selectedRating === 0) return reviews;
 
@@ -110,10 +118,16 @@ export default function Reviews({ route }) {
       return normalizedRating === selectedRating;
     });
   }, [reviews, selectedRating]);
-  const loading = ((propertiesQuery.isPending && properties.length === 0) || reviewsQuery.isPending) && reviews.length === 0;
-  const errorMessage = reviewsQuery.error?.message || propertiesQuery.error?.message || '';
+
+  const loading =
+    ((propertiesQuery.isPending && properties.length === 0) ||
+      reviewsInfiniteQuery.isPending) &&
+    reviews.length === 0;
+  const isFetchingNextPage = reviewsInfiniteQuery.isFetchingNextPage;
+  const errorMessage =
+    reviewsInfiniteQuery.error?.message || propertiesQuery.error?.message || "";
   const refetchProperties = propertiesQuery.refetch;
-  const refetchReviews = reviewsQuery.refetch;
+  const refetchReviews = reviewsInfiniteQuery.refetch;
   const reviewRefetchers = useMemo(() => [refetchProperties, refetchReviews], [refetchProperties, refetchReviews]);
 
   useLandlordFocusRefetch({ refetchers: reviewRefetchers });
@@ -300,6 +314,19 @@ export default function Reviews({ route }) {
           refreshing={refreshing}
           onRefresh={handleRefresh}
           contentContainerStyle={styles.listContent}
+          onEndReached={() => {
+            if (reviewsInfiniteQuery.hasNextPage && !isFetchingNextPage) {
+              reviewsInfiniteQuery.fetchNextPage();
+            }
+          }}
+          onEndReachedThreshold={0.3}
+          ListFooterComponent={() => (
+            isFetchingNextPage ? (
+              <View style={{ paddingVertical: 20 }}>
+                <ActivityIndicator size="small" color={theme.colors.primary} />
+              </View>
+            ) : null
+          )}
           ListHeaderComponent={
             errorMessage ? (
               <View style={{ marginBottom: 12, padding: 12, borderRadius: 10, backgroundColor: '#FEE2E2', borderWidth: 1, borderColor: '#FCA5A5' }}>

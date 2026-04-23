@@ -25,6 +25,7 @@ import {
   useTenantRefreshHandler,
 } from '../../hooks/useTenantQueryHelpers.js';
 import { showError } from '../../../../utils/toast.js';
+import { formatPrice } from '../../../../utils/price.js';
 
 // Helper function to get proper image URL
 const getRoomImageUrl = (imageUrl) => {
@@ -274,7 +275,7 @@ export default function RoomListScreen({ route }) {
                       />
                     </View>
                     <View style={styles.priceSection}>
-                      <Text style={styles.roomPrice}>₱{room.monthly_rate.toLocaleString()}</Text>
+                      <Text style={styles.roomPrice}>{formatPrice(room.monthly_rate)}</Text>
                       <Text style={styles.priceLabel}>/month</Text>
                     </View>
                   </View>

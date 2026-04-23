@@ -72,7 +72,7 @@ export default function MessagesPage({ navigation, route }) {
     });
 
     const conversations = useMemo(
-        () => (Array.isArray(conversationsQuery.data) ? conversationsQuery.data : []),
+        () => (Array.isArray(conversationsQuery.data?.items) ? conversationsQuery.data.items : Array.isArray(conversationsQuery.data) ? conversationsQuery.data : []),
         [conversationsQuery.data],
     );
     const isLoading = conversationsQuery.isLoading;

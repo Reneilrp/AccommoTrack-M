@@ -18,6 +18,7 @@ import {
   useTenantRefreshHandler,
 } from '../../hooks/useTenantQueryHelpers.js';
 import ReservationPolicyNotice from './components/ReservationPolicyNotice.jsx';
+import { formatPrice } from '../../../../utils/price.js';
 
 const TABS = [
   { id: 'current', label: 'My Stay', icon: 'home-outline' },
@@ -109,10 +110,7 @@ const formatLongDate = (dateValue) => {
   });
 };
 
-const formatPesoNoCents = (amount) => {
-  const value = Number(amount || 0);
-  return `₱${value.toLocaleString('en-US', { maximumFractionDigits: 0 })}`;
-};
+const formatPesoNoCents = (amount) => formatPrice(amount, { maximumFractionDigits: 0 });
 
 const buildTodayDate = () => {
   const today = new Date();
@@ -127,12 +125,7 @@ const getImageUrl = (imagePath) => {
   return { uri: `${API_BASE_URL}/storage/${cleanPath}` };
 };
 
-const formatCurrency = (amount) => {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'PHP',
-  }).format(amount || 0);
-};
+const formatCurrency = (amount) => formatPrice(amount);
 
 const toWholeNumber = (value, fallback = 0) => {
   const parsed = Number(value);
