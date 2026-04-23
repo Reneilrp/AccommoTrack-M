@@ -468,7 +468,7 @@ export default function AddProperty({ onBack, onSave }) {
       normal_booking_limit: parseInt(formData.normalBookingLimit) || 1,
       proxy_booking_limit: parseInt(formData.proxyBookingLimit) || 3,
       min_partial_payment_pct: parseInt(formData.minPartialPaymentPct) || 20,
-      transfer_limit: parseInt(formData.transferLimit) || 3,
+      transfer_limit: parseInt(formData.transferLimit) || 1,
     };
   };
 

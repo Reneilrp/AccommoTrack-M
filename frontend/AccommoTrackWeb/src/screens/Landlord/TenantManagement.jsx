@@ -136,6 +136,25 @@ export default function TenantManagement() {
     end_date: '',
     notes: '',
   });
+
+  const [showEditTenantModal, setShowEditTenantModal] = useState(false);
+  const [editingTenant, setEditingTenant] = useState(null);
+  const [isUpdatingTenant, setIsUpdatingTenant] = useState(false);
+  const [editTenantData, setEditTenantData] = useState({
+    first_name: '',
+    middle_name: '',
+    last_name: '',
+    email: '',
+    phone: '',
+    date_of_birth: '',
+    sex: '',
+    emergency_contact_name: '',
+    emergency_contact_phone: '',
+    emergency_contact_relationship: '',
+    current_address: '',
+    preference: '',
+  });
+
   const [showUnassignModal, setShowUnassignModal] = useState(false);
   const [unassigningTenant, setUnassigningTenant] = useState(null);
   const [isUnassigning, setIsUnassigning] = useState(false);
@@ -570,13 +589,52 @@ export default function TenantManagement() {
       setShowAssignModal(false);
       loadTenants();
     } catch (err) {
-      showError(getTenantActionError(err, 'Unable to assign room right now.'));
+      showError(getTenantActionError(err, "Unable to add tenant right now."));
     } finally {
-      setIsAssigning(false);
+      setIsCreatingTenant(false);
     }
-  };
+    };
 
-  const handleUnassignInitiate = (tenant) => {
+    const handleEditInitiate = (tenant) => {
+    setEditingTenant(tenant);
+    setEditTenantData({
+      first_name: tenant.first_name || '',
+      middle_name: tenant.middle_name || '',
+      last_name: tenant.last_name || '',
+      email: tenant.email || '',
+      phone: tenant.phone || '',
+      date_of_birth: tenant.date_of_birth || '',
+      sex: tenant.sex || '',
+      emergency_contact_name: tenant.tenantProfile?.emergency_contact_name || '',
+      emergency_contact_phone: tenant.tenantProfile?.emergency_contact_phone || '',
+      emergency_contact_relationship: tenant.tenantProfile?.emergency_contact_relationship || '',
+      current_address: tenant.tenantProfile?.current_address || '',
+      preference: tenant.tenantProfile?.preference || '',
+    });
+    setShowEditTenantModal(true);
+    };
+
+    const handleUpdateTenantSubmit = async (e) => {
+    e.preventDefault();
+    if (!editingTenant) return;
+
+    setIsUpdatingTenant(true);
+    try {
+      const response = await landlordService.updateTenant(editingTenant.id, editTenantData);
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to update tenant details.');
+      }
+      showSuccess(`Tenant ${editTenantData.first_name} updated successfully.`);
+      setShowEditTenantModal(false);
+      loadTenants();
+    } catch (err) {
+      showError(getTenantActionError(err, 'Unable to update tenant details right now.'));
+    } finally {
+      setIsUpdatingTenant(false);
+    }
+    };
+
+    const handleUnassignInitiate = (tenant) => {
     setUnassigningTenant(tenant);
     setShowUnassignModal(true);
   };
@@ -813,6 +871,7 @@ export default function TenantManagement() {
                 <TenantCard
                   key={tenant.id}
                   tenant={tenant}
+                  onEdit={handleEditInitiate}
                   onTransfer={handleTransferInitiate}
                   onAssign={handleAssignInitiate}
                   onUnassign={handleUnassignInitiate}
@@ -822,32 +881,43 @@ export default function TenantManagement() {
                   onCheckIn={handleCheckInTenant}
                   canTransfer={true}
                 />
-              ))
-            )}
-          </div>
-        ) : (
-          <TenantListView
-            tenants={filteredTenants}
-            onTransfer={handleTransferInitiate}
-            onAssign={handleAssignInitiate}
-            onUnassign={handleUnassignInitiate}
-            onEvict={handleEvictInitiate}
-            onEvictionFinalize={handleEvictionFinalize}
-            onEvictionCancel={handleEvictionCancel}
-            onEvictionUndo={handleEvictionUndo}
-            onGenerateClaimCode={handleGenerateClaimCode}
-            onApproveReservation={handleApproveReservation}
-            onCheckIn={handleCheckInTenant}
-            canTransfer={true}
-            searchQuery={searchQuery}
-            isEvictionDue={isEvictionDue}
-            formatEvictionFinalizeAt={formatEvictionFinalizeAt}
-          />
-        )}
-      </div>
+                ))
+                )}
+                </div>
+                ) : (
+                <TenantListView
+                tenants={filteredTenants}
+                onEdit={handleEditInitiate}
+                onTransfer={handleTransferInitiate}
+                onAssign={handleAssignInitiate}
+                onUnassign={handleUnassignInitiate}
+                onEvict={handleEvictInitiate}
+                onEvictionFinalize={handleEvictionFinalize}
+                onEvictionCancel={handleEvictionCancel}
+                onEvictionUndo={handleEvictionUndo}
+                onGenerateClaimCode={handleGenerateClaimCode}
+                onApproveReservation={handleApproveReservation}
+                onCheckIn={handleCheckInTenant}
+                canTransfer={true}
+                searchQuery={searchQuery}
+                isEvictionDue={isEvictionDue}
+                formatEvictionFinalizeAt={formatEvictionFinalizeAt}
+                />
+                )}
+                </div>
 
-      {showCreateTenantModal && (
-        <CreateTenantModal
+                {showEditTenantModal && (
+                <EditTenantModal
+                tenant={editingTenant}
+                data={editTenantData}
+                setData={setEditTenantData}
+                isSubmitting={isUpdatingTenant}
+                onClose={() => setShowEditTenantModal(false)}
+                onSubmit={handleUpdateTenantSubmit}
+                />
+                )}
+
+                {showCreateTenantModal && (        <CreateTenantModal
           data={createTenantData}
           setData={setCreateTenantData}
           availableRooms={availableRoomsForCreate}
@@ -955,6 +1025,149 @@ const ClaimCodeModal = ({ data, isGenerating, onCopy, onClose }) => {
     </div>
   );
 };
+
+const EditTenantModal = ({ tenant, data, setData, isSubmitting, onClose, onSubmit }) => (
+  <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+    <div className="bg-white dark:bg-gray-800 rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto border border-gray-100 dark:border-gray-700 shadow-2xl animate-in fade-in zoom-in duration-200">
+      <div className="flex justify-between items-center p-6 border-b border-gray-100 dark:border-gray-700 sticky top-0 bg-white dark:bg-gray-800 z-10">
+        <h2 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2"><Users className="w-5 h-5 text-blue-500" />Edit Tenant: {tenant?.first_name} {tenant?.last_name}</h2>
+        <button onClick={onClose} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors"><X className="w-5 h-5 text-gray-500" /></button>
+      </div>
+
+      <form onSubmit={onSubmit} className="p-6 space-y-5">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div>
+            <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">First Name *</label>
+            <input
+              required
+              type="text"
+              className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-3 focus:ring-2 focus:ring-blue-500 outline-none dark:bg-gray-700 dark:text-white"
+              value={data.first_name}
+              onChange={e => setData({ ...data, first_name: e.target.value })}
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Middle Name</label>
+            <input
+              type="text"
+              className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-3 focus:ring-2 focus:ring-blue-500 outline-none dark:bg-gray-700 dark:text-white"
+              value={data.middle_name}
+              onChange={e => setData({ ...data, middle_name: e.target.value })}
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Last Name *</label>
+            <input
+              required
+              type="text"
+              className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-3 focus:ring-2 focus:ring-blue-500 outline-none dark:bg-gray-700 dark:text-white"
+              value={data.last_name}
+              onChange={e => setData({ ...data, last_name: e.target.value })}
+            />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Email *</label>
+            <input
+              required
+              type="email"
+              className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-3 focus:ring-2 focus:ring-blue-500 outline-none dark:bg-gray-700 dark:text-white"
+              value={data.email}
+              onChange={e => setData({ ...data, email: e.target.value })}
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Phone</label>
+            <input
+              type="text"
+              className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-3 focus:ring-2 focus:ring-blue-500 outline-none dark:bg-gray-700 dark:text-white"
+              value={data.phone}
+              onChange={e => setData({ ...data, phone: e.target.value })}
+            />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Sex</label>
+            <select
+              className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-3 focus:ring-2 focus:ring-blue-500 outline-none dark:bg-gray-700 dark:text-white"
+              value={data.sex}
+              onChange={e => setData({ ...data, sex: e.target.value })}
+            >
+              <option value="">Select Sex</option>
+              <option value="male">Male</option>
+              <option value="female">Female</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Date of Birth</label>
+            <input
+              type="date"
+              className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-3 focus:ring-2 focus:ring-blue-500 outline-none dark:bg-gray-700 dark:text-white"
+              value={data.date_of_birth}
+              onChange={e => setData({ ...data, date_of_birth: e.target.value })}
+            />
+          </div>
+        </div>
+
+        <div className="space-y-4 pt-4 border-t border-gray-100 dark:border-gray-700">
+          <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider flex items-center gap-2">
+            <ShieldAlert className="w-4 h-4 text-purple-500" /> Emergency Contact
+          </h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Name</label>
+              <input
+                type="text"
+                className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-3 focus:ring-2 focus:ring-blue-500 outline-none dark:bg-gray-700 dark:text-white"
+                value={data.emergency_contact_name}
+                onChange={e => setData({ ...data, emergency_contact_name: e.target.value })}
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Phone</label>
+              <input
+                type="text"
+                className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-3 focus:ring-2 focus:ring-blue-500 outline-none dark:bg-gray-700 dark:text-white"
+                value={data.emergency_contact_phone}
+                onChange={e => setData({ ...data, emergency_contact_phone: e.target.value })}
+              />
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Relationship</label>
+            <input
+              type="text"
+              className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-3 focus:ring-2 focus:ring-blue-500 outline-none dark:bg-gray-700 dark:text-white"
+              value={data.emergency_contact_relationship}
+              onChange={e => setData({ ...data, emergency_contact_relationship: e.target.value })}
+            />
+          </div>
+        </div>
+
+        <div className="flex justify-end gap-3 pt-6 border-t border-gray-100 dark:border-gray-700">
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-6 py-3 rounded-xl border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 font-bold hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            disabled={isSubmitting}
+            className="px-8 py-3 rounded-xl bg-blue-600 text-white font-bold hover:bg-blue-700 shadow-lg shadow-blue-200 dark:shadow-none transition-all flex items-center gap-2 disabled:opacity-50"
+          >
+            {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Update Tenant'}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+);
 
 const CreateTenantModal = ({ data, setData, availableRooms, loading, isSubmitting, onClose, onSubmit }) => (
   <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
@@ -1365,6 +1578,7 @@ const EvictionModal = ({ tenant, onClose, onConfirm }) => {
 
 const TenantListView = ({
   tenants,
+  onEdit,
   onTransfer,
   onAssign,
   onUnassign,
@@ -1375,8 +1589,8 @@ const TenantListView = ({
   onGenerateClaimCode,
   onApproveReservation,
   onCheckIn,
-  canTransfer,
-  searchQuery,
+  canTransfer = true,
+  searchQuery = '',
   isEvictionDue,
   formatEvictionFinalizeAt,
 }) => {
@@ -1557,6 +1771,12 @@ const TenantListView = ({
                           style={{ position: 'absolute', top: menuPos.top, left: menuPos.left, zIndex: 9999, width: 192 }}
                           className="bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-100 dark:border-gray-700 animate-in fade-in zoom-in-95 duration-150 overflow-hidden"
                         >
+                          <button
+                            onClick={() => { setOpenMenuId(null); onEdit?.(tenant); }}
+                            className="w-full text-left px-4 py-2.5 text-xs font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-2.5 transition-colors"
+                          >
+                            <User className="w-3.5 h-3.5 text-blue-500" /> Edit Details
+                          </button>
                           <button
                             onClick={() => { setOpenMenuId(null); navigate('/messages', { state: { startConversation: true, recipient: { id: tenant.id }, property: tenant.room ? { id: tenant.room.property_id } : null } }); }}
                             className="w-full text-left px-4 py-2.5 text-xs font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-2.5 transition-colors"

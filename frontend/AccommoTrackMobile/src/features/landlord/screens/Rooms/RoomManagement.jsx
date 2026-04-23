@@ -1004,12 +1004,10 @@ export default function RoomManagementScreen({ navigation, route }) {
 
       selectedImages.forEach((image, index) => {
         const filename = image.uri.split("/").pop();
-        const imageUri =
-          Platform.OS === "ios" ? image.uri.replace("file://", "") : image.uri;
-
+        // Standard React Native FormData file object
         payload.append("images[]", {
-          uri: imageUri,
-          name: filename || `image_${index}.jpg`,
+          uri: image.uri,
+          name: image.name || filename || `image_${index}.jpg`,
           type: image.type || "image/jpeg",
         });
       });

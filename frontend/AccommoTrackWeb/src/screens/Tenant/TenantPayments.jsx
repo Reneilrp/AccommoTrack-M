@@ -313,7 +313,7 @@ export default function TenantPayments({ user }) {
                 <div>
                   <p className="text-xs font-bold text-gray-500 dark:text-gray-500 uppercase tracking-wider mb-2">Paid This Month</p>
                   <p className="text-2xl font-bold text-green-600 mt-2">
-                    {paymentService.formatAmount(toPrice(stats?.totalPaidThisMonth) / 100)}
+                    {paymentService.formatAmount(toPrice(stats?.totalPaidThisMonth))}
                   </p>
                 </div>
                 <div className="w-10 h-10 bg-green-50 dark:bg-green-900/20 rounded-lg flex items-center justify-center">
@@ -327,7 +327,7 @@ export default function TenantPayments({ user }) {
                 <div>
                   <p className="text-xs font-bold text-gray-500 dark:text-gray-500 uppercase tracking-wider mb-2">Unpaid Balance</p>
                   <p className="text-2xl font-bold text-red-600 mt-2">
-                    {paymentService.formatAmount(toPrice(stats?.pendingAmount) / 100)}
+                    {paymentService.formatAmount(toPrice(stats?.pendingAmount))}
                   </p>
                 </div>
                 <div className="w-10 h-10 bg-red-50 dark:bg-red-900/20 rounded-lg flex items-center justify-center">
@@ -517,7 +517,7 @@ export default function TenantPayments({ user }) {
                           </span>
                         </td>
                         <td className={`px-6 py-4 text-sm font-bold ${log.type === 'debit' ? 'text-amber-600' : 'text-emerald-600'}`}>
-                          {log.type === 'debit' ? '-' : '+'}{paymentService.formatAmount(toPrice(log.amount_cents) / 100)}
+                          {log.type === 'debit' ? '-' : '+'}{paymentService.formatAmount(toPrice(log.amount_cents))}
                         </td>
                         <td className="px-6 py-4">
                           <span className="px-2 py-1 text-xs font-medium text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 rounded-full capitalize">
@@ -581,7 +581,7 @@ export default function TenantPayments({ user }) {
                           <td className="px-6 py-4 text-sm text-gray-700 dark:text-gray-300">
                             {payment.roomNumber || (payment.room && payment.room.roomNumber) || 'N/A'}
                           </td>
-                          <td className="px-6 py-4 text-sm font-semibold text-gray-900 dark:text-white">{paymentService.formatAmount(toPrice(payment.amount) / 100)}</td>
+                          <td className="px-6 py-4 text-sm font-semibold text-gray-900 dark:text-white">{paymentService.formatAmount(toPrice(payment.amount))}</td>
                           <td className="px-6 py-4 text-sm text-gray-700 dark:text-gray-300">{formatDate(payment.date)}</td>
                           <td className="px-6 py-4 text-sm text-gray-700 dark:text-gray-300">{formatDate(payment.dueDate)}</td>
                           <td className="px-6 py-4">
@@ -647,7 +647,7 @@ export default function TenantPayments({ user }) {
                       <div className="flex items-center justify-between">
                         <div>
                           <p className="text-[11px] text-gray-500 dark:text-gray-500 uppercase font-bold">Amount</p>
-                          <p className="text-base font-bold text-gray-900 dark:text-white">{paymentService.formatAmount(toPrice(payment.amount) / 100)}</p>
+                          <p className="text-base font-bold text-gray-900 dark:text-white">{paymentService.formatAmount(toPrice(payment.amount))}</p>
                         </div>
                         <div className="text-right">
                           <p className="text-sm text-gray-700 dark:text-gray-300">{formatDate(payment.date)}</p>
@@ -719,7 +719,7 @@ export default function TenantPayments({ user }) {
                 <div className="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg space-y-3">
                   <div className="flex justify-between items-center">
                     <span className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Amount</span>
-                    <span className="text-lg font-bold text-gray-900 dark:text-white">{paymentService.formatAmount(toPrice(selectedPayment.amount) / 100)}</span>
+                    <span className="text-lg font-bold text-gray-900 dark:text-white">{paymentService.formatAmount(toPrice(selectedPayment.amount))}</span>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Status</span>

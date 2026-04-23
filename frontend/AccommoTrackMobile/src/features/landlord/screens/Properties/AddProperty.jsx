@@ -663,36 +663,25 @@ export default function AddProperty({ navigation }) {
 
     selectedImages.forEach((image, index) => {
       const filename = image.name || `property-${Date.now()}-${index}.jpg`;
-      const imageUri =
-        Platform.OS === "ios" ? image.uri.replace("file://", "") : image.uri;
-
       payload.append("images[]", {
-        uri: imageUri,
+        uri: image.uri,
         name: filename,
         type: image.type || "image/jpeg",
       });
     });
 
     if (selectedVideo) {
-      const videoUri =
-        Platform.OS === "ios"
-          ? selectedVideo.uri.replace("file://", "")
-          : selectedVideo.uri;
-
       payload.append("video", {
-        uri: videoUri,
-        name: selectedVideo.name,
-        type: selectedVideo.type,
+        uri: selectedVideo.uri,
+        name: selectedVideo.name || `video-${Date.now()}.mp4`,
+        type: selectedVideo.type || "video/mp4",
       });
     }
 
     credentials.forEach((file, index) => {
       const filename = file.name || `credential-${Date.now()}-${index}`;
-      const fileUri =
-        Platform.OS === "ios" ? file.uri.replace("file://", "") : file.uri;
-
       payload.append("credentials[]", {
-        uri: fileUri,
+        uri: file.uri,
         name: filename,
         type: file.type || "application/octet-stream",
       });

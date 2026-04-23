@@ -553,20 +553,20 @@ const PropertyService = {
 
   /**
    * Update a room
-   * Matches: PUT /api/rooms/{id}
+   * Matches: PUT /api/landlord/rooms/{id}
    */
   async updateRoom(roomId, roomData) {
     try {
       let payload = roomData;
       if (isFormData(roomData)) {
         roomData.append("_method", "PUT");
-        return api.post(`/rooms/${roomId}`, payload, MULTIPART_CONFIG).then(async (res) => {
+        return api.post(`/landlord/rooms/${roomId}`, payload, MULTIPART_CONFIG).then(async (res) => {
           await cacheManager.invalidate(CACHE_KEYS.LANDLORD_PROPERTIES);
           return normalizeResponse(res);
         });
       }
 
-      const response = await api.put(`/rooms/${roomId}`, payload);
+      const response = await api.put(`/landlord/rooms/${roomId}`, payload);
       await cacheManager.invalidate(CACHE_KEYS.LANDLORD_PROPERTIES);
       return normalizeResponse(response);
     } catch (error) {
@@ -577,11 +577,11 @@ const PropertyService = {
 
   /**
    * Delete a room
-   * Matches: DELETE /api/rooms/{id}
+   * Matches: DELETE /api/landlord/rooms/{id}
    */
   async deleteRoom(roomId) {
     try {
-      const response = await api.delete(`/rooms/${roomId}`);
+      const response = await api.delete(`/landlord/rooms/${roomId}`);
       await cacheManager.invalidate(CACHE_KEYS.LANDLORD_PROPERTIES);
       return normalizeResponse(response);
     } catch (error) {
@@ -592,7 +592,7 @@ const PropertyService = {
 
   /**
    * Update room status
-   * Matches: PATCH /api/rooms/{id}/status
+   * Matches: PATCH /api/landlord/rooms/{id}/status
    */
   async updateRoomStatus(roomId, status) {
     if (!roomId) {
@@ -604,7 +604,7 @@ const PropertyService = {
     }
 
     try {
-      const response = await api.patch(`/rooms/${roomId}/status`, { status });
+      const response = await api.patch(`/landlord/rooms/${roomId}/status`, { status });
       return normalizeResponse(response);
     } catch (error) {
       console.error("Error updating room status:", error);

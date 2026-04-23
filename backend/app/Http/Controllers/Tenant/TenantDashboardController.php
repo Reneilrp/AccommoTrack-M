@@ -332,7 +332,7 @@ class TenantDashboardController extends Controller
                 'property' => [
                     'id' => $booking->property->id, 'title' => $booking->property->title,
                     'address' => $booking->property->full_address, 'image' => $booking->property->image_url,
-                    'transfer_limit' => (int) ($booking->property->transfer_limit ?? 3),
+                    'transfer_limit' => (int) ($booking->property->transfer_limit ?? 1),
                     'transfer_fee' => (float) ($booking->property->transfer_fee ?? 0),
                 ],
                 'landlord' => ['id' => $booking->landlord->id, 'name' => $booking->landlord->name, 'email' => $booking->landlord->email],

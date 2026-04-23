@@ -205,7 +205,7 @@ const normalizeSettings = (data) => {
       : null,
     deleteExistingGcashQr: false,
     transferFee: data?.transfer_fee !== undefined ? String(data.transfer_fee) : '',
-    transferLimit: data?.transfer_limit !== undefined ? String(data.transfer_limit) : '3',
+    transferLimit: data?.transfer_limit !== undefined ? String(data.transfer_limit) : '1',
     normalBookingLimit: data?.normal_booking_limit !== undefined ? String(data.normal_booking_limit) : '1',
     proxyBookingLimit: data?.proxy_booking_limit !== undefined ? String(data.proxy_booking_limit) : '3',
     minPartialPaymentPct: data?.min_partial_payment_pct !== undefined ? String(data.min_partial_payment_pct) : '20',
@@ -591,36 +591,32 @@ export default function DormProfileSettings({ route, navigation }) {
       if (form.deleteExistingGcashQr) payload.append('delete_gcash_qr', '1');
 
       form.images.filter(img => !img.isExisting).forEach((img, idx) => {
-        const imageUri = Platform.OS === 'ios' ? img.uri.replace('file://', '') : img.uri;
         payload.append('images[]', {
-          uri: imageUri,
+          uri: img.uri,
           name: `image_${idx}.jpg`,
           type: 'image/jpeg'
         });
       });
 
       if (form.video && !form.video.isExisting) {
-        const videoUri = Platform.OS === 'ios' ? form.video.uri.replace('file://', '') : form.video.uri;
         payload.append('video', {
-          uri: videoUri,
+          uri: form.video.uri,
           name: 'video_tour.mp4',
           type: 'video/mp4'
         });
       }
 
       if (form.gcashQr && !form.gcashQr.isExisting) {
-        const qrUri = Platform.OS === 'ios' ? form.gcashQr.uri.replace('file://', '') : form.gcashQr.uri;
         payload.append('gcash_qr_path', {
-          uri: qrUri,
+          uri: form.gcashQr.uri,
           name: 'gcash_qr.jpg',
           type: 'image/jpeg'
         });
       }
 
       form.credentials.filter(c => !c.isExisting).forEach((c, idx) => {
-        const credUri = Platform.OS === 'ios' ? c.uri.replace('file://', '') : c.uri;
         payload.append('credentials[]', {
-          uri: credUri,
+          uri: c.uri,
           name: c.name || `credential_${idx}`,
           type: c.type || (c.name?.toLowerCase().endsWith('.pdf') ? 'application/pdf' : 'image/jpeg')
         });

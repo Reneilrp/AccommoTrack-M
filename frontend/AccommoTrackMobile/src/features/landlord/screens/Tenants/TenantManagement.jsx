@@ -278,6 +278,25 @@ export default function TenantsScreen({ navigation, route }) {
   const [lifecycleVisible, setLifecycleVisible] = useState(false);
   const [lifecycleTenant, setLifecycleTenant] = useState(null);
 
+  const [editVisible, setEditVisible] = useState(false);
+  const [editingTenant, setEditingTenant] = useState(null);
+  const [isUpdatingTenant, setIsUpdatingTenant] = useState(false);
+  const [editTenantData, setEditTenantData] = useState({
+    first_name: '',
+    middle_name: '',
+    last_name: '',
+    email: '',
+    phone: '',
+    date_of_birth: '',
+    sex: '',
+    emergency_contact_name: '',
+    emergency_contact_phone: '',
+    emergency_contact_relationship: '',
+    current_address: '',
+    preference: '',
+  });
+  const [showEditBirthPicker, setShowEditBirthPicker] = useState(false);
+
   const propertiesQuery = useQuery({
     queryKey: landlordQueryKeys.properties(),
     queryFn: async () => {
@@ -703,6 +722,45 @@ export default function TenantsScreen({ navigation, route }) {
     }
   };
 
+  const handleEditInitiate = (tenant) => {
+    setOpenActionsTenantId(null);
+    setEditingTenant(tenant);
+    setEditTenantData({
+      first_name: tenant.first_name || '',
+      middle_name: tenant.middle_name || '',
+      last_name: tenant.last_name || '',
+      email: tenant.email || '',
+      phone: tenant.phone || '',
+      date_of_birth: tenant.date_of_birth || '',
+      sex: tenant.sex || '',
+      emergency_contact_name: tenant.tenantProfile?.emergency_contact_name || '',
+      emergency_contact_phone: tenant.tenantProfile?.emergency_contact_phone || '',
+      emergency_contact_relationship: tenant.tenantProfile?.emergency_contact_relationship || '',
+      current_address: tenant.tenantProfile?.current_address || '',
+      preference: tenant.tenantProfile?.preference || '',
+    });
+    setEditVisible(true);
+  };
+
+  const handleUpdateTenantSubmit = async () => {
+    if (!editingTenant) return;
+
+    setIsUpdatingTenant(true);
+    try {
+      const response = await PropertyService.updateTenant(editingTenant.id, editTenantData);
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to update tenant details.');
+      }
+      showSuccess('Success', `Tenant ${editTenantData.first_name} updated successfully.`);
+      setEditVisible(false);
+      handleRefresh();
+    } catch (updateError) {
+      showError('Error', getTenantActionError(updateError, 'Unable to update tenant details right now.'));
+    } finally {
+      setIsUpdatingTenant(false);
+    }
+  };
+
   const handleUnassignInitiate = (tenant) => {
     if (!tenant.room) {
       showWarning('Not assigned', 'This tenant does not have an assigned room.');
@@ -854,6 +912,19 @@ export default function TenantsScreen({ navigation, route }) {
                 <Ionicons name="eye-outline" size={16} color="#475569" />
                 <Text style={styles.moreActionLabel}>View Profile</Text>
               </TouchableOpacity>
+
+              {canManageTenants && (
+                <TouchableOpacity
+                  style={styles.moreActionItem}
+                  onPress={() => {
+                    setOpenActionsTenantId(null);
+                    handleEditInitiate(item);
+                  }}
+                >
+                  <Ionicons name="create-outline" size={16} color={theme.colors.primary} />
+                  <Text style={styles.moreActionLabel}>Edit Details</Text>
+                </TouchableOpacity>
+              )}
 
               {canManageTenants && (
                 <TouchableOpacity
@@ -1780,6 +1851,162 @@ export default function TenantsScreen({ navigation, route }) {
           refetchLandlordQueries(tenantListRefetchers);
         }}
       />
+
+      <Modal visible={editVisible} transparent animationType="fade" onRequestClose={() => setEditVisible(false)}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.overlayContainer}
+        >
+          <View style={[styles.actionModalCard, { maxHeight: '90%' }]}>
+            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 20 }}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15 }}>
+                <Text style={styles.actionModalTitle}>Edit Tenant</Text>
+                <TouchableOpacity onPress={() => setEditVisible(false)}>
+                  <Ionicons name="close" size={24} color={theme.colors.text} />
+                </TouchableOpacity>
+              </View>
+
+              <Text style={styles.actionFieldLabel}>First Name *</Text>
+              <TextInput
+                value={editTenantData.first_name}
+                onChangeText={(value) => setEditTenantData((current) => ({ ...current, first_name: value }))}
+                placeholder="First Name"
+                style={styles.actionInput}
+              />
+
+              <Text style={styles.actionFieldLabel}>Middle Name</Text>
+              <TextInput
+                value={editTenantData.middle_name}
+                onChangeText={(value) => setEditTenantData((current) => ({ ...current, middle_name: value }))}
+                placeholder="Middle Name"
+                style={styles.actionInput}
+              />
+
+              <Text style={styles.actionFieldLabel}>Last Name *</Text>
+              <TextInput
+                value={editTenantData.last_name}
+                onChangeText={(value) => setEditTenantData((current) => ({ ...current, last_name: value }))}
+                placeholder="Last Name"
+                style={styles.actionInput}
+              />
+
+              <Text style={styles.actionFieldLabel}>Email *</Text>
+              <TextInput
+                value={editTenantData.email}
+                onChangeText={(value) => setEditTenantData((current) => ({ ...current, email: value }))}
+                placeholder="Email Address"
+                style={styles.actionInput}
+                keyboardType="email-address"
+                autoCapitalize="none"
+              />
+
+              <Text style={styles.actionFieldLabel}>Phone</Text>
+              <TextInput
+                value={editTenantData.phone}
+                onChangeText={(value) => setEditTenantData((current) => ({ ...current, phone: value }))}
+                placeholder="Phone Number"
+                style={styles.actionInput}
+                keyboardType="phone-pad"
+              />
+
+              <Text style={styles.actionFieldLabel}>Sex</Text>
+              <View style={{ flexDirection: 'row', gap: 10, marginTop: 4 }}>
+                {['male', 'female'].map((s) => (
+                  <TouchableOpacity
+                    key={s}
+                    style={[
+                      { flex: 1, paddingVertical: 10, alignItems: 'center', borderRadius: 10, borderWidth: 1, borderColor: theme.colors.border, backgroundColor: theme.colors.backgroundSecondary },
+                      editTenantData.sex === s && { borderColor: theme.colors.primary, backgroundColor: theme.colors.primary + '10' }
+                    ]}
+                    onPress={() => setEditTenantData((current) => ({ ...current, sex: s }))}
+                  >
+                    <Text style={[
+                      { fontSize: 13, fontWeight: '600', color: theme.colors.textSecondary },
+                      editTenantData.sex === s && { color: theme.colors.primary, fontWeight: '700' }
+                    ]}>
+                      {s.charAt(0).toUpperCase() + s.slice(1)}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              <Text style={styles.actionFieldLabel}>Date of Birth</Text>
+              <TouchableOpacity
+                style={styles.dateInputButton}
+                onPress={() => setShowEditBirthPicker(true)}
+              >
+                <Text
+                  style={[
+                    styles.dateInputValue,
+                    !editTenantData.date_of_birth && styles.dateInputPlaceholder,
+                  ]}
+                >
+                  {editTenantData.date_of_birth
+                    ? formatDateForDisplay(editTenantData.date_of_birth)
+                    : 'Select Date'}
+                </Text>
+                <Ionicons name="calendar-outline" size={18} color={theme.colors.textSecondary} />
+              </TouchableOpacity>
+              {showEditBirthPicker && (
+                <DateTimePicker
+                  value={parseIsoDateInput(editTenantData.date_of_birth) || new Date(1990, 0, 1)}
+                  mode="date"
+                  display="default"
+                  onChange={(event, date) => {
+                    setShowEditBirthPicker(false);
+                    if (date) {
+                      setEditTenantData((current) => ({ ...current, date_of_birth: formatDateForApi(date) }));
+                    }
+                  }}
+                  maximumDate={getTodayDateOnly()}
+                />
+              )}
+
+              <View style={{ marginTop: 20, paddingTop: 20, borderTopWidth: 1, borderTopColor: theme.colors.border }}>
+                <Text style={[styles.sectionTitle, { marginTop: 0, marginBottom: 15 }]}>Emergency Contact</Text>
+                
+                <Text style={styles.actionFieldLabel}>Contact Name</Text>
+                <TextInput
+                  value={editTenantData.emergency_contact_name}
+                  onChangeText={(value) => setEditTenantData((current) => ({ ...current, emergency_contact_name: value }))}
+                  placeholder="Full Name"
+                  style={styles.actionInput}
+                />
+
+                <Text style={styles.actionFieldLabel}>Contact Phone</Text>
+                <TextInput
+                  value={editTenantData.emergency_contact_phone}
+                  onChangeText={(value) => setEditTenantData((current) => ({ ...current, emergency_contact_phone: value }))}
+                  placeholder="Phone Number"
+                  style={styles.actionInput}
+                  keyboardType="phone-pad"
+                />
+
+                <Text style={styles.actionFieldLabel}>Relationship</Text>
+                <TextInput
+                  value={editTenantData.emergency_contact_relationship}
+                  onChangeText={(value) => setEditTenantData((current) => ({ ...current, emergency_contact_relationship: value }))}
+                  placeholder="e.g. Parent, Sibling"
+                  style={styles.actionInput}
+                />
+              </View>
+
+              <View style={styles.modalActionsRow}>
+                <TouchableOpacity style={styles.modalCancelBtn} onPress={() => setEditVisible(false)}>
+                  <Text style={styles.modalCancelText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.modalSuccessBtn, isUpdatingTenant && styles.modalDisabledBtn]}
+                  onPress={handleUpdateTenantSubmit}
+                  disabled={isUpdatingTenant}
+                >
+                  <Text style={styles.modalConfirmText}>{isUpdatingTenant ? 'Updating...' : 'Update'}</Text>
+                </TouchableOpacity>
+              </View>
+            </ScrollView>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </SafeAreaView>
   );
 }

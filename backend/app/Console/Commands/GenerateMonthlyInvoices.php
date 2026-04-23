@@ -241,7 +241,7 @@ class GenerateMonthlyInvoices extends Command
                             'billing_period_start' => $periodStart,
                             'billing_period_end' => $periodEnd,
                             'billing_period_key' => $periodKey,
-                            'amount_cents' => $baseInvoiceAmount,
+                            'amount_cents' => (int) round($baseInvoiceAmount * 100),
                             'currency' => 'PHP',
                             'status' => 'pending',
                             'issued_at' => now(),
@@ -353,7 +353,7 @@ class GenerateMonthlyInvoices extends Command
             }
 
             $reference = 'INV-'.date('Ymd').'-'.strtoupper(Str::random(6));
-            $roomAmountCents = (float) $booking->total_amount;
+            $roomAmountCents = (int) round(((float) $booking->total_amount) * 100);
 
             $billingPeriodStart = Carbon::parse($booking->start_date)->startOfMonth();
             $activeMonthlyAddons = $booking->addons()

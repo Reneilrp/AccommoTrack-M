@@ -53,7 +53,7 @@ const TenantDashboard = ({ user }) => {
   // Sync global wallet balance when stats change
   useEffect(() => {
     if (stats) {
-      const newWalletBalance = Number(stats?.payments?.walletBalance || stats?.payments?.wallet_balance || 0) / 100;
+      const newWalletBalance = Number(stats?.payments?.walletBalance || stats?.payments?.wallet_balance || 0);
       updateScreenState('wallet', { balance: newWalletBalance });
 
       // Update the UIStateContext bucket for other components that might still consume it
@@ -122,7 +122,7 @@ const TenantDashboard = ({ user }) => {
   }, []);
 
   const formatCents = useCallback((amount) => {
-    return formatPrice(amount, { isCents: true });
+    return formatPrice(amount, { isCents: false });
   }, []);
 
   const formatDate = useCallback((dateString) => {

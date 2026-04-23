@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { Home, Mail, Phone, Calendar, MessageSquare, AlertCircle, ShieldAlert, Clock, Shuffle, CreditCard, UserX, UserPlus, UserMinus, CheckCircle, Clock3, FileText, ChevronDown, KeyRound, CalendarClock } from 'lucide-react';
+import { Home, Mail, Phone, Calendar, MessageSquare, AlertCircle, ShieldAlert, Clock, Shuffle, CreditCard, UserX, UserPlus, UserMinus, CheckCircle, Clock3, FileText, ChevronDown, KeyRound, CalendarClock, User } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 export default function TenantCard({
   tenant,
+  onEdit,
   onTransfer,
   onAssign,
   onUnassign,
@@ -184,6 +185,12 @@ export default function TenantCard({
 
         {showMoreActions && (
           <div className="flex flex-col gap-2 mt-1 p-2 bg-gray-50 dark:bg-gray-900/50 rounded-lg border border-gray-100 dark:border-gray-700 animate-in slide-in-from-top-1 duration-200">
+            <button
+              onClick={() => onEdit?.(tenant)}
+              className="flex items-center gap-2 px-3 py-2 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md text-xs font-semibold transition-colors"
+            >
+              <User className="w-3.5 h-3.5 text-blue-500" /> Edit Details
+            </button>
             <button
               onClick={() => navigate(`/payments?search=${tenant.email}`)}
               className="flex items-center gap-2 px-3 py-2 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md text-xs font-semibold transition-colors"

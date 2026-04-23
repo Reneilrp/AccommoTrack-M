@@ -199,6 +199,22 @@ export const landlordService = {
   },
 
   /**
+   * Update tenant information
+   * PUT /landlord/tenants/:id
+   */
+  async updateTenant(tenantId, payload) {
+    try {
+      const res = await api.put(`/landlord/tenants/${tenantId}`, payload);
+      return { success: true, data: res.data?.data || res.data };
+    } catch (err) {
+      return {
+        success: false,
+        error: err.response?.data?.message || err.response?.data?.error || err.message,
+      };
+    }
+  },
+
+  /**
    * Generate a one-time claim code for an existing tenant account
    * POST /landlord/tenants/:id/claim-code
    */
