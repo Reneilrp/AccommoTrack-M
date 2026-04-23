@@ -193,17 +193,14 @@ class InvoiceController extends Controller
             $totalInvoicedCents = (int) ($stats->total_invoiced_cents ?? 0);
             $totalBalanceCents = max(0, $totalInvoicedCents - (int) $totalPaidCents);
 
-            $totalPaid = $totalPaidCents / 100;
-            $totalBalance = $totalBalanceCents / 100;
-
             return response()->json([
                 'success' => true,
                 'data' => [
                     'range' => $range,
                     'period' => ['from' => $periodFrom?->toDateString(), 'to' => $periodTo?->toDateString()],
                     'totals' => [
-                        'total_paid' => (float) $totalPaid,
-                        'total_balance' => (float) $totalBalance,
+                        'total_paid' => (float) ($totalPaidCents / 100),
+                        'total_balance' => (float) ($totalBalanceCents / 100),
                         'paid_count' => (int) $stats->paid_count,
                         'pending_count' => (int) $stats->pending_count,
                         'overdue_count' => (int) $stats->overdue_count,
@@ -609,40 +606,40 @@ class InvoiceController extends Controller
             }
 
             // Recompute remaining balance while holding row locks to prevent concurrent over-submission.
-            $invoiceTotal = $invoice->total_cents ?? $invoice->amount_cents; // Decimal
-            $alreadyPaid = ($invoice->transactions()
+            $invoiceTotalCents = $invoice->total_cents ?? $invoice->amount_cents;
+            $alreadyPaidCents = $invoice->transactions()
                 ->whereIn('status', ['succeeded', 'paid', 'pending_offline', 'partially_refunded'])
                 ->lockForUpdate()
                 ->selectRaw('SUM(amount_cents - refunded_amount_cents) as net_cents')
-                ->value('net_cents') ?? 0) / 100; // Convert cents to decimal
-            $remaining = max(0, $invoiceTotal - $alreadyPaid); // Decimal
+                ->value('net_cents') ?? 0;
+            $remainingCents = max(0, $invoiceTotalCents - $alreadyPaidCents);
 
-            if ($validated['amount_cents'] > $remaining) {
+            if ($validated['amount_cents'] > $remainingCents) {
                 DB::rollBack();
 
                 return response()->json([
-                    'message' => 'Payment amount cannot exceed the remaining balance of ₱'.number_format($remaining, 2),
+                    'message' => 'Payment amount cannot exceed the remaining balance of ₱'.number_format($remainingCents / 100, 2),
                 ], 422);
             }
 
             $property = $invoice->property ?? $invoice->booking?->property;
             $allowPartial = $property ? (bool) $property->allow_partial_payments : true;
-            if (! $allowPartial && $validated['amount_cents'] < $remaining) {
+            if (! $allowPartial && $validated['amount_cents'] < $remainingCents) {
                 DB::rollBack();
 
                 return response()->json([
-                    'message' => 'Partial payments are not allowed for this property. Please pay the full remaining balance of ₱'.number_format($remaining, 2),
+                    'message' => 'Partial payments are not allowed for this property. Please pay the full remaining balance of ₱'.number_format($remainingCents / 100, 2),
                 ], 422);
             }
 
             if ($allowPartial && $property) {
                 $minPercent = $property->min_partial_payment_pct ?? 20;
-                $minAmount = $remaining * ($minPercent / 100);
-                if ($validated['amount_cents'] < $remaining && $validated['amount_cents'] < $minAmount) {
+                $minAmount = $remainingCents * ($minPercent / 100);
+                if ($validated['amount_cents'] < $remainingCents && $validated['amount_cents'] < $minAmount) {
                     DB::rollBack();
 
                     return response()->json([
-                        'message' => 'The minimum partial payment for this property is '.$minPercent.'% (₱'.number_format($minAmount, 2).').',
+                        'message' => 'The minimum partial payment for this property is '.$minPercent.'% (₱'.number_format($minAmount / 100, 2).').',
                     ], 422);
                 }
             }
@@ -1072,19 +1069,19 @@ class InvoiceController extends Controller
             }
 
             // Recompute remaining balance
-            $invoiceTotal = $invoice->total_cents ?? $invoice->amount_cents;
-            $alreadyPaid = ($invoice->transactions()
+            $invoiceTotalCents = $invoice->total_cents ?? $invoice->amount_cents;
+            $alreadyPaidCents = $invoice->transactions()
                 ->whereIn('status', ['succeeded', 'paid', 'partially_refunded'])
                 ->lockForUpdate()
                 ->selectRaw('SUM(amount_cents - refunded_amount_cents) as net_cents')
-                ->value('net_cents') ?? 0) / 100;
-            $remaining = max(0, $invoiceTotal - $alreadyPaid);
+                ->value('net_cents') ?? 0;
+            $remainingCents = max(0, $invoiceTotalCents - $alreadyPaidCents);
 
-            if ($validated['amount_cents'] > $remaining) {
+            if ($validated['amount_cents'] > $remainingCents) {
                 DB::rollBack();
 
                 return response()->json([
-                    'message' => 'Credit amount cannot exceed the remaining balance of ₱'.number_format($remaining, 2),
+                    'message' => 'Credit amount cannot exceed the remaining balance of ₱'.number_format($remainingCents / 100, 2),
                 ], 422);
             }
 
@@ -1094,7 +1091,7 @@ class InvoiceController extends Controller
                 'property_id' => $propertyId,
                 'room_id' => $invoice->booking?->room_id,
                 'invoice_id' => $invoice->id,
-                'amount_cents' => $validated['amount_cents'], // Mutator handles decimal to integer conversion
+                'amount_cents' => $validated['amount_cents'],
                 'type' => 'debit',
                 'description' => 'Applied to invoice #'.$invoice->id,
             ]);
@@ -1103,7 +1100,7 @@ class InvoiceController extends Controller
             $tx = PaymentTransaction::create([
                 'invoice_id' => $invoice->id,
                 'tenant_id' => $tenantId,
-                'amount_cents' => $validated['amount_cents'], // Mutator handles decimal to integer conversion
+                'amount_cents' => $validated['amount_cents'],
                 'currency' => $invoice->currency,
                 'status' => 'succeeded',
                 'method' => 'wallet_credit',

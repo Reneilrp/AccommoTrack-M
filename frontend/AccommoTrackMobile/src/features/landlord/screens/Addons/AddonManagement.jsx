@@ -344,9 +344,10 @@ export default function AddonManagement({ route, navigation }) {
     try {
       const data = {
         ...formData,
-        price: parseFloat(formData.price),
+        price_cents: Math.round(parseFloat(formData.price || 0) * 100),
         stock: formData.stock ? parseInt(formData.stock) : null
       };
+      delete data.price;
 
       let res;
       if (editingAddon) {
@@ -456,7 +457,7 @@ export default function AddonManagement({ route, navigation }) {
     setFormData({
       name: addon.name,
       description: addon.description || '',
-      price: addon.price.toString(),
+      price: ((addon.price_cents ?? addon.price ?? 0) / 100).toString(),
       price_type: addon.price_type,
       addon_type: addon.addon_type,
       stock: addon.stock?.toString() || '',
@@ -524,7 +525,7 @@ export default function AddonManagement({ route, navigation }) {
             {addon.description ? <Text style={styles.addonDescription}>{addon.description}</Text> : null}
 
             <Text style={styles.addonPrice}>
-              ₱{parseFloat(addon.price).toLocaleString()}
+              ₱{parseFloat((addon.price_cents ?? addon.price ?? 0) / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               {addon.price_type === 'monthly' && <Text style={styles.priceUnit}>/month</Text>}
             </Text>
 
@@ -564,7 +565,7 @@ export default function AddonManagement({ route, navigation }) {
                 ) : null}
               </View>
               <View style={{ alignItems: 'flex-end' }}>
-                <Text style={styles.addonPrice}>₱{parseFloat(request.price).toLocaleString()}</Text>
+                <Text style={styles.addonPrice}>₱{parseFloat((request.price_cents ?? request.price_at_booking_cents ?? request.price ?? 0) / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</Text>
                 <View style={[styles.typeBadge, request.priceType === 'monthly' ? styles.monthlyBadge : styles.oneTimeBadge]}>
                   <Text style={request.priceType === 'monthly' ? styles.monthlyBadgeText : styles.oneTimeBadgeText}>
                     {request.priceType === 'monthly' ? 'Monthly' : 'One-time'}
@@ -634,12 +635,13 @@ export default function AddonManagement({ route, navigation }) {
               </View>
               <View style={{ alignItems: 'flex-end' }}>
                 <Text style={styles.addonPrice}>
-                  ₱{parseFloat(item.price).toLocaleString()}
+                  ₱{parseFloat((item.price_at_booking_cents ?? item.price_cents ?? item.price ?? 0) / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   {item.priceType === 'monthly' && <Text style={styles.priceUnit}>/mo</Text>}
                 </Text>
                 <View style={[styles.activeItemStatus, styles.activeStatusBadge]}>
                   <Text style={styles.activeStatusText}>{item.status.toUpperCase()}</Text>
                 </View>
+
               </View>
             </View>
           ))

@@ -455,7 +455,7 @@ class BookingService
                         $booking->addons()->attach($addonId, [
                             'status' => 'pending',
                             'quantity' => 1,
-                            'price_at_booking' => $addon->price,
+                            'price_at_booking_cents' => $addon->price_cents,
                         ]);
                     }
                 }
@@ -1359,10 +1359,10 @@ class BookingService
                 ? $booking->addons 
                 : $booking->addons()->where('booking_addons.status', 'active')->where('price_type', 'monthly')->get();
             
-            $recurringAddonAmount = $activeAddons->sum(fn($a) => $a->pivot->price_at_booking * $a->pivot->quantity);
+            $recurringAddonAmount = $activeAddons->sum(fn($a) => $a->pivot->price_at_booking_cents * $a->pivot->quantity);
         }
 
-        $perOccupantAddonAmount = (float) $recurringAddonAmount / $invoiceSlots;
+        $perOccupantAddonAmount = (float) ($recurringAddonAmount / 100) / $invoiceSlots;
 
         for ($index = 0; $index < $invoiceSlots; $index++) {
             /** @var \App\Models\BookingOccupant|null $occupant */
@@ -1480,7 +1480,7 @@ class BookingService
                     ? $booking->addons 
                     : $booking->addons()->where('booking_addons.status', 'active')->where('price_type', 'monthly')->get();
                 
-                $recurringAddonAmount = $activeAddons->sum(fn($a) => $a->pivot->price_at_booking * $a->pivot->quantity);
+                $recurringAddonAmount = $activeAddons->sum(fn($a) => $a->pivot->price_at_booking_cents * $a->pivot->quantity) / 100;
 
                 $amount += $recurringAddonAmount;
             }

@@ -31,28 +31,28 @@ class AddonService
         return $price > 0 ? $price : null;
     }
 
-    private function resolveApprovedPrice($addonRequest, Addon $addon, ?float $approvedPrice = null): float
+    private function resolveApprovedPrice($addonRequest, Addon $addon, ?float $approvedPrice = null): int
     {
         if (is_numeric($approvedPrice) && (float) $approvedPrice > 0) {
-            return (float) $approvedPrice;
+            return (int) round((float) $approvedPrice * 100);
         }
 
-        $pivotPrice = (float) ($addonRequest->pivot->price_at_booking ?? 0);
+        $pivotPrice = (int) ($addonRequest->pivot->price_at_booking_cents ?? 0);
         if ($pivotPrice > 0) {
             return $pivotPrice;
         }
 
-        $addonPrice = (float) ($addon->price ?? 0);
+        $addonPrice = (int) ($addon->price_cents ?? 0);
         if ($addonPrice > 0) {
             return $addonPrice;
         }
 
         $suggestedPrice = $this->extractSuggestedPriceFromNote($addonRequest->pivot->request_note ?? null);
         if (! is_null($suggestedPrice) && $suggestedPrice > 0) {
-            return $suggestedPrice;
+            return (int) round($suggestedPrice * 100);
         }
 
-        return 0.0;
+        return 0;
     }
 
     public function createAddon(int $propertyId, array $data): Addon
@@ -116,7 +116,7 @@ class AddonService
                     'response_note' => $note,
                     'approved_at' => now(),
                     'approved_by' => $userId,
-                    'price_at_booking' => $resolvedPrice,
+                    'price_at_booking_cents' => $resolvedPrice,
                     'updated_at' => now(),
                 ];
 
@@ -126,7 +126,7 @@ class AddonService
                     $addon->decrement('stock', $addonRequest->pivot->quantity ?? 1);
                 }
 
-                $amountCents = (int) round($resolvedPrice * ($addonRequest->pivot->quantity ?? 1) * 100);
+                $amountCents = (int) ($resolvedPrice * ($addonRequest->pivot->quantity ?? 1));
 
                 // Create a separate invoice for this immediate addon request (decoupled from rent)
                 $reference = 'INV-ADD-'.date('Ymd').'-'.strtoupper(Str::random(6));
@@ -150,7 +150,7 @@ class AddonService
                                 'addon_id' => $addon->id,
                                 'addon_name' => $addon->name,
                                 'quantity' => $addonRequest->pivot->quantity ?? 1,
-                                'price' => $resolvedPrice, // Store as DOLLARS (float) in metadata
+                                'price_cents' => $resolvedPrice, // Store as CENTS (integer) in metadata
                                 'price_type' => $addon->price_type,
                             ],
                         ],

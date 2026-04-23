@@ -52,7 +52,7 @@ class Addon extends Model
         'property_id',
         'name',
         'description',
-        'price',
+        'price_cents',
         'price_type',
         'addon_type',
         'stock',
@@ -60,23 +60,12 @@ class Addon extends Model
     ];
 
     protected $casts = [
-        'price' => 'decimal:2',
+        'price_cents' => 'integer',
         'stock' => 'integer',
         'is_active' => 'boolean',
     ];
 
     protected $appends = ['price_type_label', 'addon_type_label', 'has_stock'];
-
-    protected function amount(): Attribute
-    {
-        return Attribute::make(
-            // When reading from DB: divide by 100 (10000 -> 100.00)
-            get: fn ($value) => $value !== null ? $value / 100 : null,
-            
-            // When saving to DB: multiply by 100 (100.00 -> 10000)
-            set: fn ($value) => $value !== null ? (int) round($value * 100) : null,
-        );
-    }
 
     /**
      * Relationship: Addon belongs to Property

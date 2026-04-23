@@ -55,7 +55,9 @@ const mapPendingRequest = (request, propertyTitle = '') => {
     .join(' ')
     .trim();
 
-  const price = Number(request?.price ?? request?.current_price ?? request?.suggested_price ?? 0);
+  // Try to find raw cents from the request
+  const rawCents = Number(request?.price_cents ?? request?.price_at_booking_cents ?? request?.suggested_price_cents ?? 0);
+  const displayPrice = rawCents / 100;
 
   return {
     id: request?.requestId ?? request?.request_id ?? request?.id,
@@ -63,8 +65,8 @@ const mapPendingRequest = (request, propertyTitle = '') => {
     addon_id: request?.addonId ?? request?.addon_id,
     addon_name: request?.addonName ?? request?.addon_name ?? request?.name ?? 'Add-on',
     quantity: request?.quantity ?? 1,
-    price: Number.isFinite(price) ? price : 0,
-    suggested_price: Number.isFinite(price) ? price : 0,
+    price: displayPrice,
+    suggested_price: displayPrice,
     price_type: request?.priceType ?? request?.price_type ?? 'one_time',
     addon_type: request?.addonType ?? request?.addon_type ?? 'fee',
     stock: request?.stock,
@@ -81,7 +83,8 @@ const mapActiveAddon = (item) => {
     .filter(Boolean)
     .join(' ')
     .trim();
-  const price = Number(item?.price ?? item?.current_price ?? 0);
+  const rawCents = Number(item?.price_at_booking_cents ?? item?.price_cents ?? item?.price ?? 0);
+  const displayPrice = rawCents / 100;
 
   return {
     id: item?.requestId ?? item?.request_id ?? item?.id,
@@ -89,7 +92,7 @@ const mapActiveAddon = (item) => {
     addon_id: item?.addonId ?? item?.addon_id,
     addon_name: item?.addonName ?? item?.addon_name ?? item?.name ?? 'Add-on',
     quantity: item?.quantity ?? 1,
-    price: Number.isFinite(price) ? price : 0,
+    price: displayPrice,
     price_type: item?.priceType ?? item?.price_type ?? 'monthly',
     addon_type: item?.addonType ?? item?.addon_type ?? 'fee',
     status: item?.status,
@@ -285,8 +288,10 @@ export default function AddonManagement({ user: _user }) {
     try {
       const payload = {
         ...data,
-        price: Number(data?.price ?? 0),
+        price_cents: Math.round(Number(data?.price ?? 0) * 100),
       };
+      // remove legacy price from payload
+      delete payload.price;
 
       const response = selectedAddon
         ? await addonService.updateAddon(selectedPropertyId, selectedAddon.id, payload)

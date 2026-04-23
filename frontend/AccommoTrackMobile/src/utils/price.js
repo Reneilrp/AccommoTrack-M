@@ -1,18 +1,26 @@
-import Decimal from './decimal';
+import Decimal from 'decimal.js';
 
 /**
- * Formats a standard decimal value into Philippine Peso.
- * Expects base units (e.g., 150.50), NOT cents!
+ * Formats a currency value into Philippine Peso.
+ * @param {number} amount - The amount to format.
+ * @param {object} options - Optional configuration.
+ * @param {boolean} options.isCents - Whether the amount is in cents (default: false).
  */
-export const formatPrice = (amount) => {
+export const formatPrice = (amount, options = {}) => {
+    const isCents = options.isCents === true;
+
     if (amount === null || amount === undefined || isNaN(amount)) {
         return '₱0.00';
     }
 
-    // Wrap in Decimal.js for safe precision math, NO multiplication/division here
-    const safeAmount = new Decimal(amount);
+    // Wrap in Decimal.js for safe precision math
+    let safeAmount = new Decimal(amount);
+
+    if (isCents) {
+        safeAmount = safeAmount.div(100);
+    }
 
     return `₱${safeAmount.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`;
-    };
+};
 
-    export default formatPrice;
+export default formatPrice;

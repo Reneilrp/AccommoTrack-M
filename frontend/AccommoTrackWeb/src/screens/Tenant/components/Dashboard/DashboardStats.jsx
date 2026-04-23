@@ -8,7 +8,7 @@ const DashboardStats = ({ stats }) => {
     { label: 'Active Stays', value: stats.bookings?.active || 0, icon: Home, color: 'text-blue-600', bg: 'bg-blue-50' },
     { label: 'Pending Bookings', value: stats.bookings?.pending || 0, icon: Clock, color: 'text-amber-600', bg: 'bg-amber-50' },
     { label: 'Upcoming Rent', value: stats.payments?.unpaidInvoices?.length || 0, icon: Calendar, color: 'text-purple-600', bg: 'bg-purple-50' },
-    { label: 'Wallet Balance', value: `₱${((stats.payments?.walletBalance || 0)).toLocaleString()}`, icon: CreditCard, color: 'text-green-600', bg: 'bg-green-50' },
+    { label: 'Wallet Balance', value: `₱${((stats.payments?.walletBalance || 0) / 100).toLocaleString()}`, icon: CreditCard, color: 'text-green-600', bg: 'bg-green-50' },
   ];
 
   return (

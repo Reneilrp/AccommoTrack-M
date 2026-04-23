@@ -312,7 +312,7 @@ class LandlordDashboardService
                 ->select([
                     'booking_addons.*',
                     'addons.name as addon_name',
-                    'addons.price as addon_price',
+                    'addons.price_cents as addon_price_cents',
                     'users.first_name',
                     'users.last_name',
                     'bookings.room_id',
@@ -329,15 +329,15 @@ class LandlordDashboardService
             $addons = $addonQuery->orderBy('booking_addons.updated_at', 'desc')->limit(10)->get();
             foreach ($addons as $addon) {
                 $requestNote = $addon->request_note ?? '';
-                $suggestedPrice = null;
+                $suggestedPriceCents = null;
                 if (preg_match('/suggested\s+price\s*:\s*₱?\s*([\d,]+(?:\.\d+)?)/i', $requestNote, $matches)) {
-                    $suggestedPrice = (float) str_replace(',', '', $matches[1]);
+                    $suggestedPriceCents = (int) round((float) str_replace(',', '', $matches[1]) * 100);
                 }
 
-                $displayPrice = $suggestedPrice ?? ($addon->price_at_booking ?? $addon->addon_price ?? null);
+                $displayPriceCents = $suggestedPriceCents ?? ($addon->price_at_booking_cents ?? $addon->addon_price_cents ?? null);
                 $description = "{$addon->first_name} requested {$addon->addon_name}";
-                if ($displayPrice !== null) {
-                    $description .= ' (₱'.number_format($displayPrice, 2).')';
+                if ($displayPriceCents !== null) {
+                    $description .= ' (₱'.number_format($displayPriceCents / 100, 2).')';
                 }
 
                 $timestamp = $addon->updated_at ?? $addon->created_at;

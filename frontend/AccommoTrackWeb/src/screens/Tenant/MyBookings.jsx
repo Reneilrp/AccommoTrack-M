@@ -1693,8 +1693,7 @@ const FinancialsTab = ({ stays = [], selectedIndex = 0, onSelectStay, navigate }
       return {
         ...tx,
         date: resolvedDate,
-        amount: tx.amount ?? (tx.amount_cents ? tx.amount_cents : 0),
-
+        amount: tx.amount ?? (tx.amount_cents ? tx.amount_cents / 100 : 0),
         invoiceRef: inv.id,
         timestamp: parseActivityTimestamp(resolvedDate),
         normalizedStatus: String(tx.status || '').toLowerCase(),
@@ -1977,7 +1976,7 @@ const HistoryTab = ({ data, onLoadMore, loadingMore = false, onReview, onReport,
                 <div className="flex flex-wrap gap-2">
                   {booking.addons.map((addon, idx) => (
                     <span key={idx} className="text-[10px] font-bold bg-gray-50 dark:bg-gray-700/50 text-gray-600 dark:text-gray-300 px-2 py-2 rounded border border-gray-200 dark:border-gray-600 uppercase">
-                      {addon.name} ({addon.priceType === 'monthly' ? '₱' + addon.price.toLocaleString() + '/mo' : '₱' + addon.price.toLocaleString()})
+                      {addon.name} ({addon.priceType === 'monthly' ? '₱' + ((addon.price_cents ?? addon.price ?? 0) / 100).toLocaleString() + '/mo' : '₱' + ((addon.price_cents ?? addon.price ?? 0) / 100).toLocaleString()})
                     </span>
                   ))}
                 </div>
@@ -2172,15 +2171,15 @@ const StatusBadge = ({ status }) => {
 
 const resolveAddonDisplayPrice = (addon) => {
   const candidates = [
-    addon?.pivot?.price_at_booking,
-    addon?.price_at_booking,
-    addon?.price,
+    addon?.pivot?.price_at_booking_cents,
+    addon?.price_at_booking_cents,
+    addon?.price_cents,
   ];
 
   for (const candidate of candidates) {
     const numericValue = Number(candidate);
     if (Number.isFinite(numericValue) && numericValue > 0) {
-      return numericValue;
+      return numericValue / 100;
     }
   }
 
@@ -2318,7 +2317,7 @@ const AddonModal = ({ bookingId, availableAddons, onClose, onRequest, requesting
                           )}
                           <div className="flex items-baseline gap-2">
                             <p className="text-xl font-bold text-green-600 dark:text-green-400">
-                              ₱{parseFloat(addon.price || 0).toLocaleString()}
+                              ₱{parseFloat((addon.price_cents ?? addon.price ?? 0) / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                             </p>
                             {addon.price_type === 'monthly' && <span className="text-xs font-bold text-gray-500">/mo</span>}
                           </div>

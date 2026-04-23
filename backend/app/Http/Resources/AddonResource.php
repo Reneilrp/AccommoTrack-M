@@ -17,7 +17,7 @@ class AddonResource extends JsonResource
             'property_id' => $this->property_id,
             'name' => $this->name,
             'description' => $this->description,
-            'price' => (float) $this->price,
+            'price_cents' => (int) $this->price_cents,
             'price_type' => $this->price_type,
             'priceType' => $this->price_type,
             'priceTypeLabel' => $this->price_type_label,

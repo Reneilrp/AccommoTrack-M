@@ -286,7 +286,7 @@ class GenerateMonthlyInvoices extends Command
                         ->exists();
 
                     if (! $addonExists) {
-                        $priceCents = (int) round(((float) $addon->pivot->price_at_booking) * ((int) $addon->pivot->quantity) * 100);
+                        $priceCents = (int) ($addon->pivot->price_at_booking_cents * $addon->pivot->quantity);
 
                         $addonInvoice = Invoice::create([
                             'reference' => 'INV-ADD-'.date('Ymd').'-'.strtoupper(Str::random(6)),
@@ -308,7 +308,7 @@ class GenerateMonthlyInvoices extends Command
                                 'addon_id' => $addon->id,
                                 'addon_name' => $addon->name,
                                 'quantity' => $addon->pivot->quantity,
-                                'price' => $priceCents,
+                                'price_cents' => $priceCents,
                                 'price_type' => 'monthly',
                             ]]],
                         ]);
@@ -413,7 +413,7 @@ class GenerateMonthlyInvoices extends Command
 
             // Add-ons Decoupling: Generate discrete standalone invoices for active add-ons instead of merging into Rent.
             foreach ($activeMonthlyAddons as $addon) {
-                $priceCents = (int) round(((float) $addon->pivot->price_at_booking) * ((int) $addon->pivot->quantity) * 100);
+                $priceCents = (int) ($addon->pivot->price_at_booking_cents * $addon->pivot->quantity);
 
                 $addonInvoice = Invoice::create([
                     'reference' => 'INV-ADD-'.date('Ymd').'-'.strtoupper(Str::random(6)),
@@ -432,7 +432,7 @@ class GenerateMonthlyInvoices extends Command
                         'addon_id' => $addon->id,
                         'addon_name' => $addon->name,
                         'quantity' => $addon->pivot->quantity,
-                        'price' => $priceCents,
+                        'price_cents' => $priceCents,
                         'price_type' => 'monthly',
                     ]]],
                 ]);

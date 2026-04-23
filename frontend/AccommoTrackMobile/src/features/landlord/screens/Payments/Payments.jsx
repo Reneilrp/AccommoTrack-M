@@ -57,14 +57,14 @@ const CASH_REJECTION_REASONS = [
 ];
 const CASH_REJECTION_REASON_IDS = CASH_REJECTION_REASONS.map((item) => item.id);
 
-const getInvoiceTotal = (invoice) => parseFloat(invoice?.amount || (invoice?.amount_cents ?? 0));
+const getInvoiceTotal = (invoice) => parseFloat(invoice?.amount || ((invoice?.amount_cents ?? 0) / 100));
 
 const getSettledAmount = (invoice) =>
   (invoice?.transactions || [])
     .filter((tx) => ['succeeded', 'paid', 'partially_refunded'].includes((tx?.status || '').toLowerCase()))
     .reduce((sum, tx) => {
-      const txAmount = tx?.amount_cents ? tx.amount_cents : parseFloat(tx?.amount || 0);
-      const refunded = tx?.refunded_amount_cents ? tx.refunded_amount_cents : 0;
+      const txAmount = tx?.amount_cents ? tx.amount_cents / 100 : parseFloat(tx?.amount || 0);
+      const refunded = tx?.refunded_amount_cents ? tx.refunded_amount_cents / 100 : 0;
       return sum + Math.max(0, txAmount - refunded);
     }, 0);
 
@@ -608,7 +608,7 @@ export default function Payments({ navigation, route }) {
 
     const status = getInvoiceStatus(item);
     const style = getStatusStyle(status);
-    const amount = item.amount || (item.amount_cents ? item.amount_cents : 0);
+    const amount = item.amount || (item.amount_cents ? item.amount_cents / 100 : 0);
 
     return (
       <View style={[styles.invoiceCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border, borderWidth: 1 }]}>
@@ -731,7 +731,7 @@ export default function Payments({ navigation, route }) {
                     <Text style={[styles.sectionTitle, { marginBottom: 10 }]}>History</Text>
                     {selectedInvoice.transactions.map((tx, idx) => (
                       <View key={tx.id || idx} style={{ paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: theme.colors.border }}>
-                        <Text style={{ color: theme.colors.text }}>{formatPrice(tx.amount_cents ? tx.amount_cents : tx.amount)} • {tx.status}</Text>
+                        <Text style={{ color: theme.colors.text }}>{formatPrice(tx.amount_cents ? tx.amount_cents / 100 : tx.amount)} • {tx.status}</Text>
                         <Text style={{ fontSize: 12, color: theme.colors.textSecondary }}>{new Date(tx.created_at).toLocaleDateString()}</Text>
                       </View>
                     ))}

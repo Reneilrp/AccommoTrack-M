@@ -69,7 +69,7 @@ const normalizeInvoiceAddonLines = (invoice) => {
       addonId: addonId ?? null,
       name: addon?.name || addon?.addon_name || 'Add-on',
       quantity,
-      amountCents: Number(unitPrice * quantity),
+      amountCents: Math.round(unitPrice * 100 * quantity),
     });
   });
 
@@ -100,28 +100,29 @@ export default function InvoiceCheckout() {
       const invData = res.data;
       setInvoice(invData);
 
-      const total = invData.amount_cents ?? Number(invData.amount || 0);
+      const totalCents = invData.amount_cents ?? Math.round(Number(invData.amount || 0) * 100);
 
-      const paid = invData.transactions
+      const paidCents = invData.transactions
         ?.filter(tx => REFUND_SETTLED_STATUSES.has(String(tx?.status || '').toLowerCase()))
         .reduce((sum, tx) => {
-          const txAmount = Number(tx?.amount_cents ?? 0);
-          const txRefunded = Number(tx?.refunded_amount_cents ?? 0);
+          const txAmountCents = Number(tx?.amount_cents ?? 0);
+          const txRefundedCents = Number(tx?.refunded_amount_cents ?? 0);
 
-          if (txAmount > 0) {
-            return sum + Math.max(0, txAmount - txRefunded);
+          if (txAmountCents > 0) {
+            return sum + Math.max(0, txAmountCents - txRefundedCents);
           }
 
-          return sum + Number(tx?.amount || 0);
+          const txAmount = Number(tx?.amount || 0);
+          return sum + Math.round(txAmount * 100);
         }, 0) || 0;
 
-      const pendingOffline = invData.transactions
+      const pendingOfflineCents = invData.transactions
         ?.filter(tx => tx.status === 'pending_offline')
-        .reduce((sum, tx) => sum + (tx.amount_cents ?? Number(tx.amount || 0)), 0) || 0;
+        .reduce((sum, tx) => sum + (tx.amount_cents ?? Math.round(Number(tx.amount || 0) * 100)), 0) || 0;
 
-      const balance = Math.max(0, total - paid);
+      const balance = Math.max(0, totalCents - paidCents) / 100;
       setRemainingBalance(balance);
-      setPendingOffline(pendingOffline);
+      setPendingOffline(pendingOfflineCents / 100);
       setPaymentAmount(balance.toString());
 
     } catch (err) {
@@ -385,7 +386,7 @@ export default function InvoiceCheckout() {
                       <p className="mt-0.5 text-amber-700">Your payment has been submitted and is pending landlord review. You will be notified once it is approved or rejected.</p>
                       {pendingTx && (
                         <p className="mt-1 text-[11px] font-semibold text-amber-600">
-                          Submitted: ₱{(pendingTx.amount_cents).toLocaleString()} via {(pendingTx.method || '').replace('_', ' ')}
+                          Submitted: ₱{(pendingTx.amount_cents / 100).toLocaleString()} via {(pendingTx.method || '').replace('_', ' ')}
                           {pendingTx.gateway_reference ? ` · Ref: ${pendingTx.gateway_reference}` : ''}
                         </p>
                       )}
@@ -743,7 +744,7 @@ export default function InvoiceCheckout() {
                               {line.quantity > 1 ? ` x ${line.quantity}` : ''}
                             </span>
                             <span className="text-gray-900 dark:text-white font-bold">
-                              <PriceRow amount={line.amountCents} />
+                              <PriceRow amount={line.amountCents / 100} />
                             </span>
                           </div>
                         ))}
@@ -751,7 +752,7 @@ export default function InvoiceCheckout() {
                       <div className="flex justify-between items-center text-sm pt-2 border-t border-dashed border-gray-200 dark:border-gray-700">
                         <span className="text-gray-600 dark:text-gray-400 font-medium">Add-ons Total</span>
                         <span className="text-gray-900 dark:text-white font-bold">
-                          <PriceRow amount={addonTotalCents} />
+                          <PriceRow amount={addonTotalCents / 100} />
                         </span>
                       </div>
                     </>

@@ -24,8 +24,7 @@ import {
 } from '../../../hooks/useLandlordQueryHelpers.js';
 
 const formatCurrency = (cents, currency = 'PHP') => {
-  const amount = Number.isFinite(Number(cents)) ? Number(cents) : 0;
-
+  const amount = Number.isFinite(Number(cents)) ? Number(cents) / 100 : 0;
   return new Intl.NumberFormat('en-PH', {
     style: 'currency',
     currency,

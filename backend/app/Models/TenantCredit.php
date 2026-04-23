@@ -7,20 +7,36 @@ use Illuminate\Database\Eloquent\Casts\Attribute;
 
 class TenantCredit extends Model
 {
-    protected function amountCents(): Attribute
+    protected function amount(): Attribute
+{
+    return Attribute::make(
+        // When reading from DB: divide by 100 (10000 -> 100.00)
+        get: fn ($value) => $value !== null ? $value / 100 : null,
+        
+        // When saving to DB: multiply by 100 (100.00 -> 10000)
+        set: fn ($value) => $value !== null ? (int) round($value * 100) : null,
+    );
+}
+    protected $guarded = [];
+
+    public function tenant()
     {
-        return Attribute::make(
-            get: fn ($value) => $value !== null ? $value / 100 : null,
-            set: fn ($value) => $value !== null ? (int) round($value * 100) : null,
-        );
+        return $this->belongsTo(User::class, 'tenant_id');
     }
 
-    protected function amount(): Attribute
+    public function property()
     {
-        return Attribute::make(
-            get: fn () => $this->amount_cents,
-            set: fn ($value) => ['amount_cents' => $value],
-        );
+        return $this->belongsTo(Property::class, 'property_id');
+    }
+
+    public function room()
+    {
+        return $this->belongsTo(Room::class, 'room_id');
+    }
+
+    public function invoice()
+    {
+        return $this->belongsTo(Invoice::class, 'invoice_id');
     }
 
     public static function getBalance($tenantId, $propertyId = null)
@@ -33,7 +49,6 @@ class TenantCredit extends Model
         $credits = (clone $query)->whereIn('type', ['credit', 'refund'])->sum('amount_cents');
         $debits = (clone $query)->where('type', 'debit')->sum('amount_cents');
 
-        // Return decimal (e.g., 100.00 instead of 10000)
-        return max(0, ($credits - $debits) / 100);
+        return max(0, $credits - $debits);
     }
 }

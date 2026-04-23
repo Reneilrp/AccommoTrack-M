@@ -67,17 +67,17 @@ export default function AddonsScreen({ hideHeader = false, historyOnly = false }
 
   const resolveAddonRequestPrice = (request) => {
     const candidates = [
-      request?.price_at_booking,
-      request?.pivot?.price_at_booking,
-      request?.addon?.pivot?.price_at_booking,
-      request?.price,
-      request?.addon?.price,
+      request?.price_at_booking_cents,
+      request?.pivot?.price_at_booking_cents,
+      request?.addon?.pivot?.price_at_booking_cents,
+      request?.price_cents,
+      request?.addon?.price_cents,
     ];
 
     for (const candidate of candidates) {
       const numericValue = Number(candidate);
       if (Number.isFinite(numericValue) && numericValue > 0) {
-        return numericValue;
+        return numericValue / 100;
       }
     }
 
@@ -460,7 +460,7 @@ export default function AddonsScreen({ hideHeader = false, historyOnly = false }
                 <View style={styles.addonTextContent}>
                     <Text style={[styles.addonName, { color: theme.colors.text }]}>{item.name}</Text>
                     <Text style={[styles.addonDesc, { color: theme.colors.textSecondary }]} numberOfLines={2}>{item.description || 'No description available.'}</Text>
-                    <Text style={[styles.addonPrice, { color: theme.colors.primary }]}>{item.price ? `₱${Number(item.price).toLocaleString()}` : 'Free'}</Text>
+                    <Text style={[styles.addonPrice, { color: theme.colors.primary }]}>{(item.price_cents ?? item.price) ? `₱${Number((item.price_cents ?? item.price ?? 0) / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : 'Free'}</Text>
                 </View>
                 {item.image_url && <Image source={{ uri: item.image_url }} style={styles.addonImage} />}
             </View>

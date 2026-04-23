@@ -288,7 +288,7 @@ class AnalyticsService
                     $query->where('property_id', $propertyId);
                 }
             })
-            ->sum(DB::raw('quantity * price_at_booking'));
+            ->sum(DB::raw('quantity * price_at_booking_cents')) / 100;
 
         $rentRevenue = max(0, $totalPeriodRevenue - $addonRevenue);
 

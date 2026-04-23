@@ -32,24 +32,24 @@ class TenantDashboardController extends Controller
         return $price > 0 ? $price : null;
     }
 
-    private function resolveAddonEffectivePrice($addon): float
+    private function resolveAddonEffectivePrice($addon): int
     {
-        $pivotPrice = (float) ($addon->pivot->price_at_booking ?? 0);
+        $pivotPrice = (int) ($addon->pivot->price_at_booking_cents ?? 0);
         if ($pivotPrice > 0) {
             return $pivotPrice;
         }
 
-        $addonPrice = (float) ($addon->price ?? 0);
+        $addonPrice = (int) ($addon->price_cents ?? 0);
         if ($addonPrice > 0) {
             return $addonPrice;
         }
 
         $suggestedPrice = $this->extractSuggestedPriceFromNote($addon->pivot->request_note ?? null);
         if (! is_null($suggestedPrice) && $suggestedPrice > 0) {
-            return $suggestedPrice;
+            return (int) round($suggestedPrice * 100);
         }
 
-        return 0.0;
+        return 0;
     }
 
     private function buildReservationPolicyPayload($booking): array
@@ -274,8 +274,8 @@ class TenantDashboardController extends Controller
             $monthlyAddonTotal = $booking->addons->where('price_type', 'monthly')
                 ->whereIn('pivot.status', ['active', 'approved'])
                 ->sum(function ($a) {
-                    $price = $this->resolveAddonEffectivePrice($a);
-                    return $price * ((float) ($a->pivot->quantity ?? 1));
+                    $priceCents = $this->resolveAddonEffectivePrice($a);
+                    return ($priceCents * ((int) ($a->pivot->quantity ?? 1))) / 100;
                 });
 
             $resolvedBedCount = max(1, (int) ($booking->bed_count ?? 1));
@@ -338,13 +338,13 @@ class TenantDashboardController extends Controller
                 'landlord' => ['id' => $booking->landlord->id, 'name' => $booking->landlord->name, 'email' => $booking->landlord->email],
                 'addons' => [
                     'active' => $booking->addons->whereIn('pivot.status', ['active', 'approved'])->map(function ($a) {
-                        $price = $this->resolveAddonEffectivePrice($a);
-                        $a->price = $price;
+                        $priceCents = $this->resolveAddonEffectivePrice($a);
+                        $a->price_cents = $priceCents;
                         return $a;
                     })->values(),
                     'pending' => $booking->addons->where('pivot.status', 'pending')->map(function ($a) {
-                        $price = $this->resolveAddonEffectivePrice($a);
-                        $a->price = $price;
+                        $priceCents = $this->resolveAddonEffectivePrice($a);
+                        $a->price_cents = $priceCents;
                         return $a;
                     })->values(),
                     'available' => $availableAddons, 'monthlyTotal' => (float) $monthlyAddonTotal,
@@ -357,7 +357,7 @@ class TenantDashboardController extends Controller
                         return [
                             'id' => $invoice->id,
                             'invoice_number' => $invoice->invoice_number,
-                            'amount' => (float) ($invoice->total_cents ?? $invoice->amount_cents),
+                            'amount' => (float) (($invoice->total_cents ?? $invoice->amount_cents) / 100),
                             'status' => $invoice->status,
                             'description' => $invoice->description,
                             'date' => $invoice->issued_at ?: $invoice->created_at,
@@ -365,7 +365,7 @@ class TenantDashboardController extends Controller
                             'dueDate' => $invoice->due_date,
                             'metadata' => $invoice->metadata,
                             'transactions' => $invoice->transactions->map(fn($tx) => [
-                                'id' => $tx->id, 'amount' => (float) $tx->amount_cents,
+                                'id' => $tx->id, 'amount' => (float) ($tx->amount_cents / 100),
                                 'status' => $tx->status, 'method' => $tx->method, 'date' => $tx->created_at->format('M d, Y H:i'),
                             ]),
                         ];
@@ -405,9 +405,9 @@ class TenantDashboardController extends Controller
 
                 $totalPaid = $booking->payments->where('status', 'completed')->sum('amount');
                 $addonTotal = $booking->addons->sum(function ($a) {
-                    $price = $this->resolveAddonEffectivePrice($a);
+                    $priceCents = $this->resolveAddonEffectivePrice($a);
 
-                    return $price * ((float) ($a->pivot->quantity ?? 1));
+                    return ($priceCents * ((int) ($a->pivot->quantity ?? 1))) / 100;
                 });
 
                 // Build a timeline of activities
@@ -440,9 +440,9 @@ class TenantDashboardController extends Controller
                             'type' => 'payment',
                             'action' => 'Payment Successful',
                             'timestamp' => $tx->created_at,
-                            'description' => 'Paid ₱'.number_format($tx->amount_cents, 2).' via '.ucfirst($tx->method).' for '.($invoice->description ?: 'Accommodation Fee'),
+                            'description' => 'Paid ₱'.number_format($tx->amount_cents / 100, 2).' via '.ucfirst($tx->method).' for '.($invoice->description ?: 'Accommodation Fee'),
                             'status' => 'paid',
-                            'amount' => (float) $tx->amount_cents,
+                            'amount' => (float) ($tx->amount_cents / 100),
                         ]);
                     });
                 });

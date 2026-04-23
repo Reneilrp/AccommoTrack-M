@@ -75,45 +75,16 @@ class Invoice extends Model
         'booking_group_reference',
     ];
 
-    protected function amountCents(): Attribute
-    {
-        return Attribute::make(
-            get: fn ($value) => $value !== null ? $value / 100 : null,
-            set: fn ($value) => $value !== null ? (int) round($value * 100) : null,
-        );
-    }
-
-    protected function subtotalCents(): Attribute
-    {
-        return Attribute::make(
-            get: fn ($value) => $value !== null ? $value / 100 : null,
-            set: fn ($value) => $value !== null ? (int) round($value * 100) : null,
-        );
-    }
-
-    protected function taxCents(): Attribute
-    {
-        return Attribute::make(
-            get: fn ($value) => $value !== null ? $value / 100 : null,
-            set: fn ($value) => $value !== null ? (int) round($value * 100) : null,
-        );
-    }
-
-    protected function totalCents(): Attribute
-    {
-        return Attribute::make(
-            get: fn ($value) => $value !== null ? $value / 100 : null,
-            set: fn ($value) => $value !== null ? (int) round($value * 100) : null,
-        );
-    }
-
     protected function amount(): Attribute
-    {
-        return Attribute::make(
-            get: fn () => $this->amount_cents,
-            set: fn ($value) => ['amount_cents' => $value],
-        );
-    }
+{
+    return Attribute::make(
+        // When reading from DB: divide by 100 (10000 -> 100.00)
+        get: fn ($value) => $value !== null ? $value / 100 : null,
+        
+        // When saving to DB: multiply by 100 (100.00 -> 10000)
+        set: fn ($value) => $value !== null ? (int) round($value * 100) : null,
+    );
+}
 
     protected static function boot()
     {

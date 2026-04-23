@@ -16,7 +16,7 @@ const AddonModal = ({ isOpen, onClose, addon, onSubmit, submitting }) => {
       setFormData({
         name: addon.name || '',
         description: addon.description || '',
-        price: addon.price || '',
+        price: (addon.price_cents ?? addon.price ?? 0) / 100,
         addon_type: addon.addon_type || 'rental',
         price_type: addon.price_type || 'monthly',
         is_active: addon.is_active ?? true

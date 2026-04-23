@@ -59,7 +59,7 @@ const AddonTable = ({ addons, onEdit, onDelete, onToggleStatus, togglingAddonId 
                 </p>
               )}
               <p className="text-xl font-bold text-green-600 dark:text-green-400 mt-4">
-                ₱{Number(addon.price).toLocaleString()}
+                ₱{Number((addon.price_cents ?? addon.price ?? 0) / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 {addon.price_type === "monthly" && (
                   <span className="text-xs font-bold text-gray-500 dark:text-gray-500 ml-2">
                     / mo

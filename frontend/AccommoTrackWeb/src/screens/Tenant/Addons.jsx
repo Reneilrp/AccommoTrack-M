@@ -38,17 +38,17 @@ export default function Addons() {
 
   const resolveAddonRequestPrice = (request) => {
     const candidates = [
-      request?.price_at_booking,
-      request?.pivot?.price_at_booking,
-      request?.addon?.pivot?.price_at_booking,
-      request?.price,
-      request?.addon?.price,
+      request?.price_at_booking_cents,
+      request?.pivot?.price_at_booking_cents,
+      request?.addon?.pivot?.price_at_booking_cents,
+      request?.price_cents,
+      request?.addon?.price_cents,
     ];
 
     for (const candidate of candidates) {
       const numericValue = Number(candidate);
       if (Number.isFinite(numericValue) && numericValue > 0) {
-        return numericValue;
+        return numericValue / 100;
       }
     }
 
@@ -329,7 +329,7 @@ export default function Addons() {
                   <div className="flex items-start justify-between">
                     <h4 className="font-semibold text-gray-900 dark:text-white">{addon.name}</h4>
                     <span className="text-green-600 dark:text-green-400 font-bold text-sm">
-                      {addon.price ? `₱${Number(addon.price).toLocaleString()}` : 'Free'}
+                      {(addon.price_cents ?? addon.price) ? `₱${Number((addon.price_cents ?? addon.price ?? 0) / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : 'Free'}
                     </span>
                   </div>
                   <p className="text-sm text-gray-500 dark:text-gray-400 mt-2 line-clamp-2">{addon.description || 'No description.'}</p>
