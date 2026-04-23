@@ -695,15 +695,11 @@ class TenantDashboardService
         }
 
         $suggestedPrice = $data['suggested_price'] ?? null;
-$booking->addons()->attach($addon->id, [
-    'quantity' => $data['quantity'] ?? 1,
-    'price_at_booking_cents' => $addon->price_cents,
-    'status' => 'pending',
-    'request_note' => trim(($data['note'] ?? '').($suggestedPrice ? ' | Suggested price: ₱'.number_format((float) $suggestedPrice, 2) : '')),
-]);
-
-            'created_at' => now(),
-            'updated_at' => now(),
+        $booking->addons()->attach($addon->id, [
+            'quantity' => $data['quantity'] ?? 1,
+            'price_at_booking_cents' => $addon->price_cents,
+            'status' => 'pending',
+            'request_note' => trim(($data['note'] ?? '').($suggestedPrice ? ' | Suggested price: ₱'.number_format((float) $suggestedPrice, 2) : '')),
         ]);
 
         return $addon;
