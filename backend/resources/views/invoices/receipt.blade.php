@@ -194,7 +194,7 @@
         // This signature proves the reference was not tampered with.
         $reference = (string) $invoice->receipt_reference;
         $signature = hash_hmac('sha256', $reference, config('app.key'));
-        $frontendUrl = rtrim(config('app.frontend_url', 'https://accommotrack.me'), '/');
+        $frontendUrl = rtrim((string) (config('app.frontend_url') ?: config('app.url') ?: 'https://accommotrack.me'), '/');
         
         // Use http_build_query for clean URL generation
         $query = http_build_query(['sig' => $signature]);
@@ -305,7 +305,7 @@
                 @if($invoice->receipt_reference && $verificationUrl)
                 <div style="display: flex; align-items: center; gap: 8px; margin-top: 12px;">
                     <div data-qr-wrapper style="background: #ecfdf5; padding: 6px; border-radius: 10px; border: 1px solid #d1fae5; width: 70px; min-height: 70px; display: flex; align-items: center; justify-content: center;">
-                        <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data={{ $verificationUrl }}" alt="QR Code" style="width: 70px; height: 70px; display: block;" onerror="this.style.display='none'; var fallback=this.parentElement.querySelector('[data-qr-fallback]'); if (fallback) { fallback.style.display='block'; }">
+                        <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data={{ rawurlencode($verificationUrl) }}" alt="QR Code" style="width: 70px; height: 70px; display: block;" onerror="this.style.display='none'; var fallback=this.parentElement.querySelector('[data-qr-fallback]'); if (fallback) { fallback.style.display='block'; }">
                         <p data-qr-fallback style="display: none; font-size: 10px; color: #6b7280; line-height: 1.25; text-align: center; word-break: break-all; margin: 0;">Open verify link</p>
                     </div>
                     <div style="max-width: 220px;">

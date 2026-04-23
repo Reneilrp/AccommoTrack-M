@@ -1,15 +1,113 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { RefreshCw, Plus, Loader2, ArrowLeft, Sparkles, BellRing, Check } from 'lucide-react';
 import { showSuccess, showError } from '../../utils/toast';
-import api from '../../utils/api';
+import { addonService } from '../../services/addonService';
+import landlordService from '../../services/landlordService';
 import AddonTable from './components/Addons/AddonTable';
 import AddonModal from './components/Addons/AddonModal';
 import AddonRequestTable from './components/Addons/AddonRequestTable';
 import ActiveAddonTab from './components/Addons/ActiveAddonTab';
 
+const toPropertyList = (payload) => {
+  if (Array.isArray(payload)) return payload;
+  if (Array.isArray(payload?.items)) return payload.items;
+  if (Array.isArray(payload?.data)) return payload.data;
+  return [];
+};
+
+const toAddonList = (payload) => {
+  if (Array.isArray(payload)) return payload;
+  if (Array.isArray(payload?.addons)) return payload.addons;
+  if (Array.isArray(payload?.data)) return payload.data;
+  return [];
+};
+
+const toPendingList = (payload) => {
+  if (Array.isArray(payload)) return payload;
+  if (Array.isArray(payload?.pendingRequests)) return payload.pendingRequests;
+  if (Array.isArray(payload?.data)) return payload.data;
+  return [];
+};
+
+const toActiveList = (payload) => {
+  if (Array.isArray(payload)) return payload;
+  if (Array.isArray(payload?.activeAddons)) return payload.activeAddons;
+  if (Array.isArray(payload?.data?.activeAddons)) return payload.data.activeAddons;
+  return [];
+};
+
+const toActiveSummary = (payload) => {
+  if (payload?.summary && typeof payload.summary === 'object') return payload.summary;
+  if (payload?.data?.summary && typeof payload.data.summary === 'object') return payload.data.summary;
+  return {};
+};
+
+const toPositivePropertyId = (value) => {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed <= 0) return null;
+  return parsed;
+};
+
+const mapPendingRequest = (request, propertyTitle = '') => {
+  const tenantNameFromUser = [request?.user?.first_name, request?.user?.last_name]
+    .filter(Boolean)
+    .join(' ')
+    .trim();
+
+  const price = Number(request?.price ?? request?.current_price ?? request?.suggested_price ?? 0);
+
+  return {
+    id: request?.requestId ?? request?.request_id ?? request?.id,
+    booking_id: request?.bookingId ?? request?.booking_id,
+    addon_id: request?.addonId ?? request?.addon_id,
+    addon_name: request?.addonName ?? request?.addon_name ?? request?.name ?? 'Add-on',
+    quantity: request?.quantity ?? 1,
+    price: Number.isFinite(price) ? price : 0,
+    suggested_price: Number.isFinite(price) ? price : 0,
+    price_type: request?.priceType ?? request?.price_type ?? 'one_time',
+    addon_type: request?.addonType ?? request?.addon_type ?? 'fee',
+    stock: request?.stock,
+    note: request?.requestNote ?? request?.request_note ?? request?.note ?? '',
+    created_at: request?.requestedAt ?? request?.requested_at ?? request?.createdAt ?? request?.created_at,
+    tenant_name: request?.tenant?.name ?? request?.tenant_name ?? tenantNameFromUser ?? 'Tenant',
+    room_number: request?.roomNumber ?? request?.room_number ?? '-',
+    property_title: request?.property_title ?? request?.propertyTitle ?? propertyTitle,
+  };
+};
+
+const mapActiveAddon = (item) => {
+  const tenantNameFromUser = [item?.user?.first_name, item?.user?.last_name]
+    .filter(Boolean)
+    .join(' ')
+    .trim();
+  const price = Number(item?.price ?? item?.current_price ?? 0);
+
+  return {
+    id: item?.requestId ?? item?.request_id ?? item?.id,
+    booking_id: item?.bookingId ?? item?.booking_id,
+    addon_id: item?.addonId ?? item?.addon_id,
+    addon_name: item?.addonName ?? item?.addon_name ?? item?.name ?? 'Add-on',
+    quantity: item?.quantity ?? 1,
+    price: Number.isFinite(price) ? price : 0,
+    price_type: item?.priceType ?? item?.price_type ?? 'monthly',
+    addon_type: item?.addonType ?? item?.addon_type ?? 'fee',
+    status: item?.status,
+    approved_at: item?.approvedAt ?? item?.approved_at,
+    tenant_name: item?.tenantName ?? item?.tenant_name ?? tenantNameFromUser ?? 'Tenant',
+    room_number: item?.roomNumber ?? item?.room_number ?? '-',
+  };
+};
+
 export default function AddonManagement({ user: _user }) {
   const navigate = useNavigate();
+  const location = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  const [properties, setProperties] = useState([]);
+  const [selectedPropertyId, setSelectedPropertyId] = useState(null);
+  const [loadingProperties, setLoadingProperties] = useState(false);
+
   const [addons, setAddons] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -22,82 +120,230 @@ export default function AddonManagement({ user: _user }) {
   const [actionType, setActionType] = useState(null);
   const [processingId, setProcessingId] = useState(null);
 
+  const selectedProperty = useMemo(
+    () => properties.find((property) => Number(property?.id) === Number(selectedPropertyId)) || null,
+    [properties, selectedPropertyId],
+  );
+
+  const urlPropertyId = useMemo(
+    () => toPositivePropertyId(searchParams.get('property_id')),
+    [searchParams],
+  );
+
+  const statePropertyId = useMemo(
+    () => toPositivePropertyId(location.state?.propertyId),
+    [location.state],
+  );
+
+  const fetchProperties = useCallback(async () => {
+    setLoadingProperties(true);
+    try {
+      const response = await landlordService.getAccessibleProperties();
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to load properties');
+      }
+
+      const propertyRows = toPropertyList(response.data);
+      setProperties(propertyRows);
+
+      const availableIds = new Set(propertyRows.map((property) => Number(property?.id)).filter((id) => Number.isFinite(id) && id > 0));
+
+      setSelectedPropertyId((previous) => {
+        const preferredIds = [
+          toPositivePropertyId(previous),
+          urlPropertyId,
+          statePropertyId,
+        ].filter((id) => id !== null);
+
+        const matched = preferredIds.find((id) => availableIds.has(id));
+        if (matched) return matched;
+
+        const fallback = toPositivePropertyId(propertyRows[0]?.id);
+        return fallback;
+      });
+    } catch (error) {
+      showError(error.message || 'Failed to load properties');
+      setProperties([]);
+      setSelectedPropertyId(null);
+    } finally {
+      setLoadingProperties(false);
+    }
+  }, [statePropertyId, urlPropertyId]);
+
   const fetchData = useCallback(async () => {
+    if (!selectedPropertyId) {
+      setAddons([]);
+      setRequests([]);
+      setActiveAddons({ activeAddons: [], summary: {} });
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     try {
       const [addonsRes, requestsRes, activeRes] = await Promise.all([
-        api.get('/landlord/addons'),
-        api.get('/landlord/addons/pending-requests'),
-        api.get('/landlord/addons/active')
+        addonService.getPropertyAddons(selectedPropertyId),
+        addonService.getPendingRequests(selectedPropertyId),
+        addonService.getActiveAddons(selectedPropertyId),
       ]);
-      if (addonsRes.data) setAddons(addonsRes.data);
-      if (requestsRes.data) setRequests(requestsRes.data);
-      if (activeRes.data) setActiveAddons(activeRes.data);
-    } catch (_err) {
-      showError('Failed to load add-ons');
+
+      const firstError = addonsRes.error || requestsRes.error || activeRes.error;
+      if (!addonsRes.success || !requestsRes.success || !activeRes.success) {
+        throw new Error(firstError || 'Failed to load add-ons');
+      }
+
+      const addonRows = toAddonList(addonsRes.data);
+      const pendingRows = toPendingList(requestsRes.data).map((request) => mapPendingRequest(request, selectedProperty?.title || ''));
+      const activeRows = toActiveList(activeRes.data).map(mapActiveAddon);
+      const activeSummary = toActiveSummary(activeRes.data);
+
+      setAddons(addonRows);
+      setRequests(pendingRows);
+      setActiveAddons({ activeAddons: activeRows, summary: activeSummary });
+    } catch (err) {
+      showError(err.message || 'Failed to load add-ons');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [selectedPropertyId, selectedProperty]);
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+  useEffect(() => {
+    fetchProperties();
+  }, [fetchProperties]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  useEffect(() => {
+    if (!selectedPropertyId) return;
+    const current = searchParams.get('property_id');
+    const selectedAsString = String(selectedPropertyId);
+    if (current === selectedAsString) return;
+
+    const next = new URLSearchParams(searchParams);
+    next.set('property_id', selectedAsString);
+    setSearchParams(next, { replace: true });
+  }, [selectedPropertyId, searchParams, setSearchParams]);
+
+  const openCreateModal = () => {
+    if (!selectedPropertyId) {
+      showError('Select a property first.');
+      return;
+    }
+    setSelectedAddon(null);
+    setShowModal(true);
+  };
 
   const handleDelete = async (id) => {
+    if (!selectedPropertyId) {
+      showError('Select a property first.');
+      return;
+    }
+
     if (!window.confirm('Are you sure you want to delete this add-on?')) return;
+
     try {
-      await api.delete(`/landlord/addons/${id}`);
+      const response = await addonService.deleteAddon(selectedPropertyId, id);
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to delete add-on');
+      }
+
       showSuccess('Add-on deleted successfully');
-      fetchData();
-    } catch (_err) {
-      showError(_err.response?.data?.message || 'Failed to delete add-on');
+      await fetchData();
+    } catch (err) {
+      showError(err.message || 'Failed to delete add-on');
     }
   };
 
   const handleToggleActive = async (addon) => {
+    if (!selectedPropertyId) {
+      showError('Select a property first.');
+      return;
+    }
+
     try {
-      await api.put(`/landlord/addons/${addon.id}`, { is_active: !addon.is_active });
+      const response = await addonService.updateAddon(selectedPropertyId, addon.id, { is_active: !addon.is_active });
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to update add-on');
+      }
+
       showSuccess(addon.is_active ? 'Add-on deactivated' : 'Add-on activated');
-      fetchData();
-    } catch (_err) {
-      showError(_err.response?.data?.message || 'Failed to update add-on');
+      await fetchData();
+    } catch (err) {
+      showError(err.message || 'Failed to update add-on');
     }
   };
 
   const handleSubmit = async (data) => {
+    if (!selectedPropertyId) {
+      showError('Select a property first.');
+      return;
+    }
+
     setProcessing(true);
     try {
+      const payload = {
+        ...data,
+        price: Number(data?.price ?? 0),
+      };
+
+      const response = selectedAddon
+        ? await addonService.updateAddon(selectedPropertyId, selectedAddon.id, payload)
+        : await addonService.createAddon(selectedPropertyId, payload);
+
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to save add-on');
+      }
+
       if (selectedAddon) {
-        await api.put(`/landlord/addons/${selectedAddon.id}`, data);
         showSuccess('Add-on updated successfully');
       } else {
-        await api.post('/landlord/addons', data);
         showSuccess('Add-on created successfully');
       }
-      fetchData();
+
+      await fetchData();
       setShowModal(false);
-    } catch (_err) {
-      showError(_err.response?.data?.message || 'Failed to save add-on');
+    } catch (err) {
+      showError(err.message || 'Failed to save add-on');
     } finally {
       setProcessing(false);
     }
   };
 
   const handleRequestAction = async (id, addonId, action, customPrice = null) => {
-    setProcessing(true);
+    const request = requests.find((item) => Number(item?.id) === Number(id));
+    const bookingId = request?.booking_id;
+    const resolvedAddonId = addonId || request?.addon_id;
+
+    if (!bookingId || !resolvedAddonId) {
+      showError('Add-on request context is incomplete. Please refresh and try again.');
+      return;
+    }
+
     setProcessingId(id);
     setActionType(action);
+
     try {
       const payload = { action };
       if (action === 'approve' && customPrice !== null) {
-        payload.custom_price = customPrice;
+        const approvedPrice = Number(customPrice);
+        if (!Number.isFinite(approvedPrice) || approvedPrice < 0) {
+          throw new Error('Please enter a valid approved price.');
+        }
+        payload.approved_price = approvedPrice;
       }
-      await api.patch(`/landlord/addons/requests/${id}`, payload);
+
+      const response = await addonService.handleAddonRequest(bookingId, resolvedAddonId, payload);
+      if (!response.success) {
+        throw new Error(response.error || 'Action failed');
+      }
+
       showSuccess(`Request ${action}d successfully`);
-      fetchData();
-    } catch (_err) {
-      showError(_err.response?.data?.message || 'Action failed');
+      await fetchData();
+    } catch (err) {
+      showError(err.message || 'Action failed');
     } finally {
-      setProcessing(false);
       setProcessingId(null);
       setActionType(null);
     }
@@ -105,11 +351,20 @@ export default function AddonManagement({ user: _user }) {
 
   const handleUpdateActivePrice = async (bookingId, addonId, newPrice) => {
     try {
-      await api.put(`/landlord/addons/active/${bookingId}/${addonId}`, { price: newPrice });
-      fetchData();
-    } catch (_err) {
-      showError('Failed to update price');
-      throw _err;
+      const nextPrice = Number(newPrice);
+      if (!Number.isFinite(nextPrice) || nextPrice < 0) {
+        throw new Error('Please enter a valid price');
+      }
+
+      const response = await addonService.updateActiveAddonPrice(bookingId, addonId, nextPrice);
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to update price');
+      }
+
+      await fetchData();
+    } catch (err) {
+      showError(err.message || 'Failed to update price');
+      throw err;
     }
   };
 
@@ -142,12 +397,35 @@ export default function AddonManagement({ user: _user }) {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-8 space-y-6">
         <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700">
-          <div className="flex justify-between items-center mb-6">
-            <p className="text-sm text-gray-500 dark:text-gray-400">
-              Manage extra usage fees and rentals for tenants
-            </p>
+          <div className="flex flex-col gap-4 mb-6 lg:flex-row lg:items-end lg:justify-between">
+            <div className="space-y-3">
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                Manage extra usage fees and rentals for tenants
+              </p>
+              <div>
+                <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Property Context</label>
+                <div className="flex items-center gap-2">
+                  <select
+                    value={selectedPropertyId || ''}
+                    onChange={(event) => setSelectedPropertyId(toPositivePropertyId(event.target.value))}
+                    disabled={loadingProperties || properties.length === 0}
+                    className="min-w-[260px] max-w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-sm font-semibold text-gray-800 dark:text-gray-100"
+                  >
+                    {properties.length === 0 && <option value="">No accessible properties</option>}
+                    {properties.map((property) => (
+                      <option key={property.id} value={property.id}>
+                        {property.title || `Property #${property.id}`}
+                      </option>
+                    ))}
+                  </select>
+                  {loadingProperties && <Loader2 className="w-4 h-4 animate-spin text-gray-500" />}
+                </div>
+              </div>
+            </div>
+
             <button
-              onClick={() => { setSelectedAddon(null); setShowModal(true); }}
+              onClick={openCreateModal}
+              disabled={!selectedPropertyId}
               className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-all font-bold shadow-lg shadow-green-500/20"
             >
               <Plus className="w-5 h-5" />
@@ -185,7 +463,7 @@ export default function AddonManagement({ user: _user }) {
             <div className="flex items-center gap-2 ml-auto">
               <button
                 onClick={fetchData}
-                disabled={loading}
+                disabled={loading || !selectedPropertyId}
                 title="Refresh"
                 className="p-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center disabled:opacity-50 shadow-md shadow-blue-500/20"
               >
@@ -202,27 +480,38 @@ export default function AddonManagement({ user: _user }) {
             </div>
           )}
 
-          {activeTab === 'manage' && (
-            <AddonTable 
-              addons={addons} 
-              onEdit={(a) => { setSelectedAddon(a); setShowModal(true); }} 
-              onDelete={handleDelete}
-              onToggleStatus={handleToggleActive} 
-            />
-          )}
-          {activeTab === 'requests' && (
-            <AddonRequestTable 
-              requests={requests}
-              onAction={handleRequestAction}
-              processingId={processingId}
-              actionType={actionType}
-            />
-          )}
-          {activeTab === 'active' && (
-            <ActiveAddonTab 
-              data={activeAddons}
-              onUpdatePrice={handleUpdateActivePrice}
-            />
+          {!selectedPropertyId && !loadingProperties ? (
+            <div className="h-full min-h-[260px] flex items-center justify-center text-center text-gray-500 dark:text-gray-400">
+              <div>
+                <p className="font-semibold">Select a property to manage add-ons.</p>
+                <p className="text-sm mt-2">Add-on routes are property-scoped and require a property context.</p>
+              </div>
+            </div>
+          ) : (
+            <>
+              {activeTab === 'manage' && (
+                <AddonTable
+                  addons={addons}
+                  onEdit={(a) => { setSelectedAddon(a); setShowModal(true); }}
+                  onDelete={handleDelete}
+                  onToggleStatus={handleToggleActive}
+                />
+              )}
+              {activeTab === 'requests' && (
+                <AddonRequestTable
+                  requests={requests}
+                  onAction={handleRequestAction}
+                  processingId={processingId}
+                  actionType={actionType}
+                />
+              )}
+              {activeTab === 'active' && (
+                <ActiveAddonTab
+                  data={activeAddons}
+                  onUpdatePrice={handleUpdateActivePrice}
+                />
+              )}
+            </>
           )}
         </div>
 

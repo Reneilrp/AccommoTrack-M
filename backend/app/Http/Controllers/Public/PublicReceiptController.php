@@ -28,10 +28,8 @@ class PublicReceiptController extends Controller
         }
 
         // Check HMAC if signature is present (Optional enforcement for Blade, but recommended)
-        $signature = $request->query('sig');
-        $expectedSignature = hash_hmac('sha256', (string) $reference, config('app.key'));
-        
-        $isAuthentic = $signature && hash_equals($expectedSignature, strtolower($signature));
+        $signature = strtolower(trim((string) $request->query('sig', '')));
+        $isAuthentic = $signature !== '' && $this->isValidReceiptSignature((string) $reference, $signature, $invoice);
 
         // Mask tenant name for privacy (e.g., John Doe -> J*** D***)
         $firstName = $invoice->tenant->first_name ?? '';
@@ -53,19 +51,18 @@ class PublicReceiptController extends Controller
      */
     public function verifyApi(Request $request, $reference)
     {
-        $signature = $request->query('sig');
-        if (!$signature) {
+        $signature = strtolower(trim((string) $request->query('sig', '')));
+        if ($signature === '') {
             return response()->json(['success' => false, 'message' => 'Missing cryptographic signature.'], 403);
-        }
-
-        $expectedSignature = hash_hmac('sha256', (string) $reference, config('app.key'));
-        if (!hash_equals($expectedSignature, strtolower($signature))) {
-            return response()->json(['success' => false, 'message' => 'Forged or tampered document detected.'], 403);
         }
 
         $invoice = Invoice::with(['tenant', 'property'])
             ->where('receipt_reference', $reference)
             ->first();
+
+        if (!$this->isValidReceiptSignature((string) $reference, $signature, $invoice)) {
+            return response()->json(['success' => false, 'message' => 'Forged or tampered document detected.'], 403);
+        }
 
         if (!$invoice) {
             return response()->json(['success' => false, 'message' => 'Receipt reference not found.'], 404);
@@ -134,5 +131,49 @@ class PublicReceiptController extends Controller
         if ($len <= 1) return $name;
         if ($len <= 3) return substr($name, 0, 1) . '*';
         return substr($name, 0, 1) . str_repeat('*', min(4, $len - 2)) . substr($name, -1, 1);
+    }
+
+    /**
+     * Validate current and legacy receipt signatures.
+     */
+    private function isValidReceiptSignature(string $reference, string $signature, ?Invoice $invoice = null): bool
+    {
+        $appKey = (string) config('app.key');
+        if ($appKey === '' || $signature === '') {
+            return false;
+        }
+
+        foreach ($this->getSignaturePayloadCandidates($reference, $invoice) as $payload) {
+            $expectedSignature = hash_hmac('sha256', $payload, $appKey);
+            if (hash_equals($expectedSignature, $signature)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Keep compatibility with old amount-included signature payloads.
+     */
+    private function getSignaturePayloadCandidates(string $reference, ?Invoice $invoice = null): array
+    {
+        $payloads = [(string) $reference];
+
+        if (!$invoice) {
+            return $payloads;
+        }
+
+        $amountCents = (int) ($invoice->total_cents ?? $invoice->amount_cents ?? 0);
+        $amount = $amountCents / 100;
+        $amountFixedTwoDecimals = number_format($amount, 2, '.', '');
+        $doubleDividedAmount = number_format($amount / 100, 2, '.', '');
+
+        $payloads[] = "{$reference}|{$amountCents}";
+        $payloads[] = "{$reference}|{$amount}";
+        $payloads[] = "{$reference}|{$amountFixedTwoDecimals}";
+        $payloads[] = "{$reference}|{$doubleDividedAmount}";
+
+        return array_values(array_unique($payloads));
     }
 }

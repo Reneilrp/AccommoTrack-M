@@ -281,7 +281,7 @@ class GenerateMonthlyInvoices extends Command
                         ->exists();
 
                     if (! $addonExists) {
-                        $priceCents = $addon->pivot->price_at_booking * $addon->pivot->quantity;
+                        $priceCents = (int) round(((float) $addon->pivot->price_at_booking) * ((int) $addon->pivot->quantity) * 100);
 
                         $addonInvoice = Invoice::create([
                             'reference' => 'INV-ADD-'.date('Ymd').'-'.strtoupper(Str::random(6)),
@@ -368,7 +368,7 @@ class GenerateMonthlyInvoices extends Command
             $addonsTotalCents = 0;
             $addonMetadata = [];
             foreach ($activeMonthlyAddons as $addon) {
-                $priceCents = $addon->pivot->price_at_booking * $addon->pivot->quantity;
+                $priceCents = (int) round(((float) $addon->pivot->price_at_booking) * ((int) $addon->pivot->quantity) * 100);
                 $addonsTotalCents += $priceCents;
                 $addonMetadata[] = [
                     'addon_id' => $addon->id,
@@ -402,7 +402,7 @@ class GenerateMonthlyInvoices extends Command
 
             // Add-ons Decoupling: Generate discrete standalone invoices for active add-ons instead of merging into Rent.
             foreach ($activeMonthlyAddons as $addon) {
-                $priceCents = $addon->pivot->price_at_booking * $addon->pivot->quantity;
+                $priceCents = (int) round(((float) $addon->pivot->price_at_booking) * ((int) $addon->pivot->quantity) * 100);
 
                 $addonInvoice = Invoice::create([
                     'reference' => 'INV-ADD-'.date('Ymd').'-'.strtoupper(Str::random(6)),

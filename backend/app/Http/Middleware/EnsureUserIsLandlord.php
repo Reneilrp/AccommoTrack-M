@@ -18,7 +18,7 @@ class EnsureUserIsLandlord
         }
 
         if (! in_array($user->role, ['landlord', 'caretaker'])) {
-            abort(403, 'Landlord or caretaker access only.');
+            abort(403, 'Landlord or caretaker access only.'); 
         }
 
         // Additional check for unverified landlords

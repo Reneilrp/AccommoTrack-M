@@ -10,7 +10,7 @@ const VerifyReceipt = () => {
 
   const [loading, setLoading] = useState(true);
   const [verifiedData, setVerifiedData] = useState(null);
-  const [_error, setError] = useState(null);
+  const [error, setError] = useState(null);
 
   // Dispute form state
   const [showDisputeForm, setShowDisputeForm] = useState(false);
@@ -78,6 +78,8 @@ const VerifyReceipt = () => {
       </div>
     );
   }
+
+  const isForgeryError = /forged|tampered|signature|unauthorized/i.test(error || '');
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col items-center p-6 py-12">
@@ -160,13 +162,13 @@ const VerifyReceipt = () => {
                 </div>
               </div>
             </div>
-            
+
             <div className="px-8 pb-8">
-               <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100">
-                  <p className="text-[10px] text-slate-400 font-bold text-center italic">
-                    Certified Record: {new Date(verifiedData.certified_at).toLocaleString()}
-                  </p>
-               </div>
+              <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100">
+                <p className="text-[10px] text-slate-400 font-bold text-center italic">
+                  Certified Record: {new Date(verifiedData.certified_at).toLocaleString()}
+                </p>
+              </div>
             </div>
           </div>
         ) : (
@@ -176,18 +178,26 @@ const VerifyReceipt = () => {
               <div className="w-20 h-20 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-xl mb-6 border border-white/30">
                 <ShieldAlert className="text-white w-12 h-12" />
               </div>
-              <h2 className="text-white text-2xl font-black tracking-tight uppercase">Security Alert</h2>
-              <p className="text-red-50 text-sm font-medium mt-1">Unrecognized or Tampered Document</p>
+              <h2 className="text-white text-2xl font-black tracking-tight uppercase">{isForgeryError ? 'Security Alert' : 'Verification Failed'}</h2>
+              <p className="text-red-50 text-sm font-medium mt-1">{isForgeryError ? 'Unrecognized or Tampered Document' : 'Unable to complete authenticity check'}</p>
             </div>
             <div className="p-10 text-center space-y-6">
               <p className="text-slate-600 font-medium leading-relaxed">
-                The cryptographic signature for reference <strong className="text-slate-900 font-bold">"{reference}"</strong> is invalid. This document is not recognized by our registry and may be an unauthorized forgery.
+                {error || `The document for reference "${reference}" could not be verified right now.`}
               </p>
-              <div className="bg-red-50 p-4 rounded-2xl border border-red-100">
-                 <p className="text-xs text-red-600 font-bold">
+              {isForgeryError ? (
+                <div className="bg-red-50 p-4 rounded-2xl border border-red-100">
+                  <p className="text-xs text-red-600 font-bold">
                     System warning: Physical documents matching this reference should be treated as fraudulent until reported.
-                 </p>
-              </div>
+                  </p>
+                </div>
+              ) : (
+                <div className="bg-amber-50 p-4 rounded-2xl border border-amber-100">
+                  <p className="text-xs text-amber-700 font-bold">
+                    If this came from a paid invoice, verify that the QR was generated in the same environment as this verifier.
+                  </p>
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -206,7 +216,7 @@ const VerifyReceipt = () => {
                     <p className="text-slate-500 text-xs font-medium">Spotted a discrepancy?</p>
                   </div>
                 </div>
-                <button 
+                <button
                   onClick={() => setShowDisputeForm(true)}
                   className="px-5 py-2.5 bg-slate-900 hover:bg-black text-white rounded-xl text-xs font-black transition-all shadow-lg active:scale-95 uppercase tracking-wider"
                 >
@@ -216,29 +226,29 @@ const VerifyReceipt = () => {
             ) : (
               <form onSubmit={handleDisputeSubmit} className="space-y-5 animate-in slide-in-from-top-4 duration-500">
                 <div className="flex items-center gap-3 mb-2">
-                   <button type="button" onClick={() => setShowDisputeForm(false)} className="text-indigo-600 font-black text-xs uppercase">Cancel</button>
-                   <div className="h-px flex-1 bg-slate-100"></div>
+                  <button type="button" onClick={() => setShowDisputeForm(false)} className="text-indigo-600 font-black text-xs uppercase">Cancel</button>
+                  <div className="h-px flex-1 bg-slate-100"></div>
                 </div>
-                
+
                 <div className="grid grid-cols-1 gap-4">
                   <div className="space-y-1.5">
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Your Name</label>
-                    <input 
-                      type="text" 
-                      required 
+                    <input
+                      type="text"
+                      required
                       value={disputeForm.reporter_name}
-                      onChange={e => setDisputeForm({...disputeForm, reporter_name: e.target.value})}
-                      placeholder="Enter full name" 
+                      onChange={e => setDisputeForm({ ...disputeForm, reporter_name: e.target.value })}
+                      placeholder="Enter full name"
                       className="w-full px-4 py-3.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all"
                     />
                   </div>
                   <div className="space-y-1.5">
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Email Address</label>
-                    <input 
-                      type="email" 
-                      required 
+                    <input
+                      type="email"
+                      required
                       value={disputeForm.reporter_email}
-                      onChange={e => setDisputeForm({...disputeForm, reporter_email: e.target.value})}
+                      onChange={e => setDisputeForm({ ...disputeForm, reporter_email: e.target.value })}
                       placeholder="your@email.com"
                       className="w-full px-4 py-3.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all"
                     />
@@ -247,18 +257,18 @@ const VerifyReceipt = () => {
 
                 <div className="space-y-1.5">
                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Describe the Concern</label>
-                  <textarea 
-                    required 
-                    rows="3" 
+                  <textarea
+                    required
+                    rows="3"
                     value={disputeForm.message}
-                    onChange={e => setDisputeForm({...disputeForm, message: e.target.value})}
+                    onChange={e => setDisputeForm({ ...disputeForm, message: e.target.value })}
                     placeholder="Describe what is wrong with the document..."
                     className="w-full px-4 py-3.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all resize-none"
                   ></textarea>
                 </div>
 
-                <button 
-                  type="submit" 
+                <button
+                  type="submit"
                   disabled={submittingDispute}
                   className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-4 rounded-2xl font-black text-xs uppercase tracking-[0.2em] transition-all shadow-xl shadow-indigo-100 active:scale-95 disabled:opacity-50"
                 >
@@ -269,10 +279,10 @@ const VerifyReceipt = () => {
           </div>
         ) : (
           <div className="bg-emerald-50 border border-emerald-200 text-emerald-700 p-6 rounded-[2rem] flex flex-col items-center gap-3 animate-in zoom-in duration-500">
-             <CheckCircle2 className="w-8 h-8" />
-             <p className="font-black text-sm uppercase tracking-widest text-center leading-relaxed">
-               Dispute received.<br/>Reference ID: {reference} is flagged for investigation.
-             </p>
+            <CheckCircle2 className="w-8 h-8" />
+            <p className="font-black text-sm uppercase tracking-widest text-center leading-relaxed">
+              Dispute received.<br />Reference ID: {reference} is flagged for investigation.
+            </p>
           </div>
         )}
 

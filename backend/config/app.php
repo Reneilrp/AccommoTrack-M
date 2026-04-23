@@ -123,8 +123,8 @@ return [
         'store' => env('APP_MAINTENANCE_STORE', 'database'),
     ],
 
-    'frontend_url' => env('FRONTEND_URL', 'https://accommotrack.me'),
-    'backend_url' => env('BACKEND_URL', 'https://accommotrack.me'),
+    'frontend_url' => env('FRONTEND_URL', env('APP_URL', 'https://accommotrack.me')),
+    'backend_url' => env('BACKEND_URL', env('APP_URL', 'https://accommotrack.me')),
 
     // Temporary operational kill switches for tenant payment channels.
     'tenant_payments_disabled' => (bool) env('TENANT_PAYMENTS_DISABLED', true),
