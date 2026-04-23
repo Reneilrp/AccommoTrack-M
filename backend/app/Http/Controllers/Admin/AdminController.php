@@ -164,9 +164,24 @@ class AdminController extends Controller
     public function getUsers(Request $request)
     {
         $perPage = $request->query('per_page', 50);
+        $role = $request->query('role');
+        $search = $request->query('search');
         
-        $users = User::where('role', '!=', 'admin')
-            ->with([
+        $query = User::where('role', '!=', 'admin');
+
+        if ($role) {
+            $query->where('role', $role);
+        }
+
+        if ($search) {
+            $query->where(function($q) use ($search) {
+                $q->where('first_name', 'like', "%{$search}%")
+                  ->orWhere('last_name', 'like', "%{$search}%")
+                  ->orWhere('email', 'like', "%{$search}%");
+            });
+        }
+        
+        $users = $query->with([
                 // For landlords: their properties and verification
                 'properties:id,landlord_id,title',
                 'landlordVerification:id,user_id,status',
@@ -188,79 +203,84 @@ class AdminController extends Controller
             ->paginate($perPage);
 
         $users->getCollection()->transform(function (User $user) {
-                $userData = $user->toArray();
+            $userData = $user->toArray();
 
-                // Add property info for landlords
-                if ($user->role === 'landlord') {
-                    $userData['properties_count'] = $user->properties->count();
-                    $userData['properties_list'] = $user->properties->map(function ($p) {
-                        return [
-                            'id' => $p->id,
-                            'name' => $p->title,
-                        ];
-                    })->toArray();
-                    // Add verification status for landlords
-                    $userData['verification_status'] = $user->landlordVerification?->status ?? 'not_submitted';
+            // Add property info for landlords
+            if ($user->role === 'landlord') {
+                $userData['properties_count'] = $user->properties->count();
+                $userData['properties_list'] = $user->properties->map(function ($p) {
+                    return [
+                        'id' => $p->id,
+                        'name' => $p->title,
+                    ];
+                })->toArray();
+                // Add verification status for landlords
+                $userData['verification_status'] = $user->landlordVerification?->status ?? 'not_submitted';
+            }
+
+            // Add property/room info for tenants
+            if ($user->role === 'tenant') {
+                $currentProperty = null;
+
+                // First check bookings (confirmed/active)
+                $activeBooking = $user->bookings->first();
+                if ($activeBooking && $activeBooking->property) {
+                    $currentProperty = [
+                        'id' => $activeBooking->property->id,
+                        'name' => $activeBooking->property->title,
+                        'room_number' => $activeBooking->room->room_number ?? null,
+                    ];
                 }
 
-                // Add property/room info for tenants
-                if ($user->role === 'tenant') {
-                    $currentProperty = null;
-
-                    // First check bookings (confirmed/active)
-                    $activeBooking = $user->bookings->first();
-                    if ($activeBooking && $activeBooking->property) {
+                // Fallback to room assignments if no booking
+                if (! $currentProperty && $user->roomAssignments->count() > 0) {
+                    $assignment = $user->roomAssignments->first();
+                    if ($assignment && $assignment->property) {
                         $currentProperty = [
-                            'id' => $activeBooking->property->id,
-                            'name' => $activeBooking->property->title,
-                            'room_number' => $activeBooking->room->room_number ?? null,
+                            'id' => $assignment->property->id,
+                            'name' => $assignment->property->title,
+                            'room_number' => $assignment->room_number ?? null,
                         ];
                     }
+                }
 
-                    // Fallback to room assignments if no booking
-                    if (! $currentProperty && $user->roomAssignments->count() > 0) {
-                        $assignment = $user->roomAssignments->first();
-                        if ($assignment && $assignment->property) {
-                            $currentProperty = [
-                                'id' => $assignment->property->id,
-                                'name' => $assignment->property->title,
-                                'room_number' => $assignment->room_number ?? null,
+                $userData['current_property'] = $currentProperty;
+            }
+
+            // Add landlord info for caretakers
+            if ($user->role === 'caretaker') {
+                if ($user->caretakerAssignment && $user->caretakerAssignment->landlord) {
+                    $landlord = $user->caretakerAssignment->landlord;
+                    $userData['assigned_landlord'] = [
+                        'id' => $landlord->id,
+                        'name' => trim($landlord->first_name.' '.$landlord->last_name),
+                        'email' => $landlord->email,
+                        'properties' => $landlord->properties->map(function ($p) {
+                            return [
+                                'id' => $p->id,
+                                'name' => $p->title,
                             ];
-                        }
-                    }
-
-                    $userData['current_property'] = $currentProperty;
+                        })->toArray(),
+                    ];
+                } else {
+                    $userData['assigned_landlord'] = null;
                 }
+            }
 
-                // Add landlord info for caretakers
-                if ($user->role === 'caretaker') {
-                    if ($user->caretakerAssignment && $user->caretakerAssignment->landlord) {
-                        $landlord = $user->caretakerAssignment->landlord;
-                        $userData['assigned_landlord'] = [
-                            'id' => $landlord->id,
-                            'name' => trim($landlord->first_name.' '.$landlord->last_name),
-                            'email' => $landlord->email,
-                            'properties' => $landlord->properties->map(function ($p) {
-                                return [
-                                    'id' => $p->id,
-                                    'name' => $p->title,
-                                ];
-                            })->toArray(),
-                        ];
-                    } else {
-                        $userData['assigned_landlord'] = null;
-                    }
-                }
-
-                return $userData;
-            });
+            return $userData;
+        });
 
         $admin = $request->user();
 
         return response()->json([
-            'data' => $users,
-            'permissions' => AdminPermission::permissions($admin),
-            'admin_tier' => AdminPermission::resolveTier($admin),
+            'success' => true,
+            'data' => array_merge(
+                $users->toArray(),
+                [
+                    'permissions' => AdminPermission::permissions($admin),
+                    'admin_tier' => AdminPermission::resolveTier($admin),
+                ]
+            )
         ]);
     }
 

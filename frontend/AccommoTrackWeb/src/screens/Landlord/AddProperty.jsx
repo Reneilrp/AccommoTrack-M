@@ -566,7 +566,9 @@ export default function AddProperty({ onBack, onSave }) {
       setShowSuccessModal({ visible: true, isDraft, result });
     } catch (err) {
       const errData = err.response?.data;
-      console.error('Property submission error:', errData);
+      console.error('Full submission error object:', err);
+      console.error('Validation errors from backend:', errData?.errors);
+      
       if (errData?.errors) {
         // Map backend field names to frontend field names for consistent error display
         const mappedErrors = {};
@@ -575,10 +577,15 @@ export default function AddProperty({ onBack, onSave }) {
           else if (key === 'province') mappedErrors.provinceRegion = msgs;
           else if (key === 'street_address') mappedErrors.streetAddress = msgs;
           else if (key === 'property_type') mappedErrors.propertyType = msgs;
+          else if (key === 'city') mappedErrors.city = msgs;
           else mappedErrors[key] = msgs;
         });
         setFieldErrors(mappedErrors);
-        setError('Submission failed. Please review the errors below and try again.');
+        
+        // Construct a more detailed error message for the main alert
+        const errorList = Object.values(errData.errors).flat();
+        const topError = errorList[0] || 'Validation failed';
+        setError(`Submission failed: ${topError}`);
         showError('Please fix the validation errors.');
       } else {
         const errorMessage = errData?.message || err.message || 'Something went wrong';
