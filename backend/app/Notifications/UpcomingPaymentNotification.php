@@ -28,7 +28,7 @@ class UpcomingPaymentNotification extends Notification implements ShouldQueue
 
     protected function getReminderContent(): array
     {
-        $amount = $this->invoice->currency.' '.number_format($this->invoice->amount_cents, 2);
+        $amount = $this->invoice->currency.' '.number_format($this->invoice->amount_cents / 100, 2);
         $dueDateText = $this->invoice->due_date?->format('M d, Y') ?? 'N/A';
 
         switch ($this->reminderType) {
@@ -75,7 +75,7 @@ class UpcomingPaymentNotification extends Notification implements ShouldQueue
             ->subject($content['subject'])
             ->line($content['message'])
             ->line('Due Date: '.$this->invoice->due_date->format('F d, Y'))
-            ->line('Amount: '.$this->invoice->currency.' '.number_format($this->invoice->amount_cents, 2))
+            ->line('Amount: '.$this->invoice->currency.' '.number_format($this->invoice->amount_cents / 100, 2))
             ->action('View Invoice', url('/tenant/payments/'.$this->invoice->id))
             ->line('Thank you for using AccommoTrack!');
     }

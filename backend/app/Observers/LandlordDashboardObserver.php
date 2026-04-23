@@ -87,7 +87,7 @@ class LandlordDashboardObserver
 
         if ($model instanceof PaymentTransaction) {
             $status = strtolower((string) $model->status);
-            $amount = number_format(abs($model->amount_cents), 2);
+            $amount = number_format(abs($model->amount_cents) / 100, 2);
             return [
                 'id' => $model->id, 'type' => 'payment',
                 'action' => 'Payment received',

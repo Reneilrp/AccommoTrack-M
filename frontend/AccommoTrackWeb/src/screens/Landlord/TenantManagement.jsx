@@ -1449,7 +1449,16 @@ const TenantListView = ({
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-50 dark:divide-gray-700/60">
-            {tenants.map((tenant) => {
+            {tenants.length === 0 ? (
+              <tr>
+                <td colSpan="6" className="px-4 py-12 text-center text-gray-500 dark:text-gray-400">
+                  <div className="flex flex-col items-center gap-2">
+                    <Users className="w-10 h-10 opacity-20" />
+                    <p className="text-sm font-medium">No tenants found</p>
+                  </div>
+                </td>
+              </tr>
+            ) : tenants.map((tenant) => {
               if (!tenant) return null;
               const profile = tenant.tenantProfile;
               const late = isLate(tenant);

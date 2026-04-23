@@ -69,7 +69,7 @@ class TenantDashboardObserver
             return [
                 'type' => 'payment',
                 'action' => 'Payment Successful',
-                'description' => "Paid ₱" . number_format($model->amount_cents, 2) . " via " . $model->method,
+                'description' => "Paid ₱" . number_format($model->amount_cents / 100, 2) . " via " . $model->method,
                 'status' => 'paid',
                 'timestamp' => $timestamp,
             ];

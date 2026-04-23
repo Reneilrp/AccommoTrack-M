@@ -235,7 +235,7 @@ class PaymongoController extends Controller
             $requestedAmountCents = $validated['amount'];
             if ($requestedAmountCents > $remainingBalanceCents) {
                 return response()->json([
-                    'message' => 'Payment amount cannot exceed the remaining balance of ₱'.number_format($remainingBalanceCents, 2),
+                    'message' => 'Payment amount cannot exceed the remaining balance of ₱'.number_format($remainingBalanceCents / 100, 2),
                 ], 422);
             }
 
@@ -245,7 +245,7 @@ class PaymongoController extends Controller
             $allowPartial = $property ? (bool) $property->allow_partial_payments : true;
             if (! $allowPartial && $requestedAmountCents < $remainingBalanceCents) {
                 return response()->json([
-                    'message' => 'Partial payments are not allowed for this property. Please pay the full remaining balance of ₱'.number_format($remainingBalanceCents, 2),
+                    'message' => 'Partial payments are not allowed for this property. Please pay the full remaining balance of ₱'.number_format($remainingBalanceCents / 100, 2),
                 ], 422);
             }
 
@@ -254,7 +254,7 @@ class PaymongoController extends Controller
                 $minAmount = $remainingBalanceCents * ($minPercent / 100);
                 if ($requestedAmountCents < $remainingBalanceCents && $requestedAmountCents < $minAmount) {
                     return response()->json([
-                        'message' => 'The minimum partial payment for this property is '.$minPercent.'% (₱'.number_format($minAmount, 2).').',
+                        'message' => 'The minimum partial payment for this property is '.$minPercent.'% (₱'.number_format($minAmount / 100, 2).').',
                     ], 422);
                 }
             }

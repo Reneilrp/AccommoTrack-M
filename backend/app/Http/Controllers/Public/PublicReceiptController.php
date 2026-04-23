@@ -29,7 +29,7 @@ class PublicReceiptController extends Controller
 
         // Check HMAC if signature is present (Optional enforcement for Blade, but recommended)
         $signature = $request->query('sig');
-        $expectedSignature = hash_hmac('sha256', $reference, config('app.key'));
+        $expectedSignature = hash_hmac('sha256', (string) $reference, config('app.key'));
         
         $isAuthentic = $signature && hash_equals($expectedSignature, $signature);
 
@@ -58,7 +58,7 @@ class PublicReceiptController extends Controller
             return response()->json(['success' => false, 'message' => 'Missing cryptographic signature.'], 403);
         }
 
-        $expectedSignature = hash_hmac('sha256', $reference, config('app.key'));
+        $expectedSignature = hash_hmac('sha256', (string) $reference, config('app.key'));
         if (!hash_equals($expectedSignature, $signature)) {
             return response()->json(['success' => false, 'message' => 'Forged or tampered document detected.'], 403);
         }

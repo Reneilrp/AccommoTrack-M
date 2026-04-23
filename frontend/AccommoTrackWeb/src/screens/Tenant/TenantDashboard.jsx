@@ -117,6 +117,10 @@ const TenantDashboard = ({ user }) => {
   }, [user?.id, refetch]);
 
   // ── Helpers ──
+  const formatPeso = useCallback((amount) => {
+    return formatPrice(amount, { isCents: false });
+  }, []);
+
   const formatCents = useCallback((amount) => {
     return formatPrice(amount, { isCents: true });
   }, []);
@@ -465,7 +469,7 @@ const TenantDashboard = ({ user }) => {
       key: 'days', icon: Calendar, value: totalDaysStayed.toString(), label: 'Days Stayed', color: 'blue',
     },
     {
-      key: 'rent', icon: Zap, value: formatCents(totalMonthlySummary), label: 'Monthly Base', color: 'purple',
+      key: 'rent', icon: Zap, value: formatPeso(totalMonthlySummary), label: 'Monthly Base', color: 'purple',
     },
     {
       key: 'status',
@@ -752,16 +756,16 @@ const TenantDashboard = ({ user }) => {
                       <td className="py-4 text-[14px] font-bold text-center text-gray-900 dark:text-slate-100 whitespace-nowrap">
                         {row.billingPolicy === 'daily' ? (
                           <span>
-                            {formatCents(row.baseRent)} <span className="text-gray-500 dark:text-slate-400 font-semibold">/day</span>
+                            {formatPeso(row.baseRent)} <span className="text-gray-500 dark:text-slate-400 font-semibold">/day</span>
                           </span>
                         ) : (
                           <span>
-                            {formatCents(row.baseRent)} <span className="text-gray-500 dark:text-slate-400 font-semibold">/month</span>
+                            {formatPeso(row.baseRent)} <span className="text-gray-500 dark:text-slate-400 font-semibold">/month</span>
                           </span>
                         )}
                       </td>
                       <td className="py-4 text-[14px] font-bold text-center text-gray-900 dark:text-slate-100">
-                        {formatCents(row.addOns)}
+                        {formatPeso(row.addOns)}
                       </td>
                       <td className="py-4 text-center">
                         <span className={`inline-block px-3 py-1 rounded-full text-[11px] font-semibold border ${row.requiresAdvance
@@ -771,7 +775,7 @@ const TenantDashboard = ({ user }) => {
                           {row.requiresAdvance ? 'Yes' : 'No'}
                         </span>
                       </td>
-                      <td className="py-4 text-[14px] font-bold text-center text-purple-600 dark:text-purple-400">{formatCents(row.grandTotal)}</td>
+                      <td className="py-4 text-[14px] font-bold text-center text-purple-600 dark:text-purple-400">{formatPeso(row.grandTotal)}</td>
                     </tr>
                   ))
                 ) : (
@@ -785,15 +789,15 @@ const TenantDashboard = ({ user }) => {
           <div className="px-6 py-4 bg-gray-50 dark:bg-[#252b3b]/40 border-t border-gray-100 dark:border-[#2a3045] flex items-center justify-end gap-8">
             <div className="text-right">
               <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-slate-500">Total Base Rent</p>
-              <p className="text-[18px] font-bold text-gray-900 dark:text-slate-100">{formatCents(totalBaseRent)}</p>
+              <p className="text-[18px] font-bold text-gray-900 dark:text-slate-100">{formatPeso(totalBaseRent)}</p>
             </div>
             <div className="text-right">
               <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-slate-500">Total Add-Ons</p>
-              <p className="text-[18px] font-bold text-blue-600 dark:text-blue-400">{formatCents(totalAddOns)}</p>
+              <p className="text-[18px] font-bold text-blue-600 dark:text-blue-400">{formatPeso(totalAddOns)}</p>
             </div>
             <div className="text-right">
               <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-slate-500">Grand Total</p>
-              <p className="text-[18px] font-bold text-purple-600 dark:text-purple-400">{formatCents(totalGrandRent)}</p>
+              <p className="text-[18px] font-bold text-purple-600 dark:text-purple-400">{formatPeso(totalGrandRent)}</p>
             </div>
           </div>
         </div>
@@ -1007,9 +1011,8 @@ const TenantDashboard = ({ user }) => {
               <div className="space-y-4 mb-6">
                 <div className="flex justify-between items-center">
                   <span className="text-[15px] text-gray-500 dark:text-slate-400">Total Charges</span>
-                  <span className="text-[15px] font-semibold text-gray-900 dark:text-slate-100">{formatCents(totalMonthlySummary)}</span>
+                  <span className="text-[15px] font-semibold text-gray-900 dark:text-slate-100">{formatPeso(totalMonthlySummary)}</span>
                 </div>
-
                 <div className="flex justify-between items-center">
                   <span className="text-[15px] text-gray-500 dark:text-slate-400">Total Paid</span>
                   <span className="text-[15px] font-semibold text-green-600 dark:text-green-400">−{formatCents(totalPaid)}</span>

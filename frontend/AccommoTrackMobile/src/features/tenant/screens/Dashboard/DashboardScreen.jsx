@@ -32,6 +32,7 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
 }
 
 const formatCurrency = (amount) => formatPrice(amount, { isCents: true });
+const formatPeso = (amount) => formatPrice(amount, { isCents: false });
 
 const formatDate = (value) => {
   if (!value) {
@@ -398,7 +399,7 @@ const DashboardScreen = () => {
       const booking = stay?.booking || {};
       const base = getNumeric(booking.monthlyRent, booking.monthly_rent);
       const addons = getNumeric(stay?.addons?.monthlyTotal, stay?.addons?.monthly_total);
-      return formatCurrency(base + addons);
+      return formatPeso(base + addons);
     });
 
     const baseRentColumn = estimateColumnWidth(
@@ -416,7 +417,7 @@ const DashboardScreen = () => {
       { min: 96, max: 150 },
     );
 
-    const monthlyDueValues = activeRooms.map((room) => formatCurrency(room.monthlyTotal));
+    const monthlyDueValues = activeRooms.map((room) => formatPeso(room.monthlyTotal));
     const monthlyDueColumn = estimateColumnWidth(
       ['Monthly Due', ...monthlyDueValues],
       { min: 96, max: 150 },
@@ -841,7 +842,7 @@ const DashboardScreen = () => {
             <View key={`room-card-${room.id}`} style={styles.roomCard}>
               <View style={styles.progressHeader}>
                 <Text style={styles.roomTitle}>{room.propertyTitle}</Text>
-                <Text style={styles.roomPrice}>{formatCurrency(room.monthlyTotal)}</Text>
+                <Text style={styles.roomPrice}>{formatPeso(room.monthlyTotal)}</Text>
               </View>
               <Text style={styles.roomMeta}>Room {room.roomNumber} • {room.roomType} • Floor {room.floor}</Text>
               <Text style={styles.roomMeta}>Move-in {formatDate(room.moveIn)} • {room.daysStayed} days stayed</Text>
@@ -918,7 +919,7 @@ const DashboardScreen = () => {
           <View style={styles.paymentSummaryCard}>
             <View style={styles.summaryRow}>
               <Text style={styles.summaryLabel}>Total Charges (Rent & Add-ons)</Text>
-              <Text style={styles.summaryValue}>{formatCurrency(monthlyRentTotal)}</Text>
+              <Text style={styles.summaryValue}>{formatPeso(monthlyRentTotal)}</Text>
             </View>
             <View style={styles.summaryRow}>
               <Text style={styles.summaryLabel}>Total Paid Amount</Text>

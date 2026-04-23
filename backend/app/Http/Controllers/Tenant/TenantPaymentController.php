@@ -60,8 +60,8 @@ class TenantPaymentController extends Controller
                         'booking_id' => $invoice->booking_id,
                         'propertyName' => $propertyName,
                         'roomNumber' => $roomNumber,
-                        'amount' => (float) $totalCents,
-                        'remainingBalance' => (float) $remainingCents,
+                        'amount' => (float) ($totalCents / 100),
+                        'remainingBalance' => (float) ($remainingCents / 100),
                         'date' => $invoice->issued_at ?: $invoice->created_at,
                         'due_date' => $invoice->due_date,
                         'dueDate' => $invoice->due_date,
@@ -81,7 +81,7 @@ class TenantPaymentController extends Controller
                         'transactions' => $invoice->transactions->map(function ($tx) {
                             return [
                                 'id' => $tx->id,
-                                'amount' => (float) $tx->amount_cents,
+                                'amount' => (float) ($tx->amount_cents / 100),
                                 'status' => $tx->status,
                                 'method' => $tx->method,
                                 'date' => $tx->created_at,
@@ -149,11 +149,11 @@ class TenantPaymentController extends Controller
             $totalCreditsCents = \App\Models\TenantCredit::getBalance($tenantId);
 
             return response()->json([
-                'totalPaidThisMonth' => (float) $totalPaidThisMonthCents,
+                'totalPaidThisMonth' => (float) ($totalPaidThisMonthCents / 100),
                 'paidCount' => $paidCount,
                 'nextDueDate' => $nextDueInvoice ? $nextDueInvoice->due_date->toIso8601String() : null,
-                'pendingAmount' => (float) $pendingAmountCents,
-                'totalCredits' => (float) $totalCreditsCents,
+                'pendingAmount' => (float) ($pendingAmountCents / 100),
+                'totalCredits' => (float) ($totalCreditsCents / 100),
             ], 200);
         } catch (\Exception $e) {
             return response()->json([
@@ -230,9 +230,9 @@ class TenantPaymentController extends Controller
                             return [
                                 'booking_id' => $invoice->booking_id,
                                 'room_number' => $room->room_number ?? 'N/A',
-                                'rent' => (float) $totalCents,
+                                'rent' => (float) ($totalCents / 100),
                                 'addons' => 0.0,
-                                'total' => (float) $remainingCents,
+                                'total' => (float) ($remainingCents / 100),
                                 'status' => (string) $invoice->status,
                             ];
                         })
@@ -244,7 +244,7 @@ class TenantPaymentController extends Controller
                         'month' => optional($firstDue->due_date)->format('F Y'),
                         'due_date' => optional($firstDue->due_date)->format('Y-m-d'),
                         'bookings' => $bookings,
-                        'month_total' => (float) $monthTotal,
+                        'month_total' => (float) ($monthTotal / 100),
                     ];
                 })
                 ->values();
@@ -315,7 +315,7 @@ class TenantPaymentController extends Controller
 
             return response()->json([
                 'success' => true,
-                'balance' => (float) $balanceCents
+                'balance' => (float) ($balanceCents / 100)
             ], 200);
         } catch (\Exception $e) {
             return response()->json([

@@ -431,7 +431,7 @@ class AnalyticsService
             }])
             ->get()
             ->map(function ($room) use ($periodRevenueByRoom) {
-                $periodRevenue = (float) ($periodRevenueByRoom[$room->id] ?? 0);
+                $periodRevenue = (float) (($periodRevenueByRoom[$room->id] ?? 0) / 100);
 
                 return [
                     'id' => $room->id,
@@ -497,9 +497,9 @@ class AnalyticsService
                     'occupied_slots' => $occupiedSlots,
                     'available_rooms' => $availableRooms,
                     'occupancy_rate' => $totalSlots > 0 ? round(($occupiedSlots / $totalSlots) * 100, 1) : 0,
-                    'monthly_revenue' => (float)$periodRevenueCents,
-                    'total_revenue' => (float)$totalRevenueCents,
-                    'revpar' => $property->rooms_count > 0 ? (float)($periodRevenueCents / $property->rooms_count) : 0,
+                    'monthly_revenue' => (float)($periodRevenueCents / 100),
+                    'total_revenue' => (float)($totalRevenueCents / 100),
+                    'revpar' => $property->rooms_count > 0 ? (float)(($periodRevenueCents / 100) / $property->rooms_count) : 0,
                 ];
             })
             ->toArray();

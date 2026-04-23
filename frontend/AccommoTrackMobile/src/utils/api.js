@@ -108,9 +108,30 @@ api.get = function (url, config = {}) {
  * Handles both new { items, pagination } and legacy { data, current_page, ... } formats.
  */
 export const normalizePaginatedResponse = (response) => {
-  const rawData = response?.data?.data ?? response?.data ?? response ?? {};
+  const rawData = response?.data ?? response ?? {};
   
-  // If rawData is already an array, treat it as items
+  // 1. If it's already in the unified format { items: [...], pagination: {...} }
+  if (rawData.items && rawData.pagination && Array.isArray(rawData.items)) {
+    return {
+      items: rawData.items,
+      pagination: rawData.pagination
+    };
+  }
+
+  // 2. If it's a standard Laravel paginated response { data: [...], current_page: 1, ... }
+  if (rawData.data && Array.isArray(rawData.data) && (rawData.current_page !== undefined || rawData.total !== undefined)) {
+    return {
+      items: rawData.data,
+      pagination: {
+        current_page: rawData.current_page || 1,
+        last_page: rawData.last_page || 1,
+        total: rawData.total || 0,
+        per_page: rawData.per_page || 15
+      }
+    };
+  }
+
+  // 3. If rawData is already an array, treat it as non-paginated items
   if (Array.isArray(rawData)) {
     return {
       items: rawData,
@@ -123,20 +144,26 @@ export const normalizePaginatedResponse = (response) => {
     };
   }
 
-  if (rawData.items && rawData.pagination) {
+  // 4. Fallback for objects that might contain a data array but no pagination info
+  if (rawData.data && Array.isArray(rawData.data)) {
     return {
-      items: Array.isArray(rawData.items) ? rawData.items : [],
-      pagination: rawData.pagination
+      items: rawData.data,
+      pagination: {
+        current_page: 1,
+        last_page: 1,
+        total: rawData.data.length,
+        per_page: Math.max(rawData.data.length, 15)
+      }
     };
   }
 
   return {
-    items: Array.isArray(rawData.data) ? rawData.data : [],
+    items: [],
     pagination: {
-      current_page: rawData.current_page || 1,
-      last_page: rawData.last_page || 1,
-      total: rawData.total || 0,
-      per_page: rawData.per_page || 15
+      current_page: 1,
+      last_page: 1,
+      total: 0,
+      per_page: 15
     }
   };
 };

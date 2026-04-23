@@ -770,6 +770,8 @@ export default function RoomManagementScreen({ navigation, route }) {
       amenities: [],
       rules: [],
       durationPricing: createInitialDurationPricing(),
+      existingImages: [],
+      deletedImageIds: [],
     });
     setSelectedImages([]);
     setFieldErrors({});

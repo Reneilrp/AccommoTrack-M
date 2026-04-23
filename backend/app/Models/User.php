@@ -7,6 +7,7 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Facades\Storage;
 use Laravel\Sanctum\HasApiTokens;
+use App\Models\Invoice;
 
 /**
  * @property int $id
@@ -193,6 +194,14 @@ class User extends Authenticatable
     public function getCurrentRoomAttribute()
     {
         return $this->roomAssignments()->first();
+    }
+
+    /**
+     * Invoices for this tenant.
+     */
+    public function invoices()
+    {
+        return $this->hasMany(Invoice::class, 'tenant_id');
     }
 
     /**

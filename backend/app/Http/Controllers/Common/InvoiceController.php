@@ -199,8 +199,8 @@ class InvoiceController extends Controller
                     'range' => $range,
                     'period' => ['from' => $periodFrom?->toDateString(), 'to' => $periodTo?->toDateString()],
                     'totals' => [
-                        'total_paid' => (float) $totalPaidCents,
-                        'total_balance' => (float) $totalBalanceCents,
+                        'total_paid' => (float) ($totalPaidCents / 100),
+                        'total_balance' => (float) ($totalBalanceCents / 100),
                         'paid_count' => (int) $stats->paid_count,
                         'pending_count' => (int) $stats->pending_count,
                         'overdue_count' => (int) $stats->overdue_count,
@@ -618,7 +618,7 @@ class InvoiceController extends Controller
                 DB::rollBack();
 
                 return response()->json([
-                    'message' => 'Payment amount cannot exceed the remaining balance of ₱'.number_format($remainingCents, 2),
+                    'message' => 'Payment amount cannot exceed the remaining balance of ₱'.number_format($remainingCents / 100, 2),
                 ], 422);
             }
 
@@ -628,7 +628,7 @@ class InvoiceController extends Controller
                 DB::rollBack();
 
                 return response()->json([
-                    'message' => 'Partial payments are not allowed for this property. Please pay the full remaining balance of ₱'.number_format($remainingCents, 2),
+                    'message' => 'Partial payments are not allowed for this property. Please pay the full remaining balance of ₱'.number_format($remainingCents / 100, 2),
                 ], 422);
             }
 
@@ -639,7 +639,7 @@ class InvoiceController extends Controller
                     DB::rollBack();
 
                     return response()->json([
-                        'message' => 'The minimum partial payment for this property is '.$minPercent.'% (₱'.number_format($minAmount, 2).').',
+                        'message' => 'The minimum partial payment for this property is '.$minPercent.'% (₱'.number_format($minAmount / 100, 2).').',
                     ], 422);
                 }
             }
@@ -1081,7 +1081,7 @@ class InvoiceController extends Controller
                 DB::rollBack();
 
                 return response()->json([
-                    'message' => 'Credit amount cannot exceed the remaining balance of ₱'.number_format($remainingCents, 2),
+                    'message' => 'Credit amount cannot exceed the remaining balance of ₱'.number_format($remainingCents / 100, 2),
                 ], 422);
             }
 

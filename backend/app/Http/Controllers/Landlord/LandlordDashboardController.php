@@ -216,7 +216,7 @@ class LandlordDashboardController extends Controller
                 $method = (string) ($item->method ?? '');
                 $isPaymongoMethod = str_starts_with($method, 'paymongo_');
                 $isRefund = (int) $item->amount_cents < 0;
-                $amountCents = abs((int) $item->amount_cents);
+                $amountPesos = abs((int) $item->amount_cents) / 100;
                 $roomNumber = $this->resolveRoomNumberFromPaymentTransaction($item);
                 $methodLabel = $this->formatPaymentMethodLabel($method);
 
@@ -229,10 +229,10 @@ class LandlordDashboardController extends Controller
                     'id' => $item->id, 'type' => 'payment',
                     'action' => $isPending ? 'Cash Payment Awaiting Verification' : ($isRefund ? 'Payment Refunded' : 'Payment Received'),
                     'description' => $isPending
-                        ? 'Recorded ₱'.number_format($amountCents, 2).' via '.$methodLabel.' for Room '.$roomNumber
+                        ? 'Recorded ₱'.number_format($amountPesos, 2).' via '.$methodLabel.' for Room '.$roomNumber
                         : ($isRefund
-                            ? 'Refunded ₱'.number_format($amountCents, 2).' via Cash('.$methodLabel.') for Room Number('.$roomNumber.').'
-                            : 'Received ₱'.number_format($amountCents, 2).' via '.$methodLabel.' for Room '.$roomNumber),
+                            ? 'Refunded ₱'.number_format($amountPesos, 2).' via Cash('.$methodLabel.') for Room Number('.$roomNumber.').'
+                            : 'Received ₱'.number_format($amountPesos, 2).' via '.$methodLabel.' for Room '.$roomNumber),
                     'by' => ($item->tenant->first_name ?? 'Tenant').' '.($item->tenant->last_name ?? ''),
                     'status' => $status,
                     'invoice_id' => $item->invoice_id ?? $item->invoice?->id,
@@ -505,7 +505,7 @@ class LandlordDashboardController extends Controller
                 'propertyTitle' => $invoice->property->title ?? 'Property',
                 'roomNumber' => $invoice->booking?->room?->room_number ?? 'N/A',
                 'dueDate' => optional($invoice->due_date)->format('Y-m-d'),
-                'amount' => (float) ($invoice->amount_cents ?? 0),
+                'amount' => (float) (($invoice->amount_cents ?? 0) / 100),
                 'status' => $invoice->status,
             ];
         });
@@ -518,7 +518,7 @@ class LandlordDashboardController extends Controller
                 'propertyTitle' => $invoice->property->title ?? 'Property',
                 'roomNumber' => $invoice->booking?->room?->room_number ?? 'N/A',
                 'dueDate' => optional($invoice->due_date)->format('Y-m-d'),
-                'amount' => (float) ($invoice->amount_cents ?? 0),
+                'amount' => (float) (($invoice->amount_cents ?? 0) / 100),
                 'status' => $invoice->status,
             ];
         });
@@ -531,9 +531,9 @@ class LandlordDashboardController extends Controller
                 'dueForBillingCount' => (int) ($data['billingHealth']['due_for_billing_count'] ?? 0),
                 'dueForBilling' => $dueForBilling,
                 'overdueInvoicesCount' => (int) ($data['billingHealth']['overdue_invoices_count'] ?? 0),
-                'overdueInvoicesAmount' => (float) ($data['billingHealth']['overdue_invoices_amount'] ?? 0),
+                'overdueInvoicesAmount' => (float) (($data['billingHealth']['overdue_invoices_amount'] ?? 0) / 100),
                 'dueSoonInvoicesCount' => (int) ($data['billingHealth']['due_soon_invoices_count'] ?? 0),
-                'dueSoonInvoicesAmount' => (float) ($data['billingHealth']['due_soon_invoices_amount'] ?? 0),
+                'dueSoonInvoicesAmount' => (float) (($data['billingHealth']['due_soon_invoices_amount'] ?? 0) / 100),
                 'overdueInvoices' => $overdueInvoices,
                 'dueSoonInvoices' => $dueSoonInvoices,
             ],

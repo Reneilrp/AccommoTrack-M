@@ -357,7 +357,7 @@ class TenantDashboardController extends Controller
                         return [
                             'id' => $invoice->id,
                             'invoice_number' => $invoice->invoice_number,
-                            'amount' => (float) ($invoice->total_cents ?? $invoice->amount_cents),
+                            'amount' => (float) (($invoice->total_cents ?? $invoice->amount_cents) / 100),
                             'status' => $invoice->status,
                             'description' => $invoice->description,
                             'date' => $invoice->issued_at ?: $invoice->created_at,
@@ -365,7 +365,7 @@ class TenantDashboardController extends Controller
                             'dueDate' => $invoice->due_date,
                             'metadata' => $invoice->metadata,
                             'transactions' => $invoice->transactions->map(fn($tx) => [
-                                'id' => $tx->id, 'amount' => (float) $tx->amount_cents,
+                                'id' => $tx->id, 'amount' => (float) ($tx->amount_cents / 100),
                                 'status' => $tx->status, 'method' => $tx->method, 'date' => $tx->created_at->format('M d, Y H:i'),
                             ]),
                         ];
@@ -440,9 +440,9 @@ class TenantDashboardController extends Controller
                             'type' => 'payment',
                             'action' => 'Payment Successful',
                             'timestamp' => $tx->created_at,
-                            'description' => 'Paid ₱'.number_format($tx->amount_cents, 2).' via '.ucfirst($tx->method).' for '.($invoice->description ?: 'Accommodation Fee'),
+                            'description' => 'Paid ₱'.number_format($tx->amount_cents / 100, 2).' via '.ucfirst($tx->method).' for '.($invoice->description ?: 'Accommodation Fee'),
                             'status' => 'paid',
-                            'amount' => (float) $tx->amount_cents,
+                            'amount' => (float) ($tx->amount_cents / 100),
                         ]);
                     });
                 });
