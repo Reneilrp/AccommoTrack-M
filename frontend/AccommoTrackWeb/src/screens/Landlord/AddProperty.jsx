@@ -507,7 +507,13 @@ export default function AddProperty({ onBack, onSave }) {
       if (!validateStep(1) || !validateStep(2)) {
         return;
       }
-      if (!validateForm(isDraft)) return;
+      const validationErrors = validateForm(isDraft);
+      if (Object.keys(validationErrors).length > 0) {
+        setFieldErrors(validationErrors);
+        setError('Please fix the validation errors before submitting.');
+        showError('Please fix the validation errors.');
+        return;
+      }
     } else {
       setError('');
     }
@@ -554,15 +560,23 @@ export default function AddProperty({ onBack, onSave }) {
       const result = await api.post('/landlord/properties', payload, {
         headers: {
           'Accept': 'application/json',
-          'Content-Type': 'multipart/form-data'
         }
       });
       showSuccess(isDraft ? 'Property draft saved successfully!' : 'Property submitted for approval!');
       setShowSuccessModal({ visible: true, isDraft, result });
     } catch (err) {
       const errData = err.response?.data;
+      console.error('Property submission error:', errData);
       if (errData?.errors) {
-        setFieldErrors(errData.errors);
+        // Map backend field names to frontend field names for consistent error display
+        const mappedErrors = {};
+        Object.entries(errData.errors).forEach(([key, msgs]) => {
+          if (key === 'title') mappedErrors.propertyName = msgs;
+          else if (key === 'province') mappedErrors.provinceRegion = msgs;
+          else if (key === 'street_address') mappedErrors.streetAddress = msgs;
+          else mappedErrors[key] = msgs;
+        });
+        setFieldErrors(mappedErrors);
         setError('Submission failed. Please review the errors below and try again.');
         showError('Please fix the validation errors.');
       } else {

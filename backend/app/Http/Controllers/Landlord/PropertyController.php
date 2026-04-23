@@ -250,6 +250,11 @@ class PropertyController extends Controller
                 ], 201);
             }
         } catch (\Illuminate\Validation\ValidationException $e) {
+            \Illuminate\Support\Facades\Log::warning('Property validation failed', [
+                'user_id' => Auth::id(),
+                'errors' => $e->errors(),
+                'input' => $request->except(['images', 'video', 'credentials']),
+            ]);
             return response()->json(['message' => 'Validation failed', 'errors' => $e->errors()], 422);
         } catch (\Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException $e) {
             return response()->json(['message' => $e->getMessage()], 403);
@@ -329,6 +334,11 @@ class PropertyController extends Controller
 
             return response()->json((new PropertyResource($property->load(['images', 'amenities', 'credentials', 'rooms', 'rooms.tenants', 'rooms.bookings.occupants'])))->resolve());
         } catch (\Illuminate\Validation\ValidationException $e) {
+            \Illuminate\Support\Facades\Log::warning('Property validation failed', [
+                'user_id' => Auth::id(),
+                'errors' => $e->errors(),
+                'input' => $request->except(['images', 'video', 'credentials']),
+            ]);
             return response()->json(['message' => 'Validation failed', 'errors' => $e->errors()], 422);
         } catch (\Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException $e) {
             return response()->json(['message' => $e->getMessage()], 403);

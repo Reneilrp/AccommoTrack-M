@@ -82,13 +82,23 @@ class StorePropertyRequest extends FormRequest
             'transfer_limit' => 'nullable|integer|min:0',
             'amenities' => 'nullable|array',
             'amenities.*' => 'nullable|string',
+            'images' => 'nullable|max:10',
             'images.*' => 'nullable|image|mimes:jpeg,png,jpg,webp|max:10240',
-            'images' => 'nullable|array|max:10',
             'video' => 'nullable|mimes:mp4,mov,avi|max:204800',
-            'credentials' => 'nullable|array',
+            'credentials' => 'nullable',
             'credentials.*' => 'nullable|file|mimes:pdf,jpeg,png,jpg|max:10240',
             'accepted_payments' => 'nullable|array',
             'accepted_payments.*' => 'in:cash,online',
         ];
+    }
+
+    protected function failedValidation(\Illuminate\Contracts\Validation\Validator $validator)
+    {
+        \Illuminate\Support\Facades\Log::warning('StorePropertyRequest validation failed', [
+            'user_id' => \Illuminate\Support\Facades\Auth::id(),
+            'errors' => $validator->errors()->toArray(),
+            'input' => $this->except(['images', 'video', 'credentials']),
+        ]);
+        parent::failedValidation($validator);
     }
 }
