@@ -150,7 +150,7 @@ class TenantDashboardController extends Controller
             $rentSnapshot = $this->resolveBookingRentSnapshot($booking);
 
             return [
-                'id' => $booking->id, 'propertyTitle' => $booking->property->title, 'roomNumber' => $booking->room->room_number,
+                'id' => $booking->id, 'propertyTitle' => $booking->property?->title ?? 'N/A', 'roomNumber' => $booking->room?->room_number ?? 'N/A',
                 'endDate' => $booking->end_date ? $booking->end_date->format('Y-m-d') : null,
                 'daysLeft' => $daysLeft !== null ? (int) $daysLeft : null,
                 'amount' => (float) $rentSnapshot['monthly_rent'], 'paymentStatus' => $booking->payment_status,
@@ -160,7 +160,7 @@ class TenantDashboardController extends Controller
 
         $unpaidBookings = $data['unpaidBookings']->map(function ($booking) {
             return [
-                'id' => $booking->id, 'propertyTitle' => $booking->property->title, 'roomNumber' => $booking->room->room_number,
+                'id' => $booking->id, 'propertyTitle' => $booking->property?->title ?? 'N/A', 'roomNumber' => $booking->room?->room_number ?? 'N/A',
                 'dueDate' => $booking->start_date->format('Y-m-d'), 'amount' => (float) $booking->total_amount,
                 'paymentStatus' => $booking->payment_status, 'type' => 'payment',
             ];
@@ -233,8 +233,8 @@ class TenantDashboardController extends Controller
         $pendingCheckIns = $this->dashboardService->getPendingCheckInBookings($tenantId);
 
         $formattedUpcoming = $upcomingBooking ? [
-            'id' => $upcomingBooking->id, 'property' => $upcomingBooking->property->title,
-            'room' => $upcomingBooking->room->room_number, 'startDate' => $upcomingBooking->start_date->format('Y-m-d'),
+            'id' => $upcomingBooking->id, 'property' => $upcomingBooking->property?->title ?? 'N/A',
+            'room' => $upcomingBooking->room?->room_number ?? 'N/A', 'startDate' => $upcomingBooking->start_date->format('Y-m-d'),
             'daysUntil' => max(0, (int) now()->startOfDay()->diffInDays($upcomingBooking->start_date->copy()->startOfDay(), false)),
         ] : null;
 
@@ -244,8 +244,8 @@ class TenantDashboardController extends Controller
             $daysOverdue = max(0, (int) $startDate->diffInDays($today, false));
 
             return [
-                'id' => $b->id, 'property' => $b->property->title,
-                'room' => $b->room->room_number, 'startDate' => $b->start_date->format('Y-m-d'),
+                'id' => $b->id, 'property' => $b->property?->title ?? 'N/A',
+                'room' => $b->room?->room_number ?? 'N/A', 'startDate' => $b->start_date->format('Y-m-d'),
                 'daysOverdue' => $daysOverdue,
                 'property_id' => $b->property_id,
                 'propertyId' => $b->property_id,
