@@ -150,12 +150,17 @@ class AddonService
                                 'addon_id' => $addon->id,
                                 'addon_name' => $addon->name,
                                 'quantity' => $addonRequest->pivot->quantity ?? 1,
-                                'price' => $amountCents,
+                                'price' => $resolvedPrice, // Store as DOLLARS (float) in metadata
                                 'price_type' => $addon->price_type,
                             ],
                         ],
                     ],
                 ]);
+
+                // Clear tenant dashboard cache
+                \Illuminate\Support\Facades\Cache::forget("tenant_dashboard_{$booking->tenant_id}");
+                \Illuminate\Support\Facades\Cache::forget("tenant_stay_details_{$booking->tenant_id}");
+                \Illuminate\Support\Facades\Cache::forget("tenant_stats_{$booking->tenant_id}");
 
                 // Link invoice back to the addon request
                 $booking->addons()->updateExistingPivot($addonId, [

@@ -218,6 +218,7 @@ export default function DormProfileSettings({ route, navigation }) {
   const propertyId = route.params?.propertyId;
   const [form, setForm] = useState(buildEmptyForm);
   const [refreshing, setRefreshing] = useState(false);
+  const [showGcashConfirm, setShowGcashConfirm] = useState(false);
   const [saving, setSaving] = useState(false);
   const [newRule, setNewRule] = useState('');
   const [passwordModalVisible, setPasswordModalVisible] = useState(false);
@@ -523,21 +524,15 @@ export default function DormProfileSettings({ route, navigation }) {
         showError("Validation Error", "GCash Number must be exactly 11 digits starting with 09.");
         return;
       }
-
-      const confirmPromise = new Promise((resolve) => {
-        Alert.alert(
-          "Double Check Details",
-          "Please double check your GCash Name and Number.\nIncorrect details will result in lost payments. Proceed with save?",
-          [
-            { text: "Cancel", style: "cancel", onPress: () => resolve(false) },
-            { text: "Proceed", onPress: () => resolve(true) }
-          ]
-        );
-      });
-      const confirmGcash = await confirmPromise;
-      if (!confirmGcash) return;
+      
+      setShowGcashConfirm(true);
+      return;
     }
 
+    await proceedWithSave();
+  };
+
+  const proceedWithSave = async () => {
     try {
       setSaving(true);
       const payload = new FormData();
@@ -1451,6 +1446,57 @@ export default function DormProfileSettings({ route, navigation }) {
             >
               <Text style={[styles.statusOptionText, { color: "#EF4444" }]}>Cancel</Text>
             </TouchableOpacity>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      {/* GCash Confirmation Modal */}
+      <Modal
+        visible={showGcashConfirm}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowGcashConfirm(false)}
+      >
+        <Pressable style={styles.passwordModalOverlay} onPress={() => setShowGcashConfirm(false)}>
+          <Pressable style={styles.passwordModalCard} onPress={() => { }}>
+            <View style={{ alignItems: 'center', marginBottom: 20 }}>
+              <View style={{ width: 60, height: 60, borderRadius: 30, backgroundColor: theme.colors.primary + '15', justifyContent: 'center', alignItems: 'center', marginBottom: 15 }}>
+                <Ionicons name="shield-checkmark" size={30} color={theme.colors.primary} />
+              </View>
+              <Text style={styles.passwordModalTitle}>Double Check GCash</Text>
+              <Text style={[styles.passwordModalText, { textAlign: 'center', marginTop: 10 }]}>
+                Please double check your GCash Name and Number. Incorrect details will result in lost payments.
+              </Text>
+            </View>
+
+            <View style={{ backgroundColor: theme.colors.backgroundSecondary, padding: 15, borderRadius: 12, marginBottom: 20 }}>
+              <View style={{ marginBottom: 10 }}>
+                <Text style={{ fontSize: 12, fontWeight: '700', color: theme.colors.textSecondary, textTransform: 'uppercase' }}>Name</Text>
+                <Text style={{ fontSize: 16, fontWeight: '600', color: theme.colors.text }}>{form.gcashName}</Text>
+              </View>
+              <View>
+                <Text style={{ fontSize: 12, fontWeight: '700', color: theme.colors.textSecondary, textTransform: 'uppercase' }}>Number</Text>
+                <Text style={{ fontSize: 16, fontWeight: '600', color: theme.colors.text }}>{form.gcashNumber}</Text>
+              </View>
+            </View>
+
+            <View style={styles.passwordModalActions}>
+              <TouchableOpacity
+                style={styles.passwordModalCancel}
+                onPress={() => setShowGcashConfirm(false)}
+              >
+                <Text style={styles.passwordModalCancelText}>Review</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.passwordModalConfirm, { backgroundColor: theme.colors.primary }]}
+                onPress={() => {
+                  setShowGcashConfirm(false);
+                  proceedWithSave();
+                }}
+              >
+                <Text style={styles.passwordModalConfirmText}>Confirm & Save</Text>
+              </TouchableOpacity>
+            </View>
           </Pressable>
         </Pressable>
       </Modal>

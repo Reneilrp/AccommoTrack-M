@@ -110,7 +110,7 @@ class PropertyResource extends JsonResource
             'reservation_fee_amount' => (float) $this->reservation_fee,
             'reservation_fee_gap_days' => (int) ($this->reservation_fee_gap_days ?? 3),
             'transfer_fee' => (float) ($this->transfer_fee ?? 0),
-            'transfer_limit' => (int) ($this->transfer_limit ?? 3),
+            'transfer_limit' => (int) ($this->transfer_limit ?? 1),
             'gcash_name' => $this->gcash_name,
             'gcash_number' => $this->gcash_number,
             'gcash_qr_path' => $this->gcash_qr_path ? (str_starts_with($this->gcash_qr_path, 'http') ? $this->gcash_qr_path : \Illuminate\Support\Facades\Storage::url($this->gcash_qr_path)) : null,

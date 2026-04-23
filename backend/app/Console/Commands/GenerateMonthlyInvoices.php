@@ -258,6 +258,11 @@ class GenerateMonthlyInvoices extends Command
                             'billing_period_key' => $periodKey,
                         ]);
 
+                        // Clear tenant dashboard cache to reflect new invoice immediately
+                        Cache::forget("tenant_dashboard_{$booking->tenant_id}");
+                        Cache::forget("tenant_stay_details_{$booking->tenant_id}");
+                        Cache::forget("tenant_stats_{$booking->tenant_id}");
+
                         $generatedInvoices = true;
                     }
                 }
@@ -318,6 +323,12 @@ class GenerateMonthlyInvoices extends Command
                             'addon_id' => $addon->id,
                             'invoice_id' => $addonInvoice->id,
                         ]);
+
+                        // Clear tenant dashboard cache
+                        Cache::forget("tenant_dashboard_{$booking->tenant_id}");
+                        Cache::forget("tenant_stay_details_{$booking->tenant_id}");
+                        Cache::forget("tenant_stats_{$booking->tenant_id}");
+
                         $generatedInvoices = true;
                     }
                 }

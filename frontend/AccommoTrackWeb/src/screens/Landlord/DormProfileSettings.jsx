@@ -16,7 +16,9 @@ import {
   Star,
   Video,
   Play,
+  ShieldAlert,
 } from "lucide-react";
+import ConfirmationModal from "../../components/Shared/ConfirmationModal";
 import { showSuccess, showError, showLoading } from "../../utils/toast";
 import api from "../../utils/api";
 import { usePreferences } from "../../contexts/PreferencesContext";
@@ -105,6 +107,7 @@ export default function DormProfileSettings({
   const [verifying, setVerifying] = useState(false);
   const [deletedCredentialIds, setDeletedCredentialIds] = useState([]);
   const [deletedImageIds, setDeletedImageIds] = useState([]);
+  const [showGcashConfirm, setShowGcashConfirm] = useState(false);
   const [draggedImageIndex, setDraggedImageIndex] = useState(null);
   // Video tour state
   const [videoUrl, setVideoUrl] = useState(null);
@@ -639,16 +642,14 @@ export default function DormProfileSettings({
         showError("Invalid GCash Number format.");
         return;
       }
-    }
-
-    // Request final verification from landlord to ensure security
-    const confirmGcash = window.confirm(
-      "Please double check your GCash Name and Number.\nIncorrect details will result in lost payments. Proceed with save?"
-    );
-    if (!confirmGcash) {
+      setShowGcashConfirm(true);
       return;
     }
 
+    await proceedWithSave();
+  };
+
+  const proceedWithSave = async () => {
     try {
       setLoading(true);
       setError("");
@@ -702,7 +703,7 @@ export default function DormProfileSettings({
         gcash_name: dormData.require_reservation_fee ? dormData.gcash_name : "",
         gcash_number: dormData.require_reservation_fee ? dormData.gcash_number : "",
         transfer_fee: parseFloat(dormData.transfer_fee) || 0,
-        transfer_limit: (dormData.transfer_limit !== '' && dormData.transfer_limit !== null) ? parseInt(dormData.transfer_limit) : 1,
+        transfer_limit: (dormData.transfer_limit !== undefined && dormData.transfer_limit !== null && dormData.transfer_limit !== '') ? parseInt(dormData.transfer_limit) : 1,
         latitude: parseFloat(dormData.latitude) || null,
         longitude: parseFloat(dormData.longitude) || null,
         is_published: dormData.status === 'active' ? (dormData.is_published ? 1 : 0) : 0,
@@ -2232,6 +2233,22 @@ export default function DormProfileSettings({
           </div>
         </div>
       </div>
+      {/* GCash Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={showGcashConfirm}
+        onClose={() => setShowGcashConfirm(false)}
+        onConfirm={() => {
+          setShowGcashConfirm(false);
+          proceedWithSave();
+        }}
+        title="Double Check GCash Details"
+        message={`Please double check your GCash Name and Number.\n\nName: ${dormData.gcash_name}\nNumber: ${dormData.gcash_number}\n\nIncorrect details will result in lost payments. Proceed with save?`}
+        confirmText="Proceed with Save"
+        cancelText="Review Details"
+        icon={<ShieldAlert className="w-6 h-6 text-blue-500" />}
+        confirmButtonClass="bg-blue-600 hover:bg-blue-700"
+      />
+
       {/* Password Verification Modal */}
       {passwordModal.show &&
         passwordModal.property &&
