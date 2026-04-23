@@ -30,7 +30,11 @@ export default function Reports() {
     try {
       setLoading(true);
       const res = await reportService.getReports({ status: statusFilter });
-      setReports(res.data.data || res.data || []);
+      if (res.success) {
+        setReports(res.data.items || []);
+      } else {
+        showError(res.error || 'Failed to load reports');
+      }
     } catch (err) {
       console.error('Failed to fetch reports', err);
       showError('Failed to load reports');

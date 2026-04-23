@@ -272,16 +272,13 @@ class AdminController extends Controller
 
         $admin = $request->user();
 
-        return response()->json([
-            'success' => true,
-            'data' => array_merge(
-                $users->toArray(),
-                [
-                    'permissions' => AdminPermission::permissions($admin),
-                    'admin_tier' => AdminPermission::resolveTier($admin),
-                ]
-            )
-        ]);
+        return response()->json(array_merge(
+            $users->toArray(),
+            [
+                'permissions' => AdminPermission::permissions($admin),
+                'admin_tier' => AdminPermission::resolveTier($admin),
+            ]
+        ));
     }
 
     /**
