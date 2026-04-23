@@ -468,7 +468,7 @@ export default function AddProperty({ onBack, onSave }) {
       normal_booking_limit: parseInt(formData.normalBookingLimit) || 1,
       proxy_booking_limit: parseInt(formData.proxyBookingLimit) || 3,
       min_partial_payment_pct: parseInt(formData.minPartialPaymentPct) || 20,
-      transfer_limit: parseInt(formData.transferLimit) || 1,
+      transfer_limit: parseInt(formData.transferLimit) || 3,
     };
   };
 
@@ -568,7 +568,7 @@ export default function AddProperty({ onBack, onSave }) {
       const errData = err.response?.data;
       console.error('Full submission error object:', err);
       console.error('Validation errors from backend:', errData?.errors);
-      
+
       if (errData?.errors) {
         // Map backend field names to frontend field names for consistent error display
         const mappedErrors = {};
@@ -581,7 +581,7 @@ export default function AddProperty({ onBack, onSave }) {
           else mappedErrors[key] = msgs;
         });
         setFieldErrors(mappedErrors);
-        
+
         // Construct a more detailed error message for the main alert
         const errorList = Object.values(errData.errors).flat();
         const topError = errorList[0] || 'Validation failed';
@@ -847,8 +847,8 @@ export default function AddProperty({ onBack, onSave }) {
                           <label
                             key={floor}
                             className={`flex items-center justify-center w-10 h-10 rounded-lg border-2 cursor-pointer transition-all ${(formData.floor_level || '').split(',').includes(String(floor))
-                                ? 'bg-green-500 border-green-500 text-white'
-                                : 'border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-500 hover:border-green-200'
+                              ? 'bg-green-500 border-green-500 text-white'
+                              : 'border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-500 hover:border-green-200'
                               }`}
                           >
                             <input

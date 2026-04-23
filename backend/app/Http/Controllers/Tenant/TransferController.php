@@ -98,7 +98,7 @@ class TransferController extends Controller
             'success' => true,
             'data' => RoomResource::collection($rooms)->resolve(),
             'meta' => [
-                'transfer_limit' => (int) ($property->transfer_limit ?? 1),
+                'transfer_limit' => (int) ($property->transfer_limit ?? 3),
                 'transfers_count' => $transfersCount,
             ],
             'message' => 'Eligible transfer rooms fetched successfully.',

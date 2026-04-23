@@ -1399,7 +1399,7 @@ export default function MyBookings() {
       return;
     }
 
-    const transferLimit = property?.transfer_limit ?? 1;
+    const transferLimit = property?.transfer_limit ?? 3;
     if (monthlyTransferCount >= transferLimit) {
       const daysUntilReset = getDaysUntilTransferReset();
       showAlert(
@@ -1725,7 +1725,7 @@ export default function MyBookings() {
     const pendingTransferForBooking = pendingTransferRequests.find(
       (item) => Number(item?.booking_id) === Number(booking.id),
     );
-    const transferLimit = property?.transfer_limit ?? 1;
+    const transferLimit = property?.transfer_limit ?? 3;
     const transferLimitReached = monthlyTransferCount >= transferLimit;
     const daysUntilTransferReset = getDaysUntilTransferReset();
     const transferButtonDisabled = submittingTransfer || Boolean(pendingTransferForBooking) || transferLimitReached;

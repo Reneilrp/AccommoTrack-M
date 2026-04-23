@@ -1377,7 +1377,7 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
                                 const pendingRequestForThisBooking = booking?.id ? pendingTransferRequests.find(
                                   (request) => Number(request.booking_id) === Number(booking.id),
                                 ) : null;
-                                const transferLimit = property?.transfer_limit ?? 1;
+                                const transferLimit = property?.transfer_limit ?? 3;
                                 const limitReached = monthlyTransferCount >= transferLimit;
                                 const now = new Date();
                                 const nextMonthStart = new Date(now.getFullYear(), now.getMonth() + 1, 1);

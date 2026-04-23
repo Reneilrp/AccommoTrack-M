@@ -205,7 +205,7 @@ const normalizeSettings = (data) => {
       : null,
     deleteExistingGcashQr: false,
     transferFee: data?.transfer_fee !== undefined ? String(data.transfer_fee) : '',
-    transferLimit: data?.transfer_limit !== undefined ? String(data.transfer_limit) : '1',
+    transferLimit: data?.transfer_limit !== undefined ? String(data.transfer_limit) : '3',
     normalBookingLimit: data?.normal_booking_limit !== undefined ? String(data.normal_booking_limit) : '1',
     proxyBookingLimit: data?.proxy_booking_limit !== undefined ? String(data.proxy_booking_limit) : '3',
     minPartialPaymentPct: data?.min_partial_payment_pct !== undefined ? String(data.min_partial_payment_pct) : '20',
@@ -572,7 +572,7 @@ export default function DormProfileSettings({ route, navigation }) {
       const reservationFeeGapDays = Number.isNaN(parsedGapDays) ? 3 : Math.max(0, parsedGapDays);
       payload.append('reservation_fee_gap_days', String(reservationFeeGapDays));
       payload.append('transfer_fee', form.transferFee || '0');
-      payload.append('transfer_limit', form.transferLimit || '1');
+      payload.append('transfer_limit', form.transferLimit || '3');
       payload.append('gcash_name', form.requireReservationFee ? form.gcashName : '');
       payload.append('gcash_number', form.requireReservationFee ? form.gcashNumber : '');
 
