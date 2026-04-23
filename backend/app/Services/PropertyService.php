@@ -38,114 +38,124 @@ class PropertyService
 
     public function createProperty(array $validated, User $user): Property
     {
-        return DB::transaction(function () use ($validated, $user) {
-            try {
-                $this->assertCanCreatePropertyUnderSubscription($user);
-            } catch (ValidationException $e) {
-                \Illuminate\Support\Facades\Log::warning('Property creation blocked by subscription limit', [
-                    'user_id' => $user->id,
-                    'errors' => $e->errors(),
-                ]);
-                throw $e;
-            }
+        try {
+            return DB::transaction(function () use ($validated, $user) {
+                try {
+                    $this->assertCanCreatePropertyUnderSubscription($user);
+                } catch (ValidationException $e) {
+                    \Illuminate\Support\Facades\Log::warning('Property creation blocked by subscription limit', [
+                        'user_id' => $user->id,
+                        'errors' => $e->errors(),
+                    ]);
+                    throw $e;
+                }
 
-            $canSubmitProperties = $this->canLandlordSubmitProperties($user);
+                $canSubmitProperties = $this->canLandlordSubmitProperties($user);
 
-            $currentStatus = Property::STATUS_DRAFT;
-            $isPublished = false;
-            $isAvailable = false;
-
-            if ($canSubmitProperties) {
-                $currentStatus = ($validated['is_draft'] ?? false) ? Property::STATUS_DRAFT : ($validated['current_status'] ?? Property::STATUS_PENDING);
-                // New properties (Draft/Pending) should NOT be published or available initially
+                $currentStatus = Property::STATUS_DRAFT;
                 $isPublished = false;
                 $isAvailable = false;
-            }
 
-            if (isset($validated['property_rules']) && is_string($validated['property_rules'])) {
-                $validated['property_rules'] = json_decode($validated['property_rules'], true) ?? [];
-            }
+                if ($canSubmitProperties) {
+                    $currentStatus = ($validated['is_draft'] ?? false) ? Property::STATUS_DRAFT : ($validated['current_status'] ?? Property::STATUS_PENDING);
+                    // New properties (Draft/Pending) should NOT be published or available initially
+                    $isPublished = false;
+                    $isAvailable = false;
+                }
 
-            $sexRestriction = strtolower($validated['sex_restriction'] ?? 'mixed');
-            $sexRestriction = match ($sexRestriction) {
-                'boys', 'male' => 'male',
-                'girls', 'female' => 'female',
-                default => 'mixed',
-            };
+                if (isset($validated['property_rules']) && is_string($validated['property_rules'])) {
+                    $validated['property_rules'] = json_decode($validated['property_rules'], true) ?? [];
+                }
 
-            $propertyType = $this->normalizePropertyTypeValue($validated['property_type'] ?? '');
+                $sexRestriction = strtolower($validated['sex_restriction'] ?? 'mixed');
+                $sexRestriction = match ($sexRestriction) {
+                    'boys', 'male' => 'male',
+                    'girls', 'female' => 'female',
+                    default => 'mixed',
+                };
 
-            $reservationFeeAmountRaw = $validated['reservation_fee_amount']
-                ?? $validated['reservation_fee']
-                ?? 0;
-            $reservationFeeAmount = is_numeric($reservationFeeAmountRaw)
-                ? (float) $reservationFeeAmountRaw
-                : 0.0;
-            $reservationFeeGapDaysRaw = $validated['reservation_fee_gap_days'] ?? 3;
-            $reservationFeeGapDays = max(0, (int) $reservationFeeGapDaysRaw);
+                $propertyType = $this->normalizePropertyTypeValue($validated['property_type'] ?? '');
 
-            $propertyData = [
-                'landlord_id' => $user->id,
-                'title' => $validated['title'],
-                'description' => $validated['description'] ?? null,
-                'property_type' => $propertyType,
-                'sex_restriction' => $sexRestriction,
-                'current_status' => $currentStatus,
-                'street_address' => $validated['street_address'],
-                'city' => $validated['city'],
-                'province' => $validated['province'],
-                'barangay' => $validated['barangay'] ?? null,
-                'postal_code' => $validated['postal_code'] ?? null,
-                'latitude' => $validated['latitude'] ?? null,
-                'longitude' => $validated['longitude'] ?? null,
-                'nearby_landmarks' => $validated['nearby_landmarks'] ?? null,
-                'max_occupants' => $validated['max_occupants'] ?? 1,
-                'number_of_bedrooms' => $validated['number_of_bedrooms'] ?? null,
-                'number_of_bathrooms' => $validated['number_of_bathrooms'] ?? null,
-                'floor_area' => $validated['floor_area'] ?? null,
-                'floor_level' => $validated['floor_level'] ?? null,
-                'total_floors' => $validated['total_floors'] ?? 1,
-                'property_rules' => $validated['property_rules'] ?? null,
-                'total_rooms' => 0,
-                'available_rooms' => 0,
-                'is_published' => $isPublished,
-                'is_available' => $isAvailable,
-                'is_eligible' => (bool) ($validated['is_eligible'] ?? false),
-                'require_1month_advance' => (bool) ($validated['require_1month_advance'] ?? false),
-                'require_reservation_fee' => (bool) ($validated['require_reservation_fee'] ?? false),
-                'reservation_fee' => $reservationFeeAmount,
-                'reservation_fee_gap_days' => $reservationFeeGapDays,
-                'accepted_payments' => $validated['accepted_payments'] ?? null,
-            ];
+                $reservationFeeAmountRaw = $validated['reservation_fee_amount']
+                    ?? $validated['reservation_fee']
+                    ?? 0;
+                $reservationFeeAmount = is_numeric($reservationFeeAmountRaw)
+                    ? (float) $reservationFeeAmountRaw
+                    : 0.0;
+                $reservationFeeGapDaysRaw = $validated['reservation_fee_gap_days'] ?? 3;
+                $reservationFeeGapDays = max(0, (int) $reservationFeeGapDaysRaw);
 
-            // Only include these fields if they were actually provided in the request
-            // This prevents crashes if the database columns haven't been added yet (backward compatibility)
-            if (isset($validated['allow_partial_payments'])) {
-                $propertyData['allow_partial_payments'] = (bool) $validated['allow_partial_payments'];
-            }
-            if (isset($validated['force_wallet_refunds'])) {
-                $propertyData['force_wallet_refunds'] = (bool) $validated['force_wallet_refunds'];
-            }
-            if (isset($validated['normal_booking_limit'])) {
-                $propertyData['normal_booking_limit'] = min(4, max(1, (int) $validated['normal_booking_limit']));
-            }
-            if (isset($validated['proxy_booking_limit'])) {
-                $propertyData['proxy_booking_limit'] = min(4, max(1, (int) $validated['proxy_booking_limit']));
-            }
-            if (isset($validated['min_partial_payment_pct'])) {
-                $propertyData['min_partial_payment_pct'] = min(100, max(1, (int) $validated['min_partial_payment_pct']));
-            }
+                $propertyData = [
+                    'landlord_id' => $user->id,
+                    'title' => $validated['title'],
+                    'description' => $validated['description'] ?? null,
+                    'property_type' => $propertyType,
+                    'sex_restriction' => $sexRestriction,
+                    'current_status' => $currentStatus,
+                    'street_address' => $validated['street_address'],
+                    'city' => $validated['city'],
+                    'province' => $validated['province'],
+                    'barangay' => $validated['barangay'] ?? null,
+                    'postal_code' => $validated['postal_code'] ?? null,
+                    'latitude' => $validated['latitude'] ?? null,
+                    'longitude' => $validated['longitude'] ?? null,
+                    'nearby_landmarks' => $validated['nearby_landmarks'] ?? null,
+                    'max_occupants' => $validated['max_occupants'] ?? 1,
+                    'number_of_bedrooms' => $validated['number_of_bedrooms'] ?? null,
+                    'number_of_bathrooms' => $validated['number_of_bathrooms'] ?? null,
+                    'floor_area' => $validated['floor_area'] ?? null,
+                    'floor_level' => $validated['floor_level'] ?? null,
+                    'total_floors' => $validated['total_floors'] ?? 1,
+                    'property_rules' => $validated['property_rules'] ?? null,
+                    'total_rooms' => 0,
+                    'available_rooms' => 0,
+                    'is_published' => $isPublished,
+                    'is_available' => $isAvailable,
+                    'is_eligible' => (bool) ($validated['is_eligible'] ?? false),
+                    'require_1month_advance' => (bool) ($validated['require_1month_advance'] ?? false),
+                    'require_reservation_fee' => (bool) ($validated['require_reservation_fee'] ?? false),
+                    'reservation_fee' => $reservationFeeAmount,
+                    'reservation_fee_gap_days' => $reservationFeeGapDays,
+                    'accepted_payments' => $validated['accepted_payments'] ?? null,
+                ];
 
-            $property = Property::create($propertyData);
+                // Only include these fields if they were actually provided in the request
+                // This prevents crashes if the database columns haven't been added yet (backward compatibility)
+                if (isset($validated['allow_partial_payments'])) {
+                    $propertyData['allow_partial_payments'] = (bool) $validated['allow_partial_payments'];
+                }
+                if (isset($validated['force_wallet_refunds'])) {
+                    $propertyData['force_wallet_refunds'] = (bool) $validated['force_wallet_refunds'];
+                }
+                if (isset($validated['normal_booking_limit'])) {
+                    $propertyData['normal_booking_limit'] = min(4, max(1, (int) $validated['normal_booking_limit']));
+                }
+                if (isset($validated['proxy_booking_limit'])) {
+                    $propertyData['proxy_booking_limit'] = min(4, max(1, (int) $validated['proxy_booking_limit']));
+                }
+                if (isset($validated['min_partial_payment_pct'])) {
+                    $propertyData['min_partial_payment_pct'] = min(100, max(1, (int) $validated['min_partial_payment_pct']));
+                }
 
-            $this->handleFileUploads($property, app('request'));
+                $property = Property::create($propertyData);
 
-            if (isset($validated['amenities']) && is_array($validated['amenities'])) {
-                $this->syncAmenities($property, $validated['amenities']);
-            }
+                $this->handleFileUploads($property, app('request'));
 
-            return $property;
-        });
+                if (isset($validated['amenities']) && is_array($validated['amenities'])) {
+                    $this->syncAmenities($property, $validated['amenities']);
+                }
+
+                return $property;
+            });
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Property creation failed in service', [
+                'user_id' => $user->id,
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'input_keys' => array_keys($validated),
+            ]);
+            throw $e;
+        }
     }
 
     public function updateProperty(Property $property, array $validated, Request $request): Property
@@ -559,20 +569,36 @@ class PropertyService
     private function handleFileUploads(Property $property, Request $request, bool $isUpdate = false): void
     {
         if ($request->hasFile('images')) {
-            $manager = new ImageManager(new Driver);
-            foreach ($request->file('images') as $index => $file) {
-                $image = $manager->read($file->getRealPath());
-                $image->scaleDown(width: 1920);
-                $encoded = $image->toWebp(80);
-                $filename = 'property_'.time().'_'.uniqid().'.webp';
-                $path = 'property_images/'.$filename;
-                Storage::put($path, (string) $encoded);
-                PropertyImage::create([
+            try {
+                $manager = new ImageManager(new Driver);
+                foreach ($request->file('images') as $index => $file) {
+                    try {
+                        $image = $manager->read($file->getRealPath());
+                        $image->scaleDown(width: 1920);
+                        $encoded = $image->toWebp(80);
+                        $filename = 'property_'.time().'_'.uniqid().'.webp';
+                        $path = 'property_images/'.$filename;
+                        Storage::put($path, (string) $encoded);
+                        PropertyImage::create([
+                            'property_id' => $property->id,
+                            'image_url' => $path,
+                            'is_primary' => $isUpdate ? ($index === 0 && $property->images()->where('is_primary', true)->doesntExist()) : ($index === 0),
+                            'display_order' => $property->images()->count() + $index,
+                            'media_type' => 'image',
+                        ]);
+                        unset($image, $encoded);
+                    } catch (\Exception $fe) {
+                        \Illuminate\Support\Facades\Log::error('Individual image processing failed', [
+                            'property_id' => $property->id,
+                            'file' => $file->getClientOriginalName(),
+                            'error' => $fe->getMessage(),
+                        ]);
+                    }
+                }
+            } catch (\Exception $me) {
+                \Illuminate\Support\Facades\Log::error('Image manager initialization failed', [
                     'property_id' => $property->id,
-                    'image_url' => $path,
-                    'is_primary' => $isUpdate ? ($index === 0 && $property->images()->where('is_primary', true)->doesntExist()) : ($index === 0),
-                    'display_order' => $property->images()->count() + $index,
-                    'media_type' => 'image',
+                    'error' => $me->getMessage(),
                 ]);
             }
         }
@@ -588,13 +614,21 @@ class PropertyService
 
         if ($request->hasFile('credentials')) {
             foreach ($request->file('credentials') as $file) {
-                $path = $file->store('property_credentials');
-                \App\Models\PropertyCredential::create([
-                    'property_id' => $property->id,
-                    'file_path' => $path,
-                    'original_name' => $file->getClientOriginalName(),
-                    'mime' => $file->getClientMimeType(),
-                ]);
+                try {
+                    $path = $file->store('property_credentials');
+                    \App\Models\PropertyCredential::create([
+                        'property_id' => $property->id,
+                        'file_path' => $path,
+                        'original_name' => $file->getClientOriginalName(),
+                        'mime' => $file->getClientMimeType(),
+                    ]);
+                } catch (\Exception $ce) {
+                    \Illuminate\Support\Facades\Log::error('Credential upload failed', [
+                        'property_id' => $property->id,
+                        'file' => $file->getClientOriginalName(),
+                        'error' => $ce->getMessage(),
+                    ]);
+                }
             }
         }
 
@@ -618,14 +652,27 @@ class PropertyService
     {
         // Check duration locally first to avoid remote S3 read timeout
         try {
-            $duration = FFMpeg::fromDisk('local')->open($videoFile->getRealPath())->getDurationInSeconds();
+            // Use ffprobe directly via the helper if possible, or store temporarily
+            // For now, let's store it to local disk first to ensure FFMpeg can read it reliably
+            $tempName = 'temp_video_' . time() . '_' . $videoFile->getClientOriginalName();
+            $tempPath = $videoFile->storeAs('temp_durations', $tempName, 'local');
+            $absoluteTempPath = storage_path('app/' . $tempPath);
+
+            $duration = FFMpeg::fromDisk('local')->open($tempPath)->getDurationInSeconds();
+            
+            // Clean up temp file
+            Storage::disk('local')->delete($tempPath);
+
             if ($duration > 45) {
-                throw new \Exception('Video duration must not exceed 45 seconds.');
+                throw new \Exception('Video duration must not exceed 45 seconds. Your video is ' . round($duration) . ' seconds long.');
             }
         } catch (\Exception $e) {
-            \Illuminate\Support\Facades\Log::error('Video duration check failed', [
+            if (isset($tempPath)) Storage::disk('local')->delete($tempPath);
+            
+            \Illuminate\Support\Facades\Log::error('Video processing failure', [
                 'property_id' => $property->id,
                 'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
             ]);
             throw new \Exception('Could not process video file: ' . $e->getMessage());
         }

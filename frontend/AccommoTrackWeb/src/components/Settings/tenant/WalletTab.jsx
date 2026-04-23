@@ -10,8 +10,7 @@ const WalletTab = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  const balance = cachedProfile?.wallet_balance !== undefined ? parseFloat(cachedProfile.wallet_balance) : 0;
-
+  const balance = cachedProfile?.wallet_balance !== undefined ? parseFloat(cachedProfile.wallet_balance) / 100 : 0;
   useEffect(() => {
     const fetchLogs = async () => {
       setLoading(true);

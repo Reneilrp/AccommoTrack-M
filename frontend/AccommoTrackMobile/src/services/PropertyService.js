@@ -351,14 +351,15 @@ const PropertyService = {
       }
 
       const response = await api.get(`/landlord/properties`);
-      const paginated = normalizePaginatedResponse(response);
-      paginated.items = scopePropertiesForCaretaker(paginated.items, currentUser);
+      const normalized = normalizeResponse(response);
+      const rawItems = Array.isArray(normalized.data) ? normalized.data : [];
+      const items = scopePropertiesForCaretaker(rawItems, currentUser);
 
-      await cacheManager.set(cacheKey, paginated.items);
+      await cacheManager.set(cacheKey, items);
 
       return {
         success: true,
-        data: paginated,
+        data: items,
         error: null,
       };
     } catch (error) {
@@ -500,11 +501,7 @@ const PropertyService = {
       const response = await api.get(
         `/landlord/properties/${propertyId}/rooms`,
       );
-      return {
-        success: true,
-        data: normalizePaginatedResponse(response),
-        error: null
-      };
+      return normalizeResponse(response);
     } catch (error) {
       console.error("Error fetching rooms:", error);
       return normalizeError(error);
@@ -660,11 +657,7 @@ const PropertyService = {
   async getRoomsByProperty(propertyId) {
     try {
       const response = await api.get(`/rooms/property/${propertyId}`);
-      return {
-        success: true,
-        data: normalizePaginatedResponse(response),
-        error: null
-      };
+      return normalizeResponse(response);
     } catch (error) {
       console.error("Error fetching rooms by property:", error);
       return normalizeError(error);

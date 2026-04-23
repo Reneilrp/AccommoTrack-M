@@ -258,11 +258,6 @@ export default function AddRoomModal({
   }
 
   const handleInputChange = (field, value) => {
-    // Auto-round price fields to integers
-    if (field === "monthlyRate" || field === "dailyRate") {
-      value = value ? Math.round(Number(value)) : "";
-    }
-
     let updated = { ...formData, [field]: value };
 
     // Auto-set capacity based on room type
@@ -619,7 +614,7 @@ export default function AddRoomModal({
       payload.append("sex_restriction", formData.sexRestriction);
       payload.append("floor", parseInt(formData.floor));
       if (bp === "monthly" || bp === "monthly_with_daily") {
-        const monthlyVal = Math.round(Number(formData.monthlyRate));
+        const monthlyVal = Number(formData.monthlyRate);
         if (Number.isFinite(monthlyVal))
           payload.append("monthly_rate", monthlyVal);
       }
@@ -629,7 +624,7 @@ export default function AddRoomModal({
         parseInt(formData.capacity || 1),
       );
       if (bp === "daily" || bp === "monthly_with_daily") {
-        const dailyVal = Math.round(Number(formData.dailyRate));
+        const dailyVal = Number(formData.dailyRate);
         if (Number.isFinite(dailyVal)) payload.append("daily_rate", dailyVal);
       }
       if (formData.billingPolicy)

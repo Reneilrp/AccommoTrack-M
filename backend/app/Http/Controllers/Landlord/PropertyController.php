@@ -234,7 +234,21 @@ class PropertyController extends Controller
 
             $property = $this->propertyService->createProperty($request->validated(), $context['user']);
 
-            return response()->json((new PropertyResource($property->load(['images', 'amenities', 'credentials', 'rooms', 'rooms.tenants', 'rooms.bookings.occupants'])))->resolve());
+            try {
+                $resource = new PropertyResource($property->load(['images', 'amenities', 'credentials', 'rooms', 'rooms.tenants', 'rooms.bookings.occupants']));
+                return response()->json($resource->resolve());
+            } catch (\Exception $re) {
+                \Illuminate\Support\Facades\Log::error('PropertyResource resolution failed', [
+                    'property_id' => $property->id,
+                    'error' => $re->getMessage(),
+                    'trace' => $re->getTraceAsString(),
+                ]);
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Property created but failed to load summary details.',
+                    'id' => $property->id,
+                ], 201);
+            }
         } catch (\Illuminate\Validation\ValidationException $e) {
             return response()->json(['message' => 'Validation failed', 'errors' => $e->errors()], 422);
         } catch (\Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException $e) {

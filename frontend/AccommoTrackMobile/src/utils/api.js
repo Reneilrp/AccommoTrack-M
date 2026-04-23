@@ -110,6 +110,19 @@ api.get = function (url, config = {}) {
 export const normalizePaginatedResponse = (response) => {
   const rawData = response?.data?.data ?? response?.data ?? response ?? {};
   
+  // If rawData is already an array, treat it as items
+  if (Array.isArray(rawData)) {
+    return {
+      items: rawData,
+      pagination: {
+        current_page: 1,
+        last_page: 1,
+        total: rawData.length,
+        per_page: Math.max(rawData.length, 15)
+      }
+    };
+  }
+
   if (rawData.items && rawData.pagination) {
     return {
       items: Array.isArray(rawData.items) ? rawData.items : [],
