@@ -121,7 +121,9 @@ const WalletTab = () => {
           ) : (
             logs.map((log) => {
               const isDebit = log.type === 'debit';
-              const logAmount = log.amount_cents || log.amount || 0;
+              const rawAmount = log.amount_cents || log.amount || 0;
+              const displayAmount = log.amount_cents ? (rawAmount / 100) : rawAmount;
+              
               return (
                 <div key={log.id} className="px-6 py-5 hover:bg-gray-50/50 dark:hover:bg-gray-700/20 transition-colors group">
                   <div className="flex items-center gap-4">
@@ -132,7 +134,7 @@ const WalletTab = () => {
                           {log.description || (isDebit ? 'Wallet Usage' : 'Credit Adjustment')}
                         </p>
                         <p className={`text-lg font-black shrink-0 ${isDebit ? 'text-amber-600 dark:text-amber-400' : 'text-green-600 dark:text-green-400'}`}>
-                          {isDebit ? '-' : '+'}{formatPrice(logAmount)}
+                          {isDebit ? '-' : '+'}{formatPrice(displayAmount)}
                         </p>
                       </div>
 

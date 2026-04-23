@@ -392,15 +392,11 @@ export default function Payments() {
     }
 
     const totalPaid = new Decimal(
-      totals.total_paid_cents !== undefined
-        ? new Decimal(totals.total_paid_cents).div(100).toNumber()
-        : (totals.total_paid ?? 0)
-    ).toNumber();
+      totals.total_paid_cents ?? totals.total_paid ?? 0
+    ).div(100).toNumber();
     const totalBalance = new Decimal(
-      totals.total_balance_cents !== undefined
-        ? new Decimal(totals.total_balance_cents).div(100).toNumber()
-        : (totals.total_balance ?? 0)
-    ).toNumber();
+      totals.total_balance_cents ?? totals.total_balance ?? 0
+    ).div(100).toNumber();
 
     return {
       totalPaid,

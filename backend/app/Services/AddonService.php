@@ -126,7 +126,7 @@ class AddonService
                     $addon->decrement('stock', $addonRequest->pivot->quantity ?? 1);
                 }
 
-                $amountCents = $resolvedPrice * ($addonRequest->pivot->quantity ?? 1);
+                $amountCents = (int) round($resolvedPrice * ($addonRequest->pivot->quantity ?? 1) * 100);
 
                 // Create a separate invoice for this immediate addon request (decoupled from rent)
                 $reference = 'INV-ADD-'.date('Ymd').'-'.strtoupper(Str::random(6));

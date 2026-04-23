@@ -33,6 +33,8 @@ import { cacheManager } from '../../utils/cache';
 import { usePreferences } from '../../contexts/PreferencesContext';
 import { useSidebar } from '../../contexts/SidebarContext';
 import { showSuccess, showError, showInfo } from '../../utils/toast';
+import Decimal from 'decimal.js';
+import formatPrice from '../../utils/price';
 
 export default function Analytics() {
   const { effectiveTheme } = usePreferences();
@@ -311,7 +313,7 @@ export default function Analytics() {
       }
     }
 
-    const formatCurrency = (amount) => `PHP ${Number(amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
+    const formatCurrency = (amount) => formatPrice(amount);
     const formatPercent = (val) => `${Number(val || 0).toFixed(1)}%`;
 
     const rows = [
@@ -411,7 +413,7 @@ export default function Analytics() {
   const isMonthlyGrowthPositive = monthlyGrowthRate >= 0;
   const revenueTrendTitle = `Revenue Trend - ${timeRange === 'week' ? 'Weekly' : timeRange === 'year' ? 'Yearly' : 'Monthly'
     }`;
-  const formatCurrencyCompact = (value) => `₱${Number(value || 0).toLocaleString()}`;
+  const formatCurrencyCompact = (value) => formatPrice(value);
   const allPropertiesBreakdown = (analytics?.properties || [])
     .map((property) => ({
       name: property.name || property.title || 'Unnamed Property',
@@ -446,9 +448,9 @@ export default function Analytics() {
     name: room.name || room.room_name || `Room ${room.room_number || room.id || index + 1}`,
     income: Number(room.revpar ?? room.income_per_room ?? room.revenue ?? room.monthly_revenue ?? 0),
   }));
-  const totalRevenueAllTime = Number(analytics?.overview?.total_revenue ?? 0);
-  const collectedThisMonth = Number(analytics?.revenue?.actual_monthly ?? analytics?.overview?.monthly_revenue ?? 0);
-  const monthlyRevenue = Number(analytics?.overview?.monthly_revenue ?? 0);
+  const totalRevenueAllTime = new Decimal(analytics?.overview?.total_revenue_cents ?? analytics?.overview?.total_revenue ?? 0).div(100).toNumber();
+  const collectedThisMonth = new Decimal(analytics?.revenue?.actual_monthly_cents ?? analytics?.overview?.monthly_revenue_cents ?? analytics?.revenue?.actual_monthly ?? analytics?.overview?.monthly_revenue ?? 0).div(100).toNumber();
+  const monthlyRevenue = new Decimal(analytics?.overview?.monthly_revenue_cents ?? analytics?.overview?.monthly_revenue ?? 0).div(100).toNumber();
   const roomPerformanceRows = analytics?.room_performance || [];
 
   const getPerformanceStatus = (occupancyRateRaw) => {
@@ -561,7 +563,7 @@ export default function Analytics() {
             {showProgress ? 'Collected vs expected this month' : 'Payment collection rate'}
           </p>
           <div className="text-right">
-            <p className="text-lg md:text-2xl font-bold text-gray-900 dark:text-white">₱{collected.toLocaleString()}</p>
+            <p className="text-lg md:text-2xl font-bold text-gray-900 dark:text-white">{formatPrice(collected)}</p>
           </div>
         </div>
 
@@ -569,7 +571,7 @@ export default function Analytics() {
           <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700 space-y-1.5">
             <div className="flex items-center justify-between text-xs mb-1">
               <span className="text-gray-500 dark:text-gray-400">Expected</span>
-              <span className="font-semibold text-gray-700 dark:text-gray-300">₱{expected.toLocaleString()}</span>
+              <span className="font-semibold text-gray-700 dark:text-gray-300">{formatPrice(expected)}</span>
             </div>
             <div className="w-full h-2 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
               <div
@@ -579,7 +581,7 @@ export default function Analytics() {
             </div>
             <div className="flex items-center justify-between text-[10px] md:text-xs">
               <span className="font-semibold text-green-600 dark:text-green-400">{collectionRate.toFixed(1)}% collected</span>
-              <span className="text-gray-500 dark:text-gray-400">₱{remaining.toLocaleString()} remaining</span>
+              <span className="text-gray-500 dark:text-gray-400">{formatPrice(remaining)} remaining</span>
             </div>
           </div>
         )}
@@ -627,8 +629,7 @@ export default function Analytics() {
             {potentialRevenue > 0 && (
               <div className="flex items-center justify-between text-[10px] md:text-xs pt-1">
                 <span className="text-gray-500 dark:text-gray-400">Potential revenue</span>
-                <span className="font-semibold text-green-600 dark:text-green-400">₱{potentialRevenue.toLocaleString()}</span>
-              </div>
+                <span className="font-semibold text-green-600 dark:text-green-400">{formatPrice(potentialRevenue)}</span>              </div>
             )}
           </div>
         </div>
@@ -740,7 +741,7 @@ export default function Analytics() {
                   iconColorClass="text-green-600"
                   title="Total Revenue"
                   meta={selectedProperty === 'all' ? 'All-time across all properties' : 'All-time for this property'}
-                  value={`₱${totalRevenueAllTime.toLocaleString()}`}
+                  value={formatPrice(totalRevenueAllTime)}
                 />
 
                 {/* Card 2: Monthly Revenue */}
@@ -750,7 +751,7 @@ export default function Analytics() {
                   iconColorClass="text-teal-600"
                   title="Monthly Revenue"
                   meta={selectedProperty === 'all' ? 'Current month across all properties' : 'Current month for this property'}
-                  value={`₱${monthlyRevenue.toLocaleString()}`}
+                  value={formatPrice(monthlyRevenue)}
                   topRightValue={hasMonthlyGrowthData ? `${isMonthlyGrowthPositive ? '+' : ''}${monthlyGrowthRate}%` : 'No data'}
                   topRightIcon={hasMonthlyGrowthData ? (isMonthlyGrowthPositive ? ArrowUpRight : ArrowDownRight) : null}
                   topRightValueClass={hasMonthlyGrowthData
@@ -767,7 +768,7 @@ export default function Analytics() {
                   iconColorClass="text-emerald-600"
                   title="Collected"
                   meta={selectedProperty === 'all' ? 'This month across all properties' : 'This month for this property'}
-                  value={`₱${collectedThisMonth.toLocaleString()}`}
+                  value={formatPrice(collectedThisMonth)}
                 />
 
                 {/* Card 4: Active Tenants */}
@@ -814,8 +815,7 @@ export default function Analytics() {
                         color: effectiveTheme === 'dark' ? '#fff' : '#000'
                       }}
                       itemStyle={{ color: effectiveTheme === 'dark' ? '#fff' : '#000', fontWeight: 'bold' }}
-                      formatter={(value) => ['₱' + Number(value || 0).toLocaleString(), 'Revenue']}
-                    />
+                      formatter={(value) => [formatPrice(value), 'Revenue']}                    />
                     <Area type="monotone" dataKey="revenue" stroke={COLORS.primary} strokeWidth={4} fillOpacity={1} fill="url(#colorRev)" />
                   </AreaChart>
                 </ResponsiveContainer>
@@ -984,10 +984,9 @@ export default function Analytics() {
                             <XAxis dataKey="name" stroke={effectiveTheme === 'dark' ? '#9ca3af' : '#6b7280'} style={{ fontSize: '10px' }} />
                             <YAxis stroke={effectiveTheme === 'dark' ? '#9ca3af' : '#6b7280'} style={{ fontSize: '10px' }} />
                             <Tooltip
-                              formatter={(value) => '₱' + (Number(value) || 0).toLocaleString()}
+                              formatter={(value) => formatPrice(value)}
                               contentStyle={{ borderRadius: '8px' }}
-                            />
-                            <Bar dataKey="income" fill={COLORS.secondary} radius={[4, 4, 0, 0]} />
+                            />                            <Bar dataKey="income" fill={COLORS.secondary} radius={[4, 4, 0, 0]} />
                           </BarChart>
                         ) : (
                           <BarChart
@@ -1000,9 +999,8 @@ export default function Analytics() {
                               type="number"
                               stroke={effectiveTheme === 'dark' ? '#9ca3af' : '#6b7280'}
                               style={{ fontSize: '10px' }}
-                              tickFormatter={(value) => '₱' + value.toLocaleString()}
-                            />
-                            <YAxis
+                              tickFormatter={(value) => `₱${value >= 1000 ? (value / 1000).toFixed(0) + 'k' : value}`}
+                            />                            <YAxis
                               dataKey="name"
                               type="category"
                               stroke={effectiveTheme === 'dark' ? '#9ca3af' : '#6b7280'}
@@ -1010,10 +1008,9 @@ export default function Analytics() {
                               width={70}
                             />
                             <Tooltip
-                              formatter={(value) => ['₱' + (Number(value) || 0).toLocaleString(), 'Income/Room']}
+                              formatter={(value) => [formatPrice(value), 'Income/Room']}
                               contentStyle={{ borderRadius: '8px' }}
-                            />
-                            <Bar dataKey="income" fill={COLORS.primary} radius={[0, 4, 4, 0]} barSize={20} />
+                            />                            <Bar dataKey="income" fill={COLORS.primary} radius={[0, 4, 4, 0]} barSize={20} />
                           </BarChart>
                         )}
                       </ResponsiveContainer>
@@ -1095,9 +1092,8 @@ export default function Analytics() {
                                 </div>
                               </td>
                               <td className="px-6 py-4 text-gray-600 dark:text-gray-300">{property.occupied_slots} / {property.total_slots}</td>
-                              <td className="px-6 py-4 font-semibold text-gray-900 dark:text-white">₱{(property.monthly_revenue || 0).toLocaleString()}</td>
-                              <td className="px-6 py-4 text-gray-900 dark:text-white font-medium">₱{(property.revpar || 0).toLocaleString()}</td>
-                              <td className="px-6 py-4">
+                              <td className="px-6 py-4 font-semibold text-gray-900 dark:text-white">{formatPrice(property.monthly_revenue)}</td>
+                              <td className="px-6 py-4 text-gray-900 dark:text-white font-medium">{formatPrice(property.revpar)}</td>                              <td className="px-6 py-4">
                                 <span className={`px-2.5 py-2 rounded-full text-xs font-semibold ${statusMeta.className}`}>
                                   {statusMeta.label}
                                 </span>
@@ -1133,9 +1129,8 @@ export default function Analytics() {
                                 </div>
                               </td>
                               <td className="px-6 py-4 text-gray-600 dark:text-gray-300">{Number(room.capacity || 0)}</td>
-                              <td className="px-6 py-4 font-semibold text-gray-900 dark:text-white">₱{monthlyRevenueValue.toLocaleString()}</td>
-                              <td className="px-6 py-4 text-gray-900 dark:text-white font-medium">₱{incomePerRoomValue.toLocaleString()}</td>
-                              <td className="px-6 py-4">
+                              <td className="px-6 py-4 font-semibold text-gray-900 dark:text-white">{formatPrice(monthlyRevenueValue)}</td>
+                              <td className="px-6 py-4 text-gray-900 dark:text-white font-medium">{formatPrice(incomePerRoomValue)}</td>                              <td className="px-6 py-4">
                                 <span className={`px-2.5 py-2 rounded-full text-xs font-semibold ${statusMeta.className}`}>
                                   {statusMeta.label}
                                 </span>

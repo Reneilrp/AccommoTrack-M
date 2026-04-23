@@ -393,7 +393,7 @@ class TenantBookingController extends Controller
 
             $totalAmount = $monthlyDue + $partialCharge;
 
-            $amountCents = $totalAmount;
+            $amountCents = (int) round($totalAmount * 100);
 
             $reference = 'INV-'.date('Ymd').'-'.strtoupper(substr(bin2hex(random_bytes(3)), 0, 6));
 
@@ -534,7 +534,7 @@ class TenantBookingController extends Controller
             'billing_period_start' => $periodStart,
             'billing_period_end' => $periodEnd,
             'billing_period_key' => $periodKey,
-            'amount_cents' => $baseInvoiceAmount,
+            'amount_cents' => (int) round($baseInvoiceAmount * 100),
             'currency' => 'PHP',
             'status' => 'pending',
             'issued_at' => now(),

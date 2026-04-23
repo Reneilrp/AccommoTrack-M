@@ -100,7 +100,7 @@ class ExtensionController extends Controller
                     'booking_id' => $targetBooking->id,
                     'tenant_id' => $ext->tenant_id,
                     'description' => "Stay Extension until {$finalDate} (".($ext->extension_type).')',
-                    'amount_cents' => $finalAmount,
+                    'amount_cents' => (int) round($finalAmount * 100),
                     'currency' => 'PHP',
                     'status' => 'pending',
                     'issued_at' => now(),
