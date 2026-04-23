@@ -151,24 +151,24 @@ export const useTenantPaymentStats = () => {
 };
 
 /**
- export const useTenantWalletLogs = (page = 1) => {
-   return useQuery({
-     queryKey: tenantQueryKeys.walletLogs(page),
-     queryFn: async () => {
-       const response = await paymentService.getWalletLogs(page);
-       if (!response.success) throw new Error(response.error || 'Failed to fetch wallet logs');
+ * Fetch Tenant Wallet Logs
+ */
+export const useTenantWalletLogs = (page = 1) => {
+  return useQuery({
+    queryKey: tenantQueryKeys.walletLogs(page),
+    queryFn: async () => {
+      const response = await paymentService.getWalletLogs(page);
+      if (!response.success) throw new Error(response.error || 'Failed to fetch wallet logs');
 
-       const payload = response.data || {};
-       const items = Array.isArray(payload.items) ? payload.items : (Array.isArray(payload.data) ? payload.data : []);
+      const payload = response.data || {};
+      const items = Array.isArray(payload.items) ? payload.items : (Array.isArray(payload.data) ? payload.data : []);
 
-       return {
-         data: items,
-         meta: payload.pagination || null
-       };
-     },
-     staleTime: 5 * 60 * 1000,
-   });
- };
+      return {
+        data: items,
+        meta: payload.pagination || null
+      };
+    },
+    staleTime: 5 * 60 * 1000,
     placeholderData: keepPreviousData,
   });
 };
