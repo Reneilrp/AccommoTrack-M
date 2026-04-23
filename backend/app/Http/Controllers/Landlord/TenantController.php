@@ -89,7 +89,7 @@ class TenantController extends Controller
                     },
                 ])
                 // OPTIMIZATION: Check for overdue invoices in a single subquery
-                ->withExists(['invoices as has_overdue_invoices' => function($q) {
+                ->withExists(['invoices' => function($q) {
                     $q->where('status', 'pending')->where('due_date', '<', now());
                 }])
                 ->where(function ($q) use ($landlordId, $allowedPropertyIds, $confirmedStatuses) {
@@ -178,11 +178,11 @@ class TenantController extends Controller
                     'email' => $tenant->email,
                     'phone' => $tenant->phone,
                     'is_active' => $tenant->is_active,
-                    'has_overdue_invoices' => (bool) $tenant->has_overdue_invoices, // Value from subquery
+                    'has_overdue_invoices' => (bool) ($tenant->invoices_exists ?? false),
                     'room' => $room ? [
                         'id' => $room->id,
                         'room_number' => $room->room_number,
-                        'property_name' => $room->property->title ?? 'N/A',
+                        'property_name' => $room->property?->title ?? 'N/A',
                         'property_id' => $room->property_id,
                     ] : null,
                     'tenantProfile' => $tenant->tenantProfile,
@@ -338,11 +338,11 @@ class TenantController extends Controller
             'phone' => $tenant->phone,
             'sex' => $tenant->sex,
             'date_of_birth' => $tenant->date_of_birth,
-            'room' => $room ? ['room_number' => $room->room_number, 'property_name' => $room->property->title] : null,
+            'room' => $room ? ['room_number' => $room->room_number, 'property_name' => $room->property?->title ?? 'N/A'] : null,
             'tenantProfile' => $tenant->tenantProfile,
             'proxy_origin' => $proxyOrigin ? [
-                'booking_reference' => $proxyOrigin->booking->booking_reference,
-                'property_name' => $proxyOrigin->booking->property->title,
+                'booking_reference' => $proxyOrigin->booking?->booking_reference ?? 'N/A',
+                'property_name' => $proxyOrigin->booking?->property?->title ?? 'N/A',
             ] : null,
             'history' => [
                 'bookings' => $bookings,
