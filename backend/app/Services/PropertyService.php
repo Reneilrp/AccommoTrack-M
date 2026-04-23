@@ -117,6 +117,8 @@ class PropertyService
                     'reservation_fee' => $reservationFeeAmount,
                     'reservation_fee_gap_days' => $reservationFeeGapDays,
                     'accepted_payments' => $validated['accepted_payments'] ?? null,
+                    'transfer_fee' => (float) ($validated['transfer_fee'] ?? 0),
+                    'transfer_limit' => (int) ($validated['transfer_limit'] ?? 1),
                 ];
 
                 // Only include these fields if they were actually provided in the request

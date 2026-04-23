@@ -702,7 +702,7 @@ export default function DormProfileSettings({
         gcash_name: dormData.require_reservation_fee ? dormData.gcash_name : "",
         gcash_number: dormData.require_reservation_fee ? dormData.gcash_number : "",
         transfer_fee: parseFloat(dormData.transfer_fee) || 0,
-        transfer_limit: parseInt(dormData.transfer_limit) || 3,
+        transfer_limit: (dormData.transfer_limit !== '' && dormData.transfer_limit !== null) ? parseInt(dormData.transfer_limit) : 3,
         latitude: parseFloat(dormData.latitude) || null,
         longitude: parseFloat(dormData.longitude) || null,
         is_published: dormData.status === 'active' ? (dormData.is_published ? 1 : 0) : 0,
