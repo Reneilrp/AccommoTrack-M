@@ -574,6 +574,7 @@ export default function AddProperty({ onBack, onSave }) {
           if (key === 'title') mappedErrors.propertyName = msgs;
           else if (key === 'province') mappedErrors.provinceRegion = msgs;
           else if (key === 'street_address') mappedErrors.streetAddress = msgs;
+          else if (key === 'property_type') mappedErrors.propertyType = msgs;
           else mappedErrors[key] = msgs;
         });
         setFieldErrors(mappedErrors);
