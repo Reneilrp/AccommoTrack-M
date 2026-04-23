@@ -13,4 +13,6 @@ export const formatPrice = (amount) => {
     const safeAmount = new Decimal(amount);
 
     return `₱${safeAmount.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`;
-};
+    };
+
+    export default formatPrice;

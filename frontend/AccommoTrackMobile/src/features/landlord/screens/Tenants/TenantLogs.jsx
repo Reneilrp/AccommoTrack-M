@@ -98,7 +98,7 @@ export default function TenantLogs({ route, navigation }) {
       const status = (p.status || p.payment_status || '').toLowerCase();
       return status !== 'paid';
     });
-    return unpaid.reduce((sum, p) => sum + parseFloat(p.amount || (p.amount_cents / 100) || 0), 0);
+    return unpaid.reduce((sum, p) => sum + parseFloat(p.amount || p.amount_cents || 0), 0);
   }, [payments]);
 
   const getInitials = (name) => {
@@ -120,7 +120,7 @@ export default function TenantLogs({ route, navigation }) {
   const renderPaymentItem = ({ item }) => {
     const status = item.status || item.payment_status || 'unpaid';
     const statusStyle = getPaymentStatusStyle(status);
-    const amount = item.amount || (item.amount_cents ? item.amount_cents / 100 : 0);
+    const amount = item.amount || (item.amount_cents ? item.amount_cents : 0);
 
     return (
       <View style={styles.paymentCard}>

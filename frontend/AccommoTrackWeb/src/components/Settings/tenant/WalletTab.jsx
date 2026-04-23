@@ -122,7 +122,7 @@ const WalletTab = () => {
             logs.map((log) => {
               const isDebit = log.type === 'debit';
               const rawAmount = log.amount_cents || log.amount || 0;
-              const displayAmount = log.amount_cents ? (rawAmount / 100) : rawAmount;
+              const displayAmount = rawAmount;
               
               return (
                 <div key={log.id} className="px-6 py-5 hover:bg-gray-50/50 dark:hover:bg-gray-700/20 transition-colors group">

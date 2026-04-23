@@ -1693,7 +1693,8 @@ const FinancialsTab = ({ stays = [], selectedIndex = 0, onSelectStay, navigate }
       return {
         ...tx,
         date: resolvedDate,
-        amount: tx.amount ?? (tx.amount_cents ? tx.amount_cents / 100 : 0),
+        amount: tx.amount ?? (tx.amount_cents ? tx.amount_cents : 0),
+
         invoiceRef: inv.id,
         timestamp: parseActivityTimestamp(resolvedDate),
         normalizedStatus: String(tx.status || '').toLowerCase(),

@@ -272,15 +272,15 @@ export default function Payments() {
   useEffect(() => {
     if (selectedInvoice) {
       const total = selectedInvoice.amount_cents
-        ? new Decimal(selectedInvoice.amount_cents).div(100).toNumber()
+        ? new Decimal(selectedInvoice.amount_cents).toNumber()
         : new Decimal(selectedInvoice.amount || 0).toNumber();
       const paid =
         selectedInvoice.transactions
           ?.filter(tx => ["succeeded", "paid", "partially_refunded"].includes(tx.status))
           .reduce(
             (sum, tx) => {
-              const txAmt = tx.amount_cents ? new Decimal(tx.amount_cents).div(100).toNumber() : new Decimal(tx.amount || 0).toNumber();
-              const txRef = tx.refunded_amount_cents ? new Decimal(tx.refunded_amount_cents).div(100).toNumber() : 0;
+              const txAmt = tx.amount_cents ? new Decimal(tx.amount_cents).toNumber() : new Decimal(tx.amount || 0).toNumber();
+              const txRef = tx.refunded_amount_cents ? new Decimal(tx.refunded_amount_cents).toNumber() : 0;
               return new Decimal(sum).plus(new Decimal(txAmt).minus(txRef)).toNumber();
             },
             0,
@@ -358,7 +358,7 @@ export default function Payments() {
     statsSourceInvoices.forEach((inv) => {
       const status = getInvoiceStatus(inv);
       const total = inv.amount_cents
-        ? new Decimal(inv.amount_cents).div(100).toNumber()
+        ? new Decimal(inv.amount_cents).toNumber()
         : new Decimal(inv.amount || 0).toNumber();
 
       const paid =
@@ -366,8 +366,8 @@ export default function Payments() {
           ?.filter((tx) => ["succeeded", "paid", "partially_refunded"].includes(tx.status))
           .reduce(
             (sum, tx) => {
-              const txAmt = tx.amount_cents ? new Decimal(tx.amount_cents).div(100).toNumber() : new Decimal(tx.amount || 0).toNumber();
-              const txRef = tx.refunded_amount_cents ? new Decimal(tx.refunded_amount_cents).div(100).toNumber() : 0;
+              const txAmt = tx.amount_cents ? new Decimal(tx.amount_cents).toNumber() : new Decimal(tx.amount || 0).toNumber();
+              const txRef = tx.refunded_amount_cents ? new Decimal(tx.refunded_amount_cents).toNumber() : 0;
               return new Decimal(sum).plus(new Decimal(txAmt).minus(txRef)).toNumber();
             },
             0,
@@ -393,10 +393,10 @@ export default function Payments() {
 
     const totalPaid = new Decimal(
       totals.total_paid_cents ?? totals.total_paid ?? 0
-    ).div(100).toNumber();
+    ).toNumber();
     const totalBalance = new Decimal(
       totals.total_balance_cents ?? totals.total_balance ?? 0
-    ).div(100).toNumber();
+    ).toNumber();
 
     return {
       totalPaid,
@@ -599,7 +599,7 @@ export default function Payments() {
     setIsRecording(true);
     try {
       const response = await invoiceService.recordPayment(selectedInvoice.id, {
-        amount_cents: new Decimal(recordData.amount || 0).times(100).round().toNumber(),
+        amount_cents: Number(recordData.amount || 0),
         method: recordData.method,
         reference: recordData.reference,
         notes: recordData.notes,
@@ -705,7 +705,7 @@ export default function Payments() {
         await updateBookingPayment(selectedInvoice.booking_id, "refunded", true);
       }
       showSuccess(
-        `Refund of ${formatPrice(new Decimal(amountCents).div(100).toNumber())} processed successfully`,
+        `Refund of ${formatPrice(amountCents)} processed successfully`,
       );
       setShowInvoiceModal(false);
       refreshLandlordMutationViews();
@@ -733,7 +733,7 @@ export default function Payments() {
 
       await updateBookingPayment(selectedInvoice.booking_id, "refunded", true);
       showSuccess(
-        `Merged refund of ${formatPrice(new Decimal(amountCents).div(100).toNumber())} processed successfully`,
+        `Merged refund of ${formatPrice(amountCents)} processed successfully`,
       );
 
       setShowMergedRefundModal(false);
@@ -755,7 +755,7 @@ export default function Payments() {
     const preview = getInvoiceRefundPreview(selectedInvoice, selectedBooking);
     const suggested = Math.max(0, Number(preview?.maxRefundableCents || 0));
     setMergedRefundPreview(preview);
-    setRefundAmount(new Decimal(suggested).div(100).toDecimalPlaces(2).toString());
+    setRefundAmount(new Decimal(suggested).toDecimalPlaces(2).toString());
     setShowMergedRefundModal(true);
   };
 
@@ -763,7 +763,7 @@ export default function Payments() {
     const preview = getTransactionRefundPreview(selectedInvoice, tx, selectedBooking);
     const suggested = Math.max(0, Number(preview?.maxRefundableCents || 0));
     setRefundConfirmTx({ ...tx, refund_preview: preview });
-    setRefundAmount(new Decimal(suggested).div(100).toDecimalPlaces(2).toString());
+    setRefundAmount(new Decimal(suggested).toDecimalPlaces(2).toString());
   };
 
   const updateBookingPayment = async (bookingId, paymentStatus, silent = false) => {
@@ -937,7 +937,7 @@ export default function Payments() {
       "—";
     const issued = inv.issued_at || inv.created_at || "";
     const price = inv.amount_cents
-      ? new Decimal(inv.amount_cents).div(100).toNumber()
+      ? new Decimal(inv.amount_cents).toNumber()
       : inv.amount
         ? new Decimal(inv.amount).toNumber()
         : 0;
@@ -946,8 +946,8 @@ export default function Payments() {
         ?.filter(tx => tx.status === 'succeeded' || tx.status === 'paid' || tx.status === 'partially_refunded')
         .reduce(
           (sum, tx) => {
-            const txAmt = tx.amount_cents ? new Decimal(tx.amount_cents).div(100).toNumber() : new Decimal(tx.amount || 0).toNumber();
-            const txRef = tx.refunded_amount_cents ? new Decimal(tx.refunded_amount_cents).div(100).toNumber() : 0;
+            const txAmt = tx.amount_cents ? new Decimal(tx.amount_cents).toNumber() : new Decimal(tx.amount || 0).toNumber();
+            const txRef = tx.refunded_amount_cents ? new Decimal(tx.refunded_amount_cents).toNumber() : 0;
             return new Decimal(sum).plus(new Decimal(txAmt).minus(txRef)).toNumber();
           },
           0,
@@ -2040,7 +2040,7 @@ export default function Payments() {
                         Max Refundable
                       </p>
                       <p className="text-[10px] text-red-600 font-black">
-                        {formatPrice(new Decimal(mergedRefundPreview.maxRefundableCents).div(100).toNumber())}
+                        {formatPrice(mergedRefundPreview.maxRefundableCents)}
                       </p>
                     </div>
                   </div>
@@ -2060,9 +2060,9 @@ export default function Payments() {
                 </button>
                 <button
                   onClick={() => {
-                    const cents = new Decimal(refundAmount || 0).times(100).round().toNumber();
-                    if (!cents || isNaN(cents)) return showError("Please enter a valid amount");
-                    handleRefundInvoice(selectedInvoice.id, cents);
+                    const amount = Number(refundAmount || 0);
+                    if (!amount || isNaN(amount)) return showError("Please enter a valid amount");
+                    handleRefundInvoice(selectedInvoice.id, amount);
                   }}
                   disabled={isRefundingInvoice || !refundAmount}
                   className="flex-[1.5] py-4 bg-red-600 text-white font-bold rounded-2xl hover:bg-red-700 transition-all shadow-xl shadow-red-200 dark:shadow-none flex items-center justify-center gap-2 uppercase text-xs tracking-widest disabled:opacity-50"
@@ -2128,7 +2128,7 @@ export default function Payments() {
                         />
                       </div>
                       <p className="text-xs text-gray-500 dark:text-gray-400">
-                       Estimated refundable now: <span className="font-bold text-gray-900 dark:text-white">{formatPrice(new Decimal(maxRefundableCents).div(100).toNumber())}</span>
+                       Estimated refundable now: <span className="font-bold text-gray-900 dark:text-white">{formatPrice(maxRefundableCents)}</span>
                       </p>
                       {isInvalidAmount && (
                         <p className="text-xs text-red-600 dark:text-red-400">
@@ -2154,7 +2154,8 @@ export default function Payments() {
                         onClick={async () => {
                           const txToRefund = refundConfirmTx;
                           setRefundConfirmTx(null);
-                          await handleRefundTransaction(txToRefund, requestedCents);
+                          const amount = Number(refundAmount || 0);
+                          await handleRefundTransaction(txToRefund, amount);
                         }}
                         disabled={isRefunding === refundConfirmTx.id || isInvalidAmount}
                         className="flex-1 px-4 py-4 bg-red-600 hover:bg-red-700 text-white rounded-xl font-bold transition-all text-sm flex items-center justify-center gap-2 shadow-lg shadow-red-500/30"
@@ -2285,10 +2286,10 @@ function ExportModal({ invoices, bookingsMap, onClose }) {
         const property = bk?.property?.title || inv.property?.title || '—';
         const room = bk?.room?.room_number || bk?.room_number || inv.room_number || '—';
         const issued = inv.issued_at || inv.created_at || '';
-        const amount = inv.amount_cents ? new Decimal(inv.amount_cents).div(100).toNumber() : new Decimal(inv.amount || 0).toNumber();
+        const amount = inv.amount_cents ? new Decimal(inv.amount_cents).toNumber() : new Decimal(inv.amount || 0).toNumber();
         const paid = (inv.transactions || [])
           .filter(tx => ['succeeded', 'paid', 'partially_refunded'].includes(tx.status))
-          .reduce((s, tx) => new Decimal(s).plus(new Decimal(tx.amount_cents ? new Decimal(tx.amount_cents).div(100).toNumber() : new Decimal(tx.amount || 0).toNumber()).minus(tx.refunded_amount_cents ? new Decimal(tx.refunded_amount_cents).div(100).toNumber() : 0)).toNumber(), 0);
+          .reduce((s, tx) => new Decimal(s).plus(new Decimal(tx.amount_cents ? new Decimal(tx.amount_cents).toNumber() : new Decimal(tx.amount || 0).toNumber()).minus(tx.refunded_amount_cents ? new Decimal(tx.refunded_amount_cents).toNumber() : 0)).toNumber(), 0);
         const balance = Math.max(0, new Decimal(amount).minus(paid).toNumber());
         const status = (inv.status || 'pending').charAt(0).toUpperCase() + (inv.status || 'pending').slice(1);
         return [`"${inv.reference || `INV-${inv.id}`}"`, `"${tenantName}"`, `"${property}"`, `"${room}"`, issued ? new Date(issued).toLocaleDateString() : '—', amount.toFixed(2), paid.toFixed(2), balance.toFixed(2), status].join(',');

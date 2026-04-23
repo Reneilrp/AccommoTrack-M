@@ -98,8 +98,7 @@ function InvoiceCard({ invoice, theme, onPress }) {
   const tenantName = buildTenantName(invoice);
   const roomLabel = buildRoomLabel(invoice);
   const property = invoice?.property?.title || invoice?.property_title || invoice?.booking?.property?.title || '—';
-  const amount = invoice?.amount_cents ? invoice.amount_cents / 100 : Number(invoice?.amount || 0);
-
+  const amount = invoice?.amount_cents ? invoice.amount_cents : Number(invoice?.amount || 0);
   return (
     <TouchableOpacity
       onPress={() => onPress && onPress(invoice)}
