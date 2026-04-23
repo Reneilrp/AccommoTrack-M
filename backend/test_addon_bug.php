@@ -1,19 +1,9 @@
 <?php
+require __DIR__.'/vendor/autoload.php';
+$app = require_once __DIR__.'/bootstrap/app.php';
+$kernel = $app->make(Illuminate\Contracts\Console\Kernel::class);
+$kernel->bootstrap();
 
-require 'vendor/autoload.php';
-$app = require_once 'bootstrap/app.php';
-$app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
-
-$booking = \App\Models\Booking::first();
-if ($booking) {
-    try {
-        $addonRequest = $booking->addons()
-            ->where('addon_id', 1)
-            ->first();
-        echo 'Success';
-    } catch (\Exception $e) {
-        echo 'Error: '.$e->getMessage();
-    }
-} else {
-    echo 'No booking';
-}
+$reference = 'RCPT-12345';
+$expectedSignature = hash_hmac('sha256', (string) $reference, config('app.key'));
+echo "Expected: " . $expectedSignature . "\n";

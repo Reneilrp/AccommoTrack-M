@@ -10,17 +10,19 @@ if (!$invoice) {
     exit;
 }
 
-$invoice->receipt_reference = 'RCPT-TEST-999';
+$invoice->receipt_reference = 'RCPT-' . date('YmdHis') . '-' . strtoupper(\Illuminate\Support\Str::random(10));
 $invoice->status = 'paid';
 $invoice->save();
 
 $reference = $invoice->receipt_reference;
 $signature = hash_hmac('sha256', $reference, config('app.key'));
 
-// Simulate the API request
+echo "Ref: $reference\n";
+echo "Sig: $signature\n";
+
 $request = \Illuminate\Http\Request::create("/api/public/receipts/{$reference}/verify?sig={$signature}", 'GET');
 $controller = new \App\Http\Controllers\Public\PublicReceiptController();
 $response = $controller->verifyApi($request, $reference);
 
-echo "API Response Status: " . $response->getStatusCode() . "\n";
-echo "API Response Body: " . $response->getContent() . "\n";
+echo "Status: " . $response->getStatusCode() . "\n";
+echo "Content: " . $response->getContent() . "\n";

@@ -60,7 +60,7 @@ class PublicReceiptController extends Controller
 
         $expectedSignature = hash_hmac('sha256', (string) $reference, config('app.key'));
         if (!hash_equals($expectedSignature, $signature)) {
-            return response()->json(['success' => false, 'message' => 'Forged or tampered document detected.'], 403);
+            return response()->json(['success' => false, 'message' => 'Forged or tampered document detected.', 'expected' => $expectedSignature, 'received' => $signature], 403);
         }
 
         $invoice = Invoice::with(['tenant', 'property'])
