@@ -70,6 +70,7 @@ class TenantController extends Controller
             $query = User::where('role', 'tenant')
                 ->with([
                     'tenantProfile',
+                    'room.property',
                     'roomAssignments.property',
                     'bookings' => function ($q) use ($landlordId) {
                         $q->where('landlord_id', $landlordId)

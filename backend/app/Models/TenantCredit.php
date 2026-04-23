@@ -3,29 +3,24 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 
 class TenantCredit extends Model
 {
-    protected $guarded = [];
-
-    public function tenant()
+    protected function amountCents(): Attribute
     {
-        return $this->belongsTo(User::class, 'tenant_id');
+        return Attribute::make(
+            get: fn ($value) => $value !== null ? $value / 100 : null,
+            set: fn ($value) => $value !== null ? (int) round($value * 100) : null,
+        );
     }
 
-    public function property()
+    protected function amount(): Attribute
     {
-        return $this->belongsTo(Property::class, 'property_id');
-    }
-
-    public function room()
-    {
-        return $this->belongsTo(Room::class, 'room_id');
-    }
-
-    public function invoice()
-    {
-        return $this->belongsTo(Invoice::class, 'invoice_id');
+        return Attribute::make(
+            get: fn () => $this->amount_cents,
+            set: fn ($value) => ['amount_cents' => $value],
+        );
     }
 
     public static function getBalance($tenantId, $propertyId = null)
@@ -38,6 +33,7 @@ class TenantCredit extends Model
         $credits = (clone $query)->whereIn('type', ['credit', 'refund'])->sum('amount_cents');
         $debits = (clone $query)->where('type', 'debit')->sum('amount_cents');
 
-        return max(0, $credits - $debits);
+        // Return decimal (e.g., 100.00 instead of 10000)
+        return max(0, ($credits - $debits) / 100);
     }
 }

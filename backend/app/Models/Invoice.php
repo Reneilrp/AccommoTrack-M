@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use App\Models\User;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 
 /**
  * @property int $id
@@ -73,6 +74,46 @@ class Invoice extends Model
         'receipt_reference', 'receipt_sent_at', 'invoice_number', 'is_archived',
         'booking_group_reference',
     ];
+
+    protected function amountCents(): Attribute
+    {
+        return Attribute::make(
+            get: fn ($value) => $value !== null ? $value / 100 : null,
+            set: fn ($value) => $value !== null ? (int) round($value * 100) : null,
+        );
+    }
+
+    protected function subtotalCents(): Attribute
+    {
+        return Attribute::make(
+            get: fn ($value) => $value !== null ? $value / 100 : null,
+            set: fn ($value) => $value !== null ? (int) round($value * 100) : null,
+        );
+    }
+
+    protected function taxCents(): Attribute
+    {
+        return Attribute::make(
+            get: fn ($value) => $value !== null ? $value / 100 : null,
+            set: fn ($value) => $value !== null ? (int) round($value * 100) : null,
+        );
+    }
+
+    protected function totalCents(): Attribute
+    {
+        return Attribute::make(
+            get: fn ($value) => $value !== null ? $value / 100 : null,
+            set: fn ($value) => $value !== null ? (int) round($value * 100) : null,
+        );
+    }
+
+    protected function amount(): Attribute
+    {
+        return Attribute::make(
+            get: fn () => $this->amount_cents,
+            set: fn ($value) => ['amount_cents' => $value],
+        );
+    }
 
     protected static function boot()
     {

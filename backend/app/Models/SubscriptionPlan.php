@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 
 class SubscriptionPlan extends Model
 {
@@ -28,6 +29,17 @@ class SubscriptionPlan extends Model
         'features' => 'array',
         'is_active' => 'boolean',
     ];
+
+    protected function amount(): Attribute
+{
+    return Attribute::make(
+        // When reading from DB: divide by 100 (10000 -> 100.00)
+        get: fn ($value) => $value !== null ? $value / 100 : null,
+        
+        // When saving to DB: multiply by 100 (100.00 -> 10000)
+        set: fn ($value) => $value !== null ? (int) round($value * 100) : null,
+    );
+}
 
     public function subscriptions()
     {

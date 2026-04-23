@@ -90,24 +90,24 @@ class PaymongoController extends Controller
         $method = strtolower(trim((string) $validated['method']));
         $returnUrl = $validated['return_url'] ?? config('app.url').'/payments/return';
 
-        $invoiceTotalCents = $invoice->total_cents ?? $invoice->amount_cents;
-        if (! $invoiceTotalCents) {
+        $invoiceTotal = $invoice->total_cents ?? $invoice->amount_cents;
+        if (! $invoiceTotal) {
             return response()->json(['message' => 'Invoice has no amount set'], 422);
         }
 
-        // Calculate total successful payments for this invoice, subtracting refunds
-        $paidAmountCents = $invoice->transactions()
+        // Calculate total successful payments for this invoice, subtracting refunds (in cents from SQL, convert to decimal)
+        $paidAmount = ($invoice->transactions()
             ->whereIn('status', ['succeeded', 'paid', 'partially_refunded'])
             ->selectRaw('SUM(amount_cents - refunded_amount_cents) as net_cents')
-            ->value('net_cents') ?? 0;
+            ->value('net_cents') ?? 0) / 100;
 
-        $remainingBalanceCents = max(0, $invoiceTotalCents - $paidAmountCents);
+        $remainingBalance = max(0, $invoiceTotal - $paidAmount);
 
-        if ($remainingBalanceCents <= 0) {
+        if ($remainingBalance <= 0) {
             return response()->json(['message' => 'This invoice is already fully paid.'], 422);
         }
 
-        $amountToPayCents = $remainingBalanceCents;
+        $amountToPay = $remainingBalance;
 
         DB::beginTransaction();
         try {
@@ -115,7 +115,7 @@ class PaymongoController extends Controller
             $tx = PaymentTransaction::create([
                 'invoice_id' => $invoice->id,
                 'tenant_id' => $invoice->tenant_id,
-                'amount_cents' => $amountToPayCents,
+                'amount_cents' => $amountToPay, // Mutator handles decimal to integer conversion
                 'currency' => $invoice->currency ?? 'PHP',
                 'status' => 'pending',
                 'method' => 'paymongo_'.$method,
@@ -133,7 +133,7 @@ class PaymongoController extends Controller
             $payload = [
                 'data' => [
                     'attributes' => [
-                        'amount' => (int) round($amountToPayCents * 100),
+                        'amount' => (int) round($amountToPay * 100), // Standard decimals to PayMongo cents
                         'currency' => strtoupper($invoice->currency ?? 'PHP'),
                         'type' => $method,
                         'redirect' => [
@@ -214,28 +214,28 @@ class PaymongoController extends Controller
         $method = strtolower(trim((string) $validated['method']));
         $returnUrl = $validated['return_url'] ?? config('app.url').'/payments/return';
 
-        $invoiceTotalCents = $invoice->total_cents ?? $invoice->amount_cents;
-        if (! $invoiceTotalCents) {
+        $invoiceTotal = $invoice->total_cents ?? $invoice->amount_cents;
+        if (! $invoiceTotal) {
             return response()->json(['message' => 'Invoice has no amount set'], 422);
         }
 
-        // Calculate total successful payments for this invoice, subtracting refunds
-        $paidAmountCents = $invoice->transactions()
+        // Calculate total successful payments (in cents, convert to decimal)
+        $paidAmount = ($invoice->transactions()
             ->whereIn('status', ['succeeded', 'paid', 'partially_refunded'])
             ->selectRaw('SUM(amount_cents - refunded_amount_cents) as net_cents')
-            ->value('net_cents') ?? 0;
+            ->value('net_cents') ?? 0) / 100;
 
-        $remainingBalanceCents = max(0, $invoiceTotalCents - $paidAmountCents);
+        $remainingBalance = max(0, $invoiceTotal - $paidAmount);
 
-        if ($remainingBalanceCents <= 0) {
+        if ($remainingBalance <= 0) {
             return response()->json(['message' => 'This invoice is already fully paid.'], 422);
         }
 
         if (isset($validated['amount'])) {
-            $requestedAmountCents = $validated['amount'];
-            if ($requestedAmountCents > $remainingBalanceCents) {
+            $requestedAmount = $validated['amount'];
+            if ($requestedAmount > $remainingBalance) {
                 return response()->json([
-                    'message' => 'Payment amount cannot exceed the remaining balance of ₱'.number_format($remainingBalanceCents / 100, 2),
+                    'message' => 'Payment amount cannot exceed the remaining balance of ₱'.number_format($remainingBalance, 2),
                 ], 422);
             }
 
@@ -243,25 +243,25 @@ class PaymongoController extends Controller
             $invoice->load(['property', 'booking.property']);
             $property = $invoice->property ?? $invoice->booking?->property;
             $allowPartial = $property ? (bool) $property->allow_partial_payments : true;
-            if (! $allowPartial && $requestedAmountCents < $remainingBalanceCents) {
+            if (! $allowPartial && $requestedAmount < $remainingBalance) {
                 return response()->json([
-                    'message' => 'Partial payments are not allowed for this property. Please pay the full remaining balance of ₱'.number_format($remainingBalanceCents / 100, 2),
+                    'message' => 'Partial payments are not allowed for this property. Please pay the full remaining balance of ₱'.number_format($remainingBalance, 2),
                 ], 422);
             }
 
             if ($allowPartial && $property) {
                 $minPercent = $property->min_partial_payment_pct ?? 20;
-                $minAmount = $remainingBalanceCents * ($minPercent / 100);
-                if ($requestedAmountCents < $remainingBalanceCents && $requestedAmountCents < $minAmount) {
+                $minAmount = $remainingBalance * ($minPercent / 100);
+                if ($requestedAmount < $remainingBalance && $requestedAmount < $minAmount) {
                     return response()->json([
-                        'message' => 'The minimum partial payment for this property is '.$minPercent.'% (₱'.number_format($minAmount / 100, 2).').',
+                        'message' => 'The minimum partial payment for this property is '.$minPercent.'% (₱'.number_format($minAmount, 2).').',
                     ], 422);
                 }
             }
 
-            $amountToPayCents = $requestedAmountCents;
+            $amountToPay = $requestedAmount;
         } else {
-            $amountToPayCents = $remainingBalanceCents;
+            $amountToPay = $remainingBalance;
         }
 
         DB::beginTransaction();
@@ -269,7 +269,7 @@ class PaymongoController extends Controller
             $tx = PaymentTransaction::create([
                 'invoice_id' => $invoice->id,
                 'tenant_id' => $invoice->tenant_id,
-                'amount_cents' => $amountToPayCents,
+                'amount_cents' => $amountToPay, // Mutator handles decimal to integer conversion
                 'currency' => $invoice->currency ?? 'PHP',
                 'status' => 'pending',
                 'method' => 'paymongo_'.$method,
@@ -287,7 +287,7 @@ class PaymongoController extends Controller
             $payload = [
                 'data' => [
                     'attributes' => [
-                        'amount' => (int) round($amountToPayCents * 100),
+                        'amount' => (int) round($amountToPay * 100), // Standard decimal to PayMongo cents
                         'currency' => strtoupper($invoice->currency ?? 'PHP'),
                         'type' => $method,
                         'redirect' => [
@@ -365,24 +365,24 @@ class PaymongoController extends Controller
             return $this->invoicePendingManualVerificationResponse();
         }
 
-        $invoiceTotalCents = $invoice->total_cents ?? $invoice->amount_cents;
-        if (! $invoiceTotalCents) {
+        $invoiceTotal = $invoice->total_cents ?? $invoice->amount_cents;
+        if (! $invoiceTotal) {
             return response()->json(['message' => 'Invoice has no amount set'], 422);
         }
 
-        // Calculate total successful payments for this invoice, subtracting refunds
-        $paidAmountCents = $invoice->transactions()
+        // Calculate total successful payments (in cents, convert to decimal)
+        $paidAmount = ($invoice->transactions()
             ->whereIn('status', ['succeeded', 'paid', 'partially_refunded'])
             ->selectRaw('SUM(amount_cents - refunded_amount_cents) as net_cents')
-            ->value('net_cents') ?? 0;
+            ->value('net_cents') ?? 0) / 100;
 
-        $remainingBalanceCents = max(0, $invoiceTotalCents - $paidAmountCents);
+        $remainingBalance = max(0, $invoiceTotal - $paidAmount);
 
-        if ($remainingBalanceCents <= 0) {
+        if ($remainingBalance <= 0) {
             return response()->json(['message' => 'This invoice is already fully paid.'], 422);
         }
 
-        $amountToPayCents = $remainingBalanceCents;
+        $amountToPay = $remainingBalance;
 
         DB::beginTransaction();
         try {
@@ -406,7 +406,7 @@ class PaymongoController extends Controller
             $paymentPayload = [
                 'data' => [
                     'attributes' => [
-                        'amount' => (int) round($amountToPayCents * 100),
+                        'amount' => (int) round($amountToPay * 100), // Standard decimal to PayMongo cents
                         'currency' => strtoupper($invoice->currency ?? 'PHP'),
                     ],
                 ],
@@ -491,24 +491,24 @@ class PaymongoController extends Controller
             return $this->invoicePendingManualVerificationResponse();
         }
 
-        $invoiceTotalCents = $invoice->total_cents ?? $invoice->amount_cents;
-        if (! $invoiceTotalCents) {
+        $invoiceTotal = $invoice->total_cents ?? $invoice->amount_cents;
+        if (! $invoiceTotal) {
             return response()->json(['message' => 'Invoice has no amount set'], 422);
         }
 
-        // Calculate total successful payments for this invoice, subtracting refunds
-        $paidAmountCents = $invoice->transactions()
+        // Calculate total successful payments (in cents, convert to decimal)
+        $paidAmount = ($invoice->transactions()
             ->whereIn('status', ['succeeded', 'paid', 'partially_refunded'])
             ->selectRaw('SUM(amount_cents - refunded_amount_cents) as net_cents')
-            ->value('net_cents') ?? 0;
+            ->value('net_cents') ?? 0) / 100;
 
-        $remainingBalanceCents = max(0, $invoiceTotalCents - $paidAmountCents);
+        $remainingBalance = max(0, $invoiceTotal - $paidAmount);
 
-        if ($remainingBalanceCents <= 0) {
+        if ($remainingBalance <= 0) {
             return response()->json(['message' => 'This invoice is already fully paid.'], 422);
         }
 
-        $amountToPayCents = $remainingBalanceCents;
+        $amountToPay = $remainingBalance;
 
         DB::beginTransaction();
         try {
@@ -532,7 +532,7 @@ class PaymongoController extends Controller
             $paymentPayload = [
                 'data' => [
                     'attributes' => [
-                        'amount' => (int) round($amountToPayCents * 100),
+                        'amount' => (int) round($amountToPay * 100), // Standard decimal to PayMongo cents
                         'currency' => strtoupper($invoice->currency ?? 'PHP'),
                     ],
                 ],
@@ -719,7 +719,7 @@ class PaymongoController extends Controller
                 'json' => [
                     'data' => [
                         'attributes' => [
-                            'amount' => intval($amount),
+                            'amount' => (int) round($amount * 100), // Standard decimal to PayMongo cents
                             'currency' => strtoupper($currency),
                             'source' => [
                                 'id' => $sourceId,
@@ -785,7 +785,7 @@ class PaymongoController extends Controller
         $payload = [
             'data' => [
                 'attributes' => [
-                    'amount' => intval($tx->amount_cents),
+                    'amount' => (int) round($tx->amount_cents * 100), // Standard decimal to PayMongo cents
                     'description' => (string) ($invoice->description ?: 'Invoice #'.$invoice->id),
                     'remarks' => (string) ($invoice->reference ?: 'INV-'.$invoice->id),
                     'metadata' => $metadata,

@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 
 /**
  * @property int $id
@@ -56,14 +57,65 @@ class PaymentTransaction extends Model
     protected $table = 'payment_transactions';
 
     protected $fillable = [
-        'invoice_id', 'tenant_id', 'amount_cents', 'currency', 'status', 'method',
-        'gateway_reference', 'gateway_response', 'idempotency_key', 'refunded_amount_cents',
-        'gateway_fee_cents', 'net_amount_cents', 'balance_transaction_id', 'provider_event_id',
+        'invoice_id', 
+        'tenant_id', 
+        'amount_cents', 
+        'currency', 
+        'status', 
+        'method',
+        'gateway_reference', 
+        'gateway_response', 
+        'idempotency_key', 
+        'refunded_amount_cents',
+        'gateway_fee_cents', 
+        'net_amount_cents', 
+        'balance_transaction_id', 
+        'provider_event_id',
     ];
 
     protected $casts = [
         'gateway_response' => 'array',
     ];
+
+    protected function amountCents(): Attribute
+    {
+        return Attribute::make(
+            get: fn ($value) => $value !== null ? $value / 100 : null,
+            set: fn ($value) => $value !== null ? (int) round($value * 100) : null,
+        );
+    }
+
+    protected function gatewayFeeCents(): Attribute
+    {
+        return Attribute::make(
+            get: fn ($value) => $value !== null ? $value / 100 : null,
+            set: fn ($value) => $value !== null ? (int) round($value * 100) : null,
+        );
+    }
+
+    protected function netAmountCents(): Attribute
+    {
+        return Attribute::make(
+            get: fn ($value) => $value !== null ? $value / 100 : null,
+            set: fn ($value) => $value !== null ? (int) round($value * 100) : null,
+        );
+    }
+
+    protected function refundedAmountCents(): Attribute
+    {
+        return Attribute::make(
+            get: fn ($value) => $value !== null ? $value / 100 : null,
+            set: fn ($value) => $value !== null ? (int) round($value * 100) : null,
+        );
+    }
+
+    protected function amount(): Attribute
+    {
+        return Attribute::make(
+            get: fn () => $this->amount_cents,
+            set: fn ($value) => ['amount_cents' => $value],
+        );
+    }
 
     public function invoice()
     {

@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 
 /**
  * @property int $id
@@ -134,9 +135,6 @@ class Booking extends Model
         'guest_name' => 'string',
     ];
 
-    /**
-     * Relationship: Booking belongs to Property
-     */
     public function property()
     {
         return $this->belongsTo(Property::class);

@@ -42,13 +42,13 @@ class TenantPaymentController extends Controller
                     // Use the latest transaction for method/reference info
                     $lastTx = $invoice->transactions->where('status', 'succeeded')->last();
 
-                    $totalCents = $invoice->total_cents ?? $invoice->amount_cents;
-                    $paidCents = $invoice->transactions
+                    $totalAmount = $invoice->total_cents ?? $invoice->amount_cents;
+                    $paidAmount = $invoice->transactions
                         ->whereIn('status', ['succeeded', 'paid', 'partially_refunded'])
                         ->sum(function ($tx) {
                             return $tx->amount_cents - ($tx->refunded_amount_cents ?? 0);
                         });
-                    $remainingCents = max(0, $totalCents - $paidCents);
+                    $remainingBalance = max(0, $totalAmount - $paidAmount);
 
                     return [
                         'id' => $invoice->id,
@@ -60,8 +60,8 @@ class TenantPaymentController extends Controller
                         'booking_id' => $invoice->booking_id,
                         'propertyName' => $propertyName,
                         'roomNumber' => $roomNumber,
-                        'amount' => (float) ($totalCents / 100),
-                        'remainingBalance' => (float) ($remainingCents / 100),
+                        'amount' => (float) $totalAmount,
+                        'remainingBalance' => (float) $remainingBalance,
                         'date' => $invoice->issued_at ?: $invoice->created_at,
                         'due_date' => $invoice->due_date,
                         'dueDate' => $invoice->due_date,
@@ -81,7 +81,7 @@ class TenantPaymentController extends Controller
                         'transactions' => $invoice->transactions->map(function ($tx) {
                             return [
                                 'id' => $tx->id,
-                                'amount' => (float) ($tx->amount_cents / 100),
+                                'amount' => (float) $tx->amount_cents,
                                 'status' => $tx->status,
                                 'method' => $tx->method,
                                 'date' => $tx->created_at,
@@ -108,14 +108,14 @@ class TenantPaymentController extends Controller
             $tenantId = Auth::id();
 
             // Total paid this month (via transactions), subtracting any refunds
-            // We only sum positive transactions to avoid double-counting the negative refund records
-            $totalPaidThisMonthCents = PaymentTransaction::where('tenant_id', $tenantId)
+            // SQL SUM returns cents, convert to decimal
+            $totalPaidThisMonth = (PaymentTransaction::where('tenant_id', $tenantId)
                 ->where('amount_cents', '>', 0)
                 ->whereIn('status', ['succeeded', 'paid', 'partially_refunded', 'refunded'])
                 ->whereMonth('created_at', now()->month)
                 ->whereYear('created_at', now()->year)
                 ->selectRaw('SUM(amount_cents - COALESCE(refunded_amount_cents, 0)) as net_cents')
-                ->value('net_cents') ?? 0;
+                ->value('net_cents') ?? 0) / 100;
 
             // Count of active paid/partial invoices this month
             $paidCount = Invoice::where('tenant_id', $tenantId)
@@ -138,22 +138,22 @@ class TenantPaymentController extends Controller
                 ->where('is_archived', false)
                 ->get();
 
-            $pendingAmountCents = 0;
+            $pendingAmount = 0;
             foreach ($pendingInvoices as $inv) {
                 $totalPaid = $inv->transactions
                     ->filter(fn($tx) => in_array($tx->status, ['succeeded', 'paid', 'partially_refunded', 'pending_offline']))
                     ->sum(fn($tx) => $tx->amount_cents - ($tx->refunded_amount_cents ?? 0));
-                $pendingAmountCents += max(0, ($inv->total_cents ?? $inv->amount_cents) - $totalPaid);
+                $pendingAmount += max(0, ($inv->total_cents ?? $inv->amount_cents) - $totalPaid);
             }
 
-            $totalCreditsCents = \App\Models\TenantCredit::getBalance($tenantId);
+            $totalCredits = \App\Models\TenantCredit::getBalance($tenantId);
 
             return response()->json([
-                'totalPaidThisMonth' => (float) ($totalPaidThisMonthCents / 100),
+                'totalPaidThisMonth' => (float) $totalPaidThisMonth,
                 'paidCount' => $paidCount,
                 'nextDueDate' => $nextDueInvoice ? $nextDueInvoice->due_date->toIso8601String() : null,
-                'pendingAmount' => (float) ($pendingAmountCents / 100),
-                'totalCredits' => (float) ($totalCreditsCents / 100),
+                'pendingAmount' => (float) $pendingAmount,
+                'totalCredits' => (float) $totalCredits,
             ], 200);
         } catch (\Exception $e) {
             return response()->json([
@@ -212,11 +212,11 @@ class TenantPaymentController extends Controller
                             $invoice = $bookingInvoices->first();
                             $room = optional($invoice->booking)->room;
 
-                            $totalCents = $bookingInvoices->sum(function ($item) {
+                            $totalAmount = $bookingInvoices->sum(function ($item) {
                                 return $item->total_cents ?? $item->amount_cents ?? 0;
                             });
 
-                            $paidCents = $bookingInvoices->sum(function ($item) {
+                            $paidAmount = $bookingInvoices->sum(function ($item) {
                                 return $item->transactions
                                     ->whereIn('status', ['succeeded', 'paid', 'partially_refunded'])
                                     ->sum(function ($tx) {
@@ -224,15 +224,15 @@ class TenantPaymentController extends Controller
                                     });
                             });
 
-                            $remainingCents = max(0, $totalCents - $paidCents);
-                            $monthTotal += $remainingCents;
+                            $remainingBalance = max(0, $totalAmount - $paidAmount);
+                            $monthTotal += $remainingBalance;
 
                             return [
                                 'booking_id' => $invoice->booking_id,
                                 'room_number' => $room->room_number ?? 'N/A',
-                                'rent' => (float) ($totalCents / 100),
+                                'rent' => (float) $totalAmount,
                                 'addons' => 0.0,
-                                'total' => (float) ($remainingCents / 100),
+                                'total' => (float) $remainingBalance,
                                 'status' => (string) $invoice->status,
                             ];
                         })
@@ -244,7 +244,7 @@ class TenantPaymentController extends Controller
                         'month' => optional($firstDue->due_date)->format('F Y'),
                         'due_date' => optional($firstDue->due_date)->format('Y-m-d'),
                         'bookings' => $bookings,
-                        'month_total' => (float) ($monthTotal / 100),
+                        'month_total' => (float) $monthTotal,
                     ];
                 })
                 ->values();
@@ -311,11 +311,11 @@ class TenantPaymentController extends Controller
                 return response()->json(['message' => 'Property ID is required'], 400);
             }
 
-            $balanceCents = \App\Models\TenantCredit::getBalance(Auth::id(), $propertyId);
+            $balance = \App\Models\TenantCredit::getBalance(Auth::id(), $propertyId);
 
             return response()->json([
                 'success' => true,
-                'balance' => (float) ($balanceCents / 100)
+                'balance' => (float) $balance
             ], 200);
         } catch (\Exception $e) {
             return response()->json([

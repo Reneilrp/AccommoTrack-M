@@ -38,21 +38,23 @@ class TenantDashboardService
                 ->whereIn('status', ['pending', 'partial', 'overdue'])
                 ->get();
 
-            $monthlyDueCents = 0;
-            $totalDueCents = 0;
+            $monthlyDue = 0;
+            $totalDue = 0;
             $countPending = 0;
             $countPartial = 0;
             $countOverdue = 0;
             $hasOverdue = false;
 
             foreach ($unpaidInvoices as $inv) {
+                // $tx->amount_cents and $tx->refunded_amount_cents are now decimals
                 $netPaid = $inv->transactions->sum(fn ($tx) => $tx->amount_cents - ($tx->refunded_amount_cents ?? 0));
+                // $inv->total_cents and $inv->amount_cents are now decimals
                 $balance = max(0, ($inv->total_cents ?? $inv->amount_cents) - $netPaid);
 
                 if ($balance > 0) {
-                    $totalDueCents += $balance;
+                    $totalDue += $balance;
                     if ($inv->due_date && $inv->due_date->month == $now->month && $inv->due_date->year == $now->year) {
-                        $monthlyDueCents += $balance;
+                        $monthlyDue += $balance;
                     }
                 }
 
@@ -68,12 +70,12 @@ class TenantDashboardService
 
             $countPaid = Invoice::where('tenant_id', $tenantId)->where('status', 'paid')->count();
 
-            // 3. Paid Amount Calculation
-            $totalPaidCents = PaymentTransaction::where('tenant_id', $tenantId)
+            // 3. Paid Amount Calculation (SQL SUM returns cents, convert to decimal)
+            $totalPaid = (PaymentTransaction::where('tenant_id', $tenantId)
                 ->where('amount_cents', '>', 0)
                 ->whereIn('status', ['succeeded', 'paid', 'partially_refunded', 'refunded'])
                 ->selectRaw('SUM(amount_cents - COALESCE(refunded_amount_cents, 0)) as net_cents')
-                ->value('net_cents') ?? 0;
+                ->value('net_cents') ?? 0) / 100;
 
             // 4. Latest unpaid invoice
             $latestUnpaidInvoice = Invoice::where('tenant_id', $tenantId)
@@ -82,7 +84,7 @@ class TenantDashboardService
                 ->first();
 
             $unreadNotifications = User::find($tenantId)->unreadNotifications()->count();
-            $walletBalanceCents = \App\Models\TenantCredit::getBalance($tenantId);
+            $walletBalance = \App\Models\TenantCredit::getBalance($tenantId);
 
             return [
                 'bookings' => [
@@ -91,11 +93,11 @@ class TenantDashboardService
                     'pending' => (int) ($bookingStats->pending ?? 0),
                 ],
                 'payments' => [
-                    'monthlyDue' => (float) ($monthlyDueCents / 100),
-                    'totalDue' => (float) ($totalDueCents / 100),
-                    'totalPaid' => (float) ($totalPaidCents / 100),
-                    'walletBalance' => (float) ($walletBalanceCents / 100),
-                    'pendingAmount' => (float) ($totalDueCents / 100),
+                    'monthlyDue' => (float) $monthlyDue,
+                    'totalDue' => (float) $totalDue,
+                    'totalPaid' => (float) $totalPaid,
+                    'walletBalance' => (float) $walletBalance,
+                    'pendingAmount' => (float) $totalDue,
                     'latestUnpaidInvoiceId' => $latestUnpaidInvoice ? $latestUnpaidInvoice->id : null,
                     'hasOverdueInvoices' => (bool) $hasOverdue,
                     'unpaidInvoices' => $unpaidInvoices->map(fn($inv) => [

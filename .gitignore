@@ -30,6 +30,10 @@ temp_sed_systemsettings.js
 refactor_accommotrack.js
 replace_gender.js
 replace_gender_vars.js
+refactor_accommotrack.js
+replace_gender.js
+replace_gender_vars.js
+test_qr_api.php
 
 AGENTS.md
 *.md

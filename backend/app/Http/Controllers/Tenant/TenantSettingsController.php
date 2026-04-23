@@ -267,7 +267,7 @@ class TenantSettingsController extends Controller
             'is_active' => $user->is_active,
             'notification_preferences' => $user->notification_preferences,
             'age' => $age,
-            'wallet_balance' => (float) (TenantCredit::getBalance($user->id) / 100),
+            'wallet_balance' => (float) TenantCredit::getBalance($user->id),
             'sex' => $user->sex,
             'identified_as' => $user->identified_as,
             'date_of_birth' => $user->date_of_birth ? $user->date_of_birth->format('Y-m-d') : null,
