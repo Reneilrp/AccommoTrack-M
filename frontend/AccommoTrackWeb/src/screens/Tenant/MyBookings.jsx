@@ -41,7 +41,8 @@ import {
   Shuffle,
   HelpCircle,
   MessageSquare,
-  MoreHorizontal
+  MoreHorizontal,
+  Trash2
 } from 'lucide-react';
 import ReportModal from '../../components/Modals/ReportModal';
 import MaintenanceRequestModal from '../../components/Modals/MaintenanceRequestModal';
@@ -67,7 +68,7 @@ const MyBookings = () => {
   const cachedData = uiState.data?.bookings;
 
   // --- Derived Data ---
-  const activeStays = bundleData?.stays || cachedData?.activeStays || [];
+  const activeStays = useMemo(() => bundleData?.stays || cachedData?.activeStays || [], [bundleData, cachedData]);
   const pendingBookings = useMemo(() => {
     const list = bundleData?.bookingsList || cachedData?.pendingBookings || [];
     const pendingCheckInIds = new Set((bundleData?.pendingCheckIns || []).map(pc => pc.id));
@@ -472,6 +473,7 @@ const MyBookings = () => {
       {/* Transfer Limit Warning Modal */}
       {showTransferWarning && (
         <TransferLimitWarningModal
+          limit={activeStays[0]?.property?.transfer_limit ?? 1}
           onClose={() => setShowTransferWarning(false)}
           onContinue={() => {
             setShowTransferWarning(false);
@@ -697,10 +699,20 @@ const CurrentStayTab = ({ stays = [], selectedBookingId = null, onSelectBookingI
   const displayedPendingBookings = filteredPendingBookings;
   const displayedPendingCheckIns = filteredPendingCheckIns;
 
-  // Reset selected index when switching view modes to avoid out-of-bounds issues
+  const stay = useMemo(() => {
+    if (!selectedBookingId) return displayedStays[0] || null;
+    return displayedStays.find(s => s.booking.id === selectedBookingId) || displayedStays[0] || null;
+  }, [displayedStays, selectedBookingId]);
+
+  // Reset selected ID when switching view modes to avoid out-of-bounds issues
   useEffect(() => {
-    onSelectStay(0);
-  }, [viewMode, onSelectStay]);
+    if (displayedStays.length > 0) {
+      // Only reset if current selected isn't in the new list
+      if (!selectedBookingId || !displayedStays.some(s => s.booking.id === selectedBookingId)) {
+        onSelectBookingId(displayedStays[0].booking.id);
+      }
+    }
+  }, [viewMode, displayedStays, onSelectBookingId, selectedBookingId]);
 
   const formatDate = (dateString) => {
     if (!dateString) return 'N/A';
@@ -1414,41 +1426,41 @@ const CurrentStayTab = ({ stays = [], selectedBookingId = null, onSelectBookingI
                                   buttonTitle = `Transfer limit reached for this property. Try again in ${daysUntilTransferReset} day${daysUntilTransferReset === 1 ? '' : 's'}.`;
                                 }
                                 return (
-                                  <div className="flex items-center gap-2">
-                                    <button
-                                      onClick={() => {
-                                        if (isPendingForThisBooking) return;
-                                        if (limitReached) {
-                                          showError(`Transfer limit reached for this property. You can request again in ${daysUntilTransferReset} day${daysUntilTransferReset === 1 ? '' : 's'}.`);
-                                          return;
-                                        }
-                                        onRequestTransfer?.();
-                                      }}
-                                      disabled={isPendingForThisBooking}
-                                      title={buttonTitle}
-                                      className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all ${isDisabled
-                                        ? 'bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed opacity-70'
-                                        : 'bg-amber-600 hover:bg-amber-700 text-white shadow-md shadow-amber-500/20 active:scale-95'
-                                        }`}
-                                    >
-                                      <Shuffle className="w-4 h-4" />
-                                      {buttonText}
-                                    </button>
-                                    {pendingRequestForThisBooking && (
+                                  <div className="flex flex-col gap-2">
+                                    <div className="flex items-center gap-2">
                                       <button
-                                        onClick={() => onCancelTransferRequest?.(pendingRequestForThisBooking.id)}
-                                        disabled={cancellingTransferRequestId === pendingRequestForThisBooking.id}
-                                        title="Cancel pending transfer request"
-                                        className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold bg-red-100 text-red-700 hover:bg-red-200 dark:bg-red-900/30 dark:text-red-400 dark:hover:bg-red-900/50 disabled:opacity-60"
+                                        onClick={() => {
+                                          if (isPendingForThisBooking) return;
+                                          if (limitReached) {
+                                            showError(`Transfer limit reached for this property. You can request again in ${daysUntilTransferReset} day${daysUntilTransferReset === 1 ? '' : 's'}.`);
+                                            return;
+                                          }
+                                          onRequestTransfer?.();
+                                        }}
+                                        disabled={isPendingForThisBooking}
+                                        title={buttonTitle}
+                                        className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all ${isDisabled
+                                          ? 'bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed opacity-70'
+                                          : 'bg-amber-600 hover:bg-amber-700 text-white shadow-md shadow-amber-500/20 active:scale-95'
+                                          }`}
                                       >
-                                        {cancellingTransferRequestId === pendingRequestForThisBooking.id ? (
-                                          <RefreshCw className="w-4 h-4 animate-spin" />
-                                        ) : (
-                                          <XCircle className="w-4 h-4" />
-                                        )}
-                                        Cancel Transfer
+                                        <Shuffle className="w-4 h-4" />
+                                        {buttonText}
                                       </button>
-                                    )}
+                                      {pendingRequestForThisBooking && (
+                                        <button
+                                          onClick={() => onCancelTransferRequest?.(pendingRequestForThisBooking.id)}
+                                          disabled={cancellingTransferRequestId === pendingRequestForThisBooking.id}
+                                          className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                                          title="Cancel pending transfer request"
+                                        >
+                                          {cancellingTransferRequestId === pendingRequestForThisBooking.id ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                                        </button>
+                                      )}
+                                    </div>
+                                    <p className="text-[10px] text-gray-500 dark:text-gray-400 font-medium px-1">
+                                      Transfers this month: <span className="font-bold">{monthlyTransferCount}/{transferLimit}</span>
+                                    </p>
                                   </div>
                                 );
                               })()}
@@ -1685,6 +1697,11 @@ const StaySelector = ({ stays, selectedBookingId, onSelectBookingId, className =
 const FinancialsTab = ({ stays = [], selectedBookingId = null, onSelectBookingId, navigate }) => {
   const hasStays = stays && stays.length > 0;
 
+  const data = useMemo(() => {
+    if (!selectedBookingId) return stays[0] || null;
+    return stays.find(s => s.booking.id === selectedBookingId) || stays[0] || null;
+  }, [stays, selectedBookingId]);
+
   if (!hasStays) {
     return (
       <div className="text-center py-12 bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-300 dark:border-gray-700">
@@ -1694,11 +1711,6 @@ const FinancialsTab = ({ stays = [], selectedBookingId = null, onSelectBookingId
       </div>
     );
   }
-
-  const data = useMemo(() => {
-    if (!selectedBookingId) return stays[0] || null;
-    return stays.find(s => s.booking.id === selectedBookingId) || stays[0] || null;
-  }, [stays, selectedBookingId]);
 
   const { financials } = data;
 
@@ -3046,7 +3058,7 @@ const TransferRequestModal = ({ booking, property, onClose, onSubmit, loading })
   );
 };
 
-const TransferLimitWarningModal = ({ onClose, onContinue }) => {
+const TransferLimitWarningModal = ({ onClose, onContinue, limit = 1 }) => {
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
       <div className="bg-white dark:bg-gray-800 rounded-xl max-w-md w-full border border-gray-100 dark:border-gray-700 shadow-2xl overflow-hidden">
@@ -3070,7 +3082,7 @@ const TransferLimitWarningModal = ({ onClose, onContinue }) => {
             <ul className="space-y-2 text-sm text-amber-800 dark:text-amber-200">
               <li className="flex gap-2">
                 <span className="font-bold flex-shrink-0">•</span>
-                <span>Room transfers are <strong>limited to 2 transfers per tenant per month</strong></span>
+                <span>Room transfers are <strong>limited to {limit} transfer(s) per tenant per month</strong></span>
               </li>
               <li className="flex gap-2">
                 <span className="font-bold flex-shrink-0">•</span>

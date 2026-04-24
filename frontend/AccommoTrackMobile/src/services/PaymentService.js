@@ -300,6 +300,27 @@ class PaymentService {
   }
 
   /**
+   * LANDLORD: Get subscription invoices (Platform Billing)
+   */
+  async getSubscriptionInvoices(params = {}) {
+    try {
+      const response = await api.get(`/landlord/subscriptions/invoices`, { params });
+      const res = normalizeResponse(response);
+      
+      if (res.success && Array.isArray(res.data)) {
+        res.data = res.data.map(normalizeInvoiceItem);
+      } else if (res.success && res.data?.items) {
+        res.data.items = res.data.items.map(normalizeInvoiceItem);
+      }
+
+      return res;
+    } catch (error) {
+      console.error("Error fetching subscription invoices:", error);
+      return normalizeError(error);
+    }
+  }
+
+  /**
    * LANDLORD: Get invoices for a specific tenant
    */
   async getInvoicesByTenant(tenantId) {

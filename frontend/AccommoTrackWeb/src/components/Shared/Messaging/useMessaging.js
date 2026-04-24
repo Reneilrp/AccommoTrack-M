@@ -316,6 +316,43 @@ export const useMessaging = (user, accessRole = 'landlord') => {
     }
   };
 
+  const handleBroadcast = async (propertyId, message) => {
+    if (readOnlyGuard()) return { success: false };
+    if (!propertyId || !message.trim()) return { success: false, error: 'Property and message are required.' };
+
+    try {
+      // 1. Fetch tenants for this property to get recipient IDs
+      const res = await api.get('/landlord/tenants', { params: { property_id: propertyId } });
+      const payload = res.data;
+      const tenants = Array.isArray(payload?.data) ? payload.data : (Array.isArray(payload) ? payload : []);
+      
+      const recipientIds = tenants
+        .map(t => t.id || t.user_id)
+        .filter(Boolean);
+
+      if (recipientIds.length === 0) {
+        return { success: false, error: 'No active tenants found in this property.' };
+      }
+
+      // 2. Call broadcast endpoint
+      const response = await api.post('/landlord/broadcast', {
+        message: message.trim(),
+        recipients: recipientIds
+      });
+
+      if (response.status === 200 || response.status === 201) {
+        showSuccess(response.data?.message || `Announcement sent to ${recipientIds.length} residents.`);
+        // Refresh conversations to show new chats/messages
+        fetchConversations();
+        return { success: true };
+      }
+      return { success: false, error: response.data?.message || 'Failed to send broadcast.' };
+    } catch (err) {
+      console.error('Broadcast error:', err);
+      return { success: false, error: err.response?.data?.message || 'Unexpected error during broadcast.' };
+    }
+  };
+
   const formatTime = (timestamp) => {
     if (!timestamp) return '';
     const date = new Date(timestamp);
@@ -537,5 +574,6 @@ export const useMessaging = (user, accessRole = 'landlord') => {
     selectedFile,
     handleFileSelect,
     removeSelectedFile,
+    handleBroadcast,
   };
 };

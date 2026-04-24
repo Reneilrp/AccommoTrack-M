@@ -165,7 +165,7 @@ export default function PaymentLogs({ navigation }) {
       if (!response.success) throw new Error(response.error || 'Failed to fetch invoices');
       let data = response.data;
       if (data && typeof data === 'object' && !Array.isArray(data)) {
-        data = data.invoices || data.data || [];
+        data = data.invoices || data.data || data.items || [];
       }
       return Array.isArray(data) ? data : [];
     },
@@ -180,7 +180,7 @@ export default function PaymentLogs({ navigation }) {
       if (!response.success) return [];
       let data = response.data;
       if (data && typeof data === 'object' && !Array.isArray(data)) {
-        data = data.invoices || data.data || [];
+        data = data.invoices || data.data || data.items || [];
       }
       return Array.isArray(data) ? data : [];
     },
@@ -295,34 +295,34 @@ export default function PaymentLogs({ navigation }) {
           <>
             {/* ── ARCHIVE SECTION ────────────────────────────────────────── */}
             <TouchableOpacity
-              onPress={() => setArchiveExpanded((p) => !p)}
-              activeOpacity={0.8}
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                paddingHorizontal: 16,
-                paddingVertical: 14,
-                marginTop: 14,
-                marginHorizontal: 16,
-                marginBottom: archiveExpanded ? 0 : 14,
-                backgroundColor: theme.colors.surface,
-                borderRadius: 14,
-                borderWidth: 1,
-                borderColor: theme.colors.border,
-                gap: 10,
-              }}
-            >
-              <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: theme.isDark ? '#1f2937' : '#F3F4F6', alignItems: 'center', justifyContent: 'center' }}>
-                <Ionicons name="archive-outline" size={20} color={theme.colors.textSecondary} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: 14, fontWeight: '800', color: theme.colors.text }}>Payment Archive</Text>
-                <Text style={{ fontSize: 11, color: theme.colors.textSecondary, marginTop: 1 }}>
-                  Settled invoices older than 30 days{archivedInvoices.length > 0 ? ` · ${filteredArchived.length} records` : ''}
-                </Text>
-              </View>
-              <Ionicons name={archiveExpanded ? 'chevron-up' : 'chevron-down'} size={20} color={theme.colors.textSecondary} />
-            </TouchableOpacity>
+                onPress={() => setArchiveExpanded((p) => !p)}
+                activeOpacity={0.8}
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  paddingHorizontal: 16,
+                  paddingVertical: 14,
+                  marginTop: 14,
+                  marginHorizontal: 16,
+                  marginBottom: archiveExpanded ? 0 : 14,
+                  backgroundColor: theme.colors.surface,
+                  borderRadius: 14,
+                  borderWidth: 1,
+                  borderColor: theme.colors.border,
+                  gap: 10,
+                }}
+              >
+                <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: theme.isDark ? '#1f2937' : '#F3F4F6', alignItems: 'center', justifyContent: 'center' }}>
+                  <Ionicons name="archive-outline" size={20} color={theme.colors.textSecondary} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 14, fontWeight: '800', color: theme.colors.text }}>Payment Archive</Text>
+                  <Text style={{ fontSize: 11, color: theme.colors.textSecondary, marginTop: 1 }}>
+                    Settled invoices older than 30 days{archivedInvoices.length > 0 ? ` · ${filteredArchived.length} records` : ''}
+                  </Text>
+                </View>
+                <Ionicons name={archiveExpanded ? 'chevron-up' : 'chevron-down'} size={20} color={theme.colors.textSecondary} />
+              </TouchableOpacity>
 
             {archiveExpanded && (
               <View style={{ marginTop: 2, marginBottom: 14 }}>

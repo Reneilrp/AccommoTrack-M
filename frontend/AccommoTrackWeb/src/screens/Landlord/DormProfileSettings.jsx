@@ -671,7 +671,8 @@ export default function DormProfileSettings({
         ? 3
         : Math.max(0, parsedGapDays);
 
-      const transferLimit = (dormData.transfer_limit !== undefined && dormData.transfer_limit !== null && dormData.transfer_limit !== '') ? parseInt(dormData.transfer_limit) : 0;
+      const rawLimit = String(dormData.transfer_limit ?? '').trim();
+      const transferLimit = rawLimit === '' ? 1 : parseInt(rawLimit);
 
       const updateData = {
         title: dormData.name,

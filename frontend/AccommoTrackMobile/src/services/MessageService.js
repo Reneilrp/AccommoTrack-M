@@ -123,6 +123,22 @@ const MessageService = {
     } catch (error) {
       return normalizeError(error);
     }
+  },
+
+  /**
+   * LANDLORD: Broadcast a message to multiple tenants.
+   * recipients: array of user IDs.
+   */
+  async broadcast(message, recipients) {
+    try {
+      const response = await api.post('/landlord/broadcast', {
+        message,
+        recipients,
+      });
+      return normalizeResponse(response);
+    } catch (error) {
+      return normalizeError(error);
+    }
   }
 };
 

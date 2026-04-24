@@ -72,6 +72,7 @@ class TenantController extends Controller
                     'tenantProfile',
                     'room.property',
                     'roomAssignments.property',
+                    'proxyOrigin',
                     'bookings' => function ($q) use ($landlordId) {
                         $q->where('landlord_id', $landlordId)
                             ->with('room.property')
@@ -187,6 +188,10 @@ class TenantController extends Controller
                         'property_id' => $room->property_id,
                     ] : null,
                     'tenantProfile' => $tenant->tenantProfile,
+                    'proxy_origin' => $tenant->proxyOrigin ? [
+                        'booking_reference' => $tenant->proxyOrigin->booking?->booking_reference ?? 'N/A',
+                        'property_name' => $tenant->proxyOrigin->booking?->property?->title ?? 'N/A',
+                    ] : null,
                     'latestBooking' => $latestBooking,
                     'pending_eviction' => $this->serializeEviction($scheduledEviction),
                     'latest_eviction' => $this->serializeEviction($latestEviction),
@@ -628,6 +633,8 @@ class TenantController extends Controller
                 'move_in_date' => 'nullable|date',
                 'end_date' => 'nullable|date',
                 'notes' => 'nullable|string',
+                'bed_number' => 'nullable|integer',
+                'bed_numbers' => 'nullable|string',
             ]);
 
             $tenant = $this->resolveTenantForLandlord((int) $id, (int) $context['landlord_id'], $context);
@@ -674,6 +681,8 @@ class TenantController extends Controller
                 'start_date' => $moveInDate,
                 'end_date' => $endDate,
                 'notes' => $validated['notes'] ?? 'Manually assigned by landlord',
+                'bed_number' => $validated['bed_number'] ?? null,
+                'bed_numbers' => $validated['bed_numbers'] ?? null,
             ], $tenant->id);
 
             // Confirm the booking immediately

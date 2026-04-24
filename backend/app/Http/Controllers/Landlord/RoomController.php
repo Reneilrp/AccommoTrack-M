@@ -285,9 +285,19 @@ class RoomController extends Controller
             $validated = $request->validate([
                 'tenant_id' => 'required|exists:users,id',
                 'start_date' => 'nullable|date',
+                'bed_number' => 'nullable|integer',
+                'bed_numbers' => 'nullable|string',
             ]);
 
-            $updatedRoom = $this->roomService->assignTenant($room, $validated['tenant_id'], $validated['start_date'] ?? null);
+            $bedNumbers = $validated['bed_numbers'] ?? ($validated['bed_number'] ?? null);
+
+            $updatedRoom = $this->roomService->assignTenant(
+                $room,
+                $validated['tenant_id'],
+                $validated['start_date'] ?? null,
+                1,
+                $bedNumbers ? (string) $bedNumbers : null
+            );
 
             return response()->json((new RoomResource($updatedRoom->load(['tenants', 'bookings.occupants'])))->resolve());
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {

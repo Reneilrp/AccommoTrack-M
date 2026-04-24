@@ -46,6 +46,7 @@ class UpdateOverdueInvoices extends Command
         $updatedCount = 0;
 
         Invoice::query()
+            ->with(['landlord', 'tenant', 'property', 'booking'])
             ->whereIn('status', ['pending', 'partial'])
             ->where('due_date', '<', $today)
             ->chunkById(200, function ($invoices) use (&$updatedCount, $auditLogService) {

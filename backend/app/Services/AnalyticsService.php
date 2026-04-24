@@ -470,45 +470,62 @@ class AnalyticsService
             $query->where('id', $propertyId);
         }
 
-        return $query
+        $properties = $query
             ->withCount([
                 'rooms',
             ])
             ->with(['rooms' => function ($q) {
-                $q->withCount('tenants');
+                $q->withCount(['tenants' => function ($q2) {
+                    $q2->where('room_tenant_assignments.status', 'active');
+                }]);
             }])
-            ->get()
-            ->map(function ($property) use ($periodStart, $periodEnd) {
-                // We need to get total slots and available rooms separately as they can't be done in one go with withCount
-                $totalSlots = (int) $property->rooms->sum('capacity');
-                $occupiedSlots = (int) $property->rooms->sum('tenants_count');
-                $availableRooms = (int) $property->rooms->where('status', 'available')->count();
+            ->get();
 
-                $baseCollectedInvoiceQuery = Invoice::query()
-                    ->where('property_id', $property->id)
-                    ->where('status', 'paid')
-                    ->whereNotNull('paid_at');
+        $propertyIds = $properties->pluck('id')->toArray();
 
-                $totalRevenueCents = (int) (clone $baseCollectedInvoiceQuery)->sum('amount_cents');
-                $periodRevenueCents = (int) (clone $baseCollectedInvoiceQuery)
-                    ->whereBetween('paid_at', [$periodStart, $periodEnd])
-                    ->sum('amount_cents');
+        // 1. Pre-calculate total revenue for all properties
+        $totalRevenueByProperty = DB::table('invoices')
+            ->whereIn('property_id', $propertyIds)
+            ->where('status', 'paid')
+            ->whereNotNull('paid_at')
+            ->select('property_id', DB::raw('SUM(amount_cents) as total_cents'))
+            ->groupBy('property_id')
+            ->pluck('total_cents', 'property_id');
 
-                return [
-                    'id' => $property->id,
-                    'name' => $property->title,
-                    'title' => $property->title,
-                    'total_rooms' => (int) $property->rooms_count,
-                    'total_slots' => $totalSlots,
-                    'occupied_slots' => $occupiedSlots,
-                    'available_rooms' => $availableRooms,
-                    'occupancy_rate' => $totalSlots > 0 ? round(($occupiedSlots / $totalSlots) * 100, 1) : 0,
-                    'monthly_revenue' => (float)($periodRevenueCents / 100),
-                    'total_revenue' => (float)($totalRevenueCents / 100),
-                    'revpar' => $property->rooms_count > 0 ? (float)(($periodRevenueCents / 100) / $property->rooms_count) : 0,
-                ];
-            })
-            ->toArray();
+        // 2. Pre-calculate period revenue for all properties
+        $periodRevenueByProperty = DB::table('invoices')
+            ->whereIn('property_id', $propertyIds)
+            ->where('status', 'paid')
+            ->whereNotNull('paid_at')
+            ->whereBetween('paid_at', [$periodStart, $periodEnd])
+            ->select('property_id', DB::raw('SUM(amount_cents) as period_cents'))
+            ->groupBy('property_id')
+            ->pluck('period_cents', 'property_id');
+
+        return $properties->map(function ($property) use ($totalRevenueByProperty, $periodRevenueByProperty) {
+            // We need to get total slots and available rooms separately as they can't be done in one go with withCount
+            $totalSlots = (int) $property->rooms->sum('capacity');
+            $occupiedSlots = (int) $property->rooms->sum('tenants_count');
+            $availableRooms = (int) $property->rooms->where('status', 'available')->count();
+
+            $totalRevenueCents = (int) ($totalRevenueByProperty[$property->id] ?? 0);
+            $periodRevenueCents = (int) ($periodRevenueByProperty[$property->id] ?? 0);
+
+            return [
+                'id' => $property->id,
+                'name' => $property->title,
+                'title' => $property->title,
+                'total_rooms' => (int) $property->rooms_count,
+                'total_slots' => $totalSlots,
+                'occupied_slots' => $occupiedSlots,
+                'available_rooms' => $availableRooms,
+                'occupancy_rate' => $totalSlots > 0 ? round(($occupiedSlots / $totalSlots) * 100, 1) : 0,
+                'monthly_revenue' => (float)($periodRevenueCents / 100),
+                'total_revenue' => (float)($totalRevenueCents / 100),
+                'revpar' => $property->rooms_count > 0 ? (float)(($periodRevenueCents / 100) / $property->rooms_count) : 0,
+            ];
+        })
+        ->toArray();
     }
 
     /**

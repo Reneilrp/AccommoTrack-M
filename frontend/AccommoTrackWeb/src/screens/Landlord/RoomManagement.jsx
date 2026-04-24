@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import api, { getImageUrl } from '../../utils/api';
 import roomService from '../../services/roomService';
@@ -176,6 +176,7 @@ export default function RoomManagement() {
   const [properties, setProperties] = useState(cachedProps || []);
   const [selectedPropertyId, setSelectedPropertyId] = useState(getInitialPropertyId());
   const [drilldownApplied, setDrilldownApplied] = useState(false);
+  const initialLoadRef = useRef(true);
 
   // Dynamic cache key for rooms based on property
   const roomCacheKey = selectedPropertyId ? `rooms_property_${selectedPropertyId}` : null;
@@ -367,10 +368,11 @@ export default function RoomManagement() {
   const fetchRooms = useCallback(async () => {
     if (!selectedPropertyId) return;
     const currentCacheKey = `rooms_property_${selectedPropertyId}`;
-    const currentCached = uiState.data?.[currentCacheKey] || cacheManager.get(currentCacheKey);
+    const currentCached = uiState.data[currentCacheKey];
 
     try {
-      if (!currentCached) setLoadingRooms(true);
+      if (initialLoadRef.current) setLoadingRooms(true);
+      initialLoadRef.current = false;
       setError(null);
 
       const roomsRes = await roomService.getRoomsByProperty(selectedPropertyId, { t: Date.now() });

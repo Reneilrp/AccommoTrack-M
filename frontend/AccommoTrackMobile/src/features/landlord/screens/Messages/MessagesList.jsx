@@ -76,6 +76,8 @@ const getOccupancyPalette = (theme, occupancyKey) => {
         : { background: '#F1F5F9', border: '#CBD5E1', text: '#334155' };
 };
 
+import { Modal, ActivityIndicator } from 'react-native';
+
 export default function MessagesList({
     theme,
     styles,
@@ -91,6 +93,15 @@ export default function MessagesList({
     properties = [],
     selectedPropertyId,
     setSelectedPropertyId,
+    // Broadcast Props
+    broadcastModalVisible,
+    setBroadcastModalVisible,
+    broadcastMessage,
+    setBroadcastMessage,
+    broadcastTargetPropertyId,
+    setBroadcastTargetPropertyId,
+    isSendingBroadcast,
+    onSendBroadcast,
 }) {
     return (
         <SafeAreaView style={[styles.safeArea]} edges={['top']}>
@@ -306,6 +317,129 @@ export default function MessagesList({
                     }
                 />
             )}
+
+            <TouchableOpacity
+                style={{
+                    position: 'absolute',
+                    bottom: 24,
+                    right: 24,
+                    width: 56,
+                    height: 56,
+                    borderRadius: 28,
+                    backgroundColor: theme.colors.primary,
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    shadowColor: '#000',
+                    shadowOffset: { width: 0, height: 4 },
+                    shadowOpacity: 0.3,
+                    shadowRadius: 6,
+                    elevation: 8,
+                }}
+                onPress={() => setBroadcastModalVisible(true)}
+            >
+                <Ionicons name="megaphone" size={24} color="#FFFFFF" />
+            </TouchableOpacity>
+
+            <Modal
+                visible={broadcastModalVisible}
+                animationType="slide"
+                transparent={true}
+                onRequestClose={() => !isSendingBroadcast && setBroadcastModalVisible(false)}
+            >
+                <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' }}>
+                    <View style={{ 
+                        backgroundColor: theme.colors.surface, 
+                        borderTopLeftRadius: 24, 
+                        borderTopRightRadius: 24, 
+                        padding: 24,
+                        paddingBottom: 40,
+                        maxHeight: '80%'
+                    }}>
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+                            <Text style={{ fontSize: 20, fontWeight: '800', color: theme.colors.text }}>Send Property Broadcast</Text>
+                            <TouchableOpacity onPress={() => setBroadcastModalVisible(false)} disabled={isSendingBroadcast}>
+                                <Ionicons name="close-circle" size={28} color={theme.colors.textSecondary} />
+                            </TouchableOpacity>
+                        </View>
+
+                        <Text style={{ fontSize: 14, color: theme.colors.textSecondary, marginBottom: 8 }}>Target Property</Text>
+                        <ScrollView 
+                            horizontal 
+                            showsHorizontalScrollIndicator={false}
+                            contentContainerStyle={{ gap: 8, marginBottom: 20 }}
+                        >
+                            {properties.map((prop) => {
+                                const isActive = broadcastTargetPropertyId === prop.id;
+                                return (
+                                    <TouchableOpacity
+                                        key={prop.id}
+                                        style={{
+                                            paddingHorizontal: 16,
+                                            paddingVertical: 10,
+                                            borderRadius: 12,
+                                            borderWidth: 1,
+                                            borderColor: isActive ? theme.colors.primary : theme.colors.border,
+                                            backgroundColor: isActive ? theme.colors.primary : theme.colors.backgroundSecondary,
+                                        }}
+                                        onPress={() => setBroadcastTargetPropertyId(prop.id)}
+                                        disabled={isSendingBroadcast}
+                                    >
+                                        <Text style={{ color: isActive ? '#FFFFFF' : theme.colors.text, fontWeight: '700', fontSize: 13 }}>
+                                            {prop.title || prop.name}
+                                        </Text>
+                                    </TouchableOpacity>
+                                );
+                            })}
+                        </ScrollView>
+
+                        <Text style={{ fontSize: 14, color: theme.colors.textSecondary, marginBottom: 8 }}>Announcement Message</Text>
+                        <TextInput
+                            style={{
+                                backgroundColor: theme.colors.backgroundSecondary,
+                                borderRadius: 16,
+                                padding: 16,
+                                fontSize: 15,
+                                color: theme.colors.text,
+                                minHeight: 120,
+                                textAlignVertical: 'top',
+                                borderWidth: 1,
+                                borderColor: theme.colors.border,
+                                marginBottom: 24
+                            }}
+                            placeholder="Type your property-wide announcement here..."
+                            placeholderTextColor={theme.colors.textTertiary}
+                            multiline
+                            value={broadcastMessage}
+                            onChangeText={setBroadcastMessage}
+                            disabled={isSendingBroadcast}
+                        />
+
+                        <TouchableOpacity
+                            style={{
+                                backgroundColor: theme.colors.primary,
+                                borderRadius: 16,
+                                paddingVertical: 16,
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                flexDirection: 'row',
+                                gap: 10,
+                                opacity: !broadcastTargetPropertyId || !broadcastMessage.trim() || isSendingBroadcast ? 0.6 : 1
+                            }}
+                            disabled={!broadcastTargetPropertyId || !broadcastMessage.trim() || isSendingBroadcast}
+                            onPress={onSendBroadcast}
+                        >
+                            {isSendingBroadcast ? (
+                                <ActivityIndicator size="small" color="#FFFFFF" />
+                            ) : (
+                                <>
+                                    <Ionicons name="send" size={18} color="#FFFFFF" />
+                                    <Text style={{ color: '#FFFFFF', fontSize: 16, fontWeight: '800' }}>Send to All Residents</Text>
+                                </>
+                            )}
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            </Modal>
         </View>
         </SafeAreaView>
     );

@@ -167,6 +167,7 @@ export default function TenantManagement() {
   const [searchQuery, setSearchQuery] = useState(new URLSearchParams(location.search).get('search') || '');
   const [filter, setFilter] = useState('all');
   const [loading, setLoading] = useState(selectedPropertyId && !cachedTenants);
+  const initialLoadRef = useRef(true);
 
   // Tenant action modals
   const [showEvictModal, setShowEvictModal] = useState(false);
@@ -254,12 +255,14 @@ export default function TenantManagement() {
   }, [updateData]);
 
   const loadTenants = useCallback(async () => {
-    if (!selectedPropertyId) return;
+    if (!selectedPropertyId) return [];
     const currentCacheKey = `tenants_property_${selectedPropertyId}`;
-    const currentCached = uiState.data?.[currentCacheKey] || cacheManager.get(currentCacheKey);
+    const currentCached = uiState.data[currentCacheKey];
 
     try {
-      if (!currentCached) setLoading(true);
+
+      if (initialLoadRef.current) setLoading(true);
+      initialLoadRef.current = false;
       setError('');
 
       const response = await landlordService.getTenants({ property_id: selectedPropertyId, t: Date.now() });
@@ -1641,6 +1644,7 @@ const TenantListView = ({
   onTransfer,
   onAssign,
   onUnassign,
+  onDelete,
   onEvict,
   onEvictionFinalize,
   onEvictionCancel,

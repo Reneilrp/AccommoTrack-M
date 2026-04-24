@@ -453,6 +453,23 @@ export default function MaintenanceRequests({ route }) {
                   <Text style={[styles.descriptionText, { color: theme.colors.text }]}>{selectedRequest.description}</Text>
                 </View>
 
+                {selectedRequest.assigned_to_user && (
+                  <View style={styles.detailSection}>
+                    <Text style={[styles.sectionLabel, { color: theme.colors.textSecondary }]}>Assigned To</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4 }}>
+                      <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: theme.colors.primary + '15', alignItems: 'center', justifyContent: 'center' }}>
+                        <Ionicons name="person" size={16} color={theme.colors.primary} />
+                      </View>
+                      <View>
+                        <Text style={[styles.sectionValue, { color: theme.colors.text, fontSize: 14, marginBottom: 0 }]}>
+                          {selectedRequest.assigned_to_user.first_name} {selectedRequest.assigned_to_user.last_name}
+                        </Text>
+                        <Text style={{ fontSize: 11, color: theme.colors.textSecondary }}>{selectedRequest.assigned_to_user.role || 'Staff'}</Text>
+                      </View>
+                    </View>
+                  </View>
+                )}
+
                 {selectedRequest.images && selectedRequest.images.length > 0 && (
                   <View style={styles.detailSection}>
                     <Text style={[styles.sectionLabel, { color: theme.colors.textSecondary }]}>Photos</Text>
@@ -492,13 +509,22 @@ export default function MaintenanceRequests({ route }) {
                       </>
                     )}
                     {selectedRequest.status === 'in_progress' && (
-                      <TouchableOpacity
-                        style={[styles.actionButton, { backgroundColor: '#16a34a' }]}
-                        onPress={() => handleUpdateStatus(selectedRequest.id, 'completed')}
-                        disabled={updating}
-                      >
-                        <Text style={styles.actionButtonText}>Mark Completed</Text>
-                      </TouchableOpacity>
+                      <View style={{ gap: 8 }}>
+                        <TouchableOpacity
+                          style={[styles.actionButton, { backgroundColor: '#16a34a' }]}
+                          onPress={() => handleUpdateStatus(selectedRequest.id, 'completed')}
+                          disabled={updating}
+                        >
+                          <Text style={styles.actionButtonText}>Mark Completed</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          style={[styles.actionButton, { backgroundColor: theme.colors.backgroundSecondary, borderWidth: 1, borderColor: theme.colors.border }]}
+                          onPress={() => setAssignModalVisible(true)}
+                          disabled={updating}
+                        >
+                          <Text style={[styles.actionButtonText, { color: theme.colors.textSecondary }]}>Re-assign Worker</Text>
+                        </TouchableOpacity>
+                      </View>
                     )}
                     {(selectedRequest.status === 'pending' || selectedRequest.status === 'in_progress') && (
                       <TouchableOpacity

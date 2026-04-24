@@ -710,6 +710,38 @@ export default function Payments({ navigation, route }) {
                   </View>
                 )}
 
+                {/* Proof of Payment Section */}
+                {(() => {
+                  const txWithProof = (selectedInvoice?.transactions || []).find(tx => tx.proof_image_url);
+                  if (!txWithProof) return null;
+
+                  return (
+                    <View style={{ marginBottom: 24, padding: 16, backgroundColor: theme.isDark ? 'rgba(99,102,241,0.08)' : '#F5F3FF', borderRadius: 14, borderWidth: 1, borderColor: theme.isDark ? 'rgba(99,102,241,0.2)' : '#DDD6FE' }}>
+                      <Text style={{ fontSize: 12, fontWeight: '700', color: theme.isDark ? '#818cf8' : '#4F46E5', textTransform: 'uppercase', marginBottom: 12 }}>Proof of Payment</Text>
+                      <Pressable 
+                        style={{ width: '100%', height: 180, borderRadius: 10, overflow: 'hidden', backgroundColor: theme.colors.background }}
+                        onPress={() => setProofLightboxUrl(txWithProof.proof_image_url)}
+                      >
+                        <Image 
+                          source={{ uri: txWithProof.proof_image_url }} 
+                          style={{ width: '100%', height: '100%' }}
+                          resizeMode="cover"
+                        />
+                        <View style={{ position: 'absolute', bottom: 8, right: 8, backgroundColor: 'rgba(0,0,0,0.6)', padding: 6, borderRadius: 6 }}>
+                          <Ionicons name="expand-outline" size={16} color="#fff" />
+                        </View>
+                      </Pressable>
+                      <TouchableOpacity 
+                        style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: 12, paddingVertical: 8 }}
+                        onPress={() => setProofLightboxUrl(txWithProof.proof_image_url)}
+                      >
+                        <Ionicons name="eye-outline" size={16} color={theme.isDark ? '#818cf8' : '#4F46E5'} />
+                        <Text style={{ fontSize: 13, fontWeight: '600', color: theme.isDark ? '#818cf8' : '#4F46E5' }}>Inspect Proof</Text>
+                      </TouchableOpacity>
+                    </View>
+                  );
+                })()}
+
                 {getInvoiceStatus(selectedInvoice) === 'pending_verification' ? (
                   <View style={styles.verificationSection}>
                     <Text style={styles.verificationTitle}>Cash Payment Pending</Text>
@@ -750,10 +782,35 @@ export default function Payments({ navigation, route }) {
             <Text style={styles.modalTitle}>Reject Payment</Text>
             <TextInput style={styles.fieldInput} placeholder="Reason..." value={rejectReason} onChangeText={setRejectReason} multiline numberOfLines={3} />
             <TouchableOpacity style={[styles.recordButton, { backgroundColor: '#DC2626' }]} onPress={() => handleVerifyCash({ action: 'reject', reason_code: rejectReasonCode, reason: rejectReason })}><Text style={styles.recordButtonText}>Reject</Text></TouchableOpacity>
-            <TouchableOpacity style={styles.cancelButton} onPress={() => setShowRejectModal(false)}><Text style={styles.cancelButtonText}>Cancel</Text></TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
-    </SafeAreaView>
-  );
-}
+            <TouchableOpacity style={styles.cancelButton} onPress={() => setShowModal(false)}><Text style={styles.cancelButtonText}>Close</Text></TouchableOpacity>
+            </View>
+            </View>
+            </Modal>
+
+            {/* Proof Lightbox */}
+            <Modal
+            visible={!!proofLightboxUrl}
+            transparent={true}
+            animationType="fade"
+            onRequestClose={() => setProofLightboxUrl(null)}
+            >
+            <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.95)', justifyContent: 'center', alignItems: 'center' }}>
+            <TouchableOpacity 
+            style={{ position: 'absolute', top: 50, right: 20, width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(255,255,255,0.2)', alignItems: 'center', justifyContent: 'center', zIndex: 10 }}
+            onPress={() => setProofLightboxUrl(null)}
+            >
+            <Ionicons name="close" size={28} color="#FFFFFF" />
+            </TouchableOpacity>
+            {proofLightboxUrl ? (
+            <Image 
+              source={{ uri: proofLightboxUrl }} 
+              style={{ width: '100%', height: '80%' }} 
+              resizeMode="contain" 
+            />
+            ) : null}
+            </View>
+            </Modal>
+            </SafeAreaView>
+            );
+            }
+

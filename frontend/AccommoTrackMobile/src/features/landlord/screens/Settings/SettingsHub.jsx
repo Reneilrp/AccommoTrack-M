@@ -507,6 +507,15 @@ export default function SettingsScreen({ navigation, onLogout }) {
             target: "Caretakers",
             role: "landlord",
           },
+          {
+            id: "audit-logs",
+            label: "Audit & Activity Logs",
+            description: "Track staff actions and property events",
+            icon: "clipboard-outline",
+            type: "navigate",
+            target: "AllActivities",
+            role: "landlord",
+          },
         ],
       },
       {

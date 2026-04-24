@@ -52,6 +52,13 @@ export default function AddonManagement({ route, navigation }) {
   const [activeTab, setActiveTab] = useState('manage'); // 'manage', 'requests', 'active'
   const [showModal, setShowModal] = useState(false);
   const [showRejectNoteModal, setShowRejectNoteModal] = useState(false);
+  
+  // Approval Modal States
+  const [approvalModalVisible, setApprovalModalVisible] = useState(false);
+  const [approvalContext, setApprovalContext] = useState(null);
+  const [approvalForm, setApprovalForm] = useState({ price: '', note: '' });
+  const [isApproving, setIsApproving] = useState(false);
+
   const [editingAddon, setEditingAddon] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [rejectContext, setRejectContext] = useState(null);
@@ -400,23 +407,34 @@ export default function AddonManagement({ route, navigation }) {
     );
   };
 
-  const handleRequest = (bookingId, addonId, action, approvedPrice = null) => {
+  const handleRequest = (request, action) => {
+    const { bookingId, addonId, price } = request;
     if (action === 'reject') {
       setRejectContext({ bookingId, addonId });
       setRejectNote('');
       setShowRejectNoteModal(true);
     } else {
-      Alert.alert(
-        'Approve Request',
-        'Approve this add-on request?',
-        [
-          { text: 'Cancel', style: 'cancel' },
-          {
-            text: 'Approve',
-            onPress: () => processRequestAction(bookingId, addonId, 'approve', null, approvedPrice)
-          }
-        ]
-      );
+      setApprovalContext(request);
+      setApprovalForm({
+        price: String(price || ''),
+        note: ''
+      });
+      setApprovalModalVisible(true);
+    }
+  };
+
+  const handleSettleApproval = async () => {
+    if (!approvalContext) return;
+    const { bookingId, addonId } = approvalContext;
+    const { price, note } = approvalForm;
+
+    setIsApproving(true);
+    try {
+      await processRequestAction(bookingId, addonId, 'approve', note.trim() || null, price);
+      setApprovalModalVisible(false);
+      setApprovalContext(null);
+    } finally {
+      setIsApproving(false);
     }
   };
 
@@ -587,14 +605,14 @@ export default function AddonManagement({ route, navigation }) {
             <View style={styles.requestActions}>
               <TouchableOpacity
                 style={styles.approveButton}
-                onPress={() => handleRequest(request.bookingId, request.addonId, 'approve', request.price)}
+                onPress={() => handleRequest(request, 'approve')}
               >
                 <Ionicons name="checkmark-circle" size={18} color="#FFFFFF" />
                 <Text style={styles.approveButtonText}>Approve</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.rejectButton}
-                onPress={() => handleRequest(request.bookingId, request.addonId, 'reject')}
+                onPress={() => handleRequest(request, 'reject')}
               >
                 <Ionicons name="close-circle" size={18} color="#DC2626" />
                 <Text style={styles.rejectButtonText}>Reject</Text>
@@ -974,6 +992,87 @@ export default function AddonManagement({ route, navigation }) {
                 onPress={handleSubmitReject}
               >
                 <Text style={styles.saveButtonText}>Reject</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Approval Modal (Custom Price) */}
+      <Modal
+        visible={approvalModalVisible}
+        animationType="fade"
+        transparent={true}
+        statusBarTranslucent={true}
+        navigationBarTranslucent={true}
+        presentationStyle="overFullScreen"
+        onRequestClose={() => !isApproving && setApprovalModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                <Ionicons name="checkmark-circle" size={24} color="#166534" />
+                <Text style={styles.modalTitle}>Approve Request</Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => setApprovalModalVisible(false)}
+                disabled={isApproving}
+                style={styles.closeButton}
+              >
+                <Ionicons name="close" size={24} color="#6B7280" />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.formContainer}>
+              <Text style={{ fontSize: 13, color: theme.colors.textSecondary, marginBottom: 20 }}>
+                {approvalContext?.addonName} for {approvalContext?.tenant?.name}
+              </Text>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Approval Price (₱)</Text>
+                <TextInput
+                  value={approvalForm.price}
+                  onChangeText={(v) => setApprovalForm(prev => ({ ...prev, price: v }))}
+                  placeholder="0.00"
+                  keyboardType="decimal-pad"
+                  style={styles.input}
+                />
+                <Text style={{ fontSize: 11, color: theme.colors.textTertiary, marginTop: 4, fontStyle: 'italic' }}>
+                  * Leave as is to use the requested price.
+                </Text>
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Response Note (Optional)</Text>
+                <TextInput
+                  value={approvalForm.note}
+                  onChangeText={(v) => setApprovalForm(prev => ({ ...prev, note: v }))}
+                  placeholder="e.g. Approved with custom rate..."
+                  multiline
+                  style={[styles.input, styles.textArea]}
+                />
+              </View>
+            </View>
+
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                style={[styles.actionButton, styles.cancelButton]}
+                onPress={() => setApprovalModalVisible(false)}
+                disabled={isApproving}
+              >
+                <Text style={styles.cancelButtonText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.actionButton, styles.saveButton]}
+                onPress={handleSettleApproval}
+                disabled={isApproving}
+              >
+                {isApproving ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <Text style={styles.saveButtonText}>Approve</Text>
+                )}
               </TouchableOpacity>
             </View>
           </View>

@@ -309,6 +309,9 @@ export default function RoomManagementScreen({ navigation, route }) {
   const [tenantModalVisible, setTenantModalVisible] = useState(false);
   const [assignTargetRoom, setAssignTargetRoom] = useState(null);
   const [assigningTenant, setAssigningTenant] = useState(false);
+  const [bedSelectModalVisible, setBedSelectModalVisible] = useState(false);
+  const [selectedTenantIdForAssign, setSelectedTenantIdForAssign] = useState(null);
+  const [selectedBedNumber, setSelectedBedNumber] = useState(null);
   const [activeMenuRoomId, setActiveMenuRoomId] = useState(null);
   const [convertModalVisible, setConvertModalVisible] = useState(false);
   const [occupantToConvert, setOccupantToConvert] = useState(null);
@@ -557,17 +560,42 @@ export default function RoomManagementScreen({ navigation, route }) {
 
   const handleSelectTenant = async (tenantId) => {
     if (!assignTargetRoom) return;
+
+    const availableBedNumbers = assignTargetRoom.available_bed_numbers || [];
+
+    // If room is per_bed/bedSpacer and has bed numbers, ask for selection
+    if (
+      (assignTargetRoom.pricing_model === 'per_bed' || assignTargetRoom.room_type === 'bedSpacer') &&
+      availableBedNumbers.length > 0
+    ) {
+      setSelectedTenantIdForAssign(tenantId);
+      setBedSelectModalVisible(true);
+      return;
+    }
+
+    // Otherwise direct assignment
+    await executeAssignment(tenantId);
+  };
+
+  const executeAssignment = async (tenantId, bedNumber = null) => {
+    if (!assignTargetRoom) return;
     setAssigningTenant(true);
     try {
-      const res = await PropertyService.assignTenantToRoom(
-        tenantId,
-        { room_id: assignTargetRoom.id }
-      );
+      const payload = { room_id: assignTargetRoom.id };
+      if (bedNumber) {
+        payload.bed_number = bedNumber;
+      }
+
+      const res = await PropertyService.assignTenantToRoom(tenantId, payload);
+
       if (res.success) {
         setActionError("");
         showSuccess("Success", "Tenant assigned successfully");
         setTenantModalVisible(false);
+        setBedSelectModalVisible(false);
         setAssignTargetRoom(null);
+        setSelectedTenantIdForAssign(null);
+        setSelectedBedNumber(null);
         await refetchLandlordQueries(roomAndTenantRefetchers);
       } else {
         setActionError(res.error || "Failed to assign tenant");
@@ -1233,12 +1261,15 @@ export default function RoomManagementScreen({ navigation, route }) {
                       .filter(Boolean)
                       .join(" ") ||
                     `Tenant ${idx + 1}`;
+                  
+                  const bedDisplay = tenant?.bed_number ? ` (Bed #${tenant.bed_number})` : '';
+
                   return (
                     <Text
                       key={`${item.id}-tenant-${tenant?.id || idx}`}
                       style={styles.tenantText}
                     >
-                      {tenantName}
+                      {tenantName}{bedDisplay}
                     </Text>
                   );
                 })
@@ -1564,6 +1595,7 @@ export default function RoomManagementScreen({ navigation, route }) {
                                           .join(' ')
                                           .trim() || `Occupant ${occupantIndex + 1}`;
                                         const occupantMeta = [
+                                          occupant?.bed_number ? `Bed #${occupant.bed_number}` : null,
                                           occupant?.relationship_to_booker,
                                           occupant?.sex,
                                         ]
@@ -1613,10 +1645,12 @@ export default function RoomManagementScreen({ navigation, route }) {
                               tenant?.name
                               || [tenant?.first_name, tenant?.last_name].filter(Boolean).join(" ")
                               || `Tenant ${idx + 1}`;
+                            
+                            const bedDisplay = tenant?.bed_number ? ` (Bed #${tenant.bed_number})` : '';
 
                             return (
                               <Text key={`detail-${detailRoom?.id || "room"}-tenant-${tenant?.id || idx}`} style={styles.tenantText}>
-                                {tenantName}
+                                {tenantName}{bedDisplay}
                               </Text>
                             );
                           })}
@@ -2931,6 +2965,52 @@ export default function RoomManagementScreen({ navigation, route }) {
                 </View>
               }
             />
+          </View>
+        </View>
+      </Modal>
+
+      {/* Bed Selection Modal */}
+      <Modal
+        visible={bedSelectModalVisible}
+        transparent
+        animationType="fade"
+        statusBarTranslucent={true}
+        presentationStyle="overFullScreen"
+        onRequestClose={() => setBedSelectModalVisible(false)}
+      >
+        <View style={styles.statusModalOverlay}>
+          <View style={styles.statusSheet}>
+            <Text style={[styles.sectionTitle, { marginTop: 0, marginBottom: 8 }]}>
+              Select Bed Number
+            </Text>
+            <Text style={[styles.helperText, { marginBottom: 20 }]}>
+              Assigning a specific bed to this tenant in Room {assignTargetRoom?.room_number}.
+            </Text>
+
+            <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: 300 }}>
+              {(assignTargetRoom?.available_bed_numbers || []).map((bedNum, index, arr) => {
+                const isLast = index === arr.length - 1;
+                return (
+                  <TouchableOpacity
+                    key={`bed-${bedNum}`}
+                    style={[styles.statusOption, isLast && styles.statusOptionLast]}
+                    onPress={() => executeAssignment(selectedTenantIdForAssign, bedNum)}
+                  >
+                    <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+                      <Text style={styles.statusOptionText}>Bed #{bedNum}</Text>
+                      <Ionicons name="chevron-forward" size={16} color={theme.colors.textSecondary} />
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+
+            <TouchableOpacity
+              style={[styles.statusOption, styles.statusOptionLast, { marginTop: 10 }]}
+              onPress={() => setBedSelectModalVisible(false)}
+            >
+              <Text style={[styles.statusOptionText, { color: "#EF4444", textAlign: 'center' }]}>Cancel</Text>
+            </TouchableOpacity>
           </View>
         </View>
       </Modal>

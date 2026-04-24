@@ -35,6 +35,11 @@ const activityIconMap = {
   booking: 'calendar',
   room: 'bed',
   payment: 'cash-outline',
+  invoice: 'cash-outline',
+  maintenance: 'construct-outline',
+  addon: 'sparkles-outline',
+  report: 'clipboard-outline',
+  transfer: 'swap-horizontal',
   default: 'notifications-outline'
 };
 
@@ -157,7 +162,10 @@ export default function AllActivities({ navigation, route }) {
     { id: 'all', label: 'All' },
     { id: 'booking', label: 'Bookings' },
     { id: 'room', label: 'Rooms' },
-    { id: 'payment', label: 'Payments' }
+    { id: 'payment', label: 'Payments' },
+    { id: 'maintenance', label: 'Repairs' },
+    { id: 'addon', label: 'Add-ons' },
+    { id: 'report', label: 'Audit' },
   ];
 
   const filteredActivities = useMemo(() => {
@@ -166,6 +174,14 @@ export default function AllActivities({ navigation, route }) {
     // Apply type filter
     if (activeFilter !== 'all') {
       result = result.filter(activity => activity.type === activeFilter);
+    }
+
+    // Apply property filter if passed via route
+    const propertyId = route.params?.propertyId;
+    if (propertyId) {
+      result = result.filter(activity => 
+        String(activity.property_id || activity.propertyId) === String(propertyId)
+      );
     }
 
     // Apply search filter

@@ -14,7 +14,7 @@ import {
     useLandlordFocusRefetch,
     useLandlordRefreshHandler,
 } from '../../hooks/useLandlordQueryHelpers.js';
-import { showError } from '../../../../utils/toast.js';
+import { showSuccess, showError, showWarning } from '../../../../utils/toast.js';
 
 const ROLE_LABELS = {
     tenant: 'Tenant',
@@ -79,7 +79,7 @@ const buildTenantParticipantMeta = (tenant) => {
         isCurrentTenant: occupancy.key === 'current',
         isGuestTenant: occupancy.key === 'guest',
     };
-};
+}
 
 export default function MessagesPage({ navigation, route }) {
     const { theme } = useTheme();
@@ -90,7 +90,14 @@ export default function MessagesPage({ navigation, route }) {
     const [newConversationId, setNewConversationId] = useState(null);
     const [refreshing, setRefreshing] = useState(false);
 
+    // Broadcast States
+    const [broadcastModalVisible, setBroadcastModalVisible] = useState(false);
+    const [broadcastMessage, setBroadcastMessage] = useState('');
+    const [broadcastTargetPropertyId, setBroadcastTargetPropertyId] = useState(null);
+    const [isSendingBroadcast, setIsSendingBroadcast] = useState(false);
+
     const conversationsQuery = useQuery({
+
         queryKey: landlordQueryKeys.messagesConversations(),
         queryFn: async () => {
             const result = await MessageService.getConversations();
@@ -319,6 +326,49 @@ export default function MessagesPage({ navigation, route }) {
         return filtered.map((conversation) => withParticipantMeta(conversation));
     }, [conversations, searchQuery, selectedPropertyId, withParticipantMeta]);
 
+    const handleSendBroadcast = async () => {
+        if (!broadcastMessage.trim()) {
+            showWarning('Message Required', 'Please enter a message to broadcast.');
+            return;
+        }
+        if (!broadcastTargetPropertyId) {
+            showWarning('Property Required', 'Please select a property to broadcast to.');
+            return;
+        }
+
+        // Get recipients from the directory who are in the selected property
+        const recipients = tenantDirectory
+            .filter((t) => {
+                const propId = t.property_id || t.property?.id || t.latestBooking?.property_id;
+                return String(propId) === String(broadcastTargetPropertyId);
+            })
+            .map((t) => t.id || t.user_id)
+            .filter(Boolean);
+
+        if (recipients.length === 0) {
+            showWarning('No Recipients', 'There are no active tenants in the selected property to broadcast to.');
+            return;
+        }
+
+        setIsSendingBroadcast(true);
+        try {
+            const response = await MessageService.broadcast(broadcastMessage.trim(), recipients);
+            if (response.success) {
+                showSuccess('Broadcast Sent', response.message || `Successfully sent to ${recipients.length} tenants.`);
+                setBroadcastModalVisible(false);
+                setBroadcastMessage('');
+                // Refresh conversations to show the new messages
+                queryClient.invalidateQueries({ queryKey: landlordQueryKeys.messagesConversations() });
+            } else {
+                showError('Broadcast Failed', response.error || 'Unable to send broadcast right now.');
+            }
+        } catch (err) {
+            showError('Broadcast Failed', 'An unexpected error occurred while sending broadcast.');
+        } finally {
+            setIsSendingBroadcast(false);
+        }
+    };
+
     if (startConversationMutation.isPending) {
         return (
             <View style={styles.loadingContainer}>
@@ -345,6 +395,15 @@ export default function MessagesPage({ navigation, route }) {
                 properties={properties}
                 selectedPropertyId={selectedPropertyId}
                 setSelectedPropertyId={setSelectedPropertyId}
+                // Broadcast Props
+                broadcastModalVisible={broadcastModalVisible}
+                setBroadcastModalVisible={setBroadcastModalVisible}
+                broadcastMessage={broadcastMessage}
+                setBroadcastMessage={setBroadcastMessage}
+                broadcastTargetPropertyId={broadcastTargetPropertyId}
+                setBroadcastTargetPropertyId={setBroadcastTargetPropertyId}
+                isSendingBroadcast={isSendingBroadcast}
+                onSendBroadcast={handleSendBroadcast}
             />
         </View>
     );

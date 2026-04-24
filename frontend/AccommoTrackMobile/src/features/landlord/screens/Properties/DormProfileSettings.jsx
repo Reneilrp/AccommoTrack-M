@@ -1098,6 +1098,21 @@ export default function DormProfileSettings({ route, navigation }) {
           </TouchableOpacity>
         </View>
 
+        {form.id && (
+          <View style={styles.sectionCard}>
+            <Text style={styles.sectionTitle}>Management Tools</Text>
+            <Text style={styles.sectionSubtitle}>Accountability and tracking</Text>
+            
+            <TouchableOpacity 
+              style={[styles.outlineBtn, { marginTop: 12, borderColor: theme.colors.primary }]} 
+              onPress={() => navigation.navigate('AllActivities', { propertyId: form.id })}
+            >
+              <Ionicons name="clipboard-outline" size={20} color={theme.colors.primary} />
+              <Text style={{ color: theme.colors.primary, fontWeight: '700' }}>View Property Activity Logs</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
         <View style={styles.sectionCard}>
           <Text style={styles.sectionTitle}>Financial Settings</Text>
 

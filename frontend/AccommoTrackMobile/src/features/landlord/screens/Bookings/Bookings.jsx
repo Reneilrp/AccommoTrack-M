@@ -11,7 +11,9 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  View
+  View,
+  Pressable,
+  Image
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -24,6 +26,7 @@ import {
   useLandlordRefreshHandler,
 } from '../../hooks/useLandlordQueryHelpers.js';
 import PropertyService from '../../../../services/PropertyService.js';
+import BookingService from '../../../../services/BookingService.js';
 import { getStyles } from '../../../../styles/Landlord/Bookings.js';
 import { hasPermission as checkPermission } from '../../../../utils/permissionHelpers.js';
 import { showSuccess, showError, showWarning, showInfo } from '../../../../utils/toast.js';
@@ -105,7 +108,12 @@ export default function BookingsScreen({ navigation, route }) {
   const [refreshing, setRefreshing] = useState(false);
   const [actionError, setActionError] = useState('');
   const [selectedBooking, setSelectedBooking] = useState(null);
-  const [detailVisible, setDetailVisible] = useState(false);
+  const [detailsVisible, setDetailsVisible] = useState(false);
+  const [extensionModifyVisible, setExtensionModifyVisible] = useState(false);
+  const [modifyingExtension, setModifyingExtension] = useState(null);
+  const [extensionModifyForm, setExtensionModifyForm] = useState({ requested_end_date: '', proposed_amount: '' });
+  const [receiptLightboxVisible, setReceiptLightboxVisible] = useState(false);
+
   const [cancelVisible, setCancelVisible] = useState(false);
   const [cancelForm, setCancelForm] = useState({ reason: '', shouldRefund: false, refundAmount: '' });
   const [actionLoading, setActionLoading] = useState(false);
@@ -174,6 +182,12 @@ export default function BookingsScreen({ navigation, route }) {
     showWarning('Permission Required', 'You do not have cancellation permission for this booking action.');
     return true;
   }, [canCancelBookings]);
+
+  const canShowDepositSettlement = (booking) => {
+    if (!booking) return false;
+    const s = String(booking.status || '').toLowerCase();
+    return s === 'confirmed' || s === 'completed' || s === 'partial-completed' || s === 'cancelled';
+  };
 
   const bookingBundleQuery = useQuery({
     queryKey: ['landlord', 'bookingBundle'],
@@ -273,6 +287,30 @@ export default function BookingsScreen({ navigation, route }) {
     }
   };
 
+  const handleExtensionModify = async () => {
+    if (!modifyingExtension) return;
+    if (guardApprovalAction()) return;
+
+    try {
+      setRequestActionLoading(true);
+      const response = await BookingService.handleExtension(modifyingExtension.id, 'modify', {
+        requested_end_date: extensionModifyForm.requested_end_date,
+        proposed_amount: Number(extensionModifyForm.proposed_amount) || 0
+      });
+
+      if (!response.success) throw new Error(response.error || 'Unable to modify extension request');
+
+      showSuccess('Extension Updated', 'Request details modified successfully.');
+      setExtensionModifyVisible(false);
+      setModifyingExtension(null);
+      await refetchLandlordQueries(bookingRefetchers);
+    } catch (err) {
+      showError('Extension Error', err.message || 'Unable to update extension request');
+    } finally {
+      setRequestActionLoading(false);
+    }
+  };
+
   const renderExtensionRequestCard = (item) => {
     const tenantName = item.tenant?.full_name || [item.tenant?.first_name, item.tenant?.last_name].filter(Boolean).join(' ') || 'Tenant';
     return (
@@ -295,6 +333,20 @@ export default function BookingsScreen({ navigation, route }) {
               onPress={() => handleExtensionRequestAction(item.id, 'approve')}
             >
               <Text style={styles.requestApproveText}>Approve</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.requestApproveBtn, { backgroundColor: theme.colors.backgroundSecondary, borderWidth: 1, borderColor: theme.colors.border }]}
+              disabled={requestActionLoading}
+              onPress={() => {
+                setModifyingExtension(item);
+                setExtensionModifyForm({
+                  requested_end_date: item.requested_end_date || '',
+                  proposed_amount: String(item.proposed_amount || '')
+                });
+                setExtensionModifyVisible(true);
+              }}
+            >
+              <Text style={[styles.requestApproveText, { color: theme.colors.textSecondary }]}>Modify</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.requestRejectBtn}
@@ -366,7 +418,7 @@ export default function BookingsScreen({ navigation, route }) {
       if (!targetBooking) return prevId;
 
       setSelectedBooking(targetBooking);
-      setDetailVisible(true);
+      setDetailsVisible(true);
       resetSettlementState();
       fetchSettlementHistory(targetBooking.id, false);
 
@@ -382,14 +434,14 @@ export default function BookingsScreen({ navigation, route }) {
 
   const openDetailModal = (booking) => {
     setSelectedBooking(booking);
-    setDetailVisible(true);
+    setDetailsVisible(true);
     resetSettlementState();
     fetchSettlementHistory(booking.id, false);
   };
 
   const closeDetailModal = () => {
     setSelectedBooking(null);
-    setDetailVisible(false);
+    setDetailsVisible(false);
     resetSettlementState();
   };
 
@@ -904,7 +956,7 @@ export default function BookingsScreen({ navigation, route }) {
       />
 
       {/* Detail Modal */}
-      <Modal visible={detailVisible} animationType="slide" onRequestClose={closeDetailModal}>
+      <Modal visible={detailsVisible} animationType="slide" onRequestClose={closeDetailModal}>
         <SafeAreaView style={[styles.modalContainer, { backgroundColor: theme.colors.background }]}>
           <View style={[styles.modalHeader, { borderBottomColor: theme.colors.border }]}>
             <Text style={[styles.modalTitle, { color: theme.colors.text }]}>Booking Details</Text>
@@ -1008,6 +1060,36 @@ export default function BookingsScreen({ navigation, route }) {
                     <Text style={[styles.infoValue, { color: theme.colors.text, textTransform: 'capitalize' }]}>{selectedBooking.paymentPlan || 'Full'}</Text>
                   </View>
                 </View>
+
+                {selectedBooking.receipt_image_path ? (
+                  <View style={styles.receiptSection}>
+                    <Text style={[styles.transferApprovalLabel, { color: theme.colors.textSecondary, alignSelf: 'flex-start', marginBottom: 8 }]}>Proof of Payment (Reservation)</Text>
+                    <Pressable style={styles.receiptThumbnail} onPress={() => setReceiptLightboxVisible(true)}>
+                      <Image
+                        source={{ uri: selectedBooking.receipt_image_path }}
+                        style={styles.receiptThumbnail}
+                        resizeMode="cover"
+                      />
+                      <View style={{ position: 'absolute', bottom: 10, right: 10, backgroundColor: 'rgba(0,0,0,0.6)', padding: 6, borderRadius: 8 }}>
+                        <Ionicons name="expand-outline" size={16} color="#FFFFFF" />
+                      </View>
+                    </Pressable>
+                    <TouchableOpacity style={styles.viewReceiptBtn} onPress={() => setReceiptLightboxVisible(true)}>
+                      <Ionicons name="image-outline" size={16} color={theme.colors.primary} />
+                      <Text style={styles.viewReceiptText}>Inspect Receipt</Text>
+                    </TouchableOpacity>
+                  </View>
+                ) : (
+                  (selectedBooking.status === 'pending_reservation' || selectedBooking.status === 'reserved') && (
+                    <View style={styles.receiptSection}>
+                      <View style={styles.receiptPlaceholder}>
+                        <Ionicons name="image-outline" size={32} color={theme.colors.textTertiary} />
+                        <Text style={styles.receiptPlaceholderText}>No receipt uploaded yet</Text>
+                      </View>
+                    </View>
+                  )
+                )}
+
                 <View style={[styles.totalAmountBox, { backgroundColor: theme.colors.backgroundSecondary }]}>
                   <Text style={[styles.totalAmountLabel, { color: theme.colors.textSecondary }]}>Total Amount</Text>
                   <Text style={[styles.totalAmountValue, { color: theme.colors.primary }]}>{formatCurrency(selectedBooking.amount)}</Text>
@@ -1067,129 +1149,131 @@ export default function BookingsScreen({ navigation, route }) {
                 ) : null}
               </View>
 
-              <View style={[styles.sectionCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
-                <Text style={[styles.sectionHeader, { color: theme.colors.text }]}>Deposit Settlement</Text>
-                <Text style={[styles.depositBalanceLabel, { color: theme.colors.textSecondary }]}>Current Deposit Balance</Text>
-                <Text style={[styles.depositBalanceValue, { color: theme.colors.text }]}>{formatCurrency(selectedBooking.deposit_balance || 0)}</Text>
+              {canShowDepositSettlement(selectedBooking) ? (
+                <View style={[styles.sectionCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
+                  <Text style={[styles.sectionHeader, { color: theme.colors.text }]}>Deposit Settlement</Text>
+                  <Text style={[styles.depositBalanceLabel, { color: theme.colors.textSecondary }]}>Current Deposit Balance</Text>
+                  <Text style={[styles.depositBalanceValue, { color: theme.colors.text }]}>{formatCurrency(selectedBooking.deposit_balance || 0)}</Text>
 
-                {canApproveBookings ? (
-                  <>
-                    <View style={styles.settlementFeeRow}>
-                      <View style={styles.settlementFeeField}>
-                        <Text style={[styles.transferApprovalLabel, { color: theme.colors.textSecondary }]}>Damage Fee</Text>
-                        <TextInput
-                          value={settlementForm.damageFee}
-                          onChangeText={(value) => setSettlementForm((prev) => ({ ...prev, damageFee: value }))}
-                          keyboardType="numeric"
-                          placeholder="0.00"
-                          placeholderTextColor={theme.colors.textTertiary}
-                          style={[styles.transferApprovalInput, { backgroundColor: theme.colors.backgroundSecondary, color: theme.colors.text, borderColor: theme.colors.border }]}
+                  {canApproveBookings ? (
+                    <>
+                      <View style={styles.settlementFeeRow}>
+                        <View style={styles.settlementFeeField}>
+                          <Text style={[styles.transferApprovalLabel, { color: theme.colors.textSecondary }]}>Damage Fee</Text>
+                          <TextInput
+                            value={settlementForm.damageFee}
+                            onChangeText={(value) => setSettlementForm((prev) => ({ ...prev, damageFee: value }))}
+                            keyboardType="numeric"
+                            placeholder="0.00"
+                            placeholderTextColor={theme.colors.textTertiary}
+                            style={[styles.transferApprovalInput, { backgroundColor: theme.colors.backgroundSecondary, color: theme.colors.text, borderColor: theme.colors.border }]}
+                          />
+                        </View>
+                        <View style={styles.settlementFeeField}>
+                          <Text style={[styles.transferApprovalLabel, { color: theme.colors.textSecondary }]}>Cleaning Fee</Text>
+                          <TextInput
+                            value={settlementForm.cleaningFee}
+                            onChangeText={(value) => setSettlementForm((prev) => ({ ...prev, cleaningFee: value }))}
+                            keyboardType="numeric"
+                            placeholder="0.00"
+                            placeholderTextColor={theme.colors.textTertiary}
+                            style={[styles.transferApprovalInput, { backgroundColor: theme.colors.backgroundSecondary, color: theme.colors.text, borderColor: theme.colors.border }]}
+                          />
+                        </View>
+                        <View style={styles.settlementFeeField}>
+                          <Text style={[styles.transferApprovalLabel, { color: theme.colors.textSecondary }]}>Other Fee</Text>
+                          <TextInput
+                            value={settlementForm.otherFee}
+                            onChangeText={(value) => setSettlementForm((prev) => ({ ...prev, otherFee: value }))}
+                            keyboardType="numeric"
+                            placeholder="0.00"
+                            placeholderTextColor={theme.colors.textTertiary}
+                            style={[styles.transferApprovalInput, { backgroundColor: theme.colors.backgroundSecondary, color: theme.colors.text, borderColor: theme.colors.border }]}
+                          />
+                        </View>
+                      </View>
+
+                      <View style={styles.switchRow}>
+                        <Text style={[styles.detailLabel, { color: theme.colors.textSecondary }]}>Mark remaining balance as refunded?</Text>
+                        <Switch
+                          value={settlementForm.markRefunded}
+                          onValueChange={(value) => setSettlementForm((prev) => ({ ...prev, markRefunded: value }))}
+                          trackColor={{ true: '#86EFAC', false: theme.colors.border }}
+                          thumbColor={settlementForm.markRefunded ? theme.colors.primary : '#FFFFFF'}
                         />
                       </View>
-                      <View style={styles.settlementFeeField}>
-                        <Text style={[styles.transferApprovalLabel, { color: theme.colors.textSecondary }]}>Cleaning Fee</Text>
-                        <TextInput
-                          value={settlementForm.cleaningFee}
-                          onChangeText={(value) => setSettlementForm((prev) => ({ ...prev, cleaningFee: value }))}
-                          keyboardType="numeric"
-                          placeholder="0.00"
-                          placeholderTextColor={theme.colors.textTertiary}
-                          style={[styles.transferApprovalInput, { backgroundColor: theme.colors.backgroundSecondary, color: theme.colors.text, borderColor: theme.colors.border }]}
-                        />
-                      </View>
-                      <View style={styles.settlementFeeField}>
-                        <Text style={[styles.transferApprovalLabel, { color: theme.colors.textSecondary }]}>Other Fee</Text>
-                        <TextInput
-                          value={settlementForm.otherFee}
-                          onChangeText={(value) => setSettlementForm((prev) => ({ ...prev, otherFee: value }))}
-                          keyboardType="numeric"
-                          placeholder="0.00"
-                          placeholderTextColor={theme.colors.textTertiary}
-                          style={[styles.transferApprovalInput, { backgroundColor: theme.colors.backgroundSecondary, color: theme.colors.text, borderColor: theme.colors.border }]}
-                        />
-                      </View>
-                    </View>
 
-                    <View style={styles.switchRow}>
-                      <Text style={[styles.detailLabel, { color: theme.colors.textSecondary }]}>Mark remaining balance as refunded?</Text>
-                      <Switch
-                        value={settlementForm.markRefunded}
-                        onValueChange={(value) => setSettlementForm((prev) => ({ ...prev, markRefunded: value }))}
-                        trackColor={{ true: '#86EFAC', false: theme.colors.border }}
-                        thumbColor={settlementForm.markRefunded ? theme.colors.primary : '#FFFFFF'}
-                      />
-                    </View>
+                      {settlementForm.markRefunded ? (
+                        <>
+                          <Text style={[styles.transferApprovalLabel, { color: theme.colors.textSecondary }]}>Refund Method *</Text>
+                          <TextInput
+                            value={settlementForm.refundMethod}
+                            onChangeText={(value) => setSettlementForm((prev) => ({ ...prev, refundMethod: value }))}
+                            placeholder="Cash, GCash, Bank Transfer"
+                            placeholderTextColor={theme.colors.textTertiary}
+                            style={[styles.transferApprovalInput, { backgroundColor: theme.colors.backgroundSecondary, color: theme.colors.text, borderColor: theme.colors.border }]}
+                          />
 
-                    {settlementForm.markRefunded ? (
-                      <>
-                        <Text style={[styles.transferApprovalLabel, { color: theme.colors.textSecondary }]}>Refund Method *</Text>
-                        <TextInput
-                          value={settlementForm.refundMethod}
-                          onChangeText={(value) => setSettlementForm((prev) => ({ ...prev, refundMethod: value }))}
-                          placeholder="Cash, GCash, Bank Transfer"
-                          placeholderTextColor={theme.colors.textTertiary}
-                          style={[styles.transferApprovalInput, { backgroundColor: theme.colors.backgroundSecondary, color: theme.colors.text, borderColor: theme.colors.border }]}
-                        />
-
-                        <Text style={[styles.transferApprovalLabel, { color: theme.colors.textSecondary }]}>Refund Reference</Text>
-                        <TextInput
-                          value={settlementForm.refundReference}
-                          onChangeText={(value) => setSettlementForm((prev) => ({ ...prev, refundReference: value }))}
-                          placeholder="Optional reference id"
-                          placeholderTextColor={theme.colors.textTertiary}
-                          style={[styles.transferApprovalInput, { backgroundColor: theme.colors.backgroundSecondary, color: theme.colors.text, borderColor: theme.colors.border }]}
-                        />
-                      </>
-                    ) : null}
-
-                    <Text style={[styles.transferApprovalLabel, { color: theme.colors.textSecondary }]}>Notes</Text>
-                    <TextInput
-                      value={settlementForm.note}
-                      onChangeText={(value) => setSettlementForm((prev) => ({ ...prev, note: value }))}
-                      placeholder="Optional settlement note"
-                      placeholderTextColor={theme.colors.textTertiary}
-                      style={[styles.transferApprovalTextArea, { backgroundColor: theme.colors.backgroundSecondary, color: theme.colors.text, borderColor: theme.colors.border }]}
-                      multiline
-                    />
-
-                    <TouchableOpacity
-                      style={styles.settleDepositBtn}
-                      onPress={handleSettleDeposit}
-                      disabled={submittingSettlement}
-                    >
-                      {submittingSettlement ? (
-                        <ActivityIndicator size="small" color="#FFFFFF" />
-                      ) : (
-                        <Text style={styles.settleDepositBtnText}>Record Deposit Settlement</Text>
-                      )}
-                    </TouchableOpacity>
-                  </>
-                ) : (
-                  <Text style={[styles.requestMeta, { color: theme.colors.textSecondary }]}>Deposit settlement requires booking approval permission.</Text>
-                )}
-
-                <Text style={[styles.settlementHistoryTitle, { color: theme.colors.text }]}>Settlement History</Text>
-                {settlementHistoryLoading ? (
-                  <ActivityIndicator size="small" color={theme.colors.primary} />
-                ) : settlementHistory.length === 0 ? (
-                  <Text style={[styles.requestEmptyText, { color: theme.colors.textTertiary }]}>No settlement records yet.</Text>
-                ) : (
-                  settlementHistory.map((entry) => (
-                    <View key={entry.id} style={[styles.settlementHistoryCard, { backgroundColor: theme.colors.backgroundSecondary, borderColor: theme.colors.border }]}>
-                      <Text style={[styles.settlementHistoryAmount, { color: theme.colors.text }]}>
-                        Deductions {formatCurrency(entry.total_deductions || 0)} • Balance {formatCurrency(entry.ending_balance || 0)}
-                      </Text>
-                      <Text style={[styles.settlementHistoryMeta, { color: theme.colors.textSecondary }]}>{formatDate(entry.created_at)}</Text>
-                      {entry.mark_refunded ? (
-                        <Text style={[styles.settlementHistoryMeta, { color: theme.colors.textSecondary }]}>
-                          Refunded via {entry.refund_method || 'N/A'}{entry.refund_reference ? ` • ${entry.refund_reference}` : ''}
-                        </Text>
+                          <Text style={[styles.transferApprovalLabel, { color: theme.colors.textSecondary }]}>Refund Reference</Text>
+                          <TextInput
+                            value={settlementForm.refundReference}
+                            onChangeText={(value) => setSettlementForm((prev) => ({ ...prev, refundReference: value }))}
+                            placeholder="Optional reference id"
+                            placeholderTextColor={theme.colors.textTertiary}
+                            style={[styles.transferApprovalInput, { backgroundColor: theme.colors.backgroundSecondary, color: theme.colors.text, borderColor: theme.colors.border }]}
+                          />
+                        </>
                       ) : null}
-                      {entry.note ? <Text style={[styles.requestNote, { color: theme.colors.textSecondary, backgroundColor: theme.colors.surface }]}>{entry.note}</Text> : null}
-                    </View>
-                  ))
-                )}
-              </View>
+
+                      <Text style={[styles.transferApprovalLabel, { color: theme.colors.textSecondary }]}>Notes</Text>
+                      <TextInput
+                        value={settlementForm.note}
+                        onChangeText={(value) => setSettlementForm((prev) => ({ ...prev, note: value }))}
+                        placeholder="Optional settlement note"
+                        placeholderTextColor={theme.colors.textTertiary}
+                        style={[styles.transferApprovalTextArea, { backgroundColor: theme.colors.backgroundSecondary, color: theme.colors.text, borderColor: theme.colors.border }]}
+                        multiline
+                      />
+
+                      <TouchableOpacity
+                        style={styles.settleDepositBtn}
+                        onPress={handleSettleDeposit}
+                        disabled={submittingSettlement}
+                      >
+                        {submittingSettlement ? (
+                          <ActivityIndicator size="small" color="#FFFFFF" />
+                        ) : (
+                          <Text style={styles.settleDepositBtnText}>Record Deposit Settlement</Text>
+                        )}
+                      </TouchableOpacity>
+                    </>
+                  ) : (
+                    <Text style={[styles.requestMeta, { color: theme.colors.textSecondary }]}>Deposit settlement requires booking approval permission.</Text>
+                  )}
+
+                  <Text style={[styles.settlementHistoryTitle, { color: theme.colors.text }]}>Settlement History</Text>
+                  {settlementHistoryLoading ? (
+                    <ActivityIndicator size="small" color={theme.colors.primary} />
+                  ) : settlementHistory.length === 0 ? (
+                    <Text style={[styles.requestEmptyText, { color: theme.colors.textTertiary }]}>No settlement records yet.</Text>
+                  ) : (
+                    settlementHistory.map((entry) => (
+                      <View key={entry.id} style={[styles.settlementHistoryCard, { backgroundColor: theme.colors.backgroundSecondary, borderColor: theme.colors.border }]}>
+                        <Text style={[styles.settlementHistoryAmount, { color: theme.colors.text }]}>
+                          Deductions {formatCurrency(entry.total_deductions || 0)} • Balance {formatCurrency(entry.ending_balance || 0)}
+                        </Text>
+                        <Text style={[styles.settlementHistoryMeta, { color: theme.colors.textSecondary }]}>{formatDate(entry.created_at)}</Text>
+                        {entry.mark_refunded ? (
+                          <Text style={[styles.settlementHistoryMeta, { color: theme.colors.textSecondary }]}>
+                            Refunded via {entry.refund_method || 'N/A'}{entry.refund_reference ? ` • ${entry.refund_reference}` : ''}
+                          </Text>
+                        ) : null}
+                        {entry.note ? <Text style={[styles.requestNote, { color: theme.colors.textSecondary, backgroundColor: theme.colors.surface }]}>{entry.note}</Text> : null}
+                      </View>
+                    ))
+                  )}
+                </View>
+              ) : null}
 
               {/* Booking Actions */}
               <View style={[styles.sectionCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
@@ -1316,6 +1400,94 @@ export default function BookingsScreen({ navigation, route }) {
             </TouchableOpacity>
           </View>
         </SafeAreaView>
+      </Modal>
+
+      {/* Extension Modify Modal */}
+      <Modal visible={extensionModifyVisible} animationType="slide" onRequestClose={() => setExtensionModifyVisible(false)}>
+        <SafeAreaView style={[styles.modalContainer, { backgroundColor: theme.colors.background }]}>
+          <View style={[styles.modalHeader, { borderBottomColor: theme.colors.border }]}>
+            <Text style={[styles.modalTitle, { color: theme.colors.text }]}>Modify Extension</Text>
+            <TouchableOpacity onPress={() => setExtensionModifyVisible(false)} style={styles.closeButton}>
+              <Ionicons name="close" size={24} color={theme.colors.textSecondary} />
+            </TouchableOpacity>
+          </View>
+          <ScrollView contentContainerStyle={styles.modalContent}>
+            <View style={{ marginBottom: 20 }}>
+              <Text style={{ fontSize: 16, fontWeight: 'bold', color: theme.colors.text, marginBottom: 4 }}>
+                {modifyingExtension?.tenant?.full_name || 'Tenant'}
+              </Text>
+              <Text style={{ fontSize: 13, color: theme.colors.textSecondary }}>
+                Room {modifyingExtension?.booking?.room?.room_number} • Current End: {formatDate(modifyingExtension?.current_end_date)}
+              </Text>
+            </View>
+
+            <View style={{ marginBottom: 24 }}>
+              <Text style={[styles.sectionTitle, { color: theme.colors.text, marginBottom: 8 }]}>Adjust End Date</Text>
+              <TextInput
+                style={[styles.input, { backgroundColor: theme.colors.surface, color: theme.colors.text, borderColor: theme.colors.border }]}
+                value={extensionModifyForm.requested_end_date}
+                onChangeText={(text) => setExtensionModifyForm((prev) => ({ ...prev, requested_end_date: text }))}
+                placeholder="YYYY-MM-DD"
+                placeholderTextColor={theme.colors.textTertiary}
+              />
+              <Text style={{ fontSize: 11, color: theme.colors.textTertiary, marginTop: 4, fontStyle: 'italic' }}>
+                Format: YYYY-MM-DD. Overriding this changes the billing period.
+              </Text>
+            </View>
+
+            <View style={{ marginBottom: 24 }}>
+              <Text style={[styles.sectionTitle, { color: theme.colors.text, marginBottom: 8 }]}>Extension Fee (₱)</Text>
+              <TextInput
+                style={[styles.input, { backgroundColor: theme.colors.surface, color: theme.colors.text, borderColor: theme.colors.border }]}
+                keyboardType="numeric"
+                value={extensionModifyForm.proposed_amount}
+                onChangeText={(text) => setExtensionModifyForm((prev) => ({ ...prev, proposed_amount: text }))}
+                placeholder="0.00"
+                placeholderTextColor={theme.colors.textTertiary}
+              />
+            </View>
+          </ScrollView>
+          <View style={[styles.modalActions, { borderTopColor: theme.colors.border }]}>
+            <TouchableOpacity 
+              style={[styles.goBackBtn, { backgroundColor: theme.colors.backgroundSecondary }]} 
+              onPress={() => setExtensionModifyVisible(false)}
+              disabled={requestActionLoading}
+            >
+              <Text style={[styles.goBackBtnText, { color: theme.colors.textSecondary }]}>Cancel</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={[styles.confirmCancelBtn, { backgroundColor: theme.colors.primary }]} 
+              onPress={handleExtensionModify}
+              disabled={requestActionLoading}
+            >
+              {requestActionLoading ? <ActivityIndicator size="small" color="#fff" /> : <Text style={styles.confirmCancelBtnText}>Apply & Save</Text>}
+            </TouchableOpacity>
+          </View>
+        </SafeAreaView>
+      </Modal>
+
+      {/* Receipt Lightbox */}
+      <Modal
+        visible={receiptLightboxVisible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setReceiptLightboxVisible(false)}
+      >
+        <View style={styles.lightboxOverlay}>
+          <TouchableOpacity
+            style={styles.lightboxClose}
+            onPress={() => setReceiptLightboxVisible(false)}
+          >
+            <Ionicons name="close" size={28} color="#FFFFFF" />
+          </TouchableOpacity>
+          {selectedBooking?.receipt_image_path ? (
+            <Image
+              source={{ uri: selectedBooking.receipt_image_path }}
+              style={styles.lightboxImage}
+              resizeMode="contain"
+            />
+          ) : null}
+        </View>
       </Modal>
     </SafeAreaView>
   );

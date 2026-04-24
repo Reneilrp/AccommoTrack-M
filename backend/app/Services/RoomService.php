@@ -189,10 +189,10 @@ class RoomService
     /**
      * Assign a tenant to a room.
      */
-    public function assignTenant(Room $room, int $tenantId, ?string $startDate = null, $bedCount = 1): Room
+    public function assignTenant(Room $room, int $tenantId, ?string $startDate = null, $bedCount = 1, ?string $bedNumbers = null): Room
     {
-        return DB::transaction(function () use ($room, $tenantId, $startDate, $bedCount) {
-            $room->assignTenant($tenantId, $startDate, $bedCount);
+        return DB::transaction(function () use ($room, $tenantId, $startDate, $bedCount, $bedNumbers) {
+            $room->assignTenant($tenantId, $startDate, $bedCount, $bedNumbers);
 
             return $room->load('tenants');
         });

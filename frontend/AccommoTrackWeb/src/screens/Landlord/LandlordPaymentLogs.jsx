@@ -139,12 +139,10 @@ export default function LandlordPaymentLogs() {
   const navigate = useNavigate();
 
   const [allInvoices, setAllInvoices] = useState([]);
-  const [archivedInvoices, setArchivedInvoices] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
-  const [archiveOpen, setArchiveOpen] = useState(false);
   const [logType, setLogType] = useState('tenant'); // 'tenant' or 'subscription'
 
   const loadData = useCallback(async () => {
@@ -156,26 +154,20 @@ export default function LandlordPaymentLogs() {
         if (res.success) {
           const list = res.data?.items || (Array.isArray(res.data) ? res.data : (res.data?.data || []));
           setAllInvoices(list);
-          setArchivedInvoices([]); // Subscriptions don't use archive logic for now
         } else {
           setError(res.error || 'Failed to load subscription invoices');
         }
       } else {
-        const [allRes, archiveRes] = await Promise.all([
-          invoiceService.getInvoices({ exclude_invoice_type: 'subscription', t: Date.now() }),
-          invoiceService.getInvoices({ exclude_invoice_type: 'subscription', archive_filter: 'archived', t: Date.now() }),
+        const [allRes] = await Promise.all([
+          invoiceService.getInvoices({ exclude_invoice_type: 'subscription', _t: Date.now() }),
         ]);
 
         if (allRes.success) {
+
           const list = allRes.data?.items || (Array.isArray(allRes.data) ? allRes.data : (allRes.data?.data || []));
           setAllInvoices(list);
         } else {
           setError(allRes.error || 'Failed to load invoices');
-        }
-
-        if (archiveRes.success) {
-          const list = archiveRes.data?.items || (Array.isArray(archiveRes.data) ? archiveRes.data : (archiveRes.data?.data || []));
-          setArchivedInvoices(list);
         }
       }
     } catch (e) {
@@ -204,18 +196,6 @@ export default function LandlordPaymentLogs() {
       })
       .sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
   }, [allInvoices, searchQuery, statusFilter]);
-
-  const filteredArchived = useMemo(() => {
-    const q = (searchQuery || '').trim().toLowerCase();
-    if (!q) return archivedInvoices;
-    return archivedInvoices.filter((inv) => {
-      const tenant = buildTenantName(inv).toLowerCase();
-      const property = (inv?.property?.title || inv?.property_title || inv?.booking?.property?.title || '').toLowerCase();
-      const ref = (inv?.reference || String(inv?.id || '')).toLowerCase();
-      const room = buildRoomLabel(inv).toLowerCase();
-      return tenant.includes(q) || property.includes(q) || ref.includes(q) || room.includes(q);
-    });
-  }, [archivedInvoices, searchQuery]);
 
   const tableHead = (
     <thead className="bg-gray-50 dark:bg-gray-700/50 sticky top-0 z-10">

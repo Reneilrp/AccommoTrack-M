@@ -765,6 +765,51 @@ export default function TenantsScreen({ navigation, route }) {
     }
   };
 
+  const [isGeneratingClaimCode, setIsGeneratingClaimCode] = useState(false);
+  const handleGenerateClaimCode = async (tenant) => {
+    setOpenActionsTenantId(null);
+    if (!tenant?.id) {
+      showError('Invalid tenant', 'Select a valid tenant to generate a claim code.');
+      return;
+    }
+
+    setIsGeneratingClaimCode(true);
+    try {
+      const response = await PropertyService.generateTenantClaimCode(tenant.id);
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to generate claim code.');
+      }
+
+      const payload = response.data || {};
+      setClaimCodePayload({
+        tenantName: `${tenant.first_name || ''} ${tenant.last_name || ''}`.trim(),
+        code: payload.claim_code || '',
+        expiresAt: payload.expires_at
+          ? new Date(payload.expires_at).toLocaleString()
+          : 'Not available',
+      });
+      setClaimCodeModalVisible(true);
+      showSuccess('Success', 'Claim code generated successfully.');
+    } catch (err) {
+      showError('Error', getTenantActionError(err, 'Unable to generate claim code right now.'));
+    } finally {
+      setIsGeneratingClaimCode(false);
+    }
+  };
+
+  const handleShareClaimCode = async () => {
+    if (!claimCodePayload?.code) return;
+
+    try {
+      await Share.share({
+        message: `Your AccommoTrack claim code is: ${claimCodePayload.code}\n\nUse this to claim your account in the AccommoTrack app. Expires on ${claimCodePayload.expiresAt}`,
+        title: 'AccommoTrack Claim Code',
+      });
+    } catch (_error) {
+      showError('Error', 'Unable to share claim code.');
+    }
+  };
+
   const handleUnassignInitiate = (tenant) => {
     if (!tenant.room) {
       showWarning('Not assigned', 'This tenant does not have an assigned room.');
@@ -870,38 +915,6 @@ export default function TenantsScreen({ navigation, route }) {
       tenantId: tenant.id,
       tenantName: `${tenant.first_name} ${tenant.last_name}`,
     });
-  };
-
-  const handleGenerateClaimCode = async (tenant) => {
-    try {
-      const response = await PropertyService.generateTenantClaimCode(tenant.id);
-      if (!response.success) {
-        throw new Error(response.error || 'Failed to generate claim code.');
-      }
-      const payload = response.data || {};
-      const code = payload.claim_code || 'N/A';
-      const expiresAt = payload.expires_at
-        ? new Date(payload.expires_at).toLocaleString()
-        : 'Not available';
-      setClaimCodePayload({
-        tenantName: `${tenant.first_name} ${tenant.last_name}`,
-        code,
-        expiresAt,
-      });
-      setClaimCodeModalVisible(true);
-    } catch (error) {
-      showError('Error', getTenantActionError(error, 'Failed to generate claim code.'));
-    }
-  };
-
-  const handleShareClaimCode = async () => {
-    if (!claimCodePayload) return;
-    try {
-      const message = `Your claim code for ${claimCodePayload.tenantName} is: ${claimCodePayload.code}. It expires on ${claimCodePayload.expiresAt}.`;
-      await Share.share({ message });
-    } catch (_error) {
-      showError('Error', 'Failed to share claim code.');
-    }
   };
 
   const renderTenantCard = ({ item }) => {
@@ -2081,6 +2094,58 @@ export default function TenantsScreen({ navigation, route }) {
             </ScrollView>
           </View>
         </KeyboardAvoidingView>
+      </Modal>
+
+      <Modal
+        visible={claimCodeModalVisible}
+        transparent
+        animationType="fade"
+        statusBarTranslucent={true}
+        presentationStyle="overFullScreen"
+        onRequestClose={() => setClaimCodeModalVisible(false)}
+      >
+        <View style={styles.overlayContainer}>
+          <View style={styles.actionModalCard}>
+            <View style={{ alignItems: 'center', marginBottom: 20 }}>
+              <View style={{ width: 60, height: 60, borderRadius: 30, backgroundColor: '#EEF2FF', alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}>
+                <Ionicons name="key" size={30} color="#4F46E5" />
+              </View>
+              <Text style={styles.actionModalTitle}>Claim Existing Account</Text>
+              <Text style={[styles.actionModalSubtitle, { textAlign: 'center' }]}>
+                Share this code with <Text style={{ fontWeight: 'bold', color: theme.colors.text }}>{claimCodePayload.tenantName}</Text>. They can use it on the login screen to access their account.
+              </Text>
+            </View>
+
+            <View style={{ backgroundColor: theme.isDark ? 'rgba(79,70,229,0.1)' : '#F5F3FF', borderRadius: 16, padding: 24, alignItems: 'center', marginBottom: 20, borderWidth: 1, borderColor: '#DDD6FE' }}>
+              <Text style={{ fontSize: 12, fontWeight: '700', color: '#6D28D9', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 }}>Claim Code</Text>
+              <Text style={{ fontSize: 36, fontWeight: '900', color: '#4C1D95', letterSpacing: 4 }}>{claimCodePayload.code}</Text>
+            </View>
+
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 24 }}>
+              <Ionicons name="time-outline" size={16} color={theme.colors.textTertiary} />
+              <Text style={{ fontSize: 12, color: theme.colors.textTertiary, marginLeft: 6 }}>
+                Expires: {claimCodePayload.expiresAt}
+              </Text>
+            </View>
+
+            <View style={styles.modalActionsRow}>
+              <TouchableOpacity
+                style={[styles.modalSecondaryBtn, { flex: 1, marginRight: 10 }]}
+                onPress={handleShareClaimCode}
+              >
+                <Ionicons name="share-social-outline" size={18} color={theme.colors.text} />
+                <Text style={styles.modalSecondaryBtnText}>Share Code</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                style={[styles.modalConfirmBtn, { flex: 1 }]}
+                onPress={() => setClaimCodeModalVisible(false)}
+              >
+                <Text style={styles.modalConfirmText}>Close</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
       </Modal>
     </SafeAreaView>
   );

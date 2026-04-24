@@ -98,6 +98,32 @@ class BookingService {
   }
 
   /**
+   * LANDLORD: Handle stay extension request (approve/reject/modify)
+   */
+  async handleExtension(id, action, data = {}) {
+    try {
+      const response = await api.post(`/landlord/extensions/${id}`, { action, ...data });
+      return normalizeResponse(response);
+    } catch (error) {
+      console.error('Error handling extension request:', error);
+      return normalizeError(error);
+    }
+  }
+
+  /**
+   * LANDLORD: Finalize checkout and settle security deposit
+   */
+  async finalizeCheckout(bookingId, data) {
+    try {
+      const response = await api.post(`/bookings/${bookingId}/finalize-checkout`, data);
+      return normalizeResponse(response);
+    } catch (error) {
+      console.error('Error finalizing checkout:', error);
+      return normalizeError(error);
+    }
+  }
+
+  /**
    * LANDLORD: Approve a tenant's reservation
    */
   async approveReservation(bookingId) {

@@ -279,6 +279,14 @@ class User extends Authenticatable
     }
 
     /**
+     * Primary proxy origin record (if registered from a proxy booking)
+     */
+    public function proxyOrigin()
+    {
+        return $this->hasOne(BookingOccupant::class, 'user_id')->with('booking.property');
+    }
+
+    /**
      * Eviction records where this user is the tenant.
      */
     public function tenantEvictions()

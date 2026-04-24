@@ -866,10 +866,6 @@ export default function MyBookings() {
       : (Array.isArray(pendingBookings) ? pendingBookings : []);
   };
 
-  const getPropertySwitchIndex = () => {
-    return viewMode === 'active' ? selectedStayIndex : selectedPendingIndex;
-  };
-
   const getPropertyOptionLabel = (item) => {
     const propertyName = item?.property?.title || item?.property_title || 'Property';
     const roomNumber =
@@ -2243,10 +2239,9 @@ export default function MyBookings() {
                   {/* Transfer section - separate row */}
                   <View style={{ marginTop: hasMoveOutNotice ? 8 : 12 }}>
                     <Text style={{ fontSize: 11, color: theme.colors.textTertiary, marginBottom: 8 }}>
-                      Transfers this month: {monthlyTransferCount}/2
+                      Transfers this month: {monthlyTransferCount}/{transferLimit}
                       {transferLimitReached ? ` (available again in ${daysUntilTransferReset} day${daysUntilTransferReset === 1 ? '' : 's'})` : ''}
                     </Text>
-
                     {pendingTransferForBooking ? (
                       <TouchableOpacity
                         style={[styles.reviewBtn, { backgroundColor: theme.isDark ? '#991b1b' : '#DC2626', marginTop: 0 }]}

@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useMemo } from "react";
+import React, { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Loader2, Search, Calendar, Receipt, X, RotateCcw, RefreshCw, PhilippinePeso, Clock, CheckCircle, XCircle, FileDown, Filter, ShieldCheck, ShieldX, FileText } from "lucide-react";
 import { showSuccess, showError } from "../../utils/toast";
@@ -200,9 +200,12 @@ export default function Payments() {
   const [error, setError] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [paymentFilter, setPaymentFilter] = useState("all");
-  const [archiveFilter, setArchiveFilter] = useState("active");
+  const [archiveFilter] = useState("active");
   const [statsRange, setStatsRange] = useState("month");
+  const initialLoadRef = useRef(true);
+
   const [summary, setSummary] = useState(cachedData?.summary || null);
+
   const [selectedInvoice, setSelectedInvoice] = useState(null);
   const [showInvoiceModal, setShowInvoiceModal] = useState(false);
   const [refundConfirmTx, setRefundConfirmTx] = useState(null);
@@ -526,7 +529,8 @@ export default function Payments() {
 
   const loadInvoices = useCallback(async () => {
     try {
-      if (!uiState.data?.landlord_payments) setLoading(true);
+      if (initialLoadRef.current) setLoading(true);
+      initialLoadRef.current = false;
       setError(null);
       const response = await invoiceService.getInvoices({
         exclude_invoice_type: "subscription",
