@@ -1084,27 +1084,30 @@ class BookingService
         [$cancelledInvoiceIds, $voidedPendingTransactionIds] = $this->cancelOpenInvoicesForCancelledBooking($booking);
 
         // Remove tenant from room only if we had a tenant_id and room exists
-        if ($booking->tenant_id && $booking->room) {
+        if ($booking->room) {
             try {
-                $booking->room->removeTenant($booking->tenant_id);
+                // Use forceVacate to ensure all associations are wiped
+                $booking->room->forceVacate();
             } catch (\Exception $e) {
-                Log::error('Failed to remove tenant during cancellation', [
+                Log::error('Failed to force vacate room during cancellation', [
                     'booking_id' => $booking->id,
-                    'tenant_id' => $booking->tenant_id,
+                    'room_id' => $booking->room_id,
                     'error' => $e->getMessage(),
                 ]);
             }
 
-            // Update tenant profile
-            $tenantProfile = TenantProfile::where('user_id', $booking->tenant_id)
-                ->where('booking_id', $booking->id)
-                ->first();
+            if ($booking->tenant_id) {
+                // Update tenant profile
+                $tenantProfile = TenantProfile::where('user_id', $booking->tenant_id)
+                    ->where('booking_id', $booking->id)
+                    ->first();
 
-            if ($tenantProfile) {
-                $tenantProfile->update([
-                    'status' => 'inactive',
-                    'move_out_date' => now()->format('Y-m-d'),
-                ]);
+                if ($tenantProfile) {
+                    $tenantProfile->update([
+                        'status' => 'inactive',
+                        'move_out_date' => now()->format('Y-m-d'),
+                    ]);
+                }
             }
         }
 

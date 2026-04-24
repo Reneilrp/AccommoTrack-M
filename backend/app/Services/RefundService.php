@@ -221,27 +221,30 @@ class RefundService
         // Only cancel / evict the tenant when the booking is still active.
         if (! in_array($booking->status, $terminalStatuses, true)) {
             // Remove tenant from the room pivot so occupancy counters drop correctly.
-            if ($booking->tenant_id && $booking->room) {
+            if ($booking->room) {
                 try {
-                    $booking->room->removeTenant($booking->tenant_id);
+                    // Use forceVacate to ensure all associations are wiped
+                    $booking->room->forceVacate();
                 } catch (\Exception $e) {
-                    Log::error('RefundService: failed to remove tenant from room during refund', [
+                    Log::error('RefundService: failed to force vacate room during refund', [
                         'booking_id' => $booking->id,
-                        'tenant_id'  => $booking->tenant_id,
+                        'room_id'    => $booking->room_id,
                         'error'      => $e->getMessage(),
                     ]);
                 }
 
-                // Mark tenant profile inactive
-                $tenantProfile = TenantProfile::where('user_id', $booking->tenant_id)
-                    ->where('booking_id', $booking->id)
-                    ->first();
+                if ($booking->tenant_id) {
+                    // Mark tenant profile inactive
+                    $tenantProfile = TenantProfile::where('user_id', $booking->tenant_id)
+                        ->where('booking_id', $booking->id)
+                        ->first();
 
-                if ($tenantProfile) {
-                    $tenantProfile->update([
-                        'status'        => 'inactive',
-                        'move_out_date' => now()->format('Y-m-d'),
-                    ]);
+                    if ($tenantProfile) {
+                        $tenantProfile->update([
+                            'status'        => 'inactive',
+                            'move_out_date' => now()->format('Y-m-d'),
+                        ]);
+                    }
                 }
             }
 

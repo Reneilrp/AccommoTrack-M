@@ -992,6 +992,33 @@ class Room extends Model
     }
 
     /**
+     * Forcefully vacate the room, clearing all occupant associations.
+     */
+    public function forceVacate()
+    {
+        // End all active tenant assignments
+        $activeTenantIds = $this->tenants()->pluck('users.id')->toArray();
+        if (!empty($activeTenantIds)) {
+            $this->tenants()->updateExistingPivot($activeTenantIds, [
+                'status' => 'ended',
+                'end_date' => now()->format('Y-m-d'),
+                'updated_at' => now(),
+            ]);
+        }
+
+        // Reset room status and legacy tenant link
+        $this->update([
+            'status' => 'available',
+            'current_tenant_id' => null,
+        ]);
+
+        // Update property stats
+        if ($this->property && method_exists($this->property, 'updateAvailableRooms')) {
+            $this->property->updateAvailableRooms();
+        }
+    }
+
+    /**
      * Get formatted room payment display for booking page
      */
     public function getPaymentDisplay()

@@ -501,7 +501,13 @@ class TenantDashboardController extends Controller
                 ];
             });
 
-            return response()->json(['bookings' => $formattedBookings, 'pagination' => ['currentPage' => $pastBookings->currentPage(), 'lastPage' => $pastBookings->lastPage(), 'perPage' => $pastBookings->perPage(), 'total' => $pastBookings->total()]], 200);
+            return response()->json([
+                'data' => $formattedBookings->values(),
+                'current_page' => $pastBookings->currentPage(),
+                'last_page' => $pastBookings->lastPage(),
+                'per_page' => $pastBookings->perPage(),
+                'total' => $pastBookings->total(),
+            ], 200);
         } catch (\Exception $e) {
             return response()->json(['message' => 'Failed to fetch booking history', 'error' => $e->getMessage()], 500);
         }

@@ -699,11 +699,13 @@ export default function MyBookings() {
     queryKey: ['tenant', 'history', 'infinite'],
     queryFn: async ({ pageParam = 1 }) => {
       const res = await TenantService.getHistory(pageParam);
-      return res.success ? res.data : { items: [], meta: { current_page: 1, last_page: 1 } };
+      return res.success ? res.data : { items: [], pagination: { current_page: 1, last_page: 1 } };
     },
     getNextPageParam: (lastPage) => {
-      const { current_page, last_page } = lastPage.meta || {};
-      return current_page < last_page ? current_page + 1 : undefined;
+      const pagination = lastPage.pagination || lastPage.meta || {};
+      const currentPage = pagination.current_page ?? pagination.currentPage ?? 1;
+      const lastPageNum = pagination.last_page ?? pagination.lastPage ?? 1;
+      return currentPage < lastPageNum ? currentPage + 1 : undefined;
     },
     initialPageParam: 1,
   });

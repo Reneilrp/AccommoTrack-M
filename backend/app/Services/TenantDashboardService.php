@@ -548,13 +548,21 @@ class TenantDashboardService
     {
         return Booking::where(function ($query) {
             // Bookings that are currently active for dashboard stay context
-            $query->whereIn('status', ['confirmed', 'active', 'completed', 'partial-completed'])
-                  ->where('status', '!=', 'refunded')
-                  // Lease hasn't ended OR it's past end_date but still 'confirmed' (overdue)
-                ->where(function ($q) {
-                    $q->where('end_date', '>=', now()->startOfDay())
-                        ->orWhereIn('status', ['confirmed', 'active']);
-                });
+            $query->where(function ($activeQ) {
+                $activeQ->whereIn('status', ['confirmed', 'active', 'completed', 'partial-completed'])
+                    ->where('status', '!=', 'refunded')
+                    // Lease hasn't ended OR it's past end_date but still 'confirmed' (overdue)
+                    ->where(function ($q) {
+                        $q->where('end_date', '>=', now()->startOfDay())
+                            ->orWhereIn('status', ['confirmed', 'active']);
+                    });
+            })
+            // OR cancelled bookings that are still within their intended stay period and were refunded
+            ->orWhere(function ($refundedQ) {
+                $refundedQ->where('status', 'cancelled')
+                    ->where('payment_status', 'refunded')
+                    ->where('end_date', '>=', now()->startOfDay());
+            });
         })
             ->where(function ($query) use ($tenantId) {
                 // The user is either the primary booker...
@@ -807,6 +815,12 @@ class TenantDashboardService
                     ->orWhere(function ($q) {
                         $q->whereIn('status', ['completed', 'partial-completed'])
                             ->where('end_date', '>=', now()->subDays(30));
+                    })
+                // OR cancelled bookings that are still within their intended stay period and were refunded
+                    ->orWhere(function ($q) {
+                        $q->where('status', 'cancelled')
+                            ->where('payment_status', 'refunded')
+                            ->where('end_date', '>=', now()->startOfDay());
                     });
             })
             ->withCount('occupants')

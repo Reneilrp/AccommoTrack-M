@@ -8,6 +8,7 @@ export default function TenantCard({
   onTransfer,
   onAssign,
   onUnassign,
+  onDelete,
   onLifecycle,
   onGenerateClaimCode,
   onApproveReservation,
@@ -234,8 +235,17 @@ export default function TenantCard({
               disabled={!canTransfer || !tenant.room || hasPendingEviction}
               className="flex items-center gap-2 px-3 py-2 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md text-xs font-semibold transition-colors disabled:opacity-50"
             >
-              <UserMinus className="w-3.5 h-3.5 text-amber-600" /> Unassign
+              <UserMinus className="w-3.5 h-3.5 text-amber-600" /> Unassign / End Stay
             </button>
+            {!tenant.room && !hasPendingEviction && (
+              <button
+                onClick={() => onDelete?.(tenant)}
+                disabled={!canTransfer}
+                className="flex items-center gap-2 px-3 py-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md text-xs font-semibold transition-colors disabled:opacity-50"
+              >
+                <UserX className="w-3.5 h-3.5" /> Delete Account
+              </button>
+            )}
             {/* Unified Lifecycle Manager button */}
             <button
               onClick={() => onLifecycle?.(tenant)}

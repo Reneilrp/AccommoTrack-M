@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import ReactDOM from 'react-dom';
-import { Search, RefreshCw, X, Loader2, ArrowLeft, Shuffle, Users, UserCheck, CreditCard, Clock, AlertOctagon, UserX, UserPlus, UserMinus, LayoutGrid, LayoutList, MoreVertical, MessageSquare, ShieldAlert, AlertCircle, Mail, Phone, Home, Calendar, ChevronDown, CheckCircle, KeyRound, Copy } from 'lucide-react';
+import { Search, RefreshCw, X, Loader2, ArrowLeft, Shuffle, Users, User, UserCheck, CreditCard, Clock, AlertOctagon, UserX, UserPlus, UserMinus, LayoutGrid, LayoutList, MoreVertical, MessageSquare, ShieldAlert, AlertCircle, Mail, Phone, Home, Calendar, ChevronDown, CheckCircle, KeyRound, Copy } from 'lucide-react';
 import PriceRow from '../../components/Shared/PriceRow';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useUIState } from '../../contexts/UIStateContext';
@@ -158,6 +158,11 @@ export default function TenantManagement() {
   const [showUnassignModal, setShowUnassignModal] = useState(false);
   const [unassigningTenant, setUnassigningTenant] = useState(null);
   const [isUnassigning, setIsUnassigning] = useState(false);
+
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deletingTenant, setDeletingTenant] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
   const [__error, setError] = useState('');
   const [searchQuery, setSearchQuery] = useState(new URLSearchParams(location.search).get('search') || '');
   const [filter, setFilter] = useState('all');
@@ -658,6 +663,30 @@ export default function TenantManagement() {
     }
   };
 
+  const handleDeleteTenantInitiate = (tenant) => {
+    setDeletingTenant(tenant);
+    setShowDeleteModal(true);
+  };
+
+  const handleDeleteTenantConfirm = async () => {
+    if (!deletingTenant) return;
+
+    setIsDeleting(true);
+    try {
+      const response = await landlordService.deleteTenant(deletingTenant.id);
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to delete tenant');
+      }
+      showSuccess('Tenant account deleted successfully');
+      setShowDeleteModal(false);
+      loadTenants();
+    } catch (err) {
+      showError(getTenantActionError(err, 'Unable to delete tenant right now.'));
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   const handleTransferSubmit = async (e) => {
     e.preventDefault();
     if (!transferData.new_room_id || !transferData.reason) {
@@ -875,6 +904,7 @@ export default function TenantManagement() {
                   onTransfer={handleTransferInitiate}
                   onAssign={handleAssignInitiate}
                   onUnassign={handleUnassignInitiate}
+                  onDelete={handleDeleteTenantInitiate}
                   onLifecycle={handleLifecycleOpen}
                   onGenerateClaimCode={handleGenerateClaimCode}
                   onApproveReservation={handleApproveReservation}
@@ -891,6 +921,7 @@ export default function TenantManagement() {
                 onTransfer={handleTransferInitiate}
                 onAssign={handleAssignInitiate}
                 onUnassign={handleUnassignInitiate}
+                onDelete={handleDeleteTenantInitiate}
                 onEvict={handleEvictInitiate}
                 onEvictionFinalize={handleEvictionFinalize}
                 onEvictionCancel={handleEvictionCancel}
@@ -947,6 +978,14 @@ export default function TenantManagement() {
           isSubmitting={isUnassigning}
           onClose={() => setShowUnassignModal(false)}
           onConfirm={handleUnassignConfirm}
+        />
+      )}
+      {showDeleteModal && (
+        <DeleteModal
+          tenant={deletingTenant}
+          isSubmitting={isDeleting}
+          onClose={() => setShowDeleteModal(false)}
+          onConfirm={handleDeleteTenantConfirm}
         />
       )}
       {showEvictModal && <EvictionModal tenant={evictingTenant} onClose={() => setShowEvictModal(false)} onConfirm={loadTenants} />}
@@ -1499,9 +1538,29 @@ const UnassignModal = ({ tenant, onClose, onConfirm, isSubmitting }) => (
         You are about to remove <strong>{tenant.first_name} {tenant.last_name}</strong> from their current room. This will end their active booking and mark them as inactive.
       </p>
       <div className="flex gap-4 mt-4">
-        <button onClick={onClose} disabled={isSubmitting} className="flex-1 px-4 py-4 border border-gray-300 text-gray-700 rounded-xl font-bold hover:bg-gray-50 transition-colors">Cancel</button>
+        <button onClick={onClose} disabled={isSubmitting} className="flex-1 px-4 py-4 border border-gray-300 text-gray-700 dark:text-gray-300 rounded-xl font-bold hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">Cancel</button>
         <button onClick={onConfirm} disabled={isSubmitting} className="flex-1 px-4 py-4 bg-amber-600 text-white rounded-xl font-bold hover:bg-amber-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
-          {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Unassign'}
+          {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : 'End Stay'}
+        </button>
+      </div>
+    </div>
+  </div>
+);
+
+const DeleteModal = ({ tenant, onClose, onConfirm, isSubmitting }) => (
+  <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+    <div className="bg-white dark:bg-gray-800 rounded-xl max-w-md w-full p-6 border border-gray-100 dark:border-gray-700 shadow-2xl">
+      <h3 className="text-lg font-bold text-red-600 dark:text-red-400 mb-2 flex items-center gap-2"><UserX /> Delete Tenant Account</h3>
+      <p className="text-sm text-gray-600 dark:text-gray-300 mb-4">
+        Are you sure you want to permanently delete <strong>{tenant.first_name} {tenant.last_name}</strong>'s account? This action cannot be undone.
+      </p>
+      <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-800 rounded-lg text-[11px] text-red-700 dark:text-red-300 mb-4">
+        Note: Tenant accounts can only be deleted if they are not currently assigned to any room.
+      </div>
+      <div className="flex gap-4 mt-4">
+        <button onClick={onClose} disabled={isSubmitting} className="flex-1 px-4 py-4 border border-gray-300 text-gray-700 dark:text-gray-300 rounded-xl font-bold hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">Cancel</button>
+        <button onClick={onConfirm} disabled={isSubmitting} className="flex-1 px-4 py-4 bg-red-600 text-white rounded-xl font-bold hover:bg-red-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
+          {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Permanently Delete'}
         </button>
       </div>
     </div>
@@ -1840,8 +1899,17 @@ const TenantListView = ({
                             disabled={!canTransfer || !tenant.room || hasPendingEviction}
                             className="w-full text-left px-4 py-2.5 text-xs font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-2.5 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                           >
-                            <UserMinus className="w-3.5 h-3.5 text-amber-600" /> Unassign Room
+                            <UserMinus className="w-3.5 h-3.5 text-amber-600" /> Unassign / End Stay
                           </button>
+                          {!tenant.room && !hasPendingEviction && (
+                            <button
+                              onClick={() => { setOpenMenuId(null); onDelete?.(tenant); }}
+                              disabled={!canTransfer}
+                              className="w-full text-left px-4 py-2.5 text-xs font-semibold text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center gap-2.5 transition-colors disabled:opacity-40"
+                            >
+                              <UserX className="w-3.5 h-3.5" /> Delete Account
+                            </button>
+                          )}
                           {hasPendingEviction && (
                             <>
                               <button

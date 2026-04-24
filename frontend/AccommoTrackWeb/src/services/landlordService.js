@@ -338,6 +338,20 @@ export const landlordService = {
   },
 
   /**
+   * Delete a tenant (permanently removes their account)
+   * Only allowed if the tenant is not currently assigned to any room.
+   * DELETE /landlord/tenants/:id
+   */
+  async deleteTenant(tenantId) {
+    try {
+      const res = await api.delete(`/landlord/tenants/${tenantId}`);
+      return { success: true, data: res.data };
+    } catch (err) {
+      return { success: false, error: err.response?.data?.message || err.message };
+    }
+  },
+
+  /**
    * Get a pre-filled "Notice to Vacate" template for a tenant
    * GET /landlord/tenants/:id/evictions/notice
    */
