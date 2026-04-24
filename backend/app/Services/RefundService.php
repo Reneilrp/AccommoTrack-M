@@ -213,7 +213,24 @@ class RefundService
         $booking->update([
             'refund_amount' => $refundAmount,
             'refund_processed_at' => now(),
+            'payment_status' => 'refunded',
         ]);
+
+        // Clear related caches
+        $landlordId = $booking->landlord_id;
+        $tenantId = $booking->tenant_id;
+        \Illuminate\Support\Facades\Cache::forget("landlord_analytics_{$landlordId}_all_month");
+        \Illuminate\Support\Facades\Cache::forget("landlord_analytics_{$landlordId}_all_week");
+        \Illuminate\Support\Facades\Cache::forget("landlord_analytics_{$landlordId}_all_year");
+        if ($booking->property_id) {
+            \Illuminate\Support\Facades\Cache::forget("landlord_analytics_{$landlordId}_{$booking->property_id}_month");
+            \Illuminate\Support\Facades\Cache::forget("landlord_analytics_{$landlordId}_{$booking->property_id}_week");
+            \Illuminate\Support\Facades\Cache::forget("landlord_analytics_{$landlordId}_{$booking->property_id}_year");
+        }
+        \Illuminate\Support\Facades\Cache::forget("tenant_dashboard_{$tenantId}");
+        \Illuminate\Support\Facades\Cache::forget("tenant_stats_{$tenantId}");
+        \Illuminate\Support\Facades\Cache::forget("tenant_stay_details_{$tenantId}");
+        \Illuminate\Support\Facades\Cache::forget("tenant_payment_breakdown_{$tenantId}");
 
         $refundCents = max(0, (int) round($refundAmount * 100));
         if ($refundCents === 0) return;
@@ -267,6 +284,7 @@ class RefundService
                 'amount_cents' => $newAmount,
                 'total_cents' => $newAmount,
                 'subtotal_cents' => $newAmount,
+                'status' => $newAmount <= 0 ? 'refunded' : $latestInvoice->status,
             ]);
         }
     }

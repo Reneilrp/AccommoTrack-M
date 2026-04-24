@@ -77,6 +77,25 @@ class PaymentTransaction extends Model
         'gateway_response' => 'array',
     ];
 
+    protected $appends = ['proof_image_url'];
+
+    /**
+     * Get the dynamic URL for the payment proof image.
+     */
+    protected function proofImageUrl(): Attribute
+    {
+        return Attribute::make(
+            get: function () {
+                $path = $this->gateway_response['proof_image_path'] ?? null;
+                if (!$path) {
+                    // Fallback to legacy stored URL if path is missing
+                    return $this->gateway_response['proof_image_url'] ?? null;
+                }
+                return \Illuminate\Support\Facades\Storage::url($path);
+            }
+        );
+    }
+
     protected function amount(): Attribute
 {
     return Attribute::make(

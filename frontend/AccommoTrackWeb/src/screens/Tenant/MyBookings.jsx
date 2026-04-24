@@ -1200,7 +1200,7 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* Main Column */}
                 <div className="lg:col-span-2 space-y-6">
-                  {booking.paymentStatus === 'refunded' && (
+                  {booking.paymentStatus === 'refunded' && !['refunded', 'cancelled', 'rejected', 'voided'].includes(String(booking.status || '').toLowerCase()) && (
                     <div className="bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 p-4 rounded-xl flex items-start gap-4 animate-pulse">
                       <ShieldAlert className="w-5 h-5 text-purple-600 dark:text-purple-400 shrink-0 mt-0.5" />
                       <div>

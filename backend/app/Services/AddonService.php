@@ -116,6 +116,7 @@ class AddonService
                     'response_note' => $note,
                     'approved_at' => now(),
                     'approved_by' => $userId,
+                    'price_at_booking' => (float) ($resolvedPrice / 100),
                     'price_at_booking_cents' => $resolvedPrice,
                     'updated_at' => now(),
                 ];

@@ -376,7 +376,7 @@ export default function InvoiceCheckout() {
             )}
             {!tenantPaymentsTempDisabled && !invoicePaymongoDisabled && isPendingManualVerification && (() => {
               const pendingTx = invoice?.transactions?.find(tx => tx.status === 'pending_offline');
-              const proofUrl = pendingTx?.gateway_response?.proof_image_url;
+              const proofUrl = pendingTx?.proof_image_url || pendingTx?.gateway_response?.proof_image_url;
               return (
                 <div className="mx-8 mt-8 space-y-4">
                   <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl text-sm text-amber-800 flex items-start gap-3">

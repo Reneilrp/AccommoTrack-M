@@ -175,7 +175,7 @@ class TenantDashboardController extends Controller
             $tenantId = Auth::id();
             $cacheKey = "tenant_dashboard_{$tenantId}";
 
-            $bundle = Cache::remember($cacheKey, 600, function () use ($tenantId, $request) {
+            $bundle = Cache::remember($cacheKey, 60, function () use ($tenantId, $request) {
                 // 1. Core dashboard stats
                 $stats = $this->dashboardService->getStats($tenantId);
 
@@ -187,7 +187,7 @@ class TenantDashboardController extends Controller
                 $upcoming = $this->formatUpcomingPayments($upcomingRaw);
 
                 // 4. Stay details (Consolidated with Fragment Caching)
-                $stayData = Cache::remember("tenant_stay_details_{$tenantId}", 1800, function() use ($tenantId) {
+                $stayData = Cache::remember("tenant_stay_details_{$tenantId}", 60, function() use ($tenantId) {
                     return $this->getStayDetailsInternal($tenantId);
                 });
 

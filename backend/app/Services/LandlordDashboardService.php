@@ -141,7 +141,9 @@ class LandlordDashboardService
         $cachedActivities = [];
         try {
             // Check if Redis connection is possible before calling lrange
-            $cachedActivities = \Illuminate\Support\Facades\Redis::connection()->lrange($redisKey, 0, 49);
+            if (extension_loaded('redis')) {
+                $cachedActivities = \Illuminate\Support\Facades\Redis::connection()->lrange($redisKey, 0, 49);
+            }
         } catch (\Throwable $e) {
             // Redis not available, fallback to database
             $cachedActivities = [];

@@ -455,6 +455,7 @@ class BookingService
                         $booking->addons()->attach($addonId, [
                             'status' => 'pending',
                             'quantity' => 1,
+                            'price_at_booking' => (float) ($addon->price_cents / 100),
                             'price_at_booking_cents' => $addon->price_cents,
                         ]);
                     }
@@ -1194,7 +1195,31 @@ class BookingService
 
         DB::transaction(function () use ($booking, $paymentStatus, $paymentContext): void {
             $booking->payment_status = $paymentStatus;
+            
+            if ($paymentStatus === 'refunded' && !in_array($booking->status, ['cancelled', 'transferred', 'void', 'rejected', 'completed'])) {
+                $this->handleCancellation($booking, [
+                    'cancellation_reason' => 'Booking was manually marked as refunded.'
+                ]);
+                $booking->status = 'cancelled';
+            }
+            
             $booking->save();
+
+            // Clear related caches to ensure dashboard reflects changes immediately
+            $landlordId = $booking->landlord_id;
+            $tenantId = $booking->tenant_id;
+            \Illuminate\Support\Facades\Cache::forget("landlord_analytics_{$landlordId}_all_month");
+            \Illuminate\Support\Facades\Cache::forget("landlord_analytics_{$landlordId}_all_week");
+            \Illuminate\Support\Facades\Cache::forget("landlord_analytics_{$landlordId}_all_year");
+            if ($booking->property_id) {
+                \Illuminate\Support\Facades\Cache::forget("landlord_analytics_{$landlordId}_{$booking->property_id}_month");
+                \Illuminate\Support\Facades\Cache::forget("landlord_analytics_{$landlordId}_{$booking->property_id}_week");
+                \Illuminate\Support\Facades\Cache::forget("landlord_analytics_{$landlordId}_{$booking->property_id}_year");
+            }
+            \Illuminate\Support\Facades\Cache::forget("tenant_dashboard_{$tenantId}");
+            \Illuminate\Support\Facades\Cache::forget("tenant_stats_{$tenantId}");
+            \Illuminate\Support\Facades\Cache::forget("tenant_stay_details_{$tenantId}");
+            \Illuminate\Support\Facades\Cache::forget("tenant_payment_breakdown_{$tenantId}");
 
             // Keep invoice statuses ledger-driven. Booking-level manual updates should not
             // bulk-overwrite invoice statuses for non-paid operations.

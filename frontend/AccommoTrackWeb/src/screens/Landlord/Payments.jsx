@@ -391,12 +391,13 @@ export default function Payments() {
       return fallbackStats;
     }
 
-    const totalPaid = new Decimal(
-      totals.total_paid_cents ?? totals.total_paid ?? 0
-    ).div(100).toNumber();
-    const totalBalance = new Decimal(
-      totals.total_balance_cents ?? totals.total_balance ?? 0
-    ).div(100).toNumber();
+    const totalPaid = totals.total_paid_cents !== undefined
+      ? new Decimal(totals.total_paid_cents).div(100).toNumber()
+      : new Decimal(totals.total_paid ?? 0).toNumber();
+
+    const totalBalance = totals.total_balance_cents !== undefined
+      ? new Decimal(totals.total_balance_cents).div(100).toNumber()
+      : new Decimal(totals.total_balance ?? 0).toNumber();
 
     return {
       totalPaid,
@@ -543,14 +544,13 @@ export default function Payments() {
          setInvoices([]);
          return;
       }
-      let finalBookingsMap = { ...bookingsMap };
+      let currentBookingsMap = {};
       const bookingIds = Array.from(
         new Set(list.map((i) => i.booking_id).filter(Boolean)),
       );
       if (bookingIds.length > 0) {
-        const fetched = await loadBookingDetails(bookingIds);
-        finalBookingsMap = { ...finalBookingsMap, ...fetched };
-        setBookingsMap(finalBookingsMap);
+        currentBookingsMap = await loadBookingDetails(bookingIds);
+        setBookingsMap(prev => ({ ...prev, ...currentBookingsMap }));
       }
       setInvoices(list);
 
@@ -558,7 +558,7 @@ export default function Payments() {
       updateData("landlord_payments", prev => ({
         ...(prev || {}),
         invoices: list,
-        bookingsMap: finalBookingsMap,
+        bookingsMap: { ...(prev?.bookingsMap || {}), ...currentBookingsMap },
       }));
 
       await loadSummary(statsRange, true);
@@ -578,7 +578,7 @@ export default function Payments() {
     } finally {
       setLoading(false);
     }
-  }, [archiveFilter, getPaymentError, loadBookingDetails, loadSummary, statsRange, updateData, bookingsMap]);
+  }, [archiveFilter, getPaymentError, loadBookingDetails, loadSummary, statsRange, updateData]);
 
   useEffect(() => {
     // Auto-collapse sidebar when entering payments for wider table area.
@@ -847,9 +847,11 @@ export default function Payments() {
       return false;
 
     // In "all" view: hide invoices on pending/cancelled bookings (not yet active)
+    // Exception: Allow refunded items to show in history even if booking is cancelled
     if (
       paymentFilter === "all" &&
-      (bookingStatus === "cancelled" || bookingStatus === "pending")
+      (bookingStatus === "cancelled" || bookingStatus === "pending") &&
+      statusNormalized !== "refunded"
     )
       return false;
 
@@ -1153,7 +1155,7 @@ export default function Payments() {
 
   return (
     <div className="min-h-screen bg-transparent dark:bg-gray-900">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-0 pb-8">
         {error && (
           <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg text-sm text-red-800">
             {error}
@@ -1261,33 +1263,7 @@ export default function Payments() {
           )}
         </div>
 
-        {/* Archive vs Active Tabs */}
-        <div className="flex gap-6 mb-4 border-b border-gray-200 dark:border-gray-700">
-          <button
-            onClick={() => setArchiveFilter("active")}
-            className={`pb-3 px-2 text-sm font-bold transition-all relative ${archiveFilter === "active"
-              ? "text-green-600 dark:text-green-400"
-              : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-              }`}
-          >
-            Active Billing
-            {archiveFilter === "active" && (
-              <span className="absolute bottom-0 left-0 w-full h-[3px] bg-green-600 dark:bg-green-400 rounded-t-full"></span>
-            )}
-          </button>
-          <button
-            onClick={() => setArchiveFilter("archived")}
-            className={`pb-3 px-2 text-sm font-bold transition-all relative flex items-center gap-2 ${archiveFilter === "archived"
-              ? "text-gray-900 dark:text-white"
-              : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-              }`}
-          >
-            Payment Archive
-            {archiveFilter === "archived" && (
-              <span className="absolute bottom-0 left-0 w-full h-[3px] bg-gray-900 dark:bg-gray-400 rounded-t-full"></span>
-            )}
-          </button>
-        </div>
+
 
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-300 dark:border-gray-700 p-4 mb-6">
           <div className="flex flex-col lg:flex-row lg:items-center gap-4">
@@ -1573,7 +1549,7 @@ export default function Payments() {
                     {/* Proof of Payment Image */}
                     {(() => {
                       const pendingTx = selectedInvoice?.transactions?.find(tx => tx.status === 'pending_offline');
-                      const proofUrl = pendingTx?.gateway_response?.proof_image_url;
+                      const proofUrl = pendingTx?.proof_image_url || pendingTx?.gateway_response?.proof_image_url;
                       return proofUrl ? (
                         <div className="space-y-2">
                           <p className="text-xs font-bold text-orange-800 dark:text-orange-300 uppercase tracking-wider">Proof of Payment</p>

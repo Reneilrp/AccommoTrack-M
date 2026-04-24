@@ -37,8 +37,10 @@ class LandlordDashboardObserver
             $redisKey = "landlord_activities_{$landlordId}";
             
             // Push to list and trim to keep only latest 100
-            Redis::lpush($redisKey, json_encode($payload));
-            Redis::ltrim($redisKey, 0, 99);
+            if (extension_loaded('redis')) {
+                Redis::lpush($redisKey, json_encode($payload));
+                Redis::ltrim($redisKey, 0, 99);
+            }
 
             // Invalidate all dashboard bundles for this landlord across all users/caretakers
             \Illuminate\Support\Facades\Cache::tags(["landlord_dashboard_{$landlordId}"])->flush();
@@ -47,7 +49,7 @@ class LandlordDashboardObserver
             \Illuminate\Support\Facades\Cache::forget("landlord_stats_{$landlordId}_landlord");
             \Illuminate\Support\Facades\Cache::forget("landlord_stats_{$landlordId}_caretaker");
             
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             Log::error("Failed to log landlord activity: " . $e->getMessage());
         }
     }

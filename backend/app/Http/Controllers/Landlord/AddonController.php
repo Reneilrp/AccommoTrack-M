@@ -482,6 +482,7 @@ class AddonController extends Controller
             DB::table('booking_addons')
                 ->where('id', $bookingAddon->id)
                 ->update([
+                    'price_at_booking' => (float) $validated['new_price'],
                     'price_at_booking_cents' => (int) round($validated['new_price'] * 100),
                     'updated_at' => now(),
                 ]);

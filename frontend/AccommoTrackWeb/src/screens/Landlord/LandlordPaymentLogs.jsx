@@ -301,68 +301,7 @@ export default function LandlordPaymentLogs() {
           </div>
         )}
 
-        {/* ══════════════════════════════════════════════════════════════════════
-            ARCHIVE SECTION (collapsible, at top)
-        ══════════════════════════════════════════════════════════════════════ */}
-        <div className="mb-6 rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-sm overflow-hidden">
-          <button
-            onClick={() => setArchiveOpen((prev) => !prev)}
-            className="w-full flex items-center justify-between px-5 py-4 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
-            aria-expanded={archiveOpen}
-          >
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-gray-100 dark:bg-gray-700 flex items-center justify-center">
-                <Archive className="w-5 h-5 text-gray-500 dark:text-gray-300" />
-              </div>
-              <div className="text-left">
-                <p className="font-bold text-gray-800 dark:text-gray-100 text-sm">Payment Archive</p>
-                <p className="text-xs text-gray-500 dark:text-gray-400">
-                  Paid/settled invoices older than 30 days
-                  {archivedInvoices.length > 0 && ` · ${archivedInvoices.length} records`}
-                </p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              {archivedInvoices.length > 0 && (
-                <span className="px-2.5 py-0.5 text-xs font-semibold text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-full">
-                  {filteredArchived.length}
-                </span>
-              )}
-              {archiveOpen ? (
-                <ChevronUp className="w-5 h-5 text-gray-400" />
-              ) : (
-                <ChevronDown className="w-5 h-5 text-gray-400" />
-              )}
-            </div>
-          </button>
 
-          {archiveOpen && (
-            <div className="border-t border-gray-100 dark:border-gray-700">
-              {loading ? (
-                <div className="flex items-center justify-center py-10 gap-3 text-gray-500">
-                  <Loader2 className="w-5 h-5 animate-spin" /> Loading archive…
-                </div>
-              ) : filteredArchived.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-10 text-gray-400 dark:text-gray-500">
-                  <Archive className="w-10 h-10 mb-3 opacity-40" />
-                  <p className="text-sm font-medium">No archived payments found</p>
-                  <p className="text-xs mt-1">Paid invoices older than 30 days will appear here</p>
-                </div>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    {tableHead}
-                    <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
-                      {filteredArchived.map((inv) => (
-                        <InvoiceRow key={inv.id} invoice={inv} navigate={navigate} />
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
 
         {/* ══════════════════════════════════════════════════════════════════════
             FULL LOG SECTION

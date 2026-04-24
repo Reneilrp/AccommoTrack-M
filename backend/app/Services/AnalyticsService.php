@@ -20,7 +20,7 @@ class AnalyticsService
     {
         $cacheKey = "landlord_analytics_{$landlordId}_" . ($propertyId ?? 'all') . "_{$timeRange}";
 
-        return \Illuminate\Support\Facades\Cache::remember($cacheKey, 3600, function() use ($landlordId, $propertyId, $timeRange) {
+        return \Illuminate\Support\Facades\Cache::remember($cacheKey, 300, function() use ($landlordId, $propertyId, $timeRange) {
             $dateRange = $this->getDateRange($timeRange);
 
             // Check if landlord has any properties first
@@ -169,11 +169,11 @@ class AnalyticsService
         $now = now();
         $prevMonth = now()->subMonth();
         
-        $revenueStats = $this->baseCollectedInvoiceQuery($landlordId, $propertyId)
+        $revenueStats = $this->baseCollectedTransactionQuery($landlordId, $propertyId)
             ->selectRaw("
-                SUM(amount_cents) / 100 as total_pesos,
-                SUM(CASE WHEN paid_at >= '{$now->startOfMonth()}' AND paid_at <= '{$now->endOfMonth()}' THEN amount_cents ELSE 0 END) / 100 as monthly_pesos,
-                SUM(CASE WHEN paid_at >= '{$prevMonth->startOfMonth()}' AND paid_at <= '{$prevMonth->endOfMonth()}' THEN amount_cents ELSE 0 END) / 100 as prev_monthly_pesos
+                SUM(amount_cents - COALESCE(refunded_amount_cents, 0)) / 100 as total_pesos,
+                SUM(CASE WHEN created_at >= '{$now->startOfMonth()}' AND created_at <= '{$now->endOfMonth()}' THEN (amount_cents - COALESCE(refunded_amount_cents, 0)) ELSE 0 END) / 100 as monthly_pesos,
+                SUM(CASE WHEN created_at >= '{$prevMonth->startOfMonth()}' AND created_at <= '{$prevMonth->endOfMonth()}' THEN (amount_cents - COALESCE(refunded_amount_cents, 0)) ELSE 0 END) / 100 as prev_monthly_pesos
             ")
             ->first();
 
@@ -308,18 +308,24 @@ class AnalyticsService
     /**
      * Cash-basis collected revenue query.
      */
+    /**
+     * Base query for collected transactions (used for revenue)
+     */
+    protected function baseCollectedTransactionQuery(int $landlordId, ?int $propertyId = null)
+    {
+        return PaymentTransaction::whereHas('invoice', function ($query) use ($landlordId, $propertyId) {
+            $query->where('landlord_id', $landlordId)
+                ->when($propertyId, fn ($q) => $q->where('property_id', $propertyId));
+        })
+        ->whereIn('status', ['succeeded', 'paid', 'partially_refunded', 'refunded'])
+        ->where('amount_cents', '>', 0);
+    }
+
     protected function baseCollectedInvoiceQuery(int $landlordId, ?int $propertyId = null)
     {
-        $query = Invoice::query()
-            ->where('landlord_id', $landlordId)
-            ->whereIn('status', ['paid', 'transferred'])
-            ->whereNotNull('paid_at');
-
-        if ($propertyId) {
-            $query->where('property_id', $propertyId);
-        }
-
-        return $query;
+        return Invoice::where('landlord_id', $landlordId)
+            ->when($propertyId, fn ($q) => $q->where('property_id', $propertyId))
+            ->whereIn('status', ['paid', 'transferred', 'partially_refunded']);
     }
 
     /**

@@ -448,9 +448,19 @@ export default function Analytics() {
     name: room.name || room.room_name || `Room ${room.room_number || room.id || index + 1}`,
     income: Number(room.revpar ?? room.income_per_room ?? room.revenue ?? room.monthly_revenue ?? 0),
   }));
-  const totalRevenueAllTime = new Decimal(analytics?.overview?.total_revenue_cents ?? analytics?.overview?.total_revenue ?? 0).div(100).toNumber();
-  const collectedThisMonth = new Decimal(analytics?.revenue?.actual_monthly_cents ?? analytics?.overview?.monthly_revenue_cents ?? analytics?.revenue?.actual_monthly ?? analytics?.overview?.monthly_revenue ?? 0).div(100).toNumber();
-  const monthlyRevenue = new Decimal(analytics?.overview?.monthly_revenue_cents ?? analytics?.overview?.monthly_revenue ?? 0).div(100).toNumber();
+  const totalRevenueAllTime = analytics?.overview?.total_revenue_cents !== undefined
+    ? new Decimal(analytics.overview.total_revenue_cents).div(100).toNumber()
+    : new Decimal(analytics?.overview?.total_revenue ?? 0).toNumber();
+
+  const collectedThisMonth = analytics?.revenue?.actual_monthly_cents !== undefined
+    ? new Decimal(analytics.revenue.actual_monthly_cents).div(100).toNumber()
+    : (analytics?.overview?.monthly_revenue_cents !== undefined
+      ? new Decimal(analytics.overview.monthly_revenue_cents).div(100).toNumber()
+      : new Decimal(analytics?.revenue?.actual_monthly ?? analytics?.overview?.monthly_revenue ?? 0).toNumber());
+
+  const monthlyRevenue = analytics?.overview?.monthly_revenue_cents !== undefined
+    ? new Decimal(analytics.overview.monthly_revenue_cents).div(100).toNumber()
+    : new Decimal(analytics?.overview?.monthly_revenue ?? 0).toNumber();
   const roomPerformanceRows = analytics?.room_performance || [];
 
   const getPerformanceStatus = (occupancyRateRaw) => {

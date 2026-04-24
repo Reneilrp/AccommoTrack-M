@@ -23,9 +23,9 @@ class TenantDashboardService
             // 1. Optimized Booking Stats (Single Query)
             $bookingStats = Booking::where('tenant_id', $tenantId)
                 ->selectRaw("
-                    COUNT(CASE WHEN status IN ('pending', 'confirmed') THEN 1 END) as active,
-                    COUNT(CASE WHEN status = 'confirmed' THEN 1 END) as confirmed,
-                    COUNT(CASE WHEN status = 'pending' THEN 1 END) as pending
+                    COUNT(CASE WHEN status IN ('pending', 'confirmed') AND status != 'refunded' THEN 1 END) as active,
+                    COUNT(CASE WHEN status = 'confirmed' AND status != 'refunded' THEN 1 END) as confirmed,
+                    COUNT(CASE WHEN status = 'pending' AND status != 'refunded' THEN 1 END) as pending
                 ")
                 ->first();
 
@@ -126,7 +126,15 @@ class TenantDashboardService
     public function getRecentActivities(int $tenantId): Collection
     {
         $redisKey = "tenant_activities_{$tenantId}";
-        $cached = \Illuminate\Support\Facades\Redis::lrange($redisKey, 0, 29);
+        $cached = [];
+        
+        if (extension_loaded('redis')) {
+            try {
+                $cached = \Illuminate\Support\Facades\Redis::lrange($redisKey, 0, 29);
+            } catch (\Throwable $e) {
+                // Ignore redis connection issues
+            }
+        }
 
         if (!empty($cached)) {
             return collect($cached)->map(fn($item) => json_decode($item, true));
@@ -541,6 +549,7 @@ class TenantDashboardService
         return Booking::where(function ($query) {
             // Bookings that are currently active for dashboard stay context
             $query->whereIn('status', ['confirmed', 'active', 'completed', 'partial-completed'])
+                  ->where('status', '!=', 'refunded')
                   // Lease hasn't ended OR it's past end_date but still 'confirmed' (overdue)
                 ->where(function ($q) {
                     $q->where('end_date', '>=', now()->startOfDay())
@@ -584,6 +593,7 @@ class TenantDashboardService
                 });
         })
             ->whereIn('status', ['pending', 'pending_reservation', 'reserved', 'confirmed'])
+            ->where('status', '!=', 'refunded')
             // Use startOfDay() so that a booking starting today is still shown as "upcoming"
             // until the landlord actually moves the tenant into the room.
             ->where('start_date', '>=', now()->startOfDay())
@@ -601,6 +611,7 @@ class TenantDashboardService
                 });
         })
             ->whereIn('status', ['pending', 'pending_reservation', 'reserved', 'confirmed'])
+            ->where('status', '!=', 'refunded')
             // Use startOfDay() so bookings whose start_date is today are caught
             ->where('start_date', '<=', now()->endOfDay())
             // Not assigned to room yet
@@ -618,7 +629,7 @@ class TenantDashboardService
                 // Bookings that are strictly in the past
                 $query->where('end_date', '<', now())
                       // OR bookings that were cancelled, rejected, or explicitly marked as completed
-                    ->orWhereIn('status', ['cancelled', 'rejected', 'completed', 'partial-completed']);
+                    ->orWhereIn('status', ['cancelled', 'rejected', 'completed', 'partial-completed', 'refunded']);
             })
             ->with(['room', 'property', 'landlord', 'addons' => fn ($q) => $q->wherePivotIn('status', ['active', 'completed']), 'payments', 'invoices.transactions', 'review'])
             ->orderBy('created_at', 'desc')
@@ -697,6 +708,7 @@ class TenantDashboardService
         $suggestedPrice = $data['suggested_price'] ?? null;
         $booking->addons()->attach($addon->id, [
             'quantity' => $data['quantity'] ?? 1,
+            'price_at_booking' => (float) ($addon->price_cents / 100),
             'price_at_booking_cents' => $addon->price_cents,
             'status' => 'pending',
             'request_note' => trim(($data['note'] ?? '').($suggestedPrice ? ' | Suggested price: ₱'.number_format((float) $suggestedPrice, 2) : '')),

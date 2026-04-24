@@ -39,9 +39,11 @@ class TenantDashboardObserver
             if (!$payload) return;
 
             $redisKey = "tenant_activities_{$tenantId}";
-            Redis::lpush($redisKey, json_encode($payload));
-            Redis::ltrim($redisKey, 0, 49); // Keep only last 50
-        } catch (\Exception $e) {
+            if (extension_loaded('redis')) {
+                Redis::lpush($redisKey, json_encode($payload));
+                Redis::ltrim($redisKey, 0, 49); // Keep only last 50
+            }
+        } catch (\Throwable $e) {
             Log::error("Failed to log tenant activity: " . $e->getMessage());
         }
     }

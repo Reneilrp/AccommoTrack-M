@@ -192,9 +192,12 @@ class TenantPaymentController extends Controller
             $months = max(1, min((int) $request->query('months', 6), 12));
             $windowEnd = now()->copy()->addMonthsNoOverflow($months)->endOfMonth();
 
-            $invoices = Invoice::with(['booking.room', 'transactions'])
+            $invoices = Invoice::whereHas('booking', function($q) {
+                    $q->where('status', '!=', 'refunded');
+                })
+                ->with(['booking.room', 'transactions'])
                 ->where('tenant_id', $tenantId)
-                ->whereNotIn('status', ['cancelled', 'voided'])
+                ->whereNotIn('status', ['cancelled', 'voided', 'refunded'])
                 ->where('is_archived', false)
                 ->whereNotNull('due_date')
                 ->whereDate('due_date', '<=', $windowEnd)
