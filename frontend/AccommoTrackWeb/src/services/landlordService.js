@@ -231,18 +231,16 @@ export const landlordService = {
   },
 
   /**
-   * Delete a tenant account
+   * Delete a tenant (permanently removes their account)
+   * Only allowed if the tenant is not currently assigned to any room.
    * DELETE /landlord/tenants/:id
    */
   async deleteTenant(tenantId) {
     try {
-      await api.delete(`/landlord/tenants/${tenantId}`);
-      return { success: true };
+      const res = await api.delete(`/landlord/tenants/${tenantId}`);
+      return { success: true, data: res.data };
     } catch (err) {
-      return {
-        success: false,
-        error: err.response?.data?.message || err.response?.data?.error || err.message,
-      };
+      return { success: false, error: err.response?.data?.message || err.message };
     }
   },
 
@@ -332,20 +330,6 @@ export const landlordService = {
     try {
       const res = await api.post(`/landlord/tenants/${tenantId}/evictions/undo`, data);
       return { success: true, data: res.data?.data || res.data };
-    } catch (err) {
-      return { success: false, error: err.response?.data?.message || err.message };
-    }
-  },
-
-  /**
-   * Delete a tenant (permanently removes their account)
-   * Only allowed if the tenant is not currently assigned to any room.
-   * DELETE /landlord/tenants/:id
-   */
-  async deleteTenant(tenantId) {
-    try {
-      const res = await api.delete(`/landlord/tenants/${tenantId}`);
-      return { success: true, data: res.data };
     } catch (err) {
       return { success: false, error: err.response?.data?.message || err.message };
     }

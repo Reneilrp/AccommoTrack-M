@@ -275,6 +275,10 @@ export default function TenantsScreen({ navigation, route }) {
   const [unassigningTenant, setUnassigningTenant] = useState(null);
   const [isUnassigning, setIsUnassigning] = useState(false);
 
+  const [deleteVisible, setDeleteVisible] = useState(false);
+  const [deletingTenant, setDeletingTenant] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
   const [lifecycleVisible, setLifecycleVisible] = useState(false);
   const [lifecycleTenant, setLifecycleTenant] = useState(null);
 
@@ -792,6 +796,38 @@ export default function TenantsScreen({ navigation, route }) {
     }
   };
 
+  const handleDeleteInitiate = (tenant) => {
+    setOpenActionsTenantId(null);
+    if (tenant.room) {
+      showError('Cannot delete', 'Tenant must be unassigned from their room before deleting their account.');
+      return;
+    }
+    setDeletingTenant(tenant);
+    setDeleteVisible(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!deletingTenant) return;
+    setIsDeleting(true);
+    try {
+      const response = await PropertyService.deleteTenant(deletingTenant.id);
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to delete tenant.');
+      }
+      setDeleteVisible(false);
+      setDeletingTenant(null);
+      setActionError('');
+      await refetchLandlordQueries(tenantListRefetchers);
+      showSuccess('Success', 'Tenant account deleted successfully.');
+    } catch (deleteError) {
+      const message = getTenantActionError(deleteError, 'Unable to delete this tenant right now.');
+      setActionError(message);
+      showError('Error', message);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   const handleLifecycleAction = (tenant) => {
     setLifecycleTenant(tenant);
     setLifecycleVisible(true);
@@ -963,7 +999,20 @@ export default function TenantsScreen({ navigation, route }) {
                   disabled={!currentRoom || hasPendingEviction}
                 >
                   <Ionicons name="person-outline" size={16} color="#B45309" />
-                  <Text style={styles.moreActionLabel}>Unassign Room</Text>
+                  <Text style={styles.moreActionLabel}>Unassign / End Stay</Text>
+                </TouchableOpacity>
+              )}
+
+              {canManageTenants && !currentRoom && !hasPendingEviction && (
+                <TouchableOpacity
+                  style={styles.moreActionItem}
+                  onPress={() => {
+                    setOpenActionsTenantId(null);
+                    handleDeleteInitiate(item);
+                  }}
+                >
+                  <Ionicons name="trash-outline" size={16} color="#B91C1C" />
+                  <Text style={[styles.moreActionLabel, { color: '#B91C1C' }]}>Delete Account</Text>
                 </TouchableOpacity>
               )}
 
@@ -1768,7 +1817,7 @@ export default function TenantsScreen({ navigation, route }) {
             <Text style={[styles.actionModalTitle, { color: '#B45309' }]}>Confirm Unassign</Text>
             <Text style={styles.actionModalSubtitle}>
               {unassigningTenant
-                ? `Unassign ${unassigningTenant.first_name} ${unassigningTenant.last_name} from their room?`
+                ? `You are about to remove ${unassigningTenant.first_name} ${unassigningTenant.last_name} from their room. This will end their stay and mark them as inactive.`
                 : 'Select a tenant to unassign.'}
             </Text>
 
@@ -1777,11 +1826,37 @@ export default function TenantsScreen({ navigation, route }) {
                 <Text style={styles.modalCancelText}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.modalConfirmBtn, isUnassigning && styles.modalDisabledBtn]}
+                style={[styles.modalConfirmBtn, isUnassigning && styles.modalDisabledBtn, { backgroundColor: '#B45309' }]}
                 onPress={handleUnassignConfirm}
                 disabled={isUnassigning}
               >
-                <Text style={styles.modalConfirmText}>{isUnassigning ? 'Unassigning...' : 'Unassign'}</Text>
+                <Text style={styles.modalConfirmText}>{isUnassigning ? 'Ending...' : 'End Stay'}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal visible={deleteVisible} transparent animationType="fade" onRequestClose={() => setDeleteVisible(false)}>
+        <View style={styles.overlayContainer}>
+          <View style={styles.actionModalCard}>
+            <Text style={[styles.actionModalTitle, { color: '#B91C1C' }]}>Delete Account</Text>
+            <Text style={styles.actionModalSubtitle}>
+              {deletingTenant
+                ? `Are you sure you want to permanently delete ${deletingTenant.first_name} ${deletingTenant.last_name}'s account? This action cannot be undone.`
+                : 'Select a tenant to delete.'}
+            </Text>
+
+            <View style={styles.modalActionsRow}>
+              <TouchableOpacity style={styles.modalCancelBtn} onPress={() => setDeleteVisible(false)}>
+                <Text style={styles.modalCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalConfirmBtn, isDeleting && styles.modalDisabledBtn, { backgroundColor: '#B91C1C' }]}
+                onPress={handleDeleteConfirm}
+                disabled={isDeleting}
+              >
+                <Text style={styles.modalConfirmText}>{isDeleting ? 'Deleting...' : 'Delete Permanently'}</Text>
               </TouchableOpacity>
             </View>
           </View>

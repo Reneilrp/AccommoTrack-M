@@ -126,3 +126,5 @@ export const addonService = {
     }
   },
 };
+
+export default addonService;

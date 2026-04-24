@@ -505,8 +505,8 @@ export default function MyBookings() {
   const [stayData, setStayData] = useState(cachedBookings?.stayData ?? null);
   const [pendingBookings, setPendingBookings] = useState(cachedBookings?.pendingBookings ?? []);
   const [pendingCheckIns, setPendingCheckIns] = useState(cachedBookings?.pendingCheckIns ?? []);
-  const [selectedStayIndex, setSelectedStayIndex] = useState(0);
-  const [selectedPendingIndex, setSelectedPendingIndex] = useState(0);
+  const [selectedBookingId, setSelectedBookingId] = useState(null);
+  const [selectedPendingId, setSelectedPendingId] = useState(null);
   const [showPropertySwitchModal, setShowPropertySwitchModal] = useState(false);
   const [submittingExtension, setSubmittingExtension] = useState(false);
   const [submittingTransfer, setSubmittingTransfer] = useState(false);
@@ -886,14 +886,17 @@ export default function MyBookings() {
     setShowPropertySwitchModal(false);
   };
 
-  const selectPropertyFromModal = (index) => {
-    if (viewMode === 'active') {
-      setSelectedStayIndex(index);
+  const selectPropertyFromModal = (item) => {
+    if (!item?.id) return;
+
+    if (viewMode === 'active' || viewMode === 'overdue') {
+      setSelectedBookingId(item.id);
     } else {
-      setSelectedPendingIndex(index);
+      setSelectedPendingId(item.id);
     }
     setShowPropertySwitchModal(false);
   };
+
 
   const closeReviewModal = () => {
     setShowReviewModal(false);
@@ -1560,6 +1563,7 @@ export default function MyBookings() {
     const isDark = theme.isDark;
     if (s.includes('overdue')) return isDark ? '#f87171' : '#EF4444';
     if (s === 'transferred') return isDark ? '#818cf8' : '#6366f1';
+    if (s === 'refunded') return isDark ? '#a855f7' : '#7E22CE'; // Purple
     if (s.includes('confirm') || s.includes('active') || s.includes('complete')) return theme.colors.success; // Use success (green) for active
     if (s === 'reserved') return isDark ? '#2dd4bf' : '#0D9488';
     if (s === 'pending_reservation') return isDark ? '#fb923c' : '#EA580C';
@@ -1576,6 +1580,7 @@ export default function MyBookings() {
     if (s === 'reserved') return 'Reserved';
     if (s === 'partial') return 'Partially Paid';
     if (s === 'paid') return 'Paid';
+    if (s === 'refunded') return 'Refunded';
 
     return s
       .split(/[_-]+/)
@@ -1634,8 +1639,8 @@ export default function MyBookings() {
     const hasAvailableStays = displayedStays.length > 0;
 
     const currentData = viewMode === 'active' || (viewMode === 'overdue' && hasAvailableStays)
-      ? (displayedStays?.[selectedStayIndex] || displayedStays?.[0])
-      : (displayedPendingBookings?.[selectedPendingIndex] || displayedPendingBookings?.[0]);
+      ? (selectedBookingId ? (displayedStays.find(s => s.booking.id === selectedBookingId) || displayedStays[0]) : displayedStays[0])
+      : (selectedPendingId ? (displayedPendingBookings.find(pb => pb.id === selectedPendingId) || displayedPendingBookings[0]) : displayedPendingBookings[0]);
 
     // Check if filtered results are empty
     if (!hasStays && !hasPending && !stayData?.upcomingBooking) {
@@ -2764,16 +2769,19 @@ export default function MyBookings() {
               contentContainerStyle={styles.propertySwitchOptionsContent}
               showsVerticalScrollIndicator={false}
             >
-              {getPropertySwitchOptions().map((item, index) => {
-                const isSelected = index === getPropertySwitchIndex();
+              {getPropertySwitchOptions().map((item) => {
+                const isSelected = (viewMode === 'active' || viewMode === 'overdue')
+                  ? item.id === selectedBookingId
+                  : item.id === selectedPendingId;
+
                 return (
                   <TouchableOpacity
-                    key={`property-switch-${item?.id || index}`}
+                    key={`property-switch-${item?.id}`}
                     style={[
                       styles.propertySwitchOptionButton,
                       isSelected && styles.propertySwitchOptionButtonActive,
                     ]}
-                    onPress={() => selectPropertyFromModal(index)}
+                    onPress={() => selectPropertyFromModal(item)}
                   >
                     <View style={styles.propertySwitchOptionTextWrap}>
                       <Text

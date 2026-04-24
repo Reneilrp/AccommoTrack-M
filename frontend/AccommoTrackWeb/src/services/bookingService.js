@@ -289,11 +289,11 @@ const bookingService = {
 
   /**
    * Convert an occupant of a proxy booking to a tenant user
-   * POST /landlord/bookings/:id/occupants/:occupantId/convert-to-tenant
+   * POST /bookings/:id/occupants/:occupantId/convert-to-tenant
    */
   async convertOccupantToTenant(bookingId, occupantId, data) {
     try {
-      const res = await api.post(`/landlord/bookings/${bookingId}/occupants/${occupantId}/convert-to-tenant`, data);
+      const res = await api.post(`/bookings/${bookingId}/occupants/${occupantId}/convert-to-tenant`, data);
       return { success: true, data: res.data?.data || res.data, message: res.data?.message };
     } catch (_err) {
       return { success: false, error: _err.response?.data?.message || _err.message };

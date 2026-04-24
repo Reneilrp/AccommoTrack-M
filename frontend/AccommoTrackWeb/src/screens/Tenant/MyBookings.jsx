@@ -98,7 +98,21 @@ const MyBookings = () => {
     }
   }, [historyData, historyPage]);
 
-  const [selectedStayIndex, setSelectedStayIndex] = useState(0);
+  // --- Stay Selection State ---
+  const [selectedBookingId, setSelectedBookingId] = useState(null);
+
+  // Sync selected ID when activeStays load
+  useEffect(() => {
+    if (activeStays.length > 0 && !selectedBookingId) {
+      setSelectedBookingId(activeStays[0].booking.id);
+    }
+  }, [activeStays, selectedBookingId]);
+
+  // The currently "Active" object based on selected ID
+  const currentSelectedStay = useMemo(() => {
+    if (!selectedBookingId) return activeStays[0] || null;
+    return activeStays.find(s => s.booking.id === selectedBookingId) || activeStays[0] || null;
+  }, [activeStays, selectedBookingId]);
 
   const loading = (bundleLoading || transfersLoading) && !cachedData;
   const rawError = stayBundleQuery.error?.message || null;
@@ -306,14 +320,18 @@ const MyBookings = () => {
   const handleRequestAddon = async (payload) => {
     setRequestingAddon(payload.addon_id || 'custom');
     try {
-      await tenantService.requestAddon(payload);
-      // Refresh data
-      invalidateTenantStayCache();
-      fetchData();
-      setShowAddonModal(false);
+      const response = await tenantService.requestAddon(payload);
+      if (response.success) {
+        showSuccess('Add-on request submitted successfully');
+        invalidateTenantStayCache();
+        await fetchData();
+        setShowAddonModal(false);
+      } else {
+        showError(response.error || 'Failed to request addon');
+      }
     } catch (err) {
       console.error('Failed to request addon:', err);
-      showError(err.response?.data?.message || 'Failed to request addon');
+      showError('An unexpected error occurred while requesting add-on');
     } finally {
       setRequestingAddon(null);
     }
@@ -392,8 +410,8 @@ const MyBookings = () => {
           {activeTab === 'current' && (
             <CurrentStayTab
               stays={activeStays}
-              selectedIndex={selectedStayIndex}
-              onSelectStay={setSelectedStayIndex}
+              selectedBookingId={selectedBookingId}
+              onSelectBookingId={setSelectedBookingId}
               pendingBookings={pendingBookings}
               pendingCheckIns={pendingCheckIns}
               upcomingBooking={upcomingBooking}
@@ -421,8 +439,8 @@ const MyBookings = () => {
           {activeTab === 'financials' && (
             <FinancialsTab
               stays={activeStays}
-              selectedIndex={selectedStayIndex}
-              onSelectStay={setSelectedStayIndex}
+              selectedBookingId={selectedBookingId}
+              onSelectBookingId={setSelectedBookingId}
               navigate={navigate}
             />
           )}
@@ -441,10 +459,10 @@ const MyBookings = () => {
       )}
 
       {/* Extension Request Modal */}
-      {showExtensionModal && activeStays[selectedStayIndex] && (
+      {showExtensionModal && currentSelectedStay && (
         <ExtensionModal
-          booking={activeStays[selectedStayIndex].booking}
-          room={activeStays[selectedStayIndex].room}
+          booking={currentSelectedStay.booking}
+          room={currentSelectedStay.room}
           onClose={() => setShowExtensionModal(false)}
           onSubmit={handleRequestExtension}
           loading={extendingStay}
@@ -463,19 +481,19 @@ const MyBookings = () => {
       )}
 
       {/* Transfer Request Modal */}
-      {showTransferModal && activeStays[selectedStayIndex] && (
+      {showTransferModal && currentSelectedStay && (
         <TransferRequestModal
-          booking={activeStays[selectedStayIndex].booking}
-          property={activeStays[selectedStayIndex].property}
+          booking={currentSelectedStay.booking}
+          property={currentSelectedStay.property}
           onClose={() => setShowTransferModal(false)}
           onSubmit={handleRequestTransfer}
           loading={requestingTransfer}
         />
       )}
 
-      {showMoveOutModal && activeStays[selectedStayIndex] && (
+      {showMoveOutModal && currentSelectedStay && (
         <MoveOutModal
-          booking={activeStays[selectedStayIndex].booking}
+          booking={currentSelectedStay.booking}
           onClose={() => setShowMoveOutModal(false)}
           onSubmit={handleRequestMoveOut}
           loading={requestingMoveOut}
@@ -483,10 +501,10 @@ const MyBookings = () => {
       )}
 
       {/* Addon Request Modal */}
-      {showAddonModal && activeStays[selectedStayIndex] && (
+      {showAddonModal && currentSelectedStay && (
         <AddonModal
-          bookingId={activeStays[selectedStayIndex].booking.id}
-          availableAddons={activeStays[selectedStayIndex]?.addons?.available || []}
+          bookingId={currentSelectedStay.booking.id}
+          availableAddons={currentSelectedStay?.addons?.available || []}
           onClose={() => setShowAddonModal(false)}
           onRequest={handleRequestAddon}
           requestingId={requestingAddon}
@@ -590,7 +608,7 @@ const MyBookings = () => {
 };
 
 // ==================== Current Stay Tab ====================
-const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBookings = [], pendingCheckIns = [], upcomingBooking = null, onRequestAddon, onCancelAddon, onCancelBooking, onRequestExtension, onRequestTransfer, onRequestMoveOut, pendingTransferBookingIds = [], pendingTransferRequests = [], onCancelTransferRequest, cancellingTransferRequestId = null, monthlyTransferCount = 0, isCancelling, onReview, onReport, onRequestMaintenance, navigate }) => {
+const CurrentStayTab = ({ stays = [], selectedBookingId = null, onSelectBookingId, pendingBookings = [], pendingCheckIns = [], upcomingBooking = null, onRequestAddon, onCancelAddon, onCancelBooking, onRequestExtension, onRequestTransfer, onRequestMoveOut, pendingTransferBookingIds = [], pendingTransferRequests = [], onCancelTransferRequest, cancellingTransferRequestId = null, monthlyTransferCount = 0, isCancelling, onReview, onReport, onRequestMaintenance, navigate }) => {
   const ALMOST_PAY_TIME_DAYS = 5;
   const OPEN_INVOICE_STATUSES = new Set(['pending', 'partial', 'overdue', 'unpaid']);
   const SETTLED_INVOICE_STATUSES = new Set(['paid', 'settled', 'succeeded', 'verified', 'completed']);
@@ -980,8 +998,8 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
         {(viewMode === 'active' || viewMode === 'overdue') && displayedStays.length > 1 && (
           <StaySelector
             stays={displayedStays}
-            selectedIndex={selectedIndex}
-            onSelect={onSelectStay}
+            selectedBookingId={selectedBookingId}
+            onSelectBookingId={onSelectBookingId}
           />
         )}
       </div>
@@ -1151,7 +1169,7 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
       {showActiveView && (
         <div className="space-y-6">
           {(() => {
-            const data = displayedStays[selectedIndex] || displayedStays[0];
+            const data = stay;
             if (!data) {
               return (
                 <div className="text-center py-10 bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-300 dark:border-gray-700">
@@ -1638,7 +1656,7 @@ const CurrentStayTab = ({ stays = [], selectedIndex = 0, onSelectStay, pendingBo
 };
 
 // ==================== Stay Selector Component ====================
-const StaySelector = ({ stays, selectedIndex, onSelect, className = "" }) => {
+const StaySelector = ({ stays, selectedBookingId, onSelectBookingId, className = "" }) => {
   const isMulti = stays.length > 1;
 
   if (!isMulti) return null;
@@ -1646,12 +1664,12 @@ const StaySelector = ({ stays, selectedIndex, onSelect, className = "" }) => {
   return (
     <div className={`relative w-full md:w-auto md:min-w-[280px] ${className}`}>
       <select
-        value={selectedIndex}
-        onChange={(e) => onSelect(parseInt(e.target.value))}
+        value={selectedBookingId || ""}
+        onChange={(e) => onSelectBookingId(Number(e.target.value))}
         className="w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl px-4 py-2.5 text-sm font-bold text-gray-700 dark:text-gray-200 outline-none focus:ring-2 focus:ring-green-500 transition-all appearance-none cursor-pointer pr-10 shadow-sm"
       >
-        {stays.map((stay, idx) => (
-          <option key={stay.booking.id} value={idx}>
+        {stays.map((stay) => (
+          <option key={stay.booking.id} value={stay.booking.id}>
             {stay.property.title} ({stay.room.roomNumber}) {stay.booking.paymentStatus === 'refunded' ? '— (Payment Required)' : ''}
           </option>
         ))}
@@ -1664,7 +1682,7 @@ const StaySelector = ({ stays, selectedIndex, onSelect, className = "" }) => {
 };
 
 // ==================== Financials Tab ====================
-const FinancialsTab = ({ stays = [], selectedIndex = 0, onSelectStay, navigate }) => {
+const FinancialsTab = ({ stays = [], selectedBookingId = null, onSelectBookingId, navigate }) => {
   const hasStays = stays && stays.length > 0;
 
   if (!hasStays) {
@@ -1677,7 +1695,11 @@ const FinancialsTab = ({ stays = [], selectedIndex = 0, onSelectStay, navigate }
     );
   }
 
-  const data = stays[selectedIndex] || stays[0];
+  const data = useMemo(() => {
+    if (!selectedBookingId) return stays[0] || null;
+    return stays.find(s => s.booking.id === selectedBookingId) || stays[0] || null;
+  }, [stays, selectedBookingId]);
+
   const { financials } = data;
 
   const parseActivityTimestamp = (value) => {
@@ -1726,8 +1748,8 @@ const FinancialsTab = ({ stays = [], selectedIndex = 0, onSelectStay, navigate }
       {/* Adaptive Stay Selector */}
       <StaySelector
         stays={stays}
-        selectedIndex={selectedIndex}
-        onSelect={onSelectStay}
+        selectedBookingId={selectedBookingId}
+        onSelectBookingId={onSelectBookingId}
       />
 
       {/* Action Header */}

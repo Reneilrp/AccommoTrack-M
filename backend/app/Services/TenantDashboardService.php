@@ -671,7 +671,7 @@ class TenantDashboardService
         if ($bookingId) {
             $booking = Booking::where('id', $bookingId)
                 ->where('tenant_id', $tenantId)
-                ->whereIn('status', ['confirmed', 'completed', 'partial-completed'])
+                ->whereIn('status', ['confirmed', 'active', 'completed', 'partial-completed'])
                 ->first();
         } else {
             $booking = $this->getActiveBooking($tenantId);
@@ -691,14 +691,15 @@ class TenantDashboardService
                 'property_id' => $booking->property_id,
                 'name' => $data['name'],
                 'description' => $data['note'] ?? null,
-                'price' => 0, // Landlord will set the price upon approval
+                'price_cents' => 0, // Landlord will set the price upon approval
                 'price_type' => $data['price_type'],
                 'addon_type' => $data['addon_type'],
                 'is_active' => false, // Inactive so it's not visible to all
                 'is_custom' => true,
                 'request_tenant_id' => $tenantId,
             ]);
-        } else {
+        }
+ else {
             $addon = Addon::where('id', $data['addon_id'])
                 ->where('property_id', $booking->property_id)
                 ->where('is_active', true)

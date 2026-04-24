@@ -443,21 +443,19 @@ export default function AddonManagement({ user: _user }) {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all whitespace-nowrap ${
-                  activeTab === tab.id
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all whitespace-nowrap ${activeTab === tab.id
                     ? "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 shadow-sm"
                     : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
-                }`}
+                  }`}
               >
                 <tab.icon className="w-4 h-4" />
                 {tab.label}
                 {tab.count > 0 && (
                   <span
-                    className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                      activeTab === tab.id
+                    className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${activeTab === tab.id
                         ? "bg-green-600 text-white"
                         : "bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400"
-                    }`}
+                      }`}
                   >
                     {tab.count}
                   </span>
@@ -520,10 +518,10 @@ export default function AddonManagement({ user: _user }) {
           )}
         </div>
 
-        <AddonModal 
-          isOpen={showModal} 
-          onClose={() => setShowModal(false)} 
-          addon={selectedAddon} 
+        <AddonModal
+          isOpen={showModal}
+          onClose={() => setShowModal(false)}
+          addon={selectedAddon}
           onSubmit={handleSubmit}
           submitting={processing}
         />
