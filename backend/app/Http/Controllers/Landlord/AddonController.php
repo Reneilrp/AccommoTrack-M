@@ -97,6 +97,11 @@ class AddonController extends Controller
                 'is_active' => 'boolean',
             ]);
 
+            if (isset($validated['price'])) {
+                $validated['price_cents'] = (int) round($validated['price'] * 100);
+                unset($validated['price']);
+            }
+
             $addon = $this->addonService->createAddon($propertyId, $validated);
 
             return response()->json([
@@ -141,6 +146,11 @@ class AddonController extends Controller
                 'stock' => 'nullable|integer|min:0',
                 'is_active' => 'boolean',
             ]);
+
+            if (isset($validated['price'])) {
+                $validated['price_cents'] = (int) round($validated['price'] * 100);
+                unset($validated['price']);
+            }
 
             $addon = $this->addonService->updateAddon($addon, $validated);
 
@@ -214,8 +224,8 @@ class AddonController extends Controller
                     'booking_addons.booking_id',
                     'booking_addons.addon_id',
                     'booking_addons.quantity',
-                    'booking_addons.price_at_booking',
-                    'addons.price as current_price',
+                    'booking_addons.price_at_booking_cents',
+                    'addons.price_cents as current_price_cents',
                     'booking_addons.request_note',
                     'booking_addons.created_at as requested_at',
                     'addons.name as addon_name',
@@ -232,11 +242,11 @@ class AddonController extends Controller
 
             return response()->json([
                 'pendingRequests' => $pendingRequests->map(function ($request) {
-                    $price = (float) $request->price_at_booking;
+                    $price = (float) ($request->price_at_booking_cents / 100);
                     if ($price <= 0) {
-                        $currentPrice = (float) ($request->current_price ?? 0);
-                        if ($currentPrice > 0) {
-                            $price = $currentPrice;
+                        $currentPriceCents = (int) ($request->current_price_cents ?? 0);
+                        if ($currentPriceCents > 0) {
+                            $price = (float) ($currentPriceCents / 100);
                         }
                     }
 
@@ -364,8 +374,8 @@ class AddonController extends Controller
                     'booking_addons.booking_id',
                     'booking_addons.addon_id',
                     'booking_addons.quantity',
-                    'booking_addons.price_at_booking',
-                    'addons.price as current_price',
+                    'booking_addons.price_at_booking_cents',
+                    'addons.price_cents as current_price_cents',
                     'booking_addons.status',
                     'booking_addons.approved_at',
                     'addons.name as addon_name',
@@ -381,9 +391,9 @@ class AddonController extends Controller
             $monthlyRevenue = $activeAddons
                 ->where('price_type', 'monthly')
                 ->sum(function ($item) {
-                    $price = (float) $item->price_at_booking;
-                    if ($price <= 0 && $item->current_price > 0) {
-                        $price = (float) $item->current_price;
+                    $price = (float) ($item->price_at_booking_cents / 100);
+                    if ($price <= 0 && $item->current_price_cents > 0) {
+                        $price = (float) ($item->current_price_cents / 100);
                     }
 
                     return $price * $item->quantity;
@@ -391,9 +401,9 @@ class AddonController extends Controller
 
             return response()->json([
                 'activeAddons' => $activeAddons->map(function ($item) {
-                    $price = (float) $item->price_at_booking;
-                    if ($price <= 0 && $item->current_price > 0) {
-                        $price = (float) $item->current_price;
+                    $price = (float) ($item->price_at_booking_cents / 100);
+                    if ($price <= 0 && $item->current_price_cents > 0) {
+                        $price = (float) ($item->current_price_cents / 100);
                     }
 
                     return [
@@ -472,7 +482,7 @@ class AddonController extends Controller
             DB::table('booking_addons')
                 ->where('id', $bookingAddon->id)
                 ->update([
-                    'price_at_booking' => $validated['new_price'],
+                    'price_at_booking_cents' => (int) round($validated['new_price'] * 100),
                     'updated_at' => now(),
                 ]);
 

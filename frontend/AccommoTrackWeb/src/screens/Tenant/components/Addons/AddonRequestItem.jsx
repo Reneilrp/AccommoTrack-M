@@ -13,17 +13,17 @@ const AddonRequestItem = ({ request, onCancel, cancelingId }) => {
 
   const resolveAddonRequestPrice = (req) => {
     const candidates = [
-      req?.price_at_booking,
-      req?.pivot?.price_at_booking,
-      req?.addon?.pivot?.price_at_booking,
-      req?.price,
-      req?.addon?.price,
+      req?.price_at_booking_cents,
+      req?.pivot?.price_at_booking_cents,
+      req?.addon?.pivot?.price_at_booking_cents,
+      req?.price_cents,
+      req?.addon?.price_cents,
     ];
 
     for (const candidate of candidates) {
       const numericValue = Number(candidate);
       if (Number.isFinite(numericValue) && numericValue > 0) {
-        return numericValue;
+        return numericValue / 100;
       }
     }
     return 0;

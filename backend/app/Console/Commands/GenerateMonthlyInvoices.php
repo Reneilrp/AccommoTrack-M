@@ -379,7 +379,7 @@ class GenerateMonthlyInvoices extends Command
             $addonsTotalCents = 0;
             $addonMetadata = [];
             foreach ($activeMonthlyAddons as $addon) {
-                $priceCents = (int) round(((float) $addon->pivot->price_at_booking) * ((int) $addon->pivot->quantity) * 100);
+                $priceCents = (int) ($addon->pivot->price_at_booking_cents * $addon->pivot->quantity);
                 $addonsTotalCents += $priceCents;
                 $addonMetadata[] = [
                     'addon_id' => $addon->id,

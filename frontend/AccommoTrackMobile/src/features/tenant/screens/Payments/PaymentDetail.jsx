@@ -173,7 +173,7 @@ const normalizeInvoiceAddonLines = (invoice) => {
     }
 
     const quantity = Math.max(1, toPositiveInteger(addon?.pivot?.quantity ?? addon?.quantity) || 1);
-    const unitPrice = Number(addon?.pivot?.price_at_booking ?? addon?.price_at_booking ?? addon?.price ?? 0);
+    const unitPrice = Number(addon?.pivot?.price_at_booking_cents ?? addon?.price_at_booking_cents ?? addon?.price_cents ?? 0) / 100;
     if (!Number.isFinite(unitPrice) || unitPrice <= 0) return;
 
     lines.push({

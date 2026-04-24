@@ -291,15 +291,15 @@ class TenantController extends Controller
             ->select([
                 'booking_addons.*',
                 'addons.name as addon_name',
-                'addons.price as current_price',
+                'addons.price_cents as current_price_cents',
                 'addons.price_type',
                 'bookings.booking_reference',
             ])
             ->get()
             ->map(function ($addon) {
-                $price = (float) $addon->price_at_booking;
-                if ($price <= 0 && $addon->current_price > 0) {
-                    $price = (float) $addon->current_price;
+                $price = (float) ($addon->price_at_booking_cents / 100);
+                if ($price <= 0 && $addon->current_price_cents > 0) {
+                    $price = (float) ($addon->current_price_cents / 100);
                 }
 
                 return [
@@ -308,7 +308,7 @@ class TenantController extends Controller
                     'addon_id' => $addon->addon_id,
                     'quantity' => $addon->quantity,
                     'price' => $price,
-                    'price_at_booking' => (float) $addon->price_at_booking,
+                    'price_at_booking' => (float) ($addon->price_at_booking_cents / 100),
                     'status' => $addon->status,
                     'addon_name' => $addon->addon_name,
                     'price_type' => $addon->price_type,

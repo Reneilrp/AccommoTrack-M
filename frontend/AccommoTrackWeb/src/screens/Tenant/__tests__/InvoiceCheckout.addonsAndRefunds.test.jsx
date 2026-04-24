@@ -66,12 +66,12 @@ describe('InvoiceCheckout add-on/refund regression (web)', () => {
             {
               id: 10,
               name: 'Wi-Fi',
-              pivot: { id: 501, quantity: 1, price_at_booking: 150 },
+              pivot: { id: 501, quantity: 1, price_at_booking_cents: 15000 },
             },
             {
               id: 20,
               name: 'Parking',
-              pivot: { id: 502, quantity: 2, price_at_booking: 200 },
+              pivot: { id: 502, quantity: 2, price_at_booking_cents: 20000 },
             },
           ],
         },

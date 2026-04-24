@@ -43,7 +43,7 @@ describe('Addons tenant request price smoke (web)', () => {
               price: 0,
             },
             pivot: {
-              price_at_booking: 250,
+              price_at_booking_cents: 25000,
             },
           },
         ],

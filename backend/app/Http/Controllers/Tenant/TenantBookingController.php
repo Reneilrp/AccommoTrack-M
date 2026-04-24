@@ -504,7 +504,7 @@ class TenantBookingController extends Controller
                 $query->whereNull('booking_addons.cancellation_effective_at')
                     ->orWhere('booking_addons.cancellation_effective_at', '>', $periodStart);
             })
-            ->sum(DB::raw('booking_addons.price_at_booking * booking_addons.quantity'));
+            ->sum(DB::raw('booking_addons.price_at_booking_cents * booking_addons.quantity')) / 100;
     }
 
     private function createMonthlyRentInvoiceForPeriod(Booking $booking, Carbon $periodStart): ?Invoice

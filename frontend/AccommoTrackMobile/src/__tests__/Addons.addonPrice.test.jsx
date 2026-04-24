@@ -101,7 +101,7 @@ describe('AddonsScreen tenant request price smoke (mobile)', () => {
               price: 0,
             },
             pivot: {
-              price_at_booking: 250,
+              price_at_booking_cents: 25000,
             },
           },
         ],

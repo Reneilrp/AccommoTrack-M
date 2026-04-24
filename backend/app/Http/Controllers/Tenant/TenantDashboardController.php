@@ -486,11 +486,11 @@ class TenantDashboardController extends Controller
                     'activityLog' => $sortedActivity,
                     'financials' => ['monthlyRent' => (float) $rentSnapshot['monthly_rent'], 'totalAmount' => (float) $booking->total_amount, 'addonTotal' => (float) $addonTotal, 'totalPaid' => (float) $totalPaid, 'paymentsCount' => $booking->payments->count()],
                     'addons' => $booking->addons->map(function ($a) {
-                        $price = $this->resolveAddonEffectivePrice($a);
+                        $priceCents = $this->resolveAddonEffectivePrice($a);
 
                         return [
                             'name' => $a->name,
-                            'price' => $price,
+                            'price' => (float) ($priceCents / 100),
                             'priceType' => $a->price_type,
                         ];
                     }),
@@ -531,19 +531,19 @@ class TenantDashboardController extends Controller
 
             return response()->json([
                 'pending' => $booking->addons->where('pivot.status', 'pending')->map(function ($a) {
-                    $price = $this->resolveAddonEffectivePrice($a);
-                    if ($price > 0) {
-                        $a->pivot->price_at_booking = $price;
-                        $a->price = $price;
+                    $priceCents = $this->resolveAddonEffectivePrice($a);
+                    if ($priceCents > 0) {
+                        $a->pivot->price_at_booking_cents = $priceCents;
+                        $a->price_cents = $priceCents;
                     }
 
                     return $a;
                 })->values(),
                 'active' => $booking->addons->whereIn('pivot.status', ['active', 'approved'])->map(function ($a) {
-                    $price = $this->resolveAddonEffectivePrice($a);
-                    if ($price > 0) {
-                        $a->pivot->price_at_booking = $price;
-                        $a->price = $price;
+                    $priceCents = $this->resolveAddonEffectivePrice($a);
+                    if ($priceCents > 0) {
+                        $a->pivot->price_at_booking_cents = $priceCents;
+                        $a->price_cents = $priceCents;
                     }
 
                     return $a;

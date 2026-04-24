@@ -195,7 +195,7 @@ class Booking extends Model
             ->withPivot([
                 'id',
                 'quantity',
-                'price_at_booking',
+                'price_at_booking_cents',
                 'status',
                 'request_note',
                 'response_note',

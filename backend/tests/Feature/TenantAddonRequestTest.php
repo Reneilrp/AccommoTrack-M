@@ -120,7 +120,7 @@ class TenantAddonRequestTest extends TestCase
 
         $this->assertNotNull($pivot);
         $this->assertSame('active', $pivot->status);
-        $this->assertEquals(550.00, (float) $pivot->price_at_booking);
+        $this->assertEquals(55000, (int) $pivot->price_at_booking_cents);
         $this->assertNotNull($pivot->invoice_id);
 
         $invoice = DB::table('invoices')
@@ -326,7 +326,7 @@ class TenantAddonRequestTest extends TestCase
 
         $booking->addons()->attach($addon->id, [
             'quantity' => 1,
-            'price_at_booking' => 300,
+            'price_at_booking_cents' => 30000,
             'status' => 'active',
             'invoice_id' => $invoice->id,
             'approved_at' => now(),

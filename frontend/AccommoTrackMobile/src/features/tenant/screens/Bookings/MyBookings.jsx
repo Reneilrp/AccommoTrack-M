@@ -328,15 +328,15 @@ const resolveMonthlyPaymentCountdown = (bookingEntry, invoices = []) => {
 
 const resolveAddonDisplayPrice = (addon) => {
   const candidates = [
-    addon?.pivot?.price_at_booking,
-    addon?.price_at_booking,
-    addon?.price,
+    addon?.pivot?.price_at_booking_cents,
+    addon?.price_at_booking_cents,
+    addon?.price_cents,
   ];
 
   for (const candidate of candidates) {
     const numericValue = Number(candidate);
     if (Number.isFinite(numericValue) && numericValue > 0) {
-      return numericValue;
+      return numericValue / 100;
     }
   }
 

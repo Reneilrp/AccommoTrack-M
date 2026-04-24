@@ -78,7 +78,7 @@ class TenantPaymentResponseContractTest extends TestCase
 
         $booking->addons()->attach($wifi->id, [
             'quantity' => 1,
-            'price_at_booking' => 150,
+            'price_at_booking_cents' => 15000,
             'status' => 'active',
             'invoice_id' => $invoice->id,
             'approved_at' => now(),
@@ -86,7 +86,7 @@ class TenantPaymentResponseContractTest extends TestCase
 
         $booking->addons()->attach($parking->id, [
             'quantity' => 1,
-            'price_at_booking' => 200,
+            'price_at_booking_cents' => 20000,
             'status' => 'active',
             'invoice_id' => $invoice->id,
             'approved_at' => now(),
