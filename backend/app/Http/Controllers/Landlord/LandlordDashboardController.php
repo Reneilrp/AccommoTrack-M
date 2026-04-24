@@ -25,11 +25,13 @@ class LandlordDashboardController extends Controller
             $isCaretaker = $context['is_caretaker'];
             $assignedPropertyIds = ($isCaretaker && $context['assignment']) ? $context['assignment']->getAssignedPropertyIds() : null;
 
-            // Cache the dashboard bundle using tags for easy invalidation across all caretakers
+            // Cache the dashboard bundle. Fallback to standard cache if tagging is not supported (e.g. file driver)
             $cacheKey = "landlord_dashboard_bundle_{$context['user']->id}";
             $tag = "landlord_dashboard_{$context['landlord_id']}";
+            $cache = \Illuminate\Support\Facades\Cache::getFacadeRoot();
+            $cacheInstance = method_exists($cache, 'tags') ? \Illuminate\Support\Facades\Cache::tags([$tag]) : \Illuminate\Support\Facades\Cache::getFacadeRoot();
             
-            return \Illuminate\Support\Facades\Cache::tags([$tag])->remember($cacheKey, 60, function() use ($request, $context, $isCaretaker, $assignedPropertyIds) {
+            return $cacheInstance->remember($cacheKey, 60, function() use ($request, $context, $isCaretaker, $assignedPropertyIds) {
                 // Run all heavy data fetching in one bundled request
                 $stats = $this->dashboardService->getStats(
                     $context['landlord_id'],

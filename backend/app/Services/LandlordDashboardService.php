@@ -138,7 +138,14 @@ class LandlordDashboardService
         $redisKey = "landlord_activities_{$landlordId}";
         
         // Fetch last 50 activities from Redis
-        $cachedActivities = \Illuminate\Support\Facades\Redis::lrange($redisKey, 0, 49);
+        $cachedActivities = [];
+        try {
+            // Check if Redis connection is possible before calling lrange
+            $cachedActivities = \Illuminate\Support\Facades\Redis::connection()->lrange($redisKey, 0, 49);
+        } catch (\Throwable $e) {
+            // Redis not available, fallback to database
+            $cachedActivities = [];
+        }
 
         if (!empty($cachedActivities)) {
             return collect($cachedActivities)->map(fn($item) => json_decode($item, true));
@@ -504,9 +511,9 @@ class LandlordDashboardService
             ->where('status', 'confirmed')
             ->where('payment_status', 'paid')
             ->where('created_at', '>=', $startDate)
-            ->selectRaw('DATE_FORMAT(created_at, "%b") as month, SUM(monthly_rent) as total')
-            ->groupBy('month')
-            ->orderBy('created_at', 'asc')
+            ->selectRaw('DATE_FORMAT(created_at, "%Y-%m") as month_key, DATE_FORMAT(created_at, "%b") as month, SUM(monthly_rent) as total')
+            ->groupBy('month_key', 'month')
+            ->orderBy('month_key', 'asc')
             ->pluck('total', 'month')
             ->toArray();
 
