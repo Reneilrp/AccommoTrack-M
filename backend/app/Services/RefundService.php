@@ -6,7 +6,9 @@ use App\Models\Booking;
 use App\Models\Invoice;
 use App\Models\PaymentTransaction;
 use App\Models\TenantCredit;
+use App\Models\TenantProfile;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Log;
 
 class RefundService
 {
@@ -206,15 +208,62 @@ class RefundService
     }
 
     /**
-     * Record refund information in booking
+     * Record refund information in booking.
+     *
+     * Also removes the tenant from the room and cancels the booking when it is
+     * not already in a terminal state, so that RoomManagement reflects the
+     * correct "available" status instead of staying stuck on "occupied".
      */
     public function recordRefundInBooking(Booking $booking, float $refundAmount): void
     {
+        $terminalStatuses = ['cancelled', 'transferred', 'void', 'rejected', 'completed'];
+
+        // Only cancel / evict the tenant when the booking is still active.
+        if (! in_array($booking->status, $terminalStatuses, true)) {
+            // Remove tenant from the room pivot so occupancy counters drop correctly.
+            if ($booking->tenant_id && $booking->room) {
+                try {
+                    $booking->room->removeTenant($booking->tenant_id);
+                } catch (\Exception $e) {
+                    Log::error('RefundService: failed to remove tenant from room during refund', [
+                        'booking_id' => $booking->id,
+                        'tenant_id'  => $booking->tenant_id,
+                        'error'      => $e->getMessage(),
+                    ]);
+                }
+
+                // Mark tenant profile inactive
+                $tenantProfile = TenantProfile::where('user_id', $booking->tenant_id)
+                    ->where('booking_id', $booking->id)
+                    ->first();
+
+                if ($tenantProfile) {
+                    $tenantProfile->update([
+                        'status'        => 'inactive',
+                        'move_out_date' => now()->format('Y-m-d'),
+                    ]);
+                }
+            }
+
+            $booking->status       = 'cancelled';
+            $booking->cancelled_at = $booking->cancelled_at ?? now();
+            $booking->cancellation_reason = $booking->cancellation_reason
+                ?? 'Booking was refunded.';
+        }
+
         $booking->update([
-            'refund_amount' => $refundAmount,
+            'refund_amount'       => $refundAmount,
             'refund_processed_at' => now(),
-            'payment_status' => 'refunded',
+            'payment_status'      => 'refunded',
+            'status'              => $booking->status,
+            'cancelled_at'        => $booking->cancelled_at,
+            'cancellation_reason' => $booking->cancellation_reason,
         ]);
+
+        // Update property available-rooms counter
+        if ($booking->room && $booking->room->property) {
+            $booking->room->property->updateAvailableRooms();
+        }
 
         // Clear related caches
         $landlordId = $booking->landlord_id;

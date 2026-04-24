@@ -94,6 +94,10 @@ class InvoiceController extends Controller
                     $q->whereNotIn('status', ['paid', 'succeeded'])
                         ->orWhere('updated_at', '>=', now()->subDays(30));
                 });
+        } else {
+            // Default: exclude truly terminal (cancelled/voided) invoices so they
+            // don't surface as "outstanding" in tenant log views.
+            $query->whereNotIn('status', ['cancelled', 'voided']);
         }
 
         $invoices = $query->with(['transactions', 'booking.room', 'property', 'tenant'])

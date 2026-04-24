@@ -83,23 +83,28 @@ export default function TenantLogs({ route, navigation }) {
     refetchers: tenantRefetchers,
   });
 
+  // Statuses that are fully settled/closed — should never count toward outstanding balance
+  const TERMINAL_STATUSES = ['cancelled', 'voided', 'void', 'refunded', 'deferred', 'transferred'];
+
   const filteredPayments = useMemo(() => {
     if (paymentFilter === 'all') return payments;
     return payments.filter(p => {
       const status = (p.status || p.payment_status || '').toLowerCase();
       if (paymentFilter === 'paid') return status === 'paid';
-      if (paymentFilter === 'due') return status !== 'paid';
+      // 'due' = open/unpaid invoices only — exclude terminal statuses
+      if (paymentFilter === 'due') return status !== 'paid' && !TERMINAL_STATUSES.includes(status);
       return true;
     });
-  }, [payments, paymentFilter]);
+  }, [payments, paymentFilter, TERMINAL_STATUSES]);
 
   const dueAmount = useMemo(() => {
     const unpaid = payments.filter(p => {
       const status = (p.status || p.payment_status || '').toLowerCase();
-      return status !== 'paid';
+      // Exclude paid and all terminal statuses from outstanding total
+      return status !== 'paid' && !TERMINAL_STATUSES.includes(status);
     });
     return unpaid.reduce((sum, p) => sum + parseFloat(p.amount || (p.amount_cents / 100) || 0), 0);
-  }, [payments]);
+  }, [payments, TERMINAL_STATUSES]);
 
   const getInitials = (name) => {
     if (!name) return 'TN';
@@ -113,6 +118,13 @@ export default function TenantLogs({ route, navigation }) {
       case 'pending': return { bg: '#FEF3C7', fg: '#92400E' };
       case 'unpaid':
       case 'overdue': return { bg: '#FEE2E2', fg: '#991B1B' };
+      // Terminal / closed statuses — neutral grey so they don't look like active dues
+      case 'cancelled':
+      case 'voided':
+      case 'void':
+      case 'refunded':
+      case 'deferred':
+      case 'transferred': return { bg: '#E5E7EB', fg: '#6B7280' };
       default: return { bg: '#F3F4F6', fg: '#4B5563' };
     }
   };
