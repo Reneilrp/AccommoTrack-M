@@ -11,8 +11,9 @@ echo "📥 Pulling latest code..."
 # Replace 'beta-testing' with 'master' or your production branch if needed
 git pull origin beta-testing
 
+export COMPOSER_ALLOW_SUPERUSER=1
 echo "📦 Installing composer dependencies..."
-composer install --no-interaction --prefer-dist --optimize-autoloader --no-dev
+composer install --no-interaction --prefer-dist --optimize-autoloader --no-dev --ignore-platform-reqs
 
 echo "🗄️ Running database migrations..."
 php artisan migrate --force
