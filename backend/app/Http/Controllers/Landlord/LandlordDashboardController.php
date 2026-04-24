@@ -69,7 +69,7 @@ class LandlordDashboardController extends Controller
                     ]
                 ];
             });
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to fetch dashboard bundle',
@@ -93,7 +93,7 @@ class LandlordDashboardController extends Controller
             );
 
             return response()->json($stats, 200);
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             return response()->json(['message' => 'Failed to fetch dashboard stats', 'error' => $e->getMessage()], 500);
         }
     }
@@ -104,7 +104,7 @@ class LandlordDashboardController extends Controller
             $context = $this->resolveLandlordContext($request);
             $activities = $this->getRecentActivitiesInternal($request, $context);
             return response()->json($activities, 200);
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             return response()->json(['message' => 'Failed to fetch recent activities', 'error' => $e->getMessage()], 500);
         }
     }
@@ -140,8 +140,8 @@ class LandlordDashboardController extends Controller
                 return [
                     'id' => $item->id, 'type' => 'booking',
                     'action' => 'New booking request',
-                    'description' => ($item->tenant->first_name ?? 'Someone').' requested '.($item->property->title ?? 'Property').' - Room '.($item->room->room_number ?? 'N/A'),
-                    'by' => ($item->tenant->first_name ?? 'Someone').' '.($item->tenant->last_name ?? ''),
+                    'description' => ($item->tenant?->first_name ?? 'Someone').' requested '.($item->property?->title ?? 'Property').' - Room '.($item->room?->room_number ?? 'N/A'),
+                    'by' => ($item->tenant?->first_name ?? 'Someone').' '.($item->tenant?->last_name ?? ''),
                     'status' => $status,
                     'timestamp' => $item->created_at,
                     'icon' => 'calendar',
@@ -154,7 +154,7 @@ class LandlordDashboardController extends Controller
                 return [
                     'id' => $item->id, 'type' => 'room',
                     'action' => $isNew ? 'New Room Added' : 'Room Status Updated',
-                    'description' => "Room {$item->room_number} in {$item->property->title} is now ".ucfirst($item->status),
+                    'description' => "Room {$item->room_number} in ".($item->property?->title ?? 'Property')." is now ".ucfirst($item->status),
                     'by' => 'System',
                     'status' => $status,
                     'timestamp' => $item->updated_at,
@@ -190,7 +190,7 @@ class LandlordDashboardController extends Controller
                 return [
                     'id' => $item->id, 'type' => 'payment',
                     'action' => $action,
-                    'description' => "Invoice #{$item->reference} for room ".($item->booking->room->room_number ?? 'N/A').' is now '.ucfirst($status),
+                    'description' => "Invoice #{$item->reference} for room ".($item->booking?->room?->room_number ?? 'N/A').' is now '.ucfirst($status),
                     'by' => 'System',
                     'status' => $status,
                     'timestamp' => $item->updated_at,
@@ -203,8 +203,8 @@ class LandlordDashboardController extends Controller
                 return [
                     'id' => $item->id, 'type' => 'transfer',
                     'action' => 'New transfer request',
-                    'description' => ($item->tenant->first_name ?? 'Someone').' requested to transfer from Room '.($item->currentRoom->room_number ?? 'N/A').' to Room '.($item->requestedRoom->room_number ?? 'N/A'),
-                    'by' => ($item->tenant->first_name ?? 'Someone').' '.($item->tenant->last_name ?? ''),
+                    'description' => ($item->tenant?->first_name ?? 'Someone').' requested to transfer from Room '.($item->currentRoom?->room_number ?? 'N/A').' to Room '.($item->requestedRoom?->room_number ?? 'N/A'),
+                    'by' => ($item->tenant?->first_name ?? 'Someone').' '.($item->tenant?->last_name ?? ''),
                     'status' => $status,
                     'timestamp' => $item->created_at,
                     'icon' => 'swap-horizontal',
@@ -214,7 +214,7 @@ class LandlordDashboardController extends Controller
             if ($item instanceof \App\Models\PaymentTransaction) {
                 $transactionStatus = strtolower((string) $item->status);
                 $isPending = $item->status === 'pending_offline';
-                $invoiceStatus = (string) ($item->invoice->status ?? '');
+                $invoiceStatus = (string) ($item->invoice?->status ?? '');
                 $method = (string) ($item->method ?? '');
                 $isPaymongoMethod = str_starts_with($method, 'paymongo_');
                 $isRefund = (int) $item->amount_cents < 0;
@@ -235,7 +235,7 @@ class LandlordDashboardController extends Controller
                         : ($isRefund
                             ? 'Refunded ₱'.number_format($amountPesos, 2).' via Cash('.$methodLabel.') for Room Number('.$roomNumber.').'
                             : 'Received ₱'.number_format($amountPesos, 2).' via '.$methodLabel.' for Room '.$roomNumber),
-                    'by' => ($item->tenant->first_name ?? 'Tenant').' '.($item->tenant->last_name ?? ''),
+                    'by' => ($item->tenant?->first_name ?? 'Tenant').' '.($item->tenant?->last_name ?? ''),
                     'status' => $status,
                     'invoice_id' => $item->invoice_id ?? $item->invoice?->id,
                     'booking_id' => $item->invoice?->booking?->id,
@@ -249,8 +249,8 @@ class LandlordDashboardController extends Controller
                 return [
                     'id' => $item->id, 'type' => 'maintenance',
                     'action' => 'Maintenance Request '.ucfirst($item->status),
-                    'description' => "{$item->title} - Room ".($item->booking->room->room_number ?? 'N/A'),
-                    'by' => ($item->tenant->first_name ?? 'Tenant').' '.($item->tenant->last_name ?? ''),
+                    'description' => "{$item->title} - Room ".($item->booking?->room?->room_number ?? 'N/A'),
+                    'by' => ($item->tenant?->first_name ?? 'Tenant').' '.($item->tenant?->last_name ?? ''),
                     'status' => $status,
                     'timestamp' => $item->created_at,
                     'icon' => 'wrench',
@@ -262,7 +262,7 @@ class LandlordDashboardController extends Controller
                     'id' => $item->id, 'type' => 'report',
                     'action' => 'Property Report / Log',
                     'description' => $item->summary ?? 'New caretaker/landlord property log.',
-                    'by' => ($item->actor->first_name ?? 'Staff').' '.($item->actor->last_name ?? ''),
+                    'by' => ($item->actor?->first_name ?? 'Staff').' '.($item->actor?->last_name ?? ''),
                     'status' => 'confirmed',
                     'timestamp' => $item->created_at,
                     'icon' => 'clipboard',
@@ -437,7 +437,7 @@ class LandlordDashboardController extends Controller
             $context = $this->resolveLandlordContext($request);
             $data = $this->getUpcomingPaymentsInternal($request, $context);
             return response()->json($data, 200);
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             return response()->json(['message' => 'Failed to fetch upcoming payments', 'error' => $e->getMessage()], 500);
         }
     }
@@ -549,7 +549,7 @@ class LandlordDashboardController extends Controller
             $context = $this->resolveLandlordContext($request);
             $data = $this->getPropertyPerformanceInternal($request, $context);
             return response()->json($data, 200);
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             return response()->json(['message' => 'Failed to fetch property performance', 'error' => $e->getMessage()], 500);
         }
     }
@@ -592,7 +592,7 @@ class LandlordDashboardController extends Controller
                 'labels' => array_keys($revenueData),
                 'data' => array_values($revenueData),
             ], 200);
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             return response()->json(['message' => 'Failed to fetch revenue chart', 'error' => $e->getMessage()], 500);
         }
     }
