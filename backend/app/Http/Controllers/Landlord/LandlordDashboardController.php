@@ -457,8 +457,8 @@ class LandlordDashboardController extends Controller
             $daysLeft = now()->diffInDays($booking->end_date, false);
             return [
                 'id' => $booking->id,
-                'tenantName' => ($booking->tenant->first_name ?? 'Tenant').' '.($booking->tenant->last_name ?? ''),
-                'propertyTitle' => $booking->property->title ?? 'Property', 'roomNumber' => $booking->room->room_number ?? 'N/A',
+                'tenantName' => ($booking->tenant?->first_name ?? 'Tenant').' '.($booking->tenant?->last_name ?? ''),
+                'propertyTitle' => $booking->property?->title ?? 'Property', 'roomNumber' => $booking->room?->room_number ?? 'N/A',
                 'endDate' => $booking->end_date->format('Y-m-d'), 'daysLeft' => (int) $daysLeft,
                 'urgency' => $daysLeft <= 7 ? 'high' : ($daysLeft <= 14 ? 'medium' : 'low'),
             ];
@@ -467,8 +467,8 @@ class LandlordDashboardController extends Controller
         $unpaidBookings = collect($data['unpaidBookings'])->map(function ($booking) {
             return [
                 'id' => $booking->id,
-                'tenantName' => ($booking->tenant->first_name ?? 'Tenant').' '.($booking->tenant->last_name ?? ''),
-                'propertyTitle' => $booking->property->title ?? 'Property', 'roomNumber' => $booking->room->room_number ?? 'N/A',
+                'tenantName' => ($booking->tenant?->first_name ?? 'Tenant').' '.($booking->tenant?->last_name ?? ''),
+                'propertyTitle' => $booking->property?->title ?? 'Property', 'roomNumber' => $booking->room?->room_number ?? 'N/A',
                 'dueDate' => $booking->start_date->format('Y-m-d'), 'amount' => (float) $booking->total_amount,
                 'paymentStatus' => $booking->payment_status, 'type' => 'payment',
             ];
@@ -478,9 +478,9 @@ class LandlordDashboardController extends Controller
             $daysLeft = now()->diffInDays($booking->end_date, false);
             return [
                 'id' => $booking->id,
-                'tenantName' => ($booking->tenant->first_name ?? 'Tenant').' '.($booking->tenant->last_name ?? ''),
-                'propertyTitle' => $booking->property->title ?? 'Property',
-                'roomNumber' => $booking->room->room_number ?? 'N/A',
+                'tenantName' => ($booking->tenant?->first_name ?? 'Tenant').' '.($booking->tenant?->last_name ?? ''),
+                'propertyTitle' => $booking->property?->title ?? 'Property',
+                'roomNumber' => $booking->room?->room_number ?? 'N/A',
                 'endDate' => optional($booking->end_date)->format('Y-m-d'),
                 'noticeGivenAt' => optional($booking->notice_given_at)->format('Y-m-d'),
                 'daysLeft' => (int) $daysLeft,
@@ -491,9 +491,9 @@ class LandlordDashboardController extends Controller
         $dueForBilling = collect($data['billingHealth']['due_for_billing'] ?? [])->map(function ($booking) {
             return [
                 'id' => $booking->id,
-                'tenantName' => ($booking->tenant->first_name ?? 'Tenant').' '.($booking->tenant->last_name ?? ''),
-                'propertyTitle' => $booking->property->title ?? 'Property',
-                'roomNumber' => $booking->room->room_number ?? 'N/A',
+                'tenantName' => ($booking->tenant?->first_name ?? 'Tenant').' '.($booking->tenant?->last_name ?? ''),
+                'propertyTitle' => $booking->property?->title ?? 'Property',
+                'roomNumber' => $booking->room?->room_number ?? 'N/A',
                 'nextBillingDate' => optional($booking->next_billing_date)->format('Y-m-d'),
                 'monthlyRent' => (float) ($booking->monthly_rent ?? 0),
             ];
@@ -503,8 +503,8 @@ class LandlordDashboardController extends Controller
             return [
                 'id' => $invoice->id,
                 'reference' => $invoice->reference,
-                'tenantName' => ($invoice->tenant->first_name ?? 'Tenant').' '.($invoice->tenant->last_name ?? ''),
-                'propertyTitle' => $invoice->property->title ?? 'Property',
+                'tenantName' => ($invoice->tenant?->first_name ?? 'Tenant').' '.($invoice->tenant?->last_name ?? ''),
+                'propertyTitle' => $invoice->property?->title ?? 'Property',
                 'roomNumber' => $invoice->booking?->room?->room_number ?? 'N/A',
                 'dueDate' => optional($invoice->due_date)->format('Y-m-d'),
                 'amount' => (float) (($invoice->amount_cents ?? 0) / 100),
@@ -516,8 +516,8 @@ class LandlordDashboardController extends Controller
             return [
                 'id' => $invoice->id,
                 'reference' => $invoice->reference,
-                'tenantName' => ($invoice->tenant->first_name ?? 'Tenant').' '.($invoice->tenant->last_name ?? ''),
-                'propertyTitle' => $invoice->property->title ?? 'Property',
+                'tenantName' => ($invoice->tenant?->first_name ?? 'Tenant').' '.($invoice->tenant?->last_name ?? ''),
+                'propertyTitle' => $invoice->property?->title ?? 'Property',
                 'roomNumber' => $invoice->booking?->room?->room_number ?? 'N/A',
                 'dueDate' => optional($invoice->due_date)->format('Y-m-d'),
                 'amount' => (float) (($invoice->amount_cents ?? 0) / 100),
