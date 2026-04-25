@@ -350,9 +350,13 @@ class TransferController extends Controller
         $nextBillingDate = $creditCalc['next_billing_date'] ?? null;
 
         $currentRoomRate = (float) ($activeBooking->monthly_rent ?? 0);
-        $newRoomRate = (float) ($newRoom->monthly_rate ?? $newRoom->price ?? 0);
+        $isDaily = $newRoom->billing_policy === 'daily';
+        $newRoomRate = (float) ($isDaily ? ($newRoom->daily_rate ?? 0) : ($newRoom->monthly_rate ?? $newRoom->price ?? 0));
 
-        $newRoomCostCents = ($newRoomRate * $remainingDays) / $daysInCycle;
+        $newRoomCostCents = $isDaily 
+            ? ($newRoomRate * $remainingDays) 
+            : (($newRoomRate * $remainingDays) / $daysInCycle);
+            
         $unusedValueCents = (float) $unusedValue;
         $suggestedAdjustmentCents = $newRoomCostCents - $unusedValueCents;
         $suggestedAdjustment = $suggestedAdjustmentCents;
@@ -364,6 +368,7 @@ class TransferController extends Controller
             'success' => true,
             'data' => [
                 'current_room_rate' => $currentRoomRate,
+                'current_room_billing_policy' => $activeBooking->room->billing_policy ?? 'monthly',
                 'new_room_rate' => $newRoomRate,
                 'remaining_days' => $remainingDays,
                 'next_billing_date' => $nextBillingDate,
@@ -375,6 +380,7 @@ class TransferController extends Controller
                 'suggested_adjustment' => $suggestedAdjustment,
                 'has_payment_this_period' => $hasPaymentThisPeriod,
                 'force_wallet_refunds' => (bool) ($property->force_wallet_refunds ?? true),
+                'new_room_billing_policy' => $newRoom->billing_policy ?? 'monthly',
             ],
         ]);
     }

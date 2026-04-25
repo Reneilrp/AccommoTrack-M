@@ -55,6 +55,55 @@ const deriveConversationStatus = ({ role, lastMessage }) => {
     return { key: 'participant', label: getRoleLabel(normalizedRole) };
 };
 
+const getMessageItems = (data) => {
+    if (Array.isArray(data)) return data;
+    if (Array.isArray(data?.items)) return data.items;
+    return EMPTY_MESSAGES;
+};
+
+const sortMessagesAscending = (items) => {
+    return [...items].sort((a, b) => {
+        const aTime = new Date(a?.created_at || 0).getTime();
+        const bTime = new Date(b?.created_at || 0).getTime();
+
+        if (aTime === bTime) {
+            return Number(a?.id || 0) - Number(b?.id || 0);
+        }
+
+        return aTime - bTime;
+    });
+};
+
+const withUpdatedMessages = (cachedData, updater) => {
+    const currentItems = getMessageItems(cachedData);
+    const nextItems = updater(currentItems);
+
+    if (Array.isArray(cachedData)) return nextItems;
+
+    if (cachedData && typeof cachedData === 'object') {
+        return {
+            ...cachedData,
+            items: nextItems,
+        };
+    }
+
+    return nextItems;
+};
+
+const upsertMessageById = (items, incomingMessage) => {
+    if (!incomingMessage || incomingMessage.id === undefined || incomingMessage.id === null) {
+        return items;
+    }
+
+    const exists = items.some((item) => String(item.id) === String(incomingMessage.id));
+
+    if (exists) {
+        return items.map((item) => (String(item.id) === String(incomingMessage.id) ? incomingMessage : item));
+    }
+
+    return [...items, incomingMessage];
+};
+
 export default function ChatScreen({ navigation, route }) {
     const { width: viewportWidth } = useWindowDimensions();
     const { theme } = useTheme();
@@ -124,7 +173,8 @@ export default function ChatScreen({ navigation, route }) {
         placeholderData: (previousData) => previousData,
     });
 
-    const messages = messagesQuery.data?.items || (Array.isArray(messagesQuery.data) ? messagesQuery.data : EMPTY_MESSAGES);
+    const messages = React.useMemo(() => getMessageItems(messagesQuery.data), [messagesQuery.data]);
+    const orderedMessages = React.useMemo(() => sortMessagesAscending(messages), [messages]);
     const isLoading = messagesQuery.isLoading;
     const refetchMessages = messagesQuery.refetch;
     const messageRefetchers = React.useMemo(
@@ -154,19 +204,17 @@ export default function ChatScreen({ navigation, route }) {
                 setSelectedFile(null);
                 setReplyingTo(null);
                 // Optimistically update
-                queryClient.setQueryData(messagesQueryKey, (old) => {
-                    const messages = old || [];
-                    if (messages.some((m) => String(m.id) === String(result.data.id))) return old;
-                    return [...messages, result.data];
-                });
+                queryClient.setQueryData(messagesQueryKey, (old) =>
+                    withUpdatedMessages(old, (currentItems) => upsertMessageById(currentItems, result.data)),
+                );
                 queryClient.invalidateQueries({ queryKey: tenantQueryKeys.messagesConversations() });
                 scrollToBottom();
             } else {
-                showError('Failed to send message', result.error);
+                showError('Failed to send message', result.error || 'Please try again.');
             }
         },
         onError: (err) => {
-            showError('Error', err.message);
+            showError('Error', err?.message || 'Failed to send message');
         },
     });
 
@@ -174,10 +222,11 @@ export default function ChatScreen({ navigation, route }) {
         mutationFn: (messageId) => MessageService.unsend(messageId),
         onSuccess: (result) => {
             if (result.success) {
-                queryClient.setQueryData(messagesQueryKey, (old) => {
-                    const messages = old || [];
-                    return messages.map(m => String(m.id) === String(result.data.id) ? result.data : m);
-                });
+                queryClient.setQueryData(messagesQueryKey, (old) =>
+                    withUpdatedMessages(old, (currentItems) =>
+                        currentItems.map((m) => String(m.id) === String(result.data.id) ? result.data : m),
+                    ),
+                );
                 queryClient.invalidateQueries({ queryKey: tenantQueryKeys.messagesConversations() });
             } else {
                 showError('Error', result.error || 'Failed to unsend message');
@@ -194,10 +243,11 @@ export default function ChatScreen({ navigation, route }) {
             if (result.success) {
                 setMessageText('');
                 setEditingMessage(null);
-                queryClient.setQueryData(messagesQueryKey, (old) => {
-                    const messages = old || [];
-                    return messages.map(m => String(m.id) === String(result.data.id) ? result.data : m);
-                });
+                queryClient.setQueryData(messagesQueryKey, (old) =>
+                    withUpdatedMessages(old, (currentItems) =>
+                        currentItems.map((m) => String(m.id) === String(result.data.id) ? result.data : m),
+                    ),
+                );
                 queryClient.invalidateQueries({ queryKey: tenantQueryKeys.messagesConversations() });
             } else {
                 showError('Error', result.error || 'Failed to edit message');
@@ -209,12 +259,13 @@ export default function ChatScreen({ navigation, route }) {
     });
 
     const markAsReadMutation = useMutation({
-        mutationFn: (conversationId) => MessageService.api.post(`/messages/${conversationId}/read`),
+        mutationFn: (conversationId) => MessageService.markAsRead(conversationId),
         onMutate: async () => {
-            queryClient.setQueryData(messagesQueryKey, (old) => {
-                const messages = old || [];
-                return messages.map(m => !m.is_mine && !m.is_read ? { ...m, is_read: true } : m);
-            });
+            queryClient.setQueryData(messagesQueryKey, (old) =>
+                withUpdatedMessages(old, (currentItems) =>
+                    currentItems.map((m) => !m.is_mine && !m.is_read ? { ...m, is_read: true } : m),
+                ),
+            );
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: tenantQueryKeys.messagesConversations() });
@@ -266,14 +317,9 @@ export default function ChatScreen({ navigation, route }) {
                 echoRef.current.private(`conversation.${conv.id}`).listen('.message.sent', (e) => {
                     const incomingMessage = e.message;
 
-                    queryClient.setQueryData(messagesQueryKey, (old) => {
-                        const messages = old || [];
-                        const exists = messages.some((m) => String(m.id) === String(incomingMessage.id));
-                        if (exists) {
-                            return messages.map((m) => String(m.id) === String(incomingMessage.id) ? incomingMessage : m);
-                        }
-                        return [...messages, incomingMessage];
-                    });
+                    queryClient.setQueryData(messagesQueryKey, (old) =>
+                        withUpdatedMessages(old, (currentItems) => upsertMessageById(currentItems, incomingMessage)),
+                    );
                     queryClient.invalidateQueries({ queryKey: tenantQueryKeys.messagesConversations() });
                     scrollToBottom();
 
@@ -283,14 +329,15 @@ export default function ChatScreen({ navigation, route }) {
                 });
 
                 echoRef.current.private(`conversation.${conv.id}`).listen('.message.read', (e) => {
-                    queryClient.setQueryData(messagesQueryKey, (old) => {
-                        const messages = old || [];
-                        return messages.map((m) =>
-                            String(m.receiver_id) === String(e.reader_id)
-                                ? { ...m, is_read: true, read_at: e.read_at }
-                                : m
-                        );
-                    });
+                    queryClient.setQueryData(messagesQueryKey, (old) =>
+                        withUpdatedMessages(old, (currentItems) =>
+                            currentItems.map((m) =>
+                                String(m.receiver_id) === String(e.reader_id)
+                                    ? { ...m, is_read: true, read_at: e.read_at }
+                                    : m,
+                            ),
+                        ),
+                    );
                 });
 
                 echoRef.current.private(`conversation.${conv.id}`).listenForWhisper('typing', (e) => {
@@ -318,13 +365,13 @@ export default function ChatScreen({ navigation, route }) {
 
     // Mark as read when messages change and conversation is open
     useEffect(() => {
-        if (conv?.id && messages.length > 0) {
-            const hasUnread = messages.some(m => !m.is_mine && !m.is_read);
+        if (conv?.id && orderedMessages.length > 0) {
+            const hasUnread = orderedMessages.some((m) => !m.is_mine && !m.is_read);
             if (hasUnread) {
                 markAsReadMutation.mutate(conv.id);
             }
         }
-    }, [conv?.id, messages, markAsReadMutation]);
+    }, [conv?.id, orderedMessages, markAsReadMutation]);
 
     // Signal typing status
     useEffect(() => {
@@ -342,9 +389,9 @@ export default function ChatScreen({ navigation, route }) {
     };
 
     useEffect(() => {
-        if (!messages.length) return;
+        if (!orderedMessages.length) return;
         scrollToBottom(false);
-    }, [messages.length]);
+    }, [orderedMessages.length]);
 
     useEffect(() => {
         if (!isDetailsOpen) {
@@ -576,14 +623,14 @@ export default function ChatScreen({ navigation, route }) {
                         <View style={{ flex: 1, justifyContent: 'center', paddingVertical: 40 }}>
                             <ActivityIndicator size="large" color={theme.colors.primary} />
                         </View>
-                    ) : messages.length === 0 ? (
+                    ) : orderedMessages.length === 0 ? (
                         <View style={styles.emptyMessagesContainer}>
                             <Ionicons name="chatbubble-outline" size={48} color="#D1D5DB" />
                             <Text style={[styles.emptyMessagesText, { color: theme.colors.textSecondary }]}>No messages yet</Text>
                             <Text style={[styles.emptyMessagesSubtext, { color: theme.colors.textTertiary }]}>Say hello to start the conversation!</Text>
                         </View>
                     ) : (
-                        messages.map((msg) => {
+                        orderedMessages.map((msg) => {
                             // Local fallback for isMine calculation
                             const isMine = msg.is_mine || (currentUserId && String(msg.actual_sender_id || msg.sender_id) === String(currentUserId));
                             const actualSenderName = msg.actual_sender ? `${msg.actual_sender.first_name} ${msg.actual_sender.last_name}` : 'Caretaker';

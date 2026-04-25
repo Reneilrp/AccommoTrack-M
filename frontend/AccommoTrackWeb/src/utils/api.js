@@ -685,6 +685,65 @@ export const apiUrl = (endpoint) => {
   return `${API_BASE_URL}${cleanEndpoint}`;
 };
 
+/**
+ * Normalizes paginated API response to { items, pagination } format.
+ * Handles both new { items, pagination } and legacy { data, current_page, ... } formats.
+ */
+export const normalizePaginatedResponse = (response) => {
+  // If response is the Axios response object, extract data.
+  // Otherwise, assume it's already the JSON payload.
+  let rawData = response?.data ?? response ?? {};
+  
+  // 0. Handle wrapped response format { success, data: { items, pagination } } 
+  // or { success, data: { data: [...], current_page: ... } }
+  if (rawData.success === true && rawData.data && typeof rawData.data === 'object' && !Array.isArray(rawData.data)) {
+    rawData = rawData.data;
+  }
+
+  // 1. If it's already in the unified format { items: [...], pagination: {...} }
+  if (rawData.items && rawData.pagination && Array.isArray(rawData.items)) {
+    return {
+      items: rawData.items,
+      pagination: rawData.pagination
+    };
+  }
+
+  // 2. If it's a standard Laravel paginated response { data: [...], current_page: 1, ... }
+  if (rawData.data && Array.isArray(rawData.data) && (rawData.current_page !== undefined || rawData.total !== undefined)) {
+    return {
+      items: rawData.data,
+      pagination: {
+        currentPage: rawData.current_page || 1,
+        lastPage: rawData.last_page || 1,
+        total: rawData.total || 0,
+        perPage: rawData.per_page || 15,
+        hasMorePages: (rawData.current_page || 1) < (rawData.last_page || 1)
+      }
+    };
+  }
+
+  // 3. If rawData is already an array, treat it as non-paginated items
+  if (Array.isArray(rawData)) {
+    return {
+      items: rawData,
+      pagination: null
+    };
+  }
+
+  // 4. Fallback for objects that might contain a data array but no pagination info
+  if (rawData.data && Array.isArray(rawData.data)) {
+    return {
+      items: rawData.data,
+      pagination: null
+    };
+  }
+
+  return {
+    items: [],
+    pagination: null
+  };
+};
+
 export { getImageUrl };
 
 export default api;

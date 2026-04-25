@@ -1,4 +1,4 @@
-import api from '../utils/api';
+import api, { normalizePaginatedResponse } from '../utils/api';
 import { cacheManager } from '../utils/cache';
 
 const CACHE_KEYS = {
@@ -6,27 +6,6 @@ const CACHE_KEYS = {
 };
 
 export const tenantService = {
-    /**
-     * Helper to normalize Laravel paginated and non-paginated responses
-     */
-    normalizePaginatedResponse(payload) {
-        if (payload && payload.data && Array.isArray(payload.data)) {
-            return {
-                items: payload.data,
-                pagination: {
-                    currentPage: payload.current_page,
-                    lastPage: payload.last_page,
-                    perPage: payload.per_page,
-                    total: payload.total,
-                    hasMorePages: payload.current_page < payload.last_page
-                }
-            };
-        }
-        return {
-            items: Array.isArray(payload) ? payload : (payload?.data || []),
-            pagination: null
-        };
-    },
 
     /**
      * Get current stay details (active booking with room, addons, payments)
@@ -49,7 +28,7 @@ export const tenantService = {
             const response = await api.get(`/tenant/history?page=${page}`);
             return { 
                 success: true, 
-                data: this.normalizePaginatedResponse(response.data) 
+                data: normalizePaginatedResponse(response.data) 
             };
         } catch (_err) {
             console.error('Error fetching booking history:', _err);
@@ -450,7 +429,7 @@ export const tenantService = {
             const response = await api.get('/tenant/dashboard/activities', { params });
             return { 
                 success: true, 
-                data: this.normalizePaginatedResponse(response.data) 
+                data: normalizePaginatedResponse(response.data) 
             };
         } catch (_err) {
             console.error('Error fetching tenant activities:', _err);

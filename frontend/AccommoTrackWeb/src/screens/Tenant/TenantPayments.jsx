@@ -486,7 +486,7 @@ export default function TenantPayments({ user }) {
                   {walletLogsLoading ? (
                     [...Array(5)].map((_, i) => <SkeletonTableRow key={i} columns={6} />)
                   ) : walletLogs.length > 0 ? (
-                    walletLogs.map((log) => (
+                    walletLogs?.map((log) => (
                       <tr key={log.id} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
                         <td className="px-6 py-4 text-sm text-gray-700 dark:text-gray-300">
                           {new Date(log.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}

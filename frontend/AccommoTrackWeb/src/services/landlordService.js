@@ -1,4 +1,4 @@
-import api from '../utils/api';
+import api, { normalizePaginatedResponse } from '../utils/api';
 
 /**
  * Landlord-specific tenant management operations.
@@ -139,30 +139,9 @@ export const landlordService = {
       
       const payload = res.data;
       
-      // If it's the new paginated structure (has 'data' array and pagination info)
-      if (payload && payload.data && Array.isArray(payload.data)) {
-        return {
-          success: true,
-          data: {
-            items: payload.data,
-            pagination: {
-              currentPage: payload.current_page,
-              lastPage: payload.last_page,
-              perPage: payload.per_page,
-              total: payload.total,
-              hasMorePages: payload.current_page < payload.last_page
-            }
-          }
-        };
-      }
-
-      // Fallback for legacy non-paginated structure
-      return { 
-        success: true, 
-        data: {
-          items: Array.isArray(payload) ? payload : (payload?.data || []),
-          pagination: null
-        }
+      return {
+        success: true,
+        data: normalizePaginatedResponse(payload)
       };
     } catch (err) {
       return { success: false, error: err.response?.data?.message || err.message };

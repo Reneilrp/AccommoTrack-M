@@ -17,7 +17,8 @@ const WalletTab = () => {
       setLoading(true);
       const res = await paymentService.getWalletLogs();
       if (res.success) {
-        setLogs(res.data?.items || res.data?.data || []);
+        const rawData = res.data?.items || res.data?.data || res.data || [];
+        setLogs(Array.isArray(rawData) ? rawData : []);
       } else {
         setError(res.error);
       }
@@ -119,7 +120,7 @@ const WalletTab = () => {
               </p>
             </div>
           ) : (
-            logs.map((log) => {
+            logs?.map((log) => {
               const isDebit = log.type === 'debit';
               const rawAmount = log.amount_cents || log.amount || 0;
               const displayAmount = log.amount_cents ? (rawAmount / 100) : rawAmount;

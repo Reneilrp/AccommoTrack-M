@@ -31,6 +31,63 @@ const normalizeRoomPayload = (room) => {
   };
 };
 
+const toNumberOrNull = (value) => {
+  if (value === null || value === undefined) return null;
+
+  const normalized = typeof value === "string"
+    ? value.replace(/,/g, "").trim()
+    : value;
+
+  if (normalized === "") return null;
+
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) ? parsed : null;
+};
+
+const normalizeTransferOption = (room) => {
+  if (!room || typeof room !== "object") {
+    return null;
+  }
+
+  const normalizedRoom = normalizeRoomPayload(room);
+  return {
+    ...normalizedRoom,
+    monthly_rate: toNumberOrNull(normalizedRoom?.monthly_rate),
+    daily_rate: toNumberOrNull(normalizedRoom?.daily_rate),
+    price: toNumberOrNull(normalizedRoom?.price),
+    unit_price: toNumberOrNull(normalizedRoom?.unit_price),
+    billing_policy: normalizedRoom?.billing_policy || 'monthly',
+  };
+};
+
+const normalizeTransferPreview = (payload) => {
+  if (!payload || typeof payload !== "object") {
+    return payload;
+  }
+
+  const numericKeys = [
+    "current_room_rate",
+    "new_room_rate",
+    "remaining_days",
+    "old_room_unused_value",
+    "paid_amount",
+    "credit_available",
+    "transfer_fee",
+    "new_room_cost",
+    "suggested_adjustment",
+  ];
+
+  const normalized = { ...payload };
+  numericKeys.forEach((key) => {
+    normalized[key] = toNumberOrNull(payload[key]) ?? 0;
+  });
+
+  normalized.has_payment_this_period = Boolean(payload.has_payment_this_period);
+  normalized.force_wallet_refunds = Boolean(payload.force_wallet_refunds);
+
+  return normalized;
+};
+
 const unwrapPayload = (payload) => {
   if (!payload || typeof payload !== "object") {
     return payload;
@@ -232,7 +289,21 @@ class TenantService {
           property_id: propertyId,
         },
       });
-      return normalizeResponse(response);
+      const normalized = normalizeResponse(response);
+      const rawRooms = Array.isArray(normalized.data)
+        ? normalized.data
+        : Array.isArray(normalized.data?.rooms)
+          ? normalized.data.rooms
+          : Array.isArray(response?.data?.rooms)
+            ? response.data.rooms
+            : [];
+
+      return {
+        ...normalized,
+        data: rawRooms.map((room) => normalizeTransferOption(room)).filter(Boolean),
+        message: response?.data?.message || "",
+        meta: response?.data?.meta ?? null,
+      };
     } catch (error) {
       return normalizeError(error);
     }
@@ -262,7 +333,11 @@ class TenantService {
           requested_room_id: requestedRoomId,
         },
       });
-      return normalizeResponse(response);
+      const normalized = normalizeResponse(response);
+      return {
+        ...normalized,
+        data: normalizeTransferPreview(normalized.data),
+      };
     } catch (error) {
       return normalizeError(error);
     }

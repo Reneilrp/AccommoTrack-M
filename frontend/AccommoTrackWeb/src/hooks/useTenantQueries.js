@@ -181,11 +181,12 @@ export const useTenantMaintenance = (page = 1) => {
     queryKey: tenantQueryKeys.maintenance(page),
     queryFn: async () => {
       const response = await maintenanceService.getTenantRequests(page);
+      if (!response.success) throw new Error(response.error || 'Failed to fetch maintenance requests');
       
       const payload = response.data || {};
       return {
-        data: Array.isArray(payload.data) ? payload.data : (Array.isArray(payload) ? payload : []),
-        meta: payload.meta || payload || null
+        data: payload.items || [],
+        meta: payload.pagination || null
       };
     },
     staleTime: 5 * 60 * 1000,

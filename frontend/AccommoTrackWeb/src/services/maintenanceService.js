@@ -1,4 +1,4 @@
-import api from '../utils/api';
+import api, { normalizePaginatedResponse } from '../utils/api';
 
 export const maintenanceService = {
     /**
@@ -9,7 +9,7 @@ export const maintenanceService = {
             const response = await api.get(`/tenant/maintenance-requests?page=${page}`);
             return {
                 success: true,
-                data: this.normalizePaginatedResponse(response.data)
+                data: normalizePaginatedResponse(response.data)
             };
         } catch (error) {
             console.error('Error fetching tenant maintenance requests:', error);
@@ -20,27 +20,6 @@ export const maintenanceService = {
         }
     },
 
-    /**
-     * Helper to normalize Laravel paginated and non-paginated responses
-     */
-    normalizePaginatedResponse(payload) {
-        if (payload && payload.data && Array.isArray(payload.data)) {
-            return {
-                items: payload.data,
-                pagination: {
-                    currentPage: payload.current_page,
-                    lastPage: payload.last_page,
-                    perPage: payload.per_page,
-                    total: payload.total,
-                    hasMorePages: payload.current_page < payload.last_page
-                }
-            };
-        }
-        return {
-            items: Array.isArray(payload) ? payload : (payload?.data || []),
-            pagination: null
-        };
-    },
 
     /**
      * Get single maintenance request details with history

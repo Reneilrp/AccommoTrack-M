@@ -125,7 +125,20 @@ const getImageUrl = (imagePath) => {
   return { uri: `${API_BASE_URL}/storage/${cleanPath}` };
 };
 
-const formatCurrency = (amount) => formatPrice(amount);
+const toNumberOrNull = (value) => {
+  if (value === null || value === undefined) return null;
+
+  const normalized = typeof value === 'string'
+    ? value.replace(/,/g, '').trim()
+    : value;
+
+  if (normalized === '') return null;
+
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) ? parsed : null;
+};
+
+const formatCurrency = (amount) => formatPrice(toNumberOrNull(amount) ?? 0);
 
 const toWholeNumber = (value, fallback = 0) => {
   const parsed = Number(value);
@@ -485,6 +498,13 @@ const EllipsisMenu = ({ booking, property, room, reviewAlreadySubmitted, onRevie
 
 export default function MyBookings() {
 
+  const tomorrow = useMemo(() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 1);
+    d.setHours(0, 0, 0, 0);
+    return d;
+  }, []);
+
   const navigation = useNavigation();
   const { width: viewportWidth } = useWindowDimensions();
   const { theme } = useTheme();
@@ -496,7 +516,7 @@ export default function MyBookings() {
   const [activeTab, setActiveTab] = useState(
     uiState.bookings?.activeTab ?? 'current'
   );
-  const [viewMode, setViewMode] = useState('active'); // 'active', 'pending', or 'overdue'
+  const [viewMode, setViewMode] = useState(null); // 'active', 'pending', or 'overdue'
   const slideAnim = useRef(new Animated.Value(0)).current;
   const cachedBookings = uiState.data?.[BUCKET];
   const [refreshing, setRefreshing] = useState(false);
@@ -579,21 +599,28 @@ export default function MyBookings() {
   const [cancelBookingContext, setCancelBookingContext] = useState(null);
 
   // Auto-fetch financial preview whenever the selected transfer room changes
-  React.useEffect(() => {
+  useEffect(() => {
     if (!selectedTransferRoomId || !transferContext?.bookingId) {
       setTransferPreview(null);
       return;
     }
     let cancelled = false;
     const fetchPreview = async () => {
-      setLoadingPreview(true);
-      const result = await TenantService.getTransferPreview(
-        transferContext.bookingId,
-        selectedTransferRoomId,
-      );
-      if (!cancelled) {
-        setTransferPreview(result.success ? result.data : null);
-        setLoadingPreview(false);
+      try {
+        setLoadingPreview(true);
+        const result = await TenantService.getTransferPreview(
+          transferContext.bookingId,
+          selectedTransferRoomId,
+        );
+        if (!cancelled) {
+          setTransferPreview(result.success ? result.data : null);
+        }
+      } catch (err) {
+        console.error('[MyBookings] Transfer preview error:', err);
+      } finally {
+        if (!cancelled) {
+          setLoadingPreview(false);
+        }
       }
     };
     fetchPreview();
@@ -647,8 +674,9 @@ export default function MyBookings() {
         const allBookings = bookingsRes.success ? bookingsRes.data || [] : [];
         const pendingStatuses = new Set(['pending', 'pending_reservation', 'reserved', 'booked']);
 
-        const pendingCheckInIds = new Set(pendingCheckInsNext.map(pc => pc.id));
+        const pendingCheckInIds = new Set(pendingCheckInsNext.filter(Boolean).map(pc => pc.id || pc.pc_id));
         const pendingBookingsNext = allBookings.filter((bookingItem) =>
+          bookingItem &&
           pendingStatuses.has(String(bookingItem.status || '').toLowerCase()) &&
           !pendingCheckInIds.has(bookingItem.id)
         );
@@ -739,6 +767,8 @@ export default function MyBookings() {
     await refreshMyBookings();
   }, [invalidateData, refreshMyBookings]);
 
+  const historyDataFromState = uiState.data?.[BUCKET]?.historyData;
+
   useEffect(() => {
     const nextBundle = myBookingsBundleQuery.data;
     if (!nextBundle) return;
@@ -749,36 +779,40 @@ export default function MyBookings() {
     setPendingTransferRequests(nextBundle.pendingTransferRequests ?? []);
     setMonthlyTransferCount(nextBundle.monthlyTransferCount ?? 0);
 
-    // Dynamic initial viewMode selection
-    const nonOverdueStaysCount = (nextBundle.stayData?.stays || []).filter(s => !(s?.booking?.is_overdue || s?.booking?.isOverdue)).length;
-    const nonOverduePendingBookingsCount = (nextBundle.pendingBookings || []).filter(b => !(b?.is_overdue || b?.isOverdue)).length;
-    const nonOverdueCheckInsCount = (nextBundle.pendingCheckIns || []).filter(pc => !(pc.isOverdue || pc.daysOverdue > 0)).length;
-    const nonOverduePendingCount = nonOverduePendingBookingsCount + nonOverdueCheckInsCount;
+    // Dynamic initial viewMode selection - ONLY if not already set or specifically resetting
+    // This prevents the UI from snapping back to "Active" tab on background refreshes
+    if (!viewMode) {
+      const nonOverdueStaysCount = (nextBundle.stayData?.stays || []).filter(s => !(s?.booking?.is_overdue || s?.booking?.isOverdue)).length;
+      const nonOverduePendingBookingsCount = (nextBundle.pendingBookings || []).filter(b => !(b?.is_overdue || b?.isOverdue)).length;
+      const nonOverdueCheckInsCount = (nextBundle.pendingCheckIns || []).filter(pc => !(pc?.isOverdue || pc?.daysOverdue > 0)).length;
+      const nonOverduePendingCount = nonOverduePendingBookingsCount + nonOverdueCheckInsCount;
 
-    if (nonOverdueStaysCount > 0) {
-      setViewMode('active');
-    } else if (nonOverduePendingCount > 0) {
-      setViewMode('pending');
-    } else {
-      const overduePendingCheckInsCount = (nextBundle.pendingCheckIns || []).filter(pc => pc.isOverdue || pc.daysOverdue > 0).length;
-      const overdueCount = ((nextBundle.stayData?.stays || []).length - nonOverdueStaysCount) +
-        ((nextBundle.pendingBookings || []).length - nonOverduePendingBookingsCount) +
-        overduePendingCheckInsCount;
-
-      if (overdueCount > 0) {
-        setViewMode('overdue');
+      if (nonOverdueStaysCount > 0) {
+        setViewMode('active');
+      } else if (nonOverduePendingCount > 0) {
+        setViewMode('pending');
       } else {
-        setViewMode('active'); // fallback
+        const overduePendingCheckInsCount = (nextBundle.pendingCheckIns || []).filter(pc => pc?.isOverdue || pc?.daysOverdue > 0).length;
+        const overdueCount = ((nextBundle.stayData?.stays || []).length - nonOverdueStaysCount) +
+          ((nextBundle.pendingBookings || []).length - nonOverduePendingBookingsCount) +
+          overduePendingCheckInsCount;
+
+        if (overdueCount > 0) {
+          setViewMode('overdue');
+        } else {
+          setViewMode('active'); // fallback
+        }
       }
     }
 
+    // Preserve historyData if it's missing in the current bundle (usually omitted in stay bundles)
     updateData(BUCKET, {
       stayData: nextBundle.stayData ?? null,
       pendingBookings: nextBundle.pendingBookings ?? [],
       pendingCheckIns: nextBundle.pendingCheckIns ?? [],
-      historyData: nextBundle.historyData ?? [],
+      historyData: nextBundle.historyData ?? historyDataFromState ?? [],
     });
-  }, [myBookingsBundleQuery.data, updateData]);
+  }, [myBookingsBundleQuery.data, updateData, historyDataFromState, viewMode]);
 
   const loading = myBookingsBundleQuery.isLoading && !myBookingsBundleQuery.data;
 
@@ -787,14 +821,14 @@ export default function MyBookings() {
     const hasPending = (pendingBookings || []).length > 0 || (pendingCheckIns || []).length > 0;
     const overdueStays = (stayData?.stays || []).filter(s => s?.booking?.is_overdue || s?.booking?.isOverdue);
     const overduePendingBookings = (pendingBookings || []).filter(b => b?.is_overdue || b?.isOverdue);
-    const overdueCheckIns = (pendingCheckIns || []).filter(pc => pc.isOverdue || pc.daysOverdue > 0);
+    const overdueCheckIns = (pendingCheckIns || []).filter(pc => pc?.isOverdue || pc?.daysOverdue > 0);
     const hasAnyOverdue = overdueStays.length > 0 || overduePendingBookings.length > 0 || overdueCheckIns.length > 0;
 
     const list = [];
     if (hasStays || hasAnyOverdue) list.push({ id: 'active', label: 'Active', color: theme.colors.success });
     if (hasPending || hasAnyOverdue) list.push({ id: 'pending', label: 'Pending', color: '#F59E0B' });
     if (hasAnyOverdue) list.push({ id: 'overdue', label: 'Overdue', color: theme.colors.error });
-    return list;
+    return list.filter(Boolean);
   }, [stayData, pendingBookings, pendingCheckIns, theme.colors.success, theme.colors.error]);
 
   useEffect(() => {
@@ -1340,7 +1374,13 @@ export default function MyBookings() {
   const handleReschedule = async () => {
     if (!reschedulingBookingId) return;
     setIsRescheduling(true);
-    const dateStr = rescheduleDate.toISOString().split('T')[0];
+
+    // Timezone-safe YYYY-MM-DD
+    const year = rescheduleDate.getFullYear();
+    const month = String(rescheduleDate.getMonth() + 1).padStart(2, '0');
+    const day = String(rescheduleDate.getDate()).padStart(2, '0');
+    const dateStr = `${year}-${month}-${day}`;
+
     const result = await BookingService.rescheduleBooking(reschedulingBookingId, dateStr);
     setIsRescheduling(false);
 
@@ -1352,8 +1392,6 @@ export default function MyBookings() {
     } else {
       showAlert('Error', result.error || 'Failed to update move-in date.');
     }
-
-    setCancellingBookingId(null);
   };
 
   const handleRequestExtension = async (booking) => {
@@ -1410,60 +1448,87 @@ export default function MyBookings() {
   const handleRequestTransfer = async (booking, property) => {
     if (!booking?.id || submittingTransfer) return;
 
-    const propertyId = property?.id || booking?.property_id;
-    if (!propertyId) {
-      showAlert('Request Failed', 'Could not identify the property for this transfer request.');
-      return;
-    }
+    try {
+      const propertyId = property?.id || booking?.property_id;
+      if (!propertyId) {
+        showAlert('Request Failed', 'Could not identify the property for this transfer request.');
+        return;
+      }
 
-    const existingPending = pendingTransferRequests.find(
-      (item) => Number(item?.booking_id) === Number(booking.id),
-    );
-    if (existingPending) {
-      showAlert('Transfer Pending', 'You already have a pending transfer request for this booking.');
-      return;
-    }
-
-    const transferLimit = property?.transfer_limit ?? 1;
-    if (monthlyTransferCount >= transferLimit) {
-      const daysUntilReset = getDaysUntilTransferReset();
-      showAlert(
-        'Transfer Limit Reached',
-        `Room transfers are limited to ${transferLimit} per month for this property. Try again in ${daysUntilReset} day${daysUntilReset === 1 ? '' : 's'}.`,
+      // Check existing pending transfer for this booking
+      const existingPending = (pendingTransferRequests || []).find(
+        (item) => Number(item?.booking_id) === Number(booking.id),
       );
-      return;
-    }
 
-    setSubmittingTransfer(true);
+      if (existingPending) {
+        showAlert('Transfer Pending', 'You already have a pending transfer request for this booking.');
+        return;
+      }
 
-    const optionsResult = await TenantService.getTransferOptions(booking.id, propertyId);
-    if (!optionsResult.success) {
-      showAlert('Request Failed', optionsResult.error || 'Failed to load transfer options.');
-      setSubmittingTransfer(false);
-      return;
-    }
+      // Check monthly limit
+      const transferLimit = property?.transfer_limit ?? 1;
+      if (monthlyTransferCount >= transferLimit) {
+        const daysUntilReset = getDaysUntilTransferReset();
+        showAlert(
+          'Transfer Limit Reached',
+          `Room transfers are limited to ${transferLimit} per month for this property. Try again in ${daysUntilReset} day${daysUntilReset === 1 ? '' : 's'}.`,
+        );
+        return;
+      }
 
-    const rooms = Array.isArray(optionsResult.data) ? optionsResult.data : [];
-    if (rooms.length === 0) {
-      showAlert(
-        'No Eligible Rooms',
-        optionsResult.message || 'No eligible transfer rooms are currently available for this property.',
+      setSubmittingTransfer(true);
+
+      const optionsResult = await TenantService.getTransferOptions(booking.id, propertyId);
+      if (!optionsResult.success) {
+        showAlert('Request Failed', optionsResult.error || 'Failed to load transfer options.');
+        setSubmittingTransfer(false);
+        return;
+      }
+
+      const rooms = Array.isArray(optionsResult.data)
+        ? optionsResult.data.filter((item) => item && typeof item === 'object')
+        : [];
+      if (rooms.length === 0) {
+        showAlert(
+          'No Eligible Rooms',
+          optionsResult.message || 'No eligible transfer rooms are currently available for this property.',
+        );
+        setSubmittingTransfer(false);
+        return;
+      }
+
+      const initialRoomOption = rooms.find(
+        (item) => item?.id !== null && item?.id !== undefined,
       );
-      setSubmittingTransfer(false);
-      return;
-    }
+      if (!initialRoomOption) {
+        showAlert(
+          'No Eligible Rooms',
+          optionsResult.message || 'No eligible transfer rooms are currently available for this property.',
+        );
+        setSubmittingTransfer(false);
+        return;
+      }
 
-    setTransferRoomOptions(rooms);
-    setSelectedTransferRoomId(rooms[0]?.id || null);
-    setTransferReason('Requested via mobile app');
-    setTransferOptionsMessage(optionsResult.message || 'Select a target room and provide your reason.');
-    setTransferContext({
-      bookingId: booking.id,
-      propertyId,
-      propertyTitle: property?.title || 'this property',
-    });
-    setShowTransferModal(true);
-    setSubmittingTransfer(false);
+      setTransferRoomOptions(rooms);
+      setSelectedTransferRoomId(initialRoomOption.id);
+      setTransferReason('Requested via mobile app');
+      setTransferOptionsMessage(optionsResult.message || 'Select a target room and provide your reason.');
+      setTransferContext({
+        bookingId: booking.id,
+        propertyId,
+        propertyTitle: property?.title || 'this property',
+      });
+
+      // Allow state to flush before opening the heavy modal
+      setShowTransferModal(true);
+      setSubmittingTransfer(false);
+
+    } catch (err) {
+      console.error('[MyBookings] handleRequestTransfer crash:', err);
+      showAlert('Error', 'An unexpected error occurred. Please try again.');
+    } finally {
+      setSubmittingTransfer(false);
+    }
   };
 
   const submitTransferRequest = async () => {
@@ -1644,11 +1709,11 @@ export default function MyBookings() {
 
     const nonOverdueStays = (stayData?.stays || []).filter(s => !(s?.booking?.is_overdue || s?.booking?.isOverdue));
     const nonOverduePendingBookings = (pendingBookings || []).filter(b => !(b?.is_overdue || b?.isOverdue));
-    const nonOverdueCheckIns = (pendingCheckIns || []).filter(pc => !(pc.isOverdue || pc.daysOverdue > 0));
+    const nonOverdueCheckIns = (pendingCheckIns || []).filter(pc => !(pc?.isOverdue || pc?.daysOverdue > 0));
 
     const overdueStays = (stayData?.stays || []).filter(s => s?.booking?.is_overdue || s?.booking?.isOverdue);
     const overduePendingBookings = (pendingBookings || []).filter(b => b?.is_overdue || b?.isOverdue);
-    const overdueCheckIns = (pendingCheckIns || []).filter(pc => pc.isOverdue || pc.daysOverdue > 0);
+    const overdueCheckIns = (pendingCheckIns || []).filter(pc => pc?.isOverdue || pc?.daysOverdue > 0);
 
     const hasAnyOverdue = overdueStays.length > 0 || overduePendingBookings.length > 0 || overdueCheckIns.length > 0;
 
@@ -1659,8 +1724,8 @@ export default function MyBookings() {
     const hasAvailableStays = displayedStays.length > 0;
 
     const currentData = viewMode === 'active' || (viewMode === 'overdue' && hasAvailableStays)
-      ? (selectedBookingId ? (displayedStays.find(s => s.booking.id === selectedBookingId) || displayedStays[0]) : displayedStays[0])
-      : (selectedPendingId ? (displayedPendingBookings.find(pb => pb.id === selectedPendingId) || displayedPendingBookings[0]) : displayedPendingBookings[0]);
+      ? (selectedBookingId ? (displayedStays.find(s => (s?.booking?.id || s?.id) === selectedBookingId) || displayedStays[0]) : displayedStays[0])
+      : (selectedPendingId ? (displayedPendingBookings.find(pb => (pb?.id || pb?.booking?.id) === selectedPendingId) || displayedPendingBookings[0]) : displayedPendingBookings[0]);
 
     // Check if filtered results are empty
     if (!hasStays && !hasPending && !stayData?.upcomingBooking) {
@@ -1746,26 +1811,26 @@ export default function MyBookings() {
     const bookingMode = String(booking?.booking_mode || booking?.bookingMode || 'normal').toLowerCase();
     const shouldShowProxyOccupants = bookingMode === 'proxy' || occupantProfiles.length > 0;
     const reservationPolicy = currentData?.reservation_policy || booking?.reservation_policy;
-    const bookingContractMode = String(booking.contract_mode || booking.contractMode || '').toLowerCase();
-    const hasScheduledEndDate = Boolean(booking.endDate || booking.end_date);
+    const bookingContractMode = String(booking?.contract_mode || booking?.contractMode || '').toLowerCase();
+    const hasScheduledEndDate = Boolean(booking?.endDate || booking?.end_date);
     const canRequestExtension =
-      !booking.isPending &&
+      !booking?.isPending &&
       !(bookingContractMode === 'monthly' && !hasScheduledEndDate) &&
       hasScheduledEndDate &&
-      !Boolean(booking.notice_given_at || booking.noticeGivenAt);
+      !Boolean(booking?.notice_given_at || booking?.noticeGivenAt);
     const pendingTransferForBooking = pendingTransferRequests.find(
-      (item) => Number(item?.booking_id) === Number(booking.id),
+      (item) => Number(item?.booking_id) === Number(booking?.id),
     );
     const transferLimit = property?.transfer_limit ?? 1;
     const transferLimitReached = monthlyTransferCount >= transferLimit;
     const daysUntilTransferReset = getDaysUntilTransferReset();
     const transferButtonDisabled = submittingTransfer || Boolean(pendingTransferForBooking) || transferLimitReached;
-    const startDateRaw = booking.startDate || booking.start_date;
-    const endDateRaw = booking.endDate || booking.end_date;
+    const startDateRaw = booking?.startDate || booking?.start_date;
+    const endDateRaw = booking?.endDate || booking?.end_date;
     const startDate = startDateRaw ? new Date(startDateRaw) : null;
     const hasValidStartDate = startDate instanceof Date && !Number.isNaN(startDate.getTime());
     const hasCheckoutDate = Boolean(endDateRaw);
-    const isMonthlyBilling = String(booking.billing_policy || booking.billingPolicy || 'monthly').toLowerCase() === 'monthly';
+    const isMonthlyBilling = String(booking?.billing_policy || booking?.billingPolicy || 'monthly').toLowerCase() === 'monthly';
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
@@ -1777,8 +1842,8 @@ export default function MyBookings() {
     const daysUntilStart = isFutureStart
       ? Math.ceil((startDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
       : 0;
-    const daysStayed = Math.max(0, Math.floor(Number(booking.daysStayed || booking.days_stayed || 0)));
-    const daysLeft = Math.max(0, Math.ceil(Number(booking.daysRemaining || booking.days_remaining || 0)));
+    const daysStayed = Math.max(0, Math.floor(Number(booking?.daysStayed || booking?.days_stayed || 0)));
+    const daysLeft = Math.max(0, Math.ceil(Number(booking?.daysRemaining || booking?.days_remaining || 0)));
     const stayDurationLabel = isFutureStart ? 'Starts In' : (hasCheckoutDate ? 'Days Left' : 'Days Stayed');
     const stayDurationValue = isFutureStart
       ? `${daysUntilStart} ${daysUntilStart === 1 ? 'Day' : 'Days'}`
@@ -1786,9 +1851,9 @@ export default function MyBookings() {
     const pendingMoveInValue = hasValidStartDate ? formatDate(startDateRaw) : 'Move-in date awaiting approval';
 
     const paymentStatusRaw = String(
-      booking.isOverdue || booking.is_overdue
+      booking?.isOverdue || booking?.is_overdue
         ? 'overdue'
-        : (booking.paymentStatus || booking.payment_status || 'unpaid'),
+        : (booking?.paymentStatus || booking?.payment_status || 'unpaid'),
     ).toLowerCase();
     const paymentStatusValue = paymentStatusRaw
       .split('_')
@@ -1797,9 +1862,9 @@ export default function MyBookings() {
       .join(' ');
     const addonMonthlyTotal = Number(addons?.monthlyTotal ?? addons?.monthly_total ?? 0);
     const roomRentAmount = Number(
-      booking.billing_policy === 'daily'
-        ? (booking.unit_price || booking.daily_rate || booking.monthlyRent || booking.monthly_rent || 0)
-        : (booking.monthlyRent || booking.monthly_rent || booking.unit_price || 0),
+      booking?.billing_policy === 'daily'
+        ? (booking?.unit_price || booking?.daily_rate || booking?.monthlyRent || booking?.monthly_rent || 0)
+        : (booking?.monthlyRent || booking?.monthly_rent || booking?.unit_price || 0),
     );
     const totalCycleCharges = Math.max(0, roomRentAmount + addonMonthlyTotal);
     const currentCycleLabel = new Date().toLocaleDateString('en-US', {
@@ -1813,14 +1878,14 @@ export default function MyBookings() {
         ? booking.financials.invoices
         : [];
 
-    const shouldUsePaymentCountdown = !booking.isPending && isMonthlyBilling && !hasCheckoutDate;
+    const shouldUsePaymentCountdown = !booking?.isPending && isMonthlyBilling && !hasCheckoutDate;
     const paymentCountdown = shouldUsePaymentCountdown
       ? resolveMonthlyPaymentCountdown(booking, invoiceList)
       : null;
-    const durationSummaryLabel = booking.isPending
+    const durationSummaryLabel = booking?.isPending
       ? 'Move-in Date'
       : (paymentCountdown?.label || stayDurationLabel);
-    const durationSummaryValue = booking.isPending
+    const durationSummaryValue = booking?.isPending
       ? pendingMoveInValue
       : (paymentCountdown?.value || stayDurationValue);
 
@@ -1841,14 +1906,14 @@ export default function MyBookings() {
       ? invoiceOutstandingAmount
       : Math.max(0, totalCycleCharges - totalPaidAmount);
 
-    const hasMoveOutNotice = Boolean(booking.notice_given_at || booking.noticeGivenAt);
+    const hasMoveOutNotice = Boolean(booking?.notice_given_at || booking?.noticeGivenAt);
     const isCurrentMonthPaidForMoveOut = !isMonthlyBilling || ['paid', 'settled', 'succeeded', 'verified', 'completed'].includes(paymentStatusRaw);
-    const reviewAlreadySubmitted = Boolean(booking.hasReview || booking.has_review);
+    const reviewAlreadySubmitted = Boolean(booking?.hasReview || booking?.has_review);
 
     const renderCheckInCard = (pc) => {
-      const isOverdue = pc.isOverdue || Number(pc.daysOverdue) > 0;
+      const isOverdue = pc?.isOverdue || Number(pc?.daysOverdue) > 0;
       return (
-        <View key={pc.id} style={[styles.bookingCard, { padding: 16, borderColor: isOverdue ? theme.colors.error : '#F59E0B', borderWidth: 1 }]}>
+        <View key={pc?.id || pc?.pc_id} style={[styles.bookingCard, { padding: 16, borderColor: isOverdue ? theme.colors.error : '#F59E0B', borderWidth: 1 }]}>
           <View style={{ alignItems: 'center', marginBottom: 12 }}>
             <Ionicons
               name={isOverdue ? "alert-circle" : "calendar"}
@@ -1878,13 +1943,13 @@ export default function MyBookings() {
                 <Text style={{ fontWeight: 'bold', fontSize: 16, color: theme.colors.text }}>
                   {pc?.property?.title || pc?.property_title || String(pc?.property || 'Property')}
                 </Text>
-                <Text style={{ fontSize: 12, color: theme.colors.textSecondary }}>Room {pc.room || '—'}</Text>
+                <Text style={{ fontSize: 12, color: theme.colors.textSecondary }}>Room {pc?.room || '—'}</Text>
                 <Text style={{ fontSize: 12, color: theme.colors.textSecondary }}>
-                  Scheduled start: {formatDate(pc.startDate)}
+                  Scheduled start: {formatDate(pc?.startDate)}
                 </Text>
                 <Text style={{ fontSize: 11, fontWeight: 'bold', color: isOverdue ? theme.colors.error : '#F59E0B', marginTop: 4, textTransform: 'uppercase' }}>
-                  {Number(pc.daysOverdue) > 0
-                    ? `${Math.max(0, Math.round(Number(pc.daysOverdue)))} day${Math.round(Number(pc.daysOverdue)) === 1 ? '' : 's'} overdue`
+                  {Number(pc?.daysOverdue) > 0
+                    ? `${Math.max(0, Math.round(Number(pc?.daysOverdue)))} day${Math.round(Number(pc?.daysOverdue)) === 1 ? '' : 's'} overdue`
                     : (isOverdue ? 'Overdue' : 'Check-in Today')}
                 </Text>
               </View>
@@ -1914,7 +1979,7 @@ export default function MyBookings() {
 
     const renderPendingCard = (pb) => {
       const isOverduePending = Boolean(pb?.is_overdue || pb?.isOverdue);
-      const startDate = pb?.start_date ? new Date(pb.start_date) : null;
+      const startDate = pb?.start_date ? new Date(pb?.start_date) : null;
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       if (startDate) startDate.setHours(0, 0, 0, 0);
@@ -1933,7 +1998,7 @@ export default function MyBookings() {
         : (theme.isDark ? 'rgba(245,158,11,0.2)' : '#FEF3C7');
 
       return (
-        <View key={pb.id} style={[styles.bookingCard, { padding: 16, borderColor: cardBorderColor, borderWidth: 1 }]}>
+        <View key={pb?.id} style={[styles.bookingCard, { padding: 16, borderColor: cardBorderColor, borderWidth: 1 }]}>
           <View style={{ alignItems: 'center', marginBottom: 12 }}>
             <Ionicons name={isOverduePending ? 'alert-circle' : 'time'} size={48} color={accentColor} />
             <Text style={[styles.emptyTitle, { fontSize: 18, marginTop: 8 }]}>
@@ -1955,7 +2020,7 @@ export default function MyBookings() {
                 <Text style={{ fontWeight: 'bold', fontSize: 15, color: theme.colors.text }}>{pb?.property_title || pb?.property?.title || 'Property'}</Text>
                 <Text style={{ fontSize: 11, color: theme.colors.textSecondary }}>Room {pb?.room_number || pb?.room?.room_number || '—'}</Text>
                 <Text style={{ fontSize: 11, color: theme.colors.textSecondary, marginTop: 2 }}>
-                  Move-in Date: {pb.start_date ? formatDate(pb.start_date) : 'Awaiting Approval'}
+                  Move-in Date: {pb?.start_date ? formatDate(pb?.start_date) : 'Awaiting Approval'}
                 </Text>
                 {isOverduePending && daysOverdue > 0 && (
                   <Text style={{ fontSize: 11, fontWeight: 'bold', color: theme.colors.error, marginTop: 4, textTransform: 'uppercase' }}>
@@ -2070,13 +2135,13 @@ export default function MyBookings() {
 
         {showPendingView && displayedPendingCheckIns.length > 0 && (
           <View style={{ marginBottom: 20 }}>
-            {displayedPendingCheckIns.map(pc => renderCheckInCard(pc))}
+            {displayedPendingCheckIns.filter(Boolean).map(pc => renderCheckInCard(pc))}
           </View>
         )}
 
         {showPendingView && displayedPendingBookings.length > 0 && (
           <View style={{ marginBottom: 20 }}>
-            {displayedPendingBookings.map(pb => renderPendingCard(pb))}
+            {displayedPendingBookings.filter(Boolean).map(pb => renderPendingCard(pb))}
           </View>
         )}
 
@@ -2111,7 +2176,7 @@ export default function MyBookings() {
                   }}
                 >
                   <Text style={[styles.selectorValue, { color: theme.colors.text }]} numberOfLines={1}>
-                    {property.title || property.property_title || 'Select'}
+                    {property?.title || property?.property_title || 'Select'}
                   </Text>
                   <Ionicons name="chevron-down" size={16} color={theme.colors.textTertiary} />
                 </TouchableOpacity>
@@ -2121,7 +2186,7 @@ export default function MyBookings() {
         )}
 
         {/* Refund Warning */}
-        {booking.paymentStatus === 'refunded' && (
+        {booking?.paymentStatus === 'refunded' && (
           <View style={[styles.warningBanner, { backgroundColor: theme.isDark ? 'rgba(126,34,206,0.1)' : '#F3E8FF', borderColor: theme.isDark ? '#7E22CE' : '#E9D5FF', borderWidth: 1 }]}>
             <Ionicons name="alert-circle" size={24} color={theme.isDark ? '#a855f7' : '#7E22CE'} />
             <View style={{ flex: 1 }}>
@@ -2140,7 +2205,7 @@ export default function MyBookings() {
                 source={getImageUrl(property?.image)}
                 style={styles.bookingImage}
               />
-              {!booking.isPending && (
+              {!booking?.isPending && (
                 <View style={{ position: 'absolute', top: 12, right: 12 }}>
                   <EllipsisMenu
                     booking={booking}
@@ -2158,9 +2223,9 @@ export default function MyBookings() {
             <View style={styles.bookingInfo}>
               <View style={styles.bookingHeader}>
                 <Text style={[styles.bookingName, { color: theme.colors.text }]}>{property?.title || 'Property Name'}</Text>
-                <View style={[styles.statusBadge, { backgroundColor: `${getStatusColor(booking.isOverdue || booking.is_overdue ? 'overdue' : booking.status)}15` }]}>
-                  <Text style={[styles.statusText, { color: getStatusColor(booking.isOverdue || booking.is_overdue ? 'overdue' : booking.status) }]}>
-                    {booking.isOverdue || booking.is_overdue ? 'Overdue' : getStatusLabel(booking.status)}
+                <View style={[styles.statusBadge, { backgroundColor: `${getStatusColor(booking?.isOverdue || booking?.is_overdue ? 'overdue' : booking?.status)}15` }]}>
+                  <Text style={[styles.statusText, { color: getStatusColor(booking?.isOverdue || booking?.is_overdue ? 'overdue' : booking?.status) }]}>
+                    {booking?.isOverdue || booking?.is_overdue ? 'Overdue' : getStatusLabel(booking?.status)}
                   </Text>
                 </View>
               </View>
@@ -2173,7 +2238,7 @@ export default function MyBookings() {
               <View style={styles.financialSummaryRow}>
                 <View style={[styles.summaryCard, { backgroundColor: theme.colors.backgroundSecondary }]}>
                   <Text style={[styles.summaryLabel, { color: theme.colors.textSecondary }]}>Room</Text>
-                  <Text style={[styles.summaryValue, { color: theme.colors.text }]}>{room.roomNumber || room.room_number}</Text>
+                  <Text style={[styles.summaryValue, { color: theme.colors.text }]}>{room?.roomNumber || room?.room_number}</Text>
                 </View>
                 {shouldShowProxyOccupants && (
                   <View style={[styles.summaryCard, { backgroundColor: theme.colors.backgroundSecondary }]}>
@@ -2183,10 +2248,10 @@ export default function MyBookings() {
                 )}
                 <View style={[styles.summaryCard, { backgroundColor: theme.colors.backgroundSecondary }]}>
                   <Text style={[styles.summaryLabel, { color: theme.colors.textSecondary }]}>
-                    {booking.billing_policy === 'daily' ? 'Daily Rent' : 'Monthly Rent'}
+                    {booking?.billing_policy === 'daily' ? 'Daily Rent' : 'Monthly Rent'}
                   </Text>
                   <Text style={[styles.summaryValue, { color: theme.colors.text }]}>
-                    {formatPesoNoCents(booking.unit_price || booking.monthlyRent)}
+                    {formatPesoNoCents(booking?.unit_price || booking?.monthlyRent)}
                   </Text>
                 </View>
                 <View style={[styles.summaryCard, { backgroundColor: theme.colors.backgroundSecondary }]}>
@@ -2217,15 +2282,15 @@ export default function MyBookings() {
 
                   {occupantProfiles.length > 0 ? (
                     occupantProfiles.map((occupant) => (
-                      <View key={occupant.id} style={[styles.proxyOccupantCard, { backgroundColor: theme.colors.backgroundSecondary, borderColor: theme.colors.border, borderWidth: 1 }]}>
-                        <Text style={[styles.proxyOccupantName, { color: theme.colors.text }]}>{occupant.fullName}</Text>
-                        {(occupant.relationship || occupant.sex) ? (
+                      <View key={occupant?.id} style={[styles.proxyOccupantCard, { backgroundColor: theme.colors.backgroundSecondary, borderColor: theme.colors.border, borderWidth: 1 }]}>
+                        <Text style={[styles.proxyOccupantName, { color: theme.colors.text }]}>{occupant?.fullName}</Text>
+                        {(occupant?.relationship || occupant?.sex) ? (
                           <Text style={[styles.proxyOccupantMeta, { color: theme.colors.textSecondary }]}>
-                            {[occupant.relationship, occupant.sex].filter(Boolean).join(' • ')}
+                            {[occupant?.relationship, occupant?.sex].filter(Boolean).join(' • ')}
                           </Text>
                         ) : null}
-                        {occupant.contact ? (
-                          <Text style={[styles.proxyOccupantMeta, { color: theme.colors.textSecondary }]}>{occupant.contact}</Text>
+                        {occupant?.contact ? (
+                          <Text style={[styles.proxyOccupantMeta, { color: theme.colors.textSecondary }]}>{occupant?.contact}</Text>
                         ) : null}
                       </View>
                     ))
@@ -2298,7 +2363,7 @@ export default function MyBookings() {
                   {/* Transfer section - separate row */}
                   <View style={{ marginTop: hasMoveOutNotice ? 8 : 12 }}>
                     <Text style={{ fontSize: 11, color: theme.colors.textTertiary, marginBottom: 8 }}>
-                      Transfers this month: {monthlyTransferCount}/{transferLimit}
+                      Limit: {monthlyTransferCount}/{transferLimit}
                       {transferLimitReached ? ` (available again in ${daysUntilTransferReset} day${daysUntilTransferReset === 1 ? '' : 's'})` : ''}
                     </Text>
                     {pendingTransferForBooking ? (
@@ -2679,9 +2744,9 @@ export default function MyBookings() {
                   <Text style={[styles.historyItemDate, { color: theme.colors.textSecondary }]}>
                     {formatDate(booking.period?.startDate || booking.start_date)} - {formatDate(booking.period?.endDate || booking.end_date)}
                   </Text>
-                  <View style={[styles.statusBadge, styles.historyItemBadge, { backgroundColor: `${getStatusColor(booking.isOverdue || booking.is_overdue ? 'overdue' : booking.status)}15` }]}>
-                    <Text style={[styles.statusText, { color: getStatusColor(booking.isOverdue || booking.is_overdue ? 'overdue' : booking.status), fontSize: 10 }]}>
-                      {booking.isOverdue || booking.is_overdue ? 'Overdue' : getStatusLabel(booking.status)}
+                  <View style={[styles.statusBadge, styles.historyItemBadge, { backgroundColor: `${getStatusColor(booking?.isOverdue || booking?.is_overdue ? 'overdue' : booking?.status)}15` }]}>
+                    <Text style={[styles.statusText, { color: getStatusColor(booking?.isOverdue || booking?.is_overdue ? 'overdue' : booking?.status), fontSize: 10 }]}>
+                      {booking?.isOverdue || booking?.is_overdue ? 'Overdue' : getStatusLabel(booking?.status)}
                     </Text>
                   </View>
                 </View>
@@ -3217,16 +3282,29 @@ export default function MyBookings() {
                 Select New Room
               </Text>
               <View style={{ gap: 8 }}>
-                {transferRoomOptions.map((roomOption) => {
-                  const selected = Number(selectedTransferRoomId) === Number(roomOption.id);
-                  const roomNumber = roomOption.room_number || roomOption.roomNumber || roomOption.id;
-                  const roomType = roomOption.type_label || roomOption.room_type || 'Room';
-                  const roomPrice = roomOption.monthly_rate ?? roomOption.price ?? null;
+                {(Array.isArray(transferRoomOptions) ? transferRoomOptions : []).map((roomOption, index) => {
+                  if (!roomOption || typeof roomOption !== 'object') return null;
+
+                  const selected = Number(selectedTransferRoomId) === Number(roomOption?.id);
+                  const roomNumberSource = roomOption?.room_number ?? roomOption?.roomNumber ?? roomOption?.id;
+                  const roomNumber = roomNumberSource === null || roomNumberSource === undefined || String(roomNumberSource).trim() === ''
+                    ? 'N/A'
+                    : String(roomNumberSource);
+                  const roomTypeSource = roomOption?.type_label ?? roomOption?.room_type ?? 'Room';
+                  const roomType = roomTypeSource === null || roomTypeSource === undefined || String(roomTypeSource).trim() === ''
+                    ? 'Room'
+                    : String(roomTypeSource);
+                  const isDaily = roomOption?.billing_policy === 'daily';
+                  const roomPrice = toNumberOrNull(isDaily ? (roomOption?.daily_rate ?? roomOption?.unit_price) : (roomOption?.monthly_rate ?? roomOption?.price ?? roomOption?.unit_price));
+                  const optionKey = roomOption?.id ?? `transfer-room-${index}`;
 
                   return (
                     <TouchableOpacity
-                      key={roomOption.id}
-                      onPress={() => setSelectedTransferRoomId(roomOption.id)}
+                      key={optionKey}
+                      onPress={() => {
+                        if (roomOption?.id === null || roomOption?.id === undefined) return;
+                        setSelectedTransferRoomId(roomOption.id);
+                      }}
                       style={{
                         borderWidth: 1,
                         borderColor: selected ? theme.colors.primary : theme.colors.border,
@@ -3240,9 +3318,9 @@ export default function MyBookings() {
                         <Text style={{ fontSize: 14, fontWeight: '700', color: theme.colors.text }}>
                           Room {roomNumber}
                         </Text>
-                        {roomPrice != null && (
+                        {roomPrice !== null && (
                           <Text style={{ fontSize: 13, fontWeight: '700', color: theme.colors.primary }}>
-                            {formatCurrency(roomPrice)}/mo
+                            {formatCurrency(roomPrice)}{isDaily ? '/day' : '/mo'}
                           </Text>
                         )}
                       </View>
@@ -3325,10 +3403,10 @@ export default function MyBookings() {
 
                     {showNewEndDatePicker && (
                       <DateTimePicker
-                        value={newEndDate || new Date(new Date().getTime() + 86400000)}
+                        value={newEndDate || tomorrow}
                         mode="date"
                         display="default"
-                        minimumDate={new Date(new Date().getTime() + 86400000)}
+                        minimumDate={tomorrow}
                         onChange={(event, selectedDate) => {
                           if (Platform.OS !== 'ios') {
                             setShowNewEndDatePicker(false);
@@ -3389,21 +3467,21 @@ export default function MyBookings() {
                       <View style={{ flex: 1, alignItems: 'center' }}>
                         <Text style={{ fontSize: 10, color: theme.colors.textTertiary, textTransform: 'uppercase' }}>Current</Text>
                         <Text style={{ fontSize: 14, fontWeight: '700', color: theme.colors.text }}>
-                          {formatCurrency(transferPreview.current_room_rate)}/mo
+                          {formatCurrency(transferPreview?.current_room_rate ?? 0)}{transferPreview?.current_room_billing_policy === 'daily' ? '/day' : '/mo'}
                         </Text>
                       </View>
                       <Text style={{ fontSize: 18, color: theme.colors.textTertiary, alignSelf: 'center', paddingHorizontal: 8 }}>→</Text>
                       <View style={{ flex: 1, alignItems: 'center' }}>
                         <Text style={{ fontSize: 10, color: theme.colors.textTertiary, textTransform: 'uppercase' }}>New</Text>
                         <Text style={{ fontSize: 14, fontWeight: '700', color: theme.colors.primary }}>
-                          {formatCurrency(transferPreview.new_room_rate)}/mo
+                          {formatCurrency(transferPreview?.new_room_rate ?? 0)}{transferPreview?.new_room_billing_policy === 'daily' ? '/day' : '/mo'}
                         </Text>
                       </View>
                     </View>
 
                     {/* Breakdown */}
                     <View style={{ padding: 12, gap: 6 }}>
-                      {!transferPreview.has_payment_this_period ? (
+                      {!transferPreview?.has_payment_this_period ? (
                         <View style={{
                           padding: 10, borderRadius: 8,
                           backgroundColor: theme.isDark ? 'rgba(59,130,246,0.15)' : '#EFF6FF',
@@ -3422,7 +3500,7 @@ export default function MyBookings() {
                               Remaining days this cycle
                             </Text>
                             <Text style={{ fontSize: 12, fontWeight: '600', color: theme.colors.text }}>
-                              {transferPreview.remaining_days} days
+                              {transferPreview?.remaining_days ?? 0} days
                             </Text>
                           </View>
                           <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
@@ -3430,7 +3508,7 @@ export default function MyBookings() {
                               Old room unused value
                             </Text>
                             <Text style={{ fontSize: 12, fontWeight: '600', color: theme.colors.text }}>
-                              {formatCurrency(transferPreview.old_room_unused_value)}
+                              {formatCurrency(transferPreview?.old_room_unused_value ?? 0)}
                             </Text>
                           </View>
                           <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
@@ -3438,15 +3516,15 @@ export default function MyBookings() {
                               New room cost (remaining days)
                             </Text>
                             <Text style={{ fontSize: 12, fontWeight: '600', color: theme.colors.text }}>
-                              {formatCurrency(transferPreview.new_room_cost)}
+                              {formatCurrency(transferPreview?.new_room_cost ?? 0)}
                             </Text>
                           </View>
                           <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                             <Text style={{ fontSize: 12, color: theme.colors.textSecondary }}>
                               Transfer Processing Fee
                             </Text>
-                            <Text style={{ fontSize: 12, fontWeight: '600', color: theme.colors.danger }}>
-                              - {formatCurrency(transferPreview.transfer_fee)}
+                            <Text style={{ fontSize: 12, fontWeight: '600', color: theme.colors.error }}>
+                              - {formatCurrency(transferPreview?.transfer_fee ?? 0)}
                             </Text>
                           </View>
                           <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
@@ -3454,7 +3532,7 @@ export default function MyBookings() {
                               Net Credit
                             </Text>
                             <Text style={{ fontSize: 12, fontWeight: '700', color: '#10B981' }}>
-                              {formatCurrency(transferPreview.credit_available)}
+                              {formatCurrency(transferPreview?.credit_available ?? 0)}
                             </Text>
                           </View>
                           <View style={{
@@ -3463,26 +3541,26 @@ export default function MyBookings() {
                             borderTopWidth: 1,
                             borderTopColor: theme.colors.border,
                           }}>
-                            {transferPreview.suggested_adjustment > 0 ? (
+                            {(transferPreview?.suggested_adjustment ?? 0) > 0 ? (
                               <View style={{
                                 padding: 10, borderRadius: 8,
                                 backgroundColor: theme.isDark ? 'rgba(245,158,11,0.12)' : '#FFFBEB',
                               }}>
                                 <Text style={{ fontSize: 12, fontWeight: '700', color: '#D97706' }}>
-                                  ⚠️ Estimated Additional Charge: {formatCurrency(transferPreview.suggested_adjustment)}
+                                  ⚠️ Estimated Additional Charge: {formatCurrency(transferPreview?.suggested_adjustment ?? 0)}
                                 </Text>
                                 <Text style={{ fontSize: 11, color: '#B45309', marginTop: 2 }}>
                                   (To be paid in your next invoice)
                                 </Text>
                               </View>
-                            ) : transferPreview.suggested_adjustment < 0 ? (
+                            ) : (transferPreview?.suggested_adjustment ?? 0) < 0 ? (
                               <View style={{
                                 marginTop: 8,
                                 borderTopWidth: 1,
                                 borderTopColor: theme.colors.border,
                                 paddingTop: 8,
                               }}>
-                                {transferPreview.force_wallet_refunds ? (
+                                {transferPreview?.force_wallet_refunds ? (
                                   <View style={{
                                     padding: 10, borderRadius: 8,
                                     backgroundColor: theme.isDark ? 'rgba(16,185,129,0.12)' : '#ECFDF5',
@@ -3494,7 +3572,7 @@ export default function MyBookings() {
                                       </Text>
                                     </View>
                                     <Text style={{ fontSize: 11, color: '#047857' }}>
-                                      The excess amount of {formatCurrency(Math.abs(transferPreview.suggested_adjustment))} will be automatically credited to your tenant wallet upon approval.
+                                      The excess amount of {formatCurrency(Math.abs(transferPreview?.suggested_adjustment ?? 0))} will be automatically credited to your tenant wallet upon approval.
                                     </Text>
                                   </View>
                                 ) : (

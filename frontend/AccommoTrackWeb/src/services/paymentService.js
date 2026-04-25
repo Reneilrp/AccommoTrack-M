@@ -1,4 +1,4 @@
-import api from '../utils/api';
+import api, { normalizePaginatedResponse } from '../utils/api';
 
 export const paymentService = {
     /**
@@ -14,29 +14,10 @@ export const paymentService = {
             const response = await api.get('/tenant/payments', { params });
             const payload = response.data;
 
-            // Normalize paginated response
-            if (payload && payload.data && Array.isArray(payload.data)) {
-                return {
-                    success: true,
-                    data: {
-                        items: payload.data,
-                        pagination: {
-                            currentPage: payload.current_page,
-                            lastPage: payload.last_page,
-                            perPage: payload.per_page,
-                            total: payload.total,
-                            hasMorePages: payload.current_page < payload.last_page
-                        }
-                    }
-                };
-            }
-
+            const normalized = normalizePaginatedResponse(payload);
             return {
                 success: true,
-                data: {
-                    items: Array.isArray(payload) ? payload : (payload?.data || []),
-                    pagination: null
-                }
+                data: normalized
             };
         } catch (error) {
             console.error('Error fetching payments:', error);
@@ -193,28 +174,10 @@ export const paymentService = {
             const response = await api.get(`/tenant/wallet-credit/logs?page=${page}`);
             const payload = response.data;
 
-            if (payload && payload.data && Array.isArray(payload.data)) {
-                return {
-                    success: true,
-                    data: {
-                        items: payload.data,
-                        pagination: {
-                            currentPage: payload.current_page,
-                            lastPage: payload.last_page,
-                            perPage: payload.per_page,
-                            total: payload.total,
-                            hasMorePages: payload.current_page < payload.last_page
-                        }
-                    }
-                };
-            }
-
+            const normalized = normalizePaginatedResponse(payload);
             return {
                 success: true,
-                data: {
-                    items: Array.isArray(payload) ? payload : (payload?.data || []),
-                    pagination: null
-                }
+                data: normalized
             };
         } catch (error) {
             console.error('Error fetching wallet logs:', error);

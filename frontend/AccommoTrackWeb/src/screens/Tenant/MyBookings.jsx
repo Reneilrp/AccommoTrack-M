@@ -46,6 +46,7 @@ import {
 } from 'lucide-react';
 import ReportModal from '../../components/Modals/ReportModal';
 import MaintenanceRequestModal from '../../components/Modals/MaintenanceRequestModal';
+import TransferModal from './components/Bookings/TransferModal';
 import ReservationPolicyNotice from './components/ReservationPolicyNotice';
 
 const MyBookings = () => {
@@ -457,6 +458,10 @@ const MyBookings = () => {
                 setMaintenanceBookingId(id);
                 setShowMaintenanceModal(true);
               }}
+              onReschedule={(id) => {
+                setReschedulingBookingId(id);
+                setShowRescheduleModal(true);
+              }}
               navigate={navigate}
             />
           )}
@@ -507,12 +512,15 @@ const MyBookings = () => {
 
       {/* Transfer Request Modal */}
       {showTransferModal && currentSelectedStay && (
-        <TransferRequestModal
-          booking={currentSelectedStay.booking}
-          property={currentSelectedStay.property}
+        <TransferModal
+          isOpen={showTransferModal}
+          booking={{
+            ...currentSelectedStay.booking,
+            property_id: currentSelectedStay.property?.id
+          }}
           onClose={() => setShowTransferModal(false)}
           onSubmit={handleRequestTransfer}
-          loading={requestingTransfer}
+          isSubmitting={requestingTransfer}
         />
       )}
 
@@ -681,7 +689,7 @@ const MyBookings = () => {
 };
 
 // ==================== Current Stay Tab ====================
-const CurrentStayTab = ({ stays = [], selectedBookingId = null, onSelectBookingId, pendingBookings = [], pendingCheckIns = [], upcomingBooking = null, onRequestAddon, onCancelAddon, onCancelBooking, onRequestExtension, onRequestTransfer, onRequestMoveOut, pendingTransferBookingIds = [], pendingTransferRequests = [], onCancelTransferRequest, cancellingTransferRequestId = null, monthlyTransferCount = 0, isCancelling, onReview, onReport, onRequestMaintenance, navigate }) => {
+const CurrentStayTab = ({ stays = [], selectedBookingId = null, onSelectBookingId, pendingBookings = [], pendingCheckIns = [], upcomingBooking = null, onRequestAddon, onCancelAddon, onCancelBooking, onRequestExtension, onRequestTransfer, onRequestMoveOut, onReschedule, pendingTransferBookingIds = [], pendingTransferRequests = [], onCancelTransferRequest, cancellingTransferRequestId = null, monthlyTransferCount = 0, isCancelling, onReview, onReport, onRequestMaintenance, navigate }) => {
   const ALMOST_PAY_TIME_DAYS = 5;
   const OPEN_INVOICE_STATUSES = new Set(['pending', 'partial', 'overdue', 'unpaid']);
   const SETTLED_INVOICE_STATUSES = new Set(['paid', 'settled', 'succeeded', 'verified', 'completed']);
@@ -1232,8 +1240,7 @@ const CurrentStayTab = ({ stays = [], selectedBookingId = null, onSelectBookingI
                       {isOverduePending && (
                         <button
                           onClick={() => {
-                            setReschedulingBookingId(pb.id);
-                            setShowRescheduleModal(true);
+                            onReschedule(pb.id);
                           }}
                           className="bg-red-600 hover:bg-red-700 text-white px-4 py-2.5 rounded-lg text-xs font-bold shadow-sm transition-all"
                         >
@@ -1469,39 +1476,47 @@ const CurrentStayTab = ({ stays = [], selectedBookingId = null, onSelectBookingI
                       )}
 
                       <div className="mt-6 pt-6 border-t border-gray-100 dark:border-gray-700">
-                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                          <p className="text-sm text-gray-500 dark:text-gray-400 flex items-center gap-2">
-                            <span className="font-bold dark:text-gray-300">Lease:</span>
-                            {formatDate(booking?.startDate)} to {booking?.endDate ? formatDate(booking.endDate) : 'Open-ended'}
-                            <span className="bg-gray-100 dark:bg-gray-700 px-2 py-2 rounded text-[10px] font-bold uppercase ml-2">
-                              {booking?.totalMonths || 0} {Number(booking?.totalMonths || 0) === 1 ? 'month' : 'months'}
-                            </span>
-                          </p>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
+                          {/* Left Column: Lease Info */}
+                          <div className="flex flex-col gap-1">
+                            <div className="flex items-center gap-2">
+                              <Calendar className="w-4 h-4 text-gray-400" />
+                              <p className="text-sm text-gray-600 dark:text-gray-300">
+                                <span className="font-bold text-gray-900 dark:text-white mr-1">Lease:</span>
+                                {formatDate(booking?.startDate)} to {booking?.endDate ? formatDate(booking.endDate) : 'Open-ended'}
+                                <span className="text-gray-400 dark:text-gray-500 font-medium ml-1">
+                                  : {booking?.totalMonths || 0} {Number(booking?.totalMonths || 0) === 1 ? 'month' : 'months'}
+                                </span>
+                              </p>
+                            </div>
+                          </div>
 
-                          <div className="flex flex-col items-start md:items-end gap-2">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              {/* Extend Stay button — only if expiring within 30 days */}
-                              {(() => {
-                                const hasNotice = !!(booking.notice_given_at || booking.noticeGivenAt);
-                                if (hasNotice) return null;
-                                const contractMode = String(booking?.contract_mode || booking?.contractMode || '').toLowerCase();
-                                const isOpenEndedMonthly = contractMode === 'monthly' && !booking?.endDate;
-                                if (isOpenEndedMonthly || !booking?.endDate) return null;
-                                const end = new Date(booking.endDate);
-                                const today = new Date();
-                                const daysLeft = Math.ceil((end - today) / (1000 * 60 * 60 * 24));
-                                if (daysLeft > 30) return null;
-                                return (
-                                  <button
-                                    onClick={onRequestExtension}
-                                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-bold shadow-md shadow-blue-500/20 transition-all active:scale-95"
-                                  >
-                                    <CalendarDays className="w-4 h-4" />
-                                    Extend Stay
-                                  </button>
-                                );
-                              })()}
+                          {/* Right Column: Action Buttons */}
+                          <div className="flex flex-col md:items-end gap-3 w-full">
+                            {/* Top Row: Extend Stay */}
+                            {(() => {
+                              const hasNotice = !!(booking.notice_given_at || booking.noticeGivenAt);
+                              if (hasNotice) return null;
+                              const contractMode = String(booking?.contract_mode || booking?.contractMode || '').toLowerCase();
+                              const isOpenEndedMonthly = contractMode === 'monthly' && !booking?.endDate;
+                              if (isOpenEndedMonthly || !booking?.endDate) return null;
+                              const end = new Date(booking.endDate);
+                              const today = new Date();
+                              const daysLeft = Math.ceil((end - today) / (1000 * 60 * 60 * 24));
+                              if (daysLeft > 30) return null;
+                              return (
+                                <button
+                                  onClick={onRequestExtension}
+                                  className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-bold shadow-md shadow-blue-500/20 transition-all active:scale-95"
+                                >
+                                  <CalendarDays className="w-4 h-4" />
+                                  Extend Stay
+                                </button>
+                              );
+                            })()}
 
+                            {/* Bottom Row: Transfer & Move-out */}
+                            <div className="flex flex-wrap items-start justify-end gap-3 w-full">
                               {/* Transfer button */}
                               {(() => {
                                 const isPendingForThisBooking = booking?.id ? pendingTransferBookingIds.includes(booking.id) : false;
@@ -1527,40 +1542,43 @@ const CurrentStayTab = ({ stays = [], selectedBookingId = null, onSelectBookingI
                                   buttonTitle = `Transfer limit reached for this property. Try again in ${daysUntilTransferReset} day${daysUntilTransferReset === 1 ? '' : 's'}.`;
                                 }
                                 return (
-                                  <div className="flex flex-col gap-2">
+                                  <div className="flex flex-col gap-1 items-end">
                                     <div className="flex items-center gap-2">
-                                      <button
-                                        onClick={() => {
-                                          if (isPendingForThisBooking) return;
-                                          if (limitReached) {
-                                            showError(`Transfer limit reached for this property. You can request again in ${daysUntilTransferReset} day${daysUntilTransferReset === 1 ? '' : 's'}.`);
-                                            return;
-                                          }
-                                          onRequestTransfer?.();
-                                        }}
-                                        disabled={isPendingForThisBooking}
-                                        title={buttonTitle}
-                                        className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all ${isDisabled
-                                          ? 'bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed opacity-70'
-                                          : 'bg-amber-600 hover:bg-amber-700 text-white shadow-md shadow-amber-500/20 active:scale-95'
-                                          }`}
-                                      >
-                                        <Shuffle className="w-4 h-4" />
-                                        {buttonText}
-                                      </button>
-                                      {pendingRequestForThisBooking && (
+                                      {!pendingRequestForThisBooking ? (
+                                        <button
+                                          onClick={() => {
+                                            if (limitReached) {
+                                              showError(`Transfer limit reached for this property. You can request again in ${daysUntilTransferReset} day${daysUntilTransferReset === 1 ? '' : 's'}.`);
+                                              return;
+                                            }
+                                            onRequestTransfer?.();
+                                          }}
+                                          disabled={limitReached}
+                                          title={buttonTitle}
+                                          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all ${limitReached
+                                            ? 'bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed opacity-70'
+                                            : 'bg-amber-600 hover:bg-amber-700 text-white shadow-md shadow-amber-500/20 active:scale-95'
+                                            }`}
+                                        >
+                                          <Shuffle className="w-4 h-4" />
+                                          {buttonText}
+                                        </button>
+                                      ) : (
                                         <button
                                           onClick={() => onCancelTransferRequest?.(pendingRequestForThisBooking.id)}
                                           disabled={cancellingTransferRequestId === pendingRequestForThisBooking.id}
-                                          className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                                          className="flex items-center gap-2 px-4 py-2.5 bg-red-100 hover:bg-red-200 text-red-600 dark:bg-red-900/30 dark:hover:bg-red-900/50 dark:text-red-400 rounded-xl text-sm font-bold transition-all active:scale-95"
                                           title="Cancel pending transfer request"
                                         >
-                                          {cancellingTransferRequestId === pendingRequestForThisBooking.id ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                                          {cancellingTransferRequestId === pendingRequestForThisBooking.id && (
+                                            <RefreshCw className="w-4 h-4 animate-spin" />
+                                          )}
+                                          Cancel Transfer
                                         </button>
                                       )}
                                     </div>
-                                    <p className="text-[10px] text-gray-500 dark:text-gray-400 font-medium px-1">
-                                      Transfers this month: <span className="font-bold">{monthlyTransferCount}/{transferLimit}</span>
+                                    <p className="text-[10px] text-gray-400 dark:text-gray-500 font-medium px-1">
+                                      Limit: {monthlyTransferCount}/{transferLimit}
                                     </p>
                                   </div>
                                 );
@@ -1588,7 +1606,7 @@ const CurrentStayTab = ({ stays = [], selectedBookingId = null, onSelectBookingI
                                     onClick={() => onRequestMoveOut?.()}
                                     disabled={!isCurrentMonthPaid}
                                     title={!isCurrentMonthPaid ? 'Move-out is available only when current month status is Paid.' : ''}
-                                    className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold shadow-md transition-all active:scale-95 ${!isCurrentMonthPaid
+                                    className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold shadow-md transition-all active:scale-95 ${!isCurrentMonthPaid
                                       ? 'bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed shadow-none'
                                       : 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-indigo-500/20'
                                       }`}
@@ -1598,17 +1616,17 @@ const CurrentStayTab = ({ stays = [], selectedBookingId = null, onSelectBookingI
                                   </button>
                                 );
                               })()}
-                            </div>
 
-                            {!!(booking.notice_given_at || booking.noticeGivenAt) && (
-                              <div
-                                title="Move-out notice already submitted."
-                                className="bg-teal-100 dark:bg-teal-900/30 text-teal-700 dark:text-teal-400 px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-2"
-                              >
-                                <DoorOpen className="w-4 h-4" />
-                                Notice Submitted
-                              </div>
-                            )}
+                              {!!(booking.notice_given_at || booking.noticeGivenAt) && (
+                                <div
+                                  title="Move-out notice already submitted."
+                                  className="bg-teal-100 dark:bg-teal-900/30 text-teal-700 dark:text-teal-400 px-4 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2"
+                                >
+                                  <DoorOpen className="w-4 h-4" />
+                                  Notice Submitted
+                                </div>
+                              )}
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -2809,351 +2827,6 @@ const MoveOutModal = ({ booking, onClose, onSubmit, loading }) => {
             {loading ? <RefreshCw className="w-5 h-5 animate-spin mx-auto" /> : 'Submit Move-out Request'}
           </button>
         </form>
-      </div>
-    </div>
-  );
-};
-
-const TransferRequestModal = ({ booking, property, onClose, onSubmit, loading }) => {
-  const [availableRooms, setAvailableRooms] = useState([]);
-  const [loadingRooms, setLoadingRooms] = useState(true);
-  const [roomsMessage, setRoomsMessage] = useState('');
-  const [leaseDurationPreference, setLeaseDurationPreference] = useState('keep_current');
-  const [newEndDate, setNewEndDate] = useState('');
-  const [transferPreview, setTransferPreview] = useState(null);
-  const [loadingPreview, setLoadingPreview] = useState(false);
-  const [refundPreference, setRefundPreference] = useState('wallet');
-  const [formData, setFormData] = useState({
-    requested_room_id: '',
-    reason: '',
-    booking_id: booking?.id || '',
-    property_id: property?.id || '',
-  });
-
-  useEffect(() => {
-    if (!formData.requested_room_id || !booking?.id) {
-      setTransferPreview(null);
-      return;
-    }
-
-    let cancelled = false;
-    const fetchPreview = async () => {
-      setLoadingPreview(true);
-      try {
-        const res = await api.get('/tenant/transfers/preview', {
-          params: {
-            booking_id: booking.id,
-            requested_room_id: formData.requested_room_id,
-          }
-        });
-        if (!cancelled) {
-          setTransferPreview(res.data?.success ? res.data.data : null);
-        }
-      } catch (err) {
-        console.error('Failed to fetch transfer preview', err);
-        if (!cancelled) setTransferPreview(null);
-      } finally {
-        if (!cancelled) setLoadingPreview(false);
-      }
-    };
-
-    fetchPreview();
-    return () => { cancelled = true; };
-  }, [formData.requested_room_id, booking?.id]);
-
-  useEffect(() => {
-    setFormData((prev) => ({
-      ...prev,
-      booking_id: booking?.id || '',
-      property_id: property?.id || '',
-    }));
-  }, [booking?.id, property?.id]);
-
-  useEffect(() => {
-    const fetchRooms = async () => {
-      setLoadingRooms(true);
-      setRoomsMessage('');
-      try {
-        const res = await api.get('/tenant/transfers/options', {
-          params: {
-            property_id: property.id,
-            booking_id: booking.id,
-          }
-        });
-        const list = Array.isArray(res.data?.data) ? res.data.data : (Array.isArray(res.data) ? res.data : []);
-        setAvailableRooms(list.filter(r => r.id !== booking.room_id));
-        if (list.length === 0 && res.data?.message) {
-          setRoomsMessage(res.data.message);
-        }
-      } catch (err) {
-        console.error('Failed to load rooms for transfer', err);
-        setAvailableRooms([]);
-        setRoomsMessage(err.response?.data?.message || 'Unable to load transfer room options right now.');
-      } finally {
-        setLoadingRooms(false);
-      }
-    };
-    fetchRooms();
-  }, [property.id, booking.id, booking.room_id]);
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    if (!formData.requested_room_id || !formData.reason || !formData.booking_id || !formData.property_id) {
-      showError('Please select a room and provide a reason');
-      return;
-    }
-    if (leaseDurationPreference === 'new_lease' && !newEndDate) {
-      showError('Please select a new lease end date');
-      return;
-    }
-
-    onSubmit({
-      ...formData,
-      new_end_date: leaseDurationPreference === 'new_lease' ? newEndDate : null,
-      refund_preference: refundPreference
-    });
-  };
-
-  return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-white dark:bg-gray-800 rounded-xl max-w-md w-full border border-gray-100 dark:border-gray-700 shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
-        <div className="p-6 border-b border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/30 shrink-0">
-          <div className="flex justify-between items-center">
-            <h3 className="text-xl font-bold text-gray-900 dark:text-white uppercase tracking-tight">Request Room Transfer</h3>
-            <button onClick={onClose} className="p-2.5 hover:bg-gray-100 dark:hover:bg-gray-600 rounded-full transition-colors">
-              <X className="w-6 h-6 text-gray-500" />
-            </button>
-          </div>
-        </div>
-
-        <div className="p-6 overflow-y-auto space-y-6 flex-1 scrollbar-thin scrollbar-thumb-gray-200 dark:scrollbar-thumb-gray-700">
-          <form id="transfer-form" onSubmit={handleSubmit} className="space-y-6">
-            <div className="p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-100 dark:border-amber-800 rounded-lg text-sm text-amber-800 dark:text-amber-300">
-              Requesting a transfer from your current room in <strong>{property.title}</strong>.
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Select New Room *</label>
-              <select
-                required
-                className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-4 focus:ring-2 focus:ring-amber-500 outline-none dark:bg-gray-700 dark:text-white"
-                value={formData.requested_room_id}
-                onChange={e => setFormData({ ...formData, requested_room_id: e.target.value })}
-                disabled={loadingRooms}
-              >
-                <option value="">{loadingRooms ? 'Loading available rooms...' : 'Select a Room'}</option>
-                {availableRooms.map(r => (
-                  <option key={r.id} value={r.id}>
-                    Room {r.room_number} ({r.type_label}) — ₱{(r.monthly_rate ?? r.price ?? 0).toLocaleString()}/mo
-                  </option>
-                ))}
-              </select>
-              {availableRooms.length === 0 && !loadingRooms && (
-                <p className="text-[10px] text-red-500 mt-2 font-bold italic">{roomsMessage || 'No eligible transfer rooms are available in this property right now.'}</p>
-              )}
-            </div>
-
-            {/* Financial Impact Preview */}
-            <div className="space-y-3">
-              <div className="flex items-center gap-2">
-                <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">💰 Financial Impact Preview</label>
-                <div className="group relative">
-                  <HelpCircle className="w-3.5 h-3.5 text-amber-500 cursor-help" />
-                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-2 bg-gray-900 text-white text-[10px] rounded shadow-xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
-                    Rent is prorated based on the actual number of days in your billing cycle. Any transfer fee is deducted from your unused credit.
-                  </div>
-                </div>
-              </div>
-
-              {loadingPreview ? (
-                <div className="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl text-center">
-                  <RefreshCw className="w-4 h-4 animate-spin mx-auto text-amber-500 mb-2" />
-                  <p className="text-xs text-gray-500 dark:text-gray-400">Calculating impact...</p>
-                </div>
-              ) : transferPreview ? (
-                <div className={`rounded-xl border overflow-hidden transition-all ${transferPreview.suggested_adjustment > 0 ? 'border-amber-200 dark:border-amber-800' :
-                  transferPreview.suggested_adjustment < 0 ? 'border-green-200 dark:border-green-800' : 'border-gray-200 dark:border-gray-700'
-                  }`}>
-                  <div className="grid grid-cols-2 bg-gray-50 dark:bg-gray-700/50 divide-x divide-gray-200 dark:divide-gray-600">
-                    <div className="p-3 text-center">
-                      <p className="text-[10px] text-gray-500 dark:text-gray-400 uppercase font-bold">Current Rate</p>
-                      <p className="text-sm font-bold text-gray-700 dark:text-gray-300">₱{transferPreview.current_room_rate.toLocaleString()}/mo</p>
-                    </div>
-                    <div className="p-3 text-center">
-                      <p className="text-[10px] text-gray-500 dark:text-gray-400 uppercase font-bold">New Rate</p>
-                      <p className="text-sm font-bold text-amber-600 dark:text-amber-400">₱{transferPreview.new_room_rate.toLocaleString()}/mo</p>
-                    </div>
-                  </div>
-
-                  <div className="p-4 space-y-2 bg-white dark:bg-gray-800">
-                    {!transferPreview.has_payment_this_period ? (
-                      <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-                        <p className="text-xs text-blue-700 dark:text-blue-300 font-medium">ℹ️ No payment found for current period.</p>
-                        <p className="text-[10px] text-blue-600 dark:text-blue-400 mt-1">Next invoice will reflect the new room rate. No immediate charge.</p>
-                      </div>
-                    ) : (
-                      <>
-                        <div className="flex justify-between text-xs">
-                          <span className="text-gray-500">Remaining days this cycle</span>
-                          <span className="font-bold">{transferPreview.remaining_days} days</span>
-                        </div>
-                        <div className="flex justify-between text-xs">
-                          <span className="text-gray-500">Old room unused value</span>
-                          <span className="font-bold">₱{transferPreview.old_room_unused_value.toLocaleString()}</span>
-                        </div>
-                        <div className="flex justify-between text-xs">
-                          <span className="text-gray-500">New room cost (rem. days)</span>
-                          <span className="font-bold">₱{transferPreview.new_room_cost.toLocaleString()}</span>
-                        </div>
-
-                        <div className="pt-2 mt-2 border-t border-gray-100 dark:border-gray-700 flex justify-between items-center">
-                          <span className="text-xs font-bold uppercase text-gray-400">Net Adjustment</span>
-                          <div className="text-right">
-                            <p className={`text-base font-black ${transferPreview.suggested_adjustment > 0 ? 'text-amber-600' : 'text-green-600'
-                              }`}>
-                              ₱{Math.abs(transferPreview.suggested_adjustment).toLocaleString()}
-                            </p>
-                            <p className="text-[10px] text-gray-400 font-medium">
-                              {transferPreview.suggested_adjustment > 0 ? 'Additional charge (to be paid)' : 'Excess credit applied'}
-                            </p>
-                          </div>
-                        </div>
-
-                        {/* Refund Preference Selection */}
-                        {transferPreview.suggested_adjustment < 0 && (
-                          <div className="pt-3 mt-3 border-t border-gray-100 dark:border-gray-700">
-                            {transferPreview.force_wallet_refunds ? (
-                              <div className="p-3 bg-green-50 dark:bg-green-900/20 border border-green-100 dark:border-green-800 rounded-lg">
-                                <p className="text-xs font-semibold text-green-800 dark:text-green-300">
-                                  ℹ️ Wallet Credits
-                                </p>
-                                <p className="text-[10px] text-green-700 dark:text-green-400 mt-1">
-                                  The excess amount of ₱{Math.abs(transferPreview.suggested_adjustment).toLocaleString()} will be automatically credited to your tenant wallet upon landlord approval.
-                                </p>
-                              </div>
-                            ) : (
-                              <div>
-                                <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Excess Credit Preference *</label>
-                                <div className="space-y-2">
-                                  <label className="flex items-start gap-3 p-3 border border-gray-200 dark:border-gray-700 rounded-xl cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 transition" onClick={() => setRefundPreference('wallet')}>
-                                    <input
-                                      type="radio"
-                                      name="refundPreference"
-                                      value="wallet"
-                                      checked={refundPreference === 'wallet'}
-                                      onChange={() => setRefundPreference('wallet')}
-                                      className="mt-0.5"
-                                    />
-                                    <div>
-                                      <p className="text-sm font-semibold text-gray-800 dark:text-gray-200">Convert to Wallet Credits</p>
-                                      <p className="text-xs text-gray-500">Fastest. Use for future payments.</p>
-                                    </div>
-                                  </label>
-                                  <label className="flex items-start gap-3 p-3 border border-gray-200 dark:border-gray-700 rounded-xl cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 transition" onClick={() => setRefundPreference('cash')}>
-                                    <input
-                                      type="radio"
-                                      name="refundPreference"
-                                      value="cash"
-                                      checked={refundPreference === 'cash'}
-                                      onChange={() => setRefundPreference('cash')}
-                                      className="mt-0.5"
-                                    />
-                                    <div>
-                                      <p className="text-sm font-semibold text-gray-800 dark:text-gray-200">Manual Cash Refund</p>
-                                      <p className="text-xs text-gray-500">Requires landlord coordination to receive the cash payout.</p>
-                                    </div>
-                                  </label>
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        )}
-                      </>
-                    )}
-                  </div>
-                </div>
-              ) : formData.requested_room_id ? (
-                <div className="p-4 bg-red-50 dark:bg-red-900/20 rounded-xl text-center">
-                  <p className="text-xs text-red-600 dark:text-red-400">Unable to calculate preview for this room.</p>
-                </div>
-              ) : null}
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Lease Duration *</label>
-              <div className="flex bg-gray-100 dark:bg-gray-900/50 p-2 rounded-xl border border-gray-300 dark:border-gray-700">
-                <button
-                  type="button"
-                  onClick={() => setLeaseDurationPreference('keep_current')}
-                  className={`flex-1 py-3 text-xs font-bold rounded-lg transition-all ${leaseDurationPreference === 'keep_current' ? 'bg-white dark:bg-gray-700 text-amber-600 shadow-sm border border-gray-200 dark:border-gray-600' : 'text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-800'}`}
-                >
-                  Keep Current End Date
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setLeaseDurationPreference('new_lease')}
-                  className={`flex-1 py-3 text-xs font-bold rounded-lg transition-all ${leaseDurationPreference === 'new_lease' ? 'bg-white dark:bg-gray-700 text-amber-600 shadow-sm border border-gray-200 dark:border-gray-600' : 'text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-800'}`}
-                >
-                  Start New Lease
-                </button>
-              </div>
-
-              {leaseDurationPreference === 'new_lease' && (
-                <div className="mt-4 animate-in fade-in slide-in-from-top-2">
-                  <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Select New End Date *</label>
-                  <input
-                    type="date"
-                    required
-                    min={new Date(new Date().getTime() + 86400000).toISOString().split('T')[0]} // tomorrow
-                    value={newEndDate}
-                    onChange={(e) => setNewEndDate(e.target.value)}
-                    className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-4 focus:ring-2 focus:ring-amber-500 outline-none dark:bg-gray-700 dark:text-white"
-                  />
-                  <p className="text-[10px] text-gray-500 mt-2 font-medium">Pick a specific check-out date for your new room.</p>
-                </div>
-              )}
-
-              {leaseDurationPreference === 'keep_current' && (
-                <div className="mt-4 animate-in fade-in slide-in-from-top-2 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-100 dark:border-amber-800 rounded-lg">
-                  <p className="text-xs font-semibold text-amber-800 dark:text-amber-300">
-                    ℹ️ Inheriting existing anniversary cycle
-                  </p>
-                  <p className="text-[10px] text-amber-700 dark:text-amber-400 mt-1">
-                    Your current billing schedule and lease terms will carry over seamlessly to the new room.
-                  </p>
-                </div>
-              )}
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Reason for Transfer *</label>
-              <textarea
-                required
-                className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-4 focus:ring-2 focus:ring-amber-500 outline-none dark:bg-gray-700 dark:text-white h-24 resize-none text-sm"
-                value={formData.reason}
-                onChange={e => setFormData({ ...formData, reason: e.target.value })}
-                placeholder="e.g., I need a room with a better view, or my roommate is too loud..."
-              />
-            </div>
-          </form>
-        </div>
-
-        <div className="p-6 border-t border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/30 shrink-0">
-          <button
-            type="submit"
-            form="transfer-form"
-            disabled={loading || availableRooms.length === 0}
-            className="w-full py-4 bg-amber-600 hover:bg-amber-700 text-white rounded-xl font-bold shadow-lg shadow-amber-600/20 transition-all active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2"
-          >
-            {loading ? (
-              <RefreshCw className="w-5 h-5 animate-spin" />
-            ) : availableRooms.length === 0 ? (
-              'No Eligible Rooms Available'
-            ) : (
-              'Send Request'
-            )}
-          </button>
-        </div>
       </div>
     </div>
   );

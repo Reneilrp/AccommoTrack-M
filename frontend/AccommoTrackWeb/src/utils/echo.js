@@ -78,9 +78,10 @@ export const getEcho = () => {
               channel_name: channel.name,
             },
             {
-              headers: {
+            headers: {
                 "X-Client-Platform": "web",
                 Accept: "application/json",
+                ...(localStorage.getItem("authToken") ? { Authorization: `Bearer ${localStorage.getItem("authToken")}` } : {})
               },
             },
           );
