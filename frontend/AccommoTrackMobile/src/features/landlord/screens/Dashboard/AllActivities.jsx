@@ -40,6 +40,7 @@ const activityIconMap = {
   addon: 'sparkles-outline',
   report: 'clipboard-outline',
   transfer: 'swap-horizontal',
+  move_out: 'log-out-outline',
   default: 'notifications-outline'
 };
 
@@ -213,7 +214,8 @@ export default function AllActivities({ navigation, route }) {
     const tenantName = tenantNameMatch ? tenantNameMatch[1] : '';
 
     switch (type) {
-      case 'booking': {
+      case 'booking':
+      case 'move_out': {
         const params = {
           focusBookingId: entityId || null,
           drilldownToken: Date.now(),
@@ -255,6 +257,13 @@ export default function AllActivities({ navigation, route }) {
       case 'addon': {
         navigation.navigate('AddonManagement', {
           focusRequestId: entityId,
+          drilldownToken: Date.now(),
+        });
+        break;
+      }
+      case 'transfer': {
+        navigation.navigate('TransferRequests', {
+          focusTransferId: entityId || null,
           drilldownToken: Date.now(),
         });
         break;

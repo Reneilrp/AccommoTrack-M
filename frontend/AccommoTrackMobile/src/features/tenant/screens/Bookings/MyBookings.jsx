@@ -513,6 +513,12 @@ export default function MyBookings() {
   const [submittingMoveOut, setSubmittingMoveOut] = useState(false);
   const [openingRoomDetails, setOpeningRoomDetails] = useState(false);
   const [cancellingBookingId, setCancellingBookingId] = useState(null);
+  // Reschedule State
+  const [showRescheduleModal, setShowRescheduleModal] = useState(false);
+  const [reschedulingBookingId, setReschedulingBookingId] = useState(null);
+  const [rescheduleDate, setRescheduleDate] = useState(new Date());
+  const [showReschedulePicker, setShowReschedulePicker] = useState(false);
+  const [isRescheduling, setIsRescheduling] = useState(false);
   const [pendingTransferRequests, setPendingTransferRequests] = useState([]);
   const [monthlyTransferCount, setMonthlyTransferCount] = useState(0);
   const [cancellingTransferRequestId, setCancellingTransferRequestId] = useState(null);
@@ -1328,6 +1334,24 @@ export default function MyBookings() {
     } else {
       showAlert('Unable to Cancel', result.error || 'Failed to cancel booking request.');
     }
+    setCancellingBookingId(null);
+  };
+
+  const handleReschedule = async () => {
+    if (!reschedulingBookingId) return;
+    setIsRescheduling(true);
+    const dateStr = rescheduleDate.toISOString().split('T')[0];
+    const result = await BookingService.rescheduleBooking(reschedulingBookingId, dateStr);
+    setIsRescheduling(false);
+
+    if (result.success) {
+      showAlert('Success', 'Move-in date updated successfully.');
+      setShowRescheduleModal(false);
+      setReschedulingBookingId(null);
+      await refetchMyBookingsBundle();
+    } else {
+      showAlert('Error', result.error || 'Failed to update move-in date.');
+    }
 
     setCancellingBookingId(null);
   };
@@ -1676,7 +1700,9 @@ export default function MyBookings() {
     }
 
     // Normalize data for display
-    const isActuallyPending = viewMode === 'pending';
+    // In overdue mode without overdue active stays, currentData is a flat pending booking —
+    // treat it the same as the pending view so it gets the booking/room/property wrapper.
+    const isActuallyPending = viewMode === 'pending' || (viewMode === 'overdue' && !hasAvailableStays);
     const display = isActuallyPending ? {
       booking: {
         id: currentData?.id,
@@ -1697,6 +1723,8 @@ export default function MyBookings() {
         occupants: Array.isArray(currentData?.occupants) ? currentData.occupants : [],
         status: currentData?.status,
         paymentStatus: currentData?.status,
+        is_overdue: currentData?.is_overdue || currentData?.isOverdue || false,
+        isOverdue: currentData?.is_overdue || currentData?.isOverdue || false,
         daysStayed: 0,
         isPending: true
       },
@@ -1885,18 +1913,43 @@ export default function MyBookings() {
     };
 
     const renderPendingCard = (pb) => {
+      const isOverduePending = Boolean(pb?.is_overdue || pb?.isOverdue);
+      const startDate = pb?.start_date ? new Date(pb.start_date) : null;
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      if (startDate) startDate.setHours(0, 0, 0, 0);
+      const daysOverdue = startDate && startDate < today ? Math.round((today - startDate) / (1000 * 60 * 60 * 24)) : 0;
+
+      const cardBorderColor = isOverduePending ? theme.colors.error : '#F59E0B';
+      const accentColor = isOverduePending ? theme.colors.error : '#F59E0B';
+      const cardBg = isOverduePending
+        ? (theme.isDark ? 'rgba(239,68,68,0.1)' : '#FEF2F2')
+        : (theme.isDark ? 'rgba(245,158,11,0.1)' : '#FFFBEB');
+      const cardBorderInner = isOverduePending
+        ? (theme.isDark ? '#ef4444' : '#FEE2E2')
+        : (theme.isDark ? '#f59e0b' : '#FEF3C7');
+      const dividerColor = isOverduePending
+        ? (theme.isDark ? 'rgba(239,68,68,0.2)' : '#FEE2E2')
+        : (theme.isDark ? 'rgba(245,158,11,0.2)' : '#FEF3C7');
+
       return (
-        <View key={pb.id} style={[styles.bookingCard, { padding: 16, borderColor: '#F59E0B', borderWidth: 1 }]}>
+        <View key={pb.id} style={[styles.bookingCard, { padding: 16, borderColor: cardBorderColor, borderWidth: 1 }]}>
           <View style={{ alignItems: 'center', marginBottom: 12 }}>
-            <Ionicons name="time" size={48} color="#F59E0B" />
-            <Text style={[styles.emptyTitle, { fontSize: 18, marginTop: 8 }]}>Booking Pending</Text>
-            <Text style={[styles.emptyText, { marginBottom: 12 }]}>The landlord is reviewing your request.</Text>
+            <Ionicons name={isOverduePending ? 'alert-circle' : 'time'} size={48} color={accentColor} />
+            <Text style={[styles.emptyTitle, { fontSize: 18, marginTop: 8 }]}>
+              {isOverduePending ? 'Move-in Overdue' : 'Booking Pending'}
+            </Text>
+            <Text style={[styles.emptyText, { marginBottom: 12 }]}>
+              {isOverduePending
+                ? 'Your scheduled move-in date has passed. Please coordinate with the landlord.'
+                : 'The landlord is reviewing your request.'}
+            </Text>
           </View>
 
-          <View style={{ backgroundColor: theme.isDark ? 'rgba(245,158,11,0.1)' : '#FFFBEB', padding: 16, borderRadius: 12, marginBottom: 16, borderColor: theme.isDark ? '#f59e0b' : '#FEF3C7', borderWidth: 1 }}>
+          <View style={{ backgroundColor: cardBg, padding: 16, borderRadius: 12, marginBottom: 16, borderColor: cardBorderInner, borderWidth: 1 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
               <View style={{ backgroundColor: theme.colors.surface, padding: 8, borderRadius: 8 }}>
-                <Ionicons name="home" size={20} color="#F59E0B" />
+                <Ionicons name="home" size={20} color={accentColor} />
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={{ fontWeight: 'bold', fontSize: 15, color: theme.colors.text }}>{pb?.property_title || pb?.property?.title || 'Property'}</Text>
@@ -1904,14 +1957,19 @@ export default function MyBookings() {
                 <Text style={{ fontSize: 11, color: theme.colors.textSecondary, marginTop: 2 }}>
                   Move-in Date: {pb.start_date ? formatDate(pb.start_date) : 'Awaiting Approval'}
                 </Text>
+                {isOverduePending && daysOverdue > 0 && (
+                  <Text style={{ fontSize: 11, fontWeight: 'bold', color: theme.colors.error, marginTop: 4, textTransform: 'uppercase' }}>
+                    {daysOverdue} day{daysOverdue === 1 ? '' : 's'} overdue
+                  </Text>
+                )}
                 <View style={{ marginTop: 8 }}>
                   <ReservationPolicyNotice policy={pb?.reservation_policy} theme={theme} marginBottom={0} />
                 </View>
               </View>
             </View>
 
-            <View style={{ marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: theme.isDark ? 'rgba(245,158,11,0.2)' : '#FEF3C7', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
-              <View style={{ flex: 1 }}>  {/* <-- add flex: 1 so price doesn't bleed into button */}
+            <View style={{ marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: dividerColor, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
+              <View style={{ flex: 1 }}>
                 <Text style={{ fontSize: 10, fontWeight: 'bold', color: theme.colors.textTertiary, textTransform: 'uppercase' }}>
                   {pb?.billing_policy === 'daily' ? 'Daily' : 'Monthly'}
                 </Text>
@@ -1940,6 +1998,7 @@ export default function MyBookings() {
         </View>
       );
     };
+
 
     const translateX = tabs.length > 1
       ? slideAnim.interpolate({
@@ -4430,6 +4489,95 @@ export default function MyBookings() {
                 </Text>
               </TouchableOpacity>
             </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Reschedule Modal */}
+      <Modal
+        visible={showRescheduleModal}
+        animationType="slide"
+        transparent
+        statusBarTranslucent
+        navigationBarTranslucent
+        onRequestClose={() => setShowRescheduleModal(false)}
+      >
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' }}>
+          <View style={{ backgroundColor: theme.colors.surface, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, paddingBottom: 40 }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <Ionicons name="calendar-outline" size={24} color={theme.colors.primary} />
+                <Text style={{ fontSize: 18, fontWeight: '700', color: theme.colors.text }}>Update Move-in Date</Text>
+              </View>
+              <TouchableOpacity onPress={() => setShowRescheduleModal(false)} style={{ padding: 4 }}>
+                <Ionicons name="close" size={24} color={theme.colors.textSecondary} />
+              </TouchableOpacity>
+            </View>
+
+            <Text style={{ fontSize: 13, color: theme.colors.textSecondary, marginBottom: 24, lineHeight: 20 }}>
+              Your originally requested move-in date has passed. Please select a new date for your move-in.
+            </Text>
+
+            <View style={{ marginBottom: 24 }}>
+              <Text style={{ fontSize: 12, fontWeight: '700', color: theme.colors.textSecondary, marginBottom: 8, textTransform: 'uppercase' }}>
+                New Move-in Date
+              </Text>
+              {Platform.OS === 'ios' ? (
+                <DateTimePicker
+                  value={rescheduleDate}
+                  mode="date"
+                  display="spinner"
+                  minimumDate={new Date()}
+                  onChange={(_, selectedDate) => {
+                    if (selectedDate) setRescheduleDate(selectedDate);
+                  }}
+                  textColor={theme.colors.text}
+                  style={{ height: 120 }}
+                />
+              ) : (
+                <>
+                  <TouchableOpacity
+                    style={{
+                      flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+                      padding: 16, backgroundColor: theme.colors.backgroundSecondary,
+                      borderRadius: 12, borderWidth: 1, borderColor: theme.colors.border
+                    }}
+                    onPress={() => setShowReschedulePicker(true)}
+                  >
+                    <Text style={{ fontSize: 15, color: theme.colors.text, fontWeight: '600' }}>
+                      {rescheduleDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+                    </Text>
+                    <Ionicons name="calendar" size={20} color={theme.colors.primary} />
+                  </TouchableOpacity>
+                  {showReschedulePicker && (
+                    <DateTimePicker
+                      value={rescheduleDate}
+                      mode="date"
+                      display="default"
+                      minimumDate={new Date()}
+                      onChange={(_, selectedDate) => {
+                        setShowReschedulePicker(false);
+                        if (selectedDate) setRescheduleDate(selectedDate);
+                      }}
+                    />
+                  )}
+                </>
+              )}
+            </View>
+
+            <TouchableOpacity
+              style={{
+                backgroundColor: theme.colors.primary,
+                paddingVertical: 16, borderRadius: 12, alignItems: 'center',
+                opacity: isRescheduling ? 0.7 : 1
+              }}
+              disabled={isRescheduling}
+              onPress={handleReschedule}
+            >
+              <Text style={{ color: '#fff', fontSize: 15, fontWeight: 'bold' }}>
+                {isRescheduling ? 'Updating...' : 'Confirm Update'}
+              </Text>
+            </TouchableOpacity>
           </View>
         </View>
       </Modal>

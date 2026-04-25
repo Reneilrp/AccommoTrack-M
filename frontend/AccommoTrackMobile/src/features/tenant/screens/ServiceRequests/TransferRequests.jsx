@@ -52,12 +52,20 @@ const formatDateTime = (value) => {
   if (!value) return 'N/A';
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return 'N/A';
-  return date.toLocaleString();
+  
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  const h = String(date.getHours()).padStart(2, '0');
+  const min = String(date.getMinutes()).padStart(2, '0');
+  
+  return `${y}-${m}-${d} ${h}:${min}`;
 };
 
 const resolveRoomLabel = (room) => {
   if (!room) return 'N/A';
-  return room.room_number || room.roomNumber || room.name || `Room #${room.id}` || 'N/A';
+  const label = room.room_number || room.roomNumber || room.name || (room.id ? `Room #${room.id}` : '');
+  return label || 'N/A';
 };
 
 const resolvePropertyLabel = (request) => {
@@ -90,10 +98,12 @@ export default function TransferRequests({ hideHeader = false, historyOnly = fal
 
   const requests = transferRequestsQuery.data || [];
   const loading = transferRequestsQuery.isLoading;
+  const isError = transferRequestsQuery.isError;
+  const error = transferRequestsQuery.error;
   const refetchTransferRequests = transferRequestsQuery.refetch;
   const transferRefetchers = useMemo(() => [refetchTransferRequests], [refetchTransferRequests]);
 
-  useTenantFocusRefetch({ refetchers: transferRefetchers });
+  useTenantFocusRefetch({ enabled: !historyOnly, refetchers: transferRefetchers });
 
   const onRefresh = useTenantRefreshHandler({
     setRefreshing,
@@ -128,7 +138,7 @@ export default function TransferRequests({ hideHeader = false, historyOnly = fal
               showSuccess(result?.message || 'Transfer request cancelled.');
               await refetchTransferRequests();
             } else {
-              showError('Error', result?.error || 'Failed to cancel transfer request.');
+              showError('Error', result?.error || result?.message || 'Failed to cancel transfer request.');
             }
           } catch (_error) {
             showError('Error', 'Failed to cancel transfer request.');
@@ -144,6 +154,22 @@ export default function TransferRequests({ hideHeader = false, historyOnly = fal
     return (
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.colors.background }}>
         <ActivityIndicator size="large" color={theme.colors.primary} />
+      </View>
+    );
+  }
+
+  if (isError) {
+    return (
+      <View style={{ flex: 1, padding: 20, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.colors.background }}>
+        <Ionicons name="alert-circle-outline" size={48} color={theme.colors.error} />
+        <Text style={{ marginTop: 12, fontSize: 16, fontWeight: '600', color: theme.colors.text }}>Failed to load transfers</Text>
+        <Text style={{ marginTop: 4, fontSize: 14, color: theme.colors.textSecondary, textAlign: 'center' }}>{error?.message || 'Something went wrong'}</Text>
+        <TouchableOpacity 
+          onPress={() => refetchTransferRequests()}
+          style={{ marginTop: 20, backgroundColor: theme.colors.primary, paddingHorizontal: 20, paddingVertical: 10, borderRadius: 8 }}
+        >
+          <Text style={{ color: '#fff', fontWeight: '700' }}>Retry</Text>
+        </TouchableOpacity>
       </View>
     );
   }

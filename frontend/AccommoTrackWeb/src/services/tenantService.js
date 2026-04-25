@@ -159,6 +159,21 @@ export const tenantService = {
     },
 
     /**
+     * Reschedule a pending booking
+     */
+    async rescheduleBooking(bookingId, newStartDate) {
+        try {
+            const response = await api.patch(`/tenant/bookings/${bookingId}/reschedule`, {
+                start_date: newStartDate
+            });
+            return { success: true, data: response.data };
+        } catch (_err) {
+            console.error('Error rescheduling booking:', _err);
+            return { success: false, error: _err?.response?.data?.message || _err.message };
+        }
+    },
+
+    /**
      * Request move-out for an active stay.
      */
     async requestMoveOut(bookingId, moveOutDate, reason = '') {

@@ -314,18 +314,28 @@ export default function PaymentDetail() {
   const remainingBalance = React.useMemo(() => {
     if (!invoice) return 0;
 
-    const total = Number(invoice.amount_cents ?? invoice.amount ?? 0);
+    // Both amount_cents and amount might be present depending on API version.
+    // We normalize everything to Pesos for the UI.
+    const totalPesos = invoice.amount_cents 
+      ? Number(invoice.amount_cents) / 100 
+      : Number(invoice.amount ?? 0);
 
-    const paid = (invoice.transactions || [])
+    const paidPesos = (invoice.transactions || [])
       .filter((tx) => REFUND_SETTLED_STATUSES.has(String(tx?.status || '').toLowerCase()))
       .reduce((sum, tx) => {
-        const txAmount = Number(tx?.amount_cents ?? tx?.amount ?? 0);
-        const txRefunded = Number(tx?.refunded_amount_cents ?? tx?.refunded_amount ?? 0);
+        // If amount_cents is present, it's cents. If only amount is present, it's already pesos.
+        const txAmountPesos = tx.amount_cents 
+          ? Number(tx.amount_cents) / 100 
+          : Number(tx.amount ?? 0);
+          
+        const txRefundedPesos = tx.refunded_amount_cents 
+          ? Number(tx.refunded_amount_cents) / 100 
+          : Number(tx.refunded_amount ?? 0);
 
-        return sum + Math.max(0, txAmount - txRefunded);
+        return sum + Math.max(0, txAmountPesos - txRefundedPesos);
       }, 0);
 
-    return Math.max(0, total - paid);
+    return Math.max(0, totalPesos - paidPesos);
   }, [invoice]);
 
   useEffect(() => {
@@ -491,8 +501,9 @@ export default function PaymentDetail() {
 
     try {
       setIsPaying(true);
+      const amountCents = Math.round(amountToPay * 100);
       const formData = new FormData();
-      formData.append("amount_cents", String(amountToPay));
+      formData.append("amount_cents", String(amountCents));
       formData.append("method", method);
 
       if (offlineDetails.reference.trim()) {
@@ -554,7 +565,7 @@ export default function PaymentDetail() {
       return;
     }
 
-    const amountCents = amountToPay;
+    const amountCents = Math.round(amountToPay * 100);
 
     try {
       setIsPaying(true);
@@ -684,7 +695,7 @@ export default function PaymentDetail() {
             <Text style={styles.cardSectionTitle}>Bill Breakdown</Text>
             <View style={styles.infoRow}>
               <Text style={styles.infoRowLabel}>Base Amount</Text>
-              <Text style={styles.infoRowValue}>{formatPrice(invoice.subtotal_cents ?? invoice.amount_cents ?? invoice.amount ?? 0)}</Text>
+              <Text style={styles.infoRowValue}>{formatPrice(invoice.total_cents ?? invoice.amount_cents ?? (invoice.amount ? invoice.amount * 100 : 0), { isCents: true })}</Text>
             </View>
             
             {addonTotalCents > 0 && addonLines.map((line) => (
@@ -692,7 +703,7 @@ export default function PaymentDetail() {
                 <Text style={styles.infoRowLabel}>
                   {line.name}{line.quantity > 1 ? ` x ${line.quantity}` : ''}
                 </Text>
-                <Text style={styles.infoRowValue}>{formatPrice(line.amountCents)}</Text>
+                <Text style={styles.infoRowValue}>{formatPrice(line.amountCents, { isCents: true })}</Text>
               </View>
             ))}
 
@@ -701,7 +712,7 @@ export default function PaymentDetail() {
             <View style={styles.infoRow}>
               <Text style={[styles.infoRowLabel, { fontWeight: '700', color: theme.colors.text }]}>Total Bill</Text>
               <Text style={[styles.infoRowValue, { fontSize: 16, color: theme.colors.primary }]}>
-                {formatPrice(invoice.total_cents ?? invoice.amount_cents ?? invoice.amount ?? 0)}
+                {formatPrice(invoice.total_cents ?? invoice.amount_cents ?? (invoice.amount ? invoice.amount * 100 : 0), { isCents: true })}
               </Text>
             </View>
           </View>
@@ -740,13 +751,13 @@ export default function PaymentDetail() {
                 </View>
                 <View style={styles.refundStatRow}>
                   <Text style={styles.refundStatLabel}>Prorated Amount</Text>
-                  <Text style={styles.refundStatValue}>{formatPrice( ( (invoice.transactions?.filter(t => (t.amount_cents || t.amount || 0) > 0 && REFUND_ELIGIBLE_STATUSES.includes(String(t.status || '').toLowerCase())).reduce((sum, t) => sum + (t.amount_cents || t.amount || 0), 0) || 0) * stayProgress.refundableUnits) / stayProgress.totalUnits )}</Text>
+                  <Text style={styles.refundStatValue}>{formatPrice( ( (invoice.transactions?.filter(t => (t.amount_cents || t.amount || 0) > 0 && REFUND_ELIGIBLE_STATUSES.includes(String(t.status || '').toLowerCase())).reduce((sum, t) => sum + (t.amount_cents || t.amount || 0), 0) || 0) * stayProgress.refundableUnits) / stayProgress.totalUnits, { isCents: true } )}</Text>
                 </View>
                 <View style={[styles.separator, { marginVertical: 8, backgroundColor: 'rgba(126,34,206,0.1)' }]} />
                 <View style={styles.refundStatRow}>
                   <Text style={[styles.refundStatLabel, { fontWeight: '800', color: theme.colors.text }]}>Net Refunded</Text>
                   <Text style={[styles.refundStatValue, { fontSize: 15, color: theme.colors.purple }]}>
-                    {formatPrice(invoice.transactions?.reduce((s, t) => s + (t.refunded_amount_cents || t.refunded_amount || 0), 0))}
+                    {formatPrice(invoice.transactions?.reduce((s, t) => s + (t.refunded_amount_cents || (t.refunded_amount ? t.refunded_amount * 100 : 0) || 0), 0), { isCents: true })}
                   </Text>
                 </View>
               </View>

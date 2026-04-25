@@ -108,8 +108,14 @@ api.get = function (url, config = {}) {
  * Handles both new { items, pagination } and legacy { data, current_page, ... } formats.
  */
 export const normalizePaginatedResponse = (response) => {
-  const rawData = response?.data ?? response ?? {};
+  let rawData = response?.data ?? response ?? {};
   
+  // 0. Handle wrapped response format { success, data: { items, pagination } } 
+  // or { success, data: { data: [...], current_page: ... } }
+  if (rawData.success === true && rawData.data && typeof rawData.data === 'object' && !Array.isArray(rawData.data)) {
+    rawData = rawData.data;
+  }
+
   // 1. If it's already in the unified format { items: [...], pagination: {...} }
   if (rawData.items && rawData.pagination && Array.isArray(rawData.items)) {
     return {

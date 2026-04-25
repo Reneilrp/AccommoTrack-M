@@ -85,6 +85,7 @@ const activityIconMap = {
   invoice: 'cash-outline',
   maintenance: 'construct-outline',
   transfer: 'swap-horizontal',
+  move_out: 'log-out-outline',
   default: 'notifications-outline'
 };
 
@@ -502,7 +503,8 @@ export default function LandlordDashboard({ navigation, user: initialUser, onLog
     };
 
     switch (type) {
-      case 'booking': {
+      case 'booking':
+      case 'move_out': {
         if (!ensureActivityAccess('bookings', 'Bookings')) return;
 
         const params = {

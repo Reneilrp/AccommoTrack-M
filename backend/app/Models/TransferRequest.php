@@ -24,6 +24,7 @@ class TransferRequest extends Model
         'credit_amount',
         'credit_calculation',
         'quoted_transfer_fee',
+        'refund_preference',
     ];
 
     protected $casts = [

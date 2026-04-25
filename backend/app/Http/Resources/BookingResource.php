@@ -74,9 +74,7 @@ class BookingResource extends JsonResource
             'unit_price' => $resolvedUnitPrice,
             'billing_policy' => $this->room?->billing_policy ?? 'monthly',
             'status' => $this->status,
-            'is_overdue' => $this->end_date
-                ? now()->gt($this->end_date) && ! in_array($this->status, ['completed', 'cancelled'])
-                : false,
+            'is_overdue' => $this->resolveIsOverdue(),
             'paymentStatus' => $this->payment_status,
             'payment_status' => $this->payment_status,
             'paymentPlan' => $this->payment_plan,
@@ -168,6 +166,28 @@ class BookingResource extends JsonResource
                 'phone' => $this->landlord->phone,
             ]),
         ];
+    }
+
+    private function resolveIsOverdue(): bool
+    {
+        $terminalStatuses = ['completed', 'cancelled', 'rejected'];
+
+        if (in_array($this->status, $terminalStatuses)) {
+            return false;
+        }
+
+        // Active/confirmed stays whose end_date has passed
+        if ($this->end_date && now()->gt($this->end_date)) {
+            return true;
+        }
+
+        // Pending bookings whose move-in date (start_date) has passed without check-in
+        $pendingStatuses = ['pending', 'pending_reservation', 'reserved', 'booked', 'payment_pending'];
+        if (in_array($this->status, $pendingStatuses) && $this->start_date && now()->gt($this->start_date)) {
+            return true;
+        }
+
+        return false;
     }
 
     private function buildReservationPolicy(): ?array

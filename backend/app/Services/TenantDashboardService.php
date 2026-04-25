@@ -181,6 +181,9 @@ class TenantDashboardService
                 } elseif (in_array($status, ['cancelled', 'rejected'], true)) {
                     $action = 'Booking cancelled';
                     $color = 'red';
+                } elseif ($status === 'transferred') {
+                    $action = 'Room transferred';
+                    $color = 'blue';
                 }
 
                 return [
@@ -247,6 +250,9 @@ class TenantDashboardService
                 } elseif ($status === 'paid') {
                     $action = 'Payment confirmed';
                     $color = 'green';
+                } elseif ($status === 'deferred') {
+                    $action = 'Payment deferred';
+                    $color = 'gray';
                 }
 
                 return [
@@ -637,7 +643,7 @@ class TenantDashboardService
                 // Bookings that are strictly in the past
                 $query->where('end_date', '<', now())
                       // OR bookings that were cancelled, rejected, or explicitly marked as completed
-                    ->orWhereIn('status', ['cancelled', 'rejected', 'completed', 'partial-completed', 'refunded']);
+                    ->orWhereIn('status', ['cancelled', 'rejected', 'completed', 'partial-completed', 'refunded', 'transferred']);
             })
             ->with(['room', 'property', 'landlord', 'addons' => fn ($q) => $q->wherePivotIn('status', ['active', 'completed']), 'payments', 'invoices.transactions', 'review'])
             ->orderBy('created_at', 'desc')

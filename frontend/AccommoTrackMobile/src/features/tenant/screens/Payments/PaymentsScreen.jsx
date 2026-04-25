@@ -415,6 +415,8 @@ export default function PaymentsScreen() {
       case 'failed':
       case 'cancelled':
         return '#EF4444';
+      case 'deferred':
+        return '#6B7280';
       default:
         return theme.colors.textSecondary;
     }

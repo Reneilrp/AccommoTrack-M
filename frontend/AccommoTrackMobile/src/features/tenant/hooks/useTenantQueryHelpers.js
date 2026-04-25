@@ -56,6 +56,8 @@ export const tenantQueryKeys = {
 };
 
 export const refetchTenantQueries = async (refetchers = []) => {
+  if (!Array.isArray(refetchers)) return;
+  
   const tasks = refetchers
     .filter((refetch) => typeof refetch === 'function')
     .map((refetch) => refetch());
@@ -64,6 +66,9 @@ export const refetchTenantQueries = async (refetchers = []) => {
 };
 
 export const useTenantFocusRefetch = ({ enabled = true, refetchers = [] }) => {
+  // useFocusEffect requires the component to be rendered inside a React Navigation
+  // screen. When enabled=false (e.g. the component is embedded as a tab), skip
+  // the focus subscription entirely to prevent a crash.
   useFocusEffect(
     useCallback(() => {
       if (!enabled) return;

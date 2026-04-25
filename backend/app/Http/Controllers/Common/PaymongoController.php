@@ -232,7 +232,7 @@ class PaymongoController extends Controller
         }
 
         if (isset($validated['amount'])) {
-            $requestedAmountCents = $validated['amount'];
+            $requestedAmountCents = (int) round($validated['amount'] * 100);
             if ($requestedAmountCents > $remainingBalanceCents) {
                 return response()->json([
                     'message' => 'Payment amount cannot exceed the remaining balance of ₱'.number_format($remainingBalanceCents / 100, 2),
@@ -287,7 +287,7 @@ class PaymongoController extends Controller
             $payload = [
                 'data' => [
                     'attributes' => [
-                        'amount' => (int) round($amountToPayCents * 100),
+                        'amount' => (int) $amountToPayCents,
                         'currency' => strtoupper($invoice->currency ?? 'PHP'),
                         'type' => $method,
                         'redirect' => [

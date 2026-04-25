@@ -71,6 +71,19 @@ class BookingService {
     }
   }
 
+  async rescheduleBooking(bookingId, start_date) {
+    try {
+      const response = await api.patch(
+        `/tenant/bookings/${bookingId}/reschedule`,
+        { start_date }
+      );
+      return normalizeResponse(response);
+    } catch (error) {
+      console.error('Error rescheduling booking:', error.response?.data || error.message);
+      return normalizeError(error);
+    }
+  }
+
   async requestMoveOut(bookingId, data = {}) {
     try {
       const response = await api.patch(

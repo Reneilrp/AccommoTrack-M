@@ -383,11 +383,15 @@ class TransferController extends Controller
     {
         $tenantId = Auth::id();
         $requests = TransferRequest::where('tenant_id', $tenantId)
-            ->with(['currentRoom', 'requestedRoom.property'])
+            ->with(['currentRoom', 'requestedRoom.property', 'booking.property'])
             ->orderBy('created_at', 'desc')
             ->get();
 
-        return response()->json($requests);
+        return response()->json([
+            'success' => true,
+            'data' => $requests,
+            'message' => 'Transfer requests fetched successfully.'
+        ]);
     }
 
     public function cancel($id)
@@ -401,6 +405,9 @@ class TransferController extends Controller
 
         $request->update(['status' => 'cancelled']);
 
-        return response()->json(['message' => 'Request cancelled successfully.']);
+        return response()->json([
+            'success' => true,
+            'message' => 'Request cancelled successfully.'
+        ]);
     }
 }

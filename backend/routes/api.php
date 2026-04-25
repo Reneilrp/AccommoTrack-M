@@ -168,6 +168,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
         Route::get('/bookings', [TenantBookingController::class, 'index']);
         Route::get('/bookings/{id}', [TenantBookingController::class, 'show']);
+        Route::patch('/bookings/{id}/reschedule', [TenantBookingController::class, 'reschedule']);
         Route::post('/bookings/{id}/invoice', [TenantBookingController::class, 'createInvoice']);
         Route::get('/payments', [TenantPaymentController::class, 'index']);
         Route::get('/payments/stats', [TenantPaymentController::class, 'getStats']);

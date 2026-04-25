@@ -681,4 +681,102 @@ class TenantBookingController extends Controller
             ], 500);
         }
     }
+
+    /**
+     * Reschedule an overdue pending booking to a new move-in date
+     * PATCH /api/tenant/bookings/{id}/reschedule
+     */
+    public function reschedule(Request $request, $id)
+    {
+        $validated = $request->validate([
+            'start_date' => 'required|date|after_or_equal:today',
+        ]);
+
+        DB::beginTransaction();
+        try {
+            $booking = Booking::with('room')
+                ->where('tenant_id', Auth::id())
+                ->findOrFail($id);
+
+            // Only allow rescheduling for pending bookings
+            if ($booking->status !== 'pending') {
+                DB::rollBack();
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Only pending bookings can be rescheduled.',
+                ], 422);
+            }
+
+            // Check if the room is still available for the new date
+            $room = $booking->room;
+            if (!$room || !$room->isAvailable() || $room->available_slots <= 0) {
+                DB::rollBack();
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Sorry, this room is no longer available. It may have been fully booked.',
+                ], 400);
+            }
+
+            $newStartDate = Carbon::parse($validated['start_date'])->startOfDay();
+            
+            // Recalculate end_date if original booking had one
+            if ($booking->start_date && $booking->end_date) {
+                $oldStartDate = Carbon::parse($booking->start_date)->startOfDay();
+                $oldEndDate = Carbon::parse($booking->end_date)->startOfDay();
+                
+                if ($oldEndDate->gt($oldStartDate)) {
+                    $diffInDays = $oldStartDate->diffInDays($oldEndDate);
+                    $newEndDate = $newStartDate->copy()->addDays($diffInDays);
+                    $booking->end_date = $newEndDate->toDateString();
+                }
+            }
+
+            $oldStatus = $booking->status;
+            $booking->start_date = $newStartDate->toDateString();
+            $booking->save();
+
+            app(AuditLogService::class)->bookingEvent('booking.rescheduled', [
+                'subject_type' => 'booking',
+                'subject_id' => $booking->id,
+                'booking_id' => $booking->id,
+                'property_id' => $booking->property_id,
+                'tenant_id' => $booking->tenant_id,
+                'landlord_id' => $booking->landlord_id,
+                'status_before' => $oldStatus,
+                'status_after' => $booking->status,
+                'summary' => 'Booking move-in date rescheduled by tenant.',
+                'metadata' => [
+                    'new_start_date' => $booking->start_date,
+                    'new_end_date' => $booking->end_date,
+                ],
+            ]);
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'data' => (new BookingResource($booking))->resolve(),
+                'message' => 'Move-in date updated successfully.',
+            ], 200);
+
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => 'Booking not found.',
+            ], 404);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Tenant reschedule booking failed', [
+                'booking_id' => $id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to reschedule booking.',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
 }

@@ -30,69 +30,74 @@ class TenantPaymentController extends Controller
                 $query->where('is_archived', true);
             } elseif ($request->query('archive_filter') === 'active') {
                 $query->where('is_archived', false)
-                    ->whereNotIn('status', ['cancelled', 'voided']);
+                    ->whereNotIn('status', ['cancelled', 'voided', 'deferred']);
             }
 
             $invoices = $query->orderBy('created_at', 'desc')
-                ->get()
-                ->map(function ($invoice) {
-                    $propertyName = $invoice->property->title ?? ($invoice->booking->property->title ?? 'N/A');
-                    $roomNumber = $invoice->booking->room->room_number ?? 'N/A';
+                ->paginate($request->query('per_page', 15));
 
-                    // Use the latest transaction for method/reference info
-                    $lastTx = $invoice->transactions->where('status', 'succeeded')->last();
+            $invoices->getCollection()->transform(function ($invoice) {
+                $propertyName = $invoice->property->title ?? ($invoice->booking->property->title ?? 'N/A');
+                $roomNumber = $invoice->booking->room->room_number ?? 'N/A';
 
-                    $totalCents = $invoice->total_cents ?? $invoice->amount_cents;
-                    $paidCents = $invoice->transactions
-                        ->whereIn('status', ['succeeded', 'paid', 'partially_refunded'])
-                        ->sum(function ($tx) {
-                            return $tx->amount_cents - ($tx->refunded_amount_cents ?? 0);
-                        });
-                    $remainingCents = max(0, $totalCents - $paidCents);
+                $lastTx = $invoice->transactions->where('status', 'succeeded')->last();
 
-                    return [
-                        'id' => $invoice->id,
-                        'invoiceId' => $invoice->id,
-                        'invoice_id' => $invoice->id,
-                        'invoiceNo' => $invoice->invoice_number,
-                        'invoiceNumber' => $invoice->invoice_number,
-                        'bookingId' => $invoice->booking_id,
-                        'booking_id' => $invoice->booking_id,
-                        'propertyName' => $propertyName,
-                        'roomNumber' => $roomNumber,
-                        'amount' => (float) ($totalCents / 100),
-                        'remainingBalance' => (float) ($remainingCents / 100),
-                        'date' => $invoice->issued_at ?: $invoice->created_at,
-                        'due_date' => $invoice->due_date,
-                        'dueDate' => $invoice->due_date,
-                        'status' => match ($invoice->status) {
-                            'pending_verification' => 'Awaiting Verification',
-                            'paid' => 'Paid',
-                            'partial' => 'Partially Paid',
-                            'overdue' => 'Overdue',
-                            'cancelled' => 'Cancelled',
-                            'refunded' => 'Refunded',
-                            default => ucfirst($invoice->status)
-                        },
-                        'statusRaw' => $invoice->status,
-                        'is_archived' => (bool) $invoice->is_archived,
-                        'method' => $lastTx ? ucfirst(str_replace('paymongo_', '', $lastTx->method)) : 'N/A',
-                        'referenceNo' => $lastTx->gateway_reference ?? ($invoice->reference ?? 'N/A'),
-                        'transactions' => $invoice->transactions->map(function ($tx) {
-                            return [
-                                'id' => $tx->id,
-                                'amount' => (float) ($tx->amount_cents / 100),
-                                'status' => $tx->status,
-                                'method' => $tx->method,
-                                'date' => $tx->created_at,
-                            ];
-                        }),
-                    ];
-                });
+                $totalCents = $invoice->total_cents ?? $invoice->amount_cents;
+                $paidCents = $invoice->transactions
+                    ->whereIn('status', ['succeeded', 'paid', 'partially_refunded'])
+                    ->sum(function ($tx) {
+                        return $tx->amount_cents - ($tx->refunded_amount_cents ?? 0);
+                    });
+                $remainingCents = max(0, $totalCents - $paidCents);
 
-            return response()->json($invoices, 200);
+                return [
+                    'id' => $invoice->id,
+                    'invoiceId' => $invoice->id,
+                    'invoice_id' => $invoice->id,
+                    'invoiceNo' => $invoice->invoice_number,
+                    'invoiceNumber' => $invoice->invoice_number,
+                    'bookingId' => $invoice->booking_id,
+                    'booking_id' => $invoice->booking_id,
+                    'propertyName' => $propertyName,
+                    'roomNumber' => $roomNumber,
+                    'amount' => (float) ($totalCents / 100),
+                    'remainingBalance' => (float) ($remainingCents / 100),
+                    'date' => $invoice->issued_at ?: $invoice->created_at,
+                    'due_date' => $invoice->due_date,
+                    'dueDate' => $invoice->due_date,
+                    'status' => match ($invoice->status) {
+                        'pending_verification' => 'Awaiting Verification',
+                        'paid' => 'Paid',
+                        'partial' => 'Partially Paid',
+                        'overdue' => 'Overdue',
+                        'cancelled' => 'Cancelled',
+                        'refunded' => 'Refunded',
+                        default => ucfirst($invoice->status)
+                    },
+                    'statusRaw' => $invoice->status,
+                    'is_archived' => (bool) $invoice->is_archived,
+                    'method' => $lastTx ? ucfirst(str_replace('paymongo_', '', $lastTx->method)) : 'N/A',
+                    'referenceNo' => $lastTx->gateway_reference ?? ($invoice->reference ?? 'N/A'),
+                    'transactions' => $invoice->transactions->map(function ($tx) {
+                        return [
+                            'id' => $tx->id,
+                            'amount' => (float) ($tx->amount_cents / 100),
+                            'status' => $tx->status,
+                            'method' => $tx->method,
+                            'date' => $tx->created_at,
+                        ];
+                    }),
+                ];
+            });
+
+            return response()->json([
+                'success' => true,
+                'data' => $invoices,
+                'message' => ''
+            ], 200);
         } catch (\Exception $e) {
             return response()->json([
+                'success' => false,
                 'message' => 'Failed to fetch payment history',
                 'error' => $e->getMessage(),
             ], 500);
@@ -149,14 +154,19 @@ class TenantPaymentController extends Controller
             $totalCreditsCents = \App\Models\TenantCredit::getBalance($tenantId);
 
             return response()->json([
-                'totalPaidThisMonth' => (float) ($totalPaidThisMonthCents / 100),
-                'paidCount' => $paidCount,
-                'nextDueDate' => $nextDueInvoice ? $nextDueInvoice->due_date->toIso8601String() : null,
-                'pendingAmount' => (float) ($pendingAmountCents / 100),
-                'totalCredits' => (float) ($totalCreditsCents / 100),
+                'success' => true,
+                'data' => [
+                    'totalPaidThisMonth' => (float) ($totalPaidThisMonthCents / 100),
+                    'paidCount' => $paidCount,
+                    'nextDueDate' => $nextDueInvoice ? $nextDueInvoice->due_date->toIso8601String() : null,
+                    'pendingAmount' => (float) ($pendingAmountCents / 100),
+                    'totalCredits' => (float) ($totalCreditsCents / 100),
+                ],
+                'message' => ''
             ], 200);
         } catch (\Exception $e) {
             return response()->json([
+                'success' => false,
                 'message' => 'Failed to fetch payment stats',
                 'error' => $e->getMessage(),
             ], 500);
@@ -173,9 +183,14 @@ class TenantPaymentController extends Controller
                 ->where('tenant_id', Auth::id())
                 ->findOrFail($id);
 
-            return response()->json($invoice, 200);
+            return response()->json([
+                'success' => true,
+                'data' => $invoice,
+                'message' => ''
+            ], 200);
         } catch (\Exception $e) {
             return response()->json([
+                'success' => false,
                 'message' => 'Invoice not found',
                 'error' => $e->getMessage(),
             ], 404);
@@ -292,11 +307,16 @@ class TenantPaymentController extends Controller
             ])
                 ->where('tenant_id', $tenantId)
                 ->orderBy('created_at', 'desc')
-                ->paginate(20);
+                ->paginate($request->query('per_page', 20));
 
-            return response()->json($logs, 200);
+            return response()->json([
+                'success' => true,
+                'data' => $logs,
+                'message' => ''
+            ], 200);
         } catch (\Exception $e) {
             return response()->json([
+                'success' => false,
                 'message' => 'Failed to fetch wallet logs',
                 'error' => $e->getMessage(),
             ], 500);

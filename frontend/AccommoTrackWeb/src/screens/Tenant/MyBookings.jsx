@@ -254,6 +254,29 @@ const MyBookings = () => {
   const [showMaintenanceModal, setShowMaintenanceModal] = useState(false);
   const [maintenanceBookingId, setMaintenanceBookingId] = useState('');
 
+  // Reschedule State
+  const [showRescheduleModal, setShowRescheduleModal] = useState(false);
+  const [reschedulingBookingId, setReschedulingBookingId] = useState(null);
+  const [rescheduleDate, setRescheduleDate] = useState('');
+  const [isRescheduling, setIsRescheduling] = useState(false);
+
+  const handleReschedule = async () => {
+    if (!rescheduleDate || !reschedulingBookingId) return;
+    setIsRescheduling(true);
+    const result = await tenantService.rescheduleBooking(reschedulingBookingId, rescheduleDate);
+    setIsRescheduling(false);
+    if (result.success) {
+      showSuccess('Move-in date updated successfully.');
+      setShowRescheduleModal(false);
+      setRescheduleDate('');
+      setReschedulingBookingId(null);
+      invalidateTenantStayCache();
+      fetchData();
+    } else {
+      showError(result.error || 'Failed to update move-in date.');
+    }
+  };
+
   const loadMoreHistory = useCallback(() => {
     if (history?.pagination && history.pagination.currentPage < history.pagination.lastPage && !historyFetching) {
       setHistoryPage(prev => prev + 1);
@@ -500,6 +523,54 @@ const MyBookings = () => {
           onSubmit={handleRequestMoveOut}
           loading={requestingMoveOut}
         />
+      )}
+
+      {showRescheduleModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl w-full max-w-md overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
+            <div className="flex justify-between items-center p-6 border-b border-gray-200 dark:border-gray-700">
+              <h2 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                <Calendar className="w-6 h-6 text-indigo-600 dark:text-indigo-400" />
+                Update Move-in Date
+              </h2>
+              <button onClick={() => setShowRescheduleModal(false)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-6 overflow-y-auto">
+              <p className="text-sm text-gray-600 dark:text-gray-300 mb-6">
+                Your originally requested move-in date has passed. Please select a new date for your move-in.
+              </p>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">New Move-in Date</label>
+                <input
+                  type="date"
+                  min={new Date().toISOString().split('T')[0]}
+                  value={rescheduleDate}
+                  onChange={(e) => setRescheduleDate(e.target.value)}
+                  className="w-full bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded-xl px-4 py-3 focus:ring-2 focus:ring-indigo-500 transition-shadow outline-none"
+                />
+              </div>
+            </div>
+            <div className="p-6 border-t border-gray-200 dark:border-gray-700 flex gap-4">
+              <button
+                type="button"
+                onClick={() => setShowRescheduleModal(false)}
+                className="flex-1 py-3 px-4 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-xl font-bold hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={!rescheduleDate || isRescheduling}
+                onClick={handleReschedule}
+                className="flex-1 py-3 px-4 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 disabled:opacity-50 transition-colors shadow-md shadow-indigo-600/20 flex items-center justify-center"
+              >
+                {isRescheduling ? <RefreshCw className="w-5 h-5 animate-spin" /> : 'Confirm Update'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Addon Request Modal */}
@@ -1095,17 +1166,29 @@ const CurrentStayTab = ({ stays = [], selectedBookingId = null, onSelectBookingI
               : `${pendingOccupantCount} Occupant${pendingOccupantCount === 1 ? '' : 's'}`;
             const pendingOccupants = resolveOccupantProfiles(pb);
             const isProxyPending = String(pb?.booking_mode || pb?.bookingMode || '').toLowerCase() === 'proxy';
+            const isOverduePending = Boolean(pb?.is_overdue || pb?.isOverdue);
+            const daysOverdue = startDate && startDate < now ? Math.round((now - startDate) / (1000 * 60 * 60 * 24)) : 0;
 
             return (
-              <div key={pb.id} className="py-8 bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-300 dark:border-gray-700 px-4">
-                <Clock className="w-12 h-12 text-amber-500 mx-auto mb-4 animate-pulse" />
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2 text-center">Booking Pending</h3>
-                <p className="text-sm text-gray-500 dark:text-gray-400 mb-6 text-center">The landlord is reviewing your request.</p>
+              <div key={pb.id} className={`py-8 bg-white dark:bg-gray-800 rounded-xl shadow-md border px-4 ${isOverduePending ? 'border-red-300 dark:border-red-800' : 'border-gray-300 dark:border-gray-700'}`}>
+                {isOverduePending ? (
+                  <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4 animate-pulse" />
+                ) : (
+                  <Clock className="w-12 h-12 text-amber-500 mx-auto mb-4 animate-pulse" />
+                )}
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2 text-center">
+                  {isOverduePending ? 'Move-in Overdue' : 'Booking Pending'}
+                </h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mb-6 text-center">
+                  {isOverduePending
+                    ? 'Your scheduled move-in date has passed. Please coordinate with the landlord.'
+                    : 'The landlord is reviewing your request.'}
+                </p>
 
-                <div className="bg-amber-50 dark:bg-amber-900/10 text-amber-800 dark:text-amber-400 p-6 rounded-2xl border border-amber-100 dark:border-amber-900/20 shadow-sm mb-6">
+                <div className={`${isOverduePending ? 'bg-red-50 dark:bg-red-900/10 text-red-800 dark:text-red-400 border-red-100 dark:border-red-900/20' : 'bg-amber-50 dark:bg-amber-900/10 text-amber-800 dark:text-amber-400 border-amber-100 dark:border-amber-900/20'} p-6 rounded-2xl border shadow-sm mb-6`}>
                   <div className="flex items-center gap-4">
                     <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm">
-                      <Home className="w-5 h-5 text-amber-600" />
+                      <Home className={`w-5 h-5 ${isOverduePending ? 'text-red-600' : 'text-amber-600'}`} />
                     </div>
                     <div className="text-left flex-1">
                       <p className="font-bold text-base leading-tight">{pb?.property_title || pb?.property?.title || 'Property'}</p>
@@ -1129,25 +1212,43 @@ const CurrentStayTab = ({ stays = [], selectedBookingId = null, onSelectBookingI
                       <p className="text-xs opacity-80 font-medium mt-0.5">
                         {daysUntil !== null ? `Move-in Date: ${formatDate(pb.start_date)}` : 'Move-in Date Awaiting Approval'}
                       </p>
+                      {isOverduePending && daysOverdue > 0 && (
+                        <p className="text-xs font-bold uppercase mt-1 text-red-600 dark:text-red-400">
+                          {daysOverdue} day{daysOverdue === 1 ? '' : 's'} overdue
+                        </p>
+                      )}
                       <ReservationPolicyNotice policy={pb?.reservation_policy} compact />
                     </div>
                   </div>
 
-                  <div className="mt-4 pt-4 border-t border-amber-200/50 dark:border-amber-800/30 flex justify-between items-center">
+                  <div className={`mt-4 pt-4 border-t ${isOverduePending ? 'border-red-200/50 dark:border-red-800/30' : 'border-amber-200/50 dark:border-amber-800/30'} flex justify-between items-center`}>
                     <div className="text-left">
                       <p className="text-[10px] font-bold uppercase opacity-60">
                         {pb?.billing_policy === 'daily' ? 'Daily' : 'Monthly'}
                       </p>
                       <p className="text-xl font-bold">₱{(pb?.unit_price || pb?.monthly_rent || 0).toLocaleString()}</p>
                     </div>
-                    <button
-                      onClick={() => onCancelBooking(pb.id)}
-                      disabled={isCancelling === pb.id}
-                      className="bg-white dark:bg-gray-800 text-red-600 px-4 py-2.5 rounded-lg text-xs font-bold shadow-sm border border-red-100 dark:border-red-900/30 hover:bg-red-50 transition-all flex items-center gap-2.5"
-                    >
-                      {isCancelling === pb.id ? <RefreshCw className="w-3 h-3 animate-spin" /> : <XCircle className="w-3 h-3" />}
-                      Cancel Request
-                    </button>
+                    <div className="flex items-center gap-2 flex-wrap justify-end">
+                      {isOverduePending && (
+                        <button
+                          onClick={() => {
+                            setReschedulingBookingId(pb.id);
+                            setShowRescheduleModal(true);
+                          }}
+                          className="bg-red-600 hover:bg-red-700 text-white px-4 py-2.5 rounded-lg text-xs font-bold shadow-sm transition-all"
+                        >
+                          Update Move-in Date
+                        </button>
+                      )}
+                      <button
+                        onClick={() => onCancelBooking(pb.id)}
+                        disabled={isCancelling === pb.id}
+                        className="bg-white dark:bg-gray-800 text-red-600 px-4 py-2.5 rounded-lg text-xs font-bold shadow-sm border border-red-100 dark:border-red-900/30 hover:bg-red-50 transition-all flex items-center gap-2.5"
+                      >
+                        {isCancelling === pb.id ? <RefreshCw className="w-3 h-3 animate-spin" /> : <XCircle className="w-3 h-3" />}
+                        Cancel Request
+                      </button>
+                    </div>
                   </div>
                 </div>
 
@@ -1158,7 +1259,7 @@ const CurrentStayTab = ({ stays = [], selectedBookingId = null, onSelectBookingI
                       if (propertyId) navigate(`/property/${propertyId}`);
                     }}
                     disabled={!pb?.property_id && !pb?.property?.id}
-                    className="bg-white dark:bg-gray-700 text-amber-700 px-4 py-2.5 rounded-lg text-xs font-bold shadow-sm border border-amber-100 dark:border-amber-900/30 hover:bg-amber-50 transition-all flex items-center gap-2 disabled:opacity-50"
+                    className={`bg-white dark:bg-gray-700 px-4 py-2.5 rounded-lg text-xs font-bold shadow-sm border hover:opacity-80 transition-all flex items-center gap-2 disabled:opacity-50 ${isOverduePending ? 'text-red-700 border-red-100 dark:border-red-900/30 hover:bg-red-50' : 'text-amber-700 border-amber-100 dark:border-amber-900/30 hover:bg-amber-50'}`}
                   >
                     <Home className="w-3 h-3" />
                     Room Details

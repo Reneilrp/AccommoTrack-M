@@ -52,7 +52,7 @@ const TransactionItem = ({ item, theme }) => {
         fontWeight: '900', 
         color: isDebit ? "#D97706" : "#059669" 
       }}>
-        {isDebit ? '-' : '+'}{formatPrice(item.amount_cents || item.amount || 0)}
+        {isDebit ? '-' : '+'}{formatPrice(item.amount_cents || (item.amount ? item.amount * 100 : 0) || 0, { isCents: true })}
       </Text>
     </View>
   );

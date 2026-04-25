@@ -11,6 +11,8 @@ import {
   Clock,
   ShieldAlert,
   FileWarning,
+  ArrowLeftRight,
+  LogOut,
 } from 'lucide-react';
 import api from '../../utils/api';
 import { useUIState } from '../../contexts/UIStateContext';
@@ -115,6 +117,8 @@ export default function DashboardPage({ user }) {
       case 'property': return <Building2 className="w-5 h-5" />;
       case 'payment':
       case 'invoice': return <PhilippinePeso className="w-5 h-5" />;
+      case 'transfer': return <ArrowLeftRight className="w-5 h-5" />;
+      case 'move_out': return <LogOut className="w-5 h-5" />;
       default: return <AlertCircle className="w-5 h-5" />;
     }
   };
@@ -218,7 +222,8 @@ export default function DashboardPage({ user }) {
     const entityId = activity.id;
 
     switch (type) {
-      case 'booking': {
+      case 'booking':
+      case 'move_out': {
         const params = new URLSearchParams();
         if (entityId) params.set('bookingId', String(entityId));
         __navigate(`/bookings?${params.toString()}`);
@@ -251,6 +256,12 @@ export default function DashboardPage({ user }) {
         const params = new URLSearchParams();
         if (entityId) params.set('requestId', String(entityId));
         __navigate(`/addons?${params.toString()}`);
+        break;
+      }
+      case 'transfer': {
+        const params = new URLSearchParams();
+        if (entityId) params.set('request_id', String(entityId));
+        __navigate(`/transfers?${params.toString()}`);
         break;
       }
       default:

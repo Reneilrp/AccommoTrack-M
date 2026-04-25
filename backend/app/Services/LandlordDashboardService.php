@@ -195,7 +195,7 @@ class LandlordDashboardService
             foreach ($moveOutNotices as $noticeBooking) {
                 $activities->push([
                     'id' => $noticeBooking->id,
-                    'type' => 'booking',
+                    'type' => 'move_out',
                     'action' => 'Move-out Notice Submitted',
                     'description' => ($noticeBooking->tenant?->first_name ?? 'Tenant').' submitted a move-out notice for '.($noticeBooking->property?->title ?? 'Property').' - Room '.($noticeBooking->room?->room_number ?? 'N/A'),
                     'status' => 'notified',
