@@ -25,6 +25,9 @@ php artisan optimize
 echo "🔄 Restarting queue workers..."
 php artisan queue:restart
 
+echo "📡 Restarting Reverb..."
+php artisan reverb:restart
+
 echo "⚡ Reloading PHP-FPM..."
 # We use sudo here, so running this script will prompt for your server password
 sudo systemctl reload php8.3-fpm
