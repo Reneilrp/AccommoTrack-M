@@ -20,7 +20,7 @@ use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 
 class LandlordBookingController extends Controller
 {
-    use ResolvesLandlordAccess;
+    use \App\Http\Controllers\Permission\HandlesDomainExceptions, ResolvesLandlordAccess;
 
     private const CANCELLATION_STATUSES = ['cancelled'];
 
@@ -135,7 +135,7 @@ class LandlordBookingController extends Controller
                 // Multi-room cart checkout
                 if ($user && in_array($user->role, ['landlord', 'caretaker'], true)) {
                     $context = $this->resolveLandlordContext($request);
-                    $this->ensureCaretakerCan($context, 'can_view_bookings');
+                    $this->ensureCaretakerCan($context, 'can_add_manual_bookings');
 
                     // Verify access to all rooms
                     foreach ($validated['items'] as $item) {
@@ -159,7 +159,7 @@ class LandlordBookingController extends Controller
                 // Existing single checkout flow
                 if ($user && in_array($user->role, ['landlord', 'caretaker'], true)) {
                     $context = $this->resolveLandlordContext($request);
-                    $this->ensureCaretakerCan($context, 'can_view_bookings');
+                    $this->ensureCaretakerCan($context, 'can_add_manual_bookings');
 
                     $room = \App\Models\Room::query()
                         ->select('id', 'property_id')
@@ -202,12 +202,7 @@ class LandlordBookingController extends Controller
             }
         } catch (\DomainException $e) {
             Log::warning('Booking validation failed', ['message' => $e->getMessage()]);
-
-            return response()->json([
-                'success' => false,
-                'message' => $e->getMessage(),
-                'errors' => ['general' => [$e->getMessage()]],
-            ], 422);
+            return $this->renderDomainException($e);
         } catch (\Exception $e) {
             Log::error('Booking creation failed', [
                 'error' => $e->getMessage(),

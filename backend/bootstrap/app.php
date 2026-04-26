@@ -16,6 +16,7 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->appendToGroup('api', [
             \App\Http\Middleware\HandleSystemTimeOverride::class,
+            'throttle:global',
         ]);
 
         // Always register Sanctum stateful API middleware.
@@ -40,6 +41,16 @@ return Application::configure(basePath: dirname(__DIR__))
             }
 
             return null;
+        });
+
+        $exceptions->render(function (\Symfony\Component\HttpKernel\Exception\HttpExceptionInterface $exception, $request) {
+            if ($request->is('api/*') || $request->expectsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $exception->getMessage() ?: 'An error occurred.',
+                    'status' => $exception->getStatusCode(),
+                ], $exception->getStatusCode());
+            }
         });
 
         $exceptions->render(function (\DomainException $exception, $request) {

@@ -124,6 +124,7 @@ export default function AddProperty({ onBack, onSave }) {
     proxyBookingLimit: '3',
     minPartialPaymentPct: '20',
     transferLimit: '1',
+    acceptedPayments: ['cash'],
     images: []
   });
 
@@ -211,6 +212,25 @@ export default function AddProperty({ onBack, onSave }) {
         updated.country = 'Philippines';
       }
       return updated;
+    });
+  };
+
+  const togglePaymentMethod = (method) => {
+    setFormData(prev => {
+      const current = prev.acceptedPayments || [];
+      if (current.includes(method)) {
+        // Don't allow removing all payment methods
+        if (current.length === 1) return prev;
+        return {
+          ...prev,
+          acceptedPayments: current.filter(m => m !== method)
+        };
+      } else {
+        return {
+          ...prev,
+          acceptedPayments: [...current, method]
+        };
+      }
     });
   };
 
@@ -536,6 +556,12 @@ export default function AddProperty({ onBack, onSave }) {
     // Append amenities as array
     formData.amenities.forEach((amenity, index) => {
       payload.append(`amenities[${index}]`, amenity);
+    });
+
+    // Append accepted payment methods
+    const methods = formData.acceptedPayments.length > 0 ? formData.acceptedPayments : ['cash'];
+    methods.forEach((method, index) => {
+      payload.append(`accepted_payments[${index}]`, method);
     });
 
     formData.images.forEach((file, index) => {
@@ -1026,6 +1052,60 @@ export default function AddProperty({ onBack, onSave }) {
                         />
                         <p className="mt-1 text-xs text-gray-500">Max times a tenant can request a room transfer. Default: 1</p>
                       </div>
+                    </div>
+
+                    {/* Accepted Payment Methods */}
+                    <div className="mt-8 pt-6 border-t border-gray-100 dark:border-gray-700">
+                      <h3 className="text-sm font-medium text-gray-900 dark:text-white mb-4">Accepted Payment Methods</h3>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div 
+                          onClick={() => togglePaymentMethod('cash')}
+                          className={`flex items-center p-4 border rounded-xl cursor-pointer transition-all ${
+                            formData.acceptedPayments.includes('cash')
+                              ? 'border-green-500 bg-green-50 dark:bg-green-900/20'
+                              : 'border-gray-200 dark:border-gray-700 hover:border-green-300'
+                          }`}
+                        >
+                          <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center mr-3 ${
+                            formData.acceptedPayments.includes('cash') ? 'border-green-500 bg-green-500' : 'border-gray-300'
+                          }`}>
+                            {formData.acceptedPayments.includes('cash') && <div className="w-2 h-2 bg-white rounded-full" />}
+                          </div>
+                          <div>
+                            <p className="text-sm font-medium text-gray-900 dark:text-white">Cash</p>
+                            <p className="text-xs text-gray-500">Direct physical payment</p>
+                          </div>
+                        </div>
+
+                        <div 
+                          onClick={() => user?.is_paymongo_ready && togglePaymentMethod('online')}
+                          className={`flex items-center p-4 border rounded-xl transition-all ${
+                            !user?.is_paymongo_ready ? 'opacity-50 grayscale cursor-not-allowed' : 'cursor-pointer'
+                          } ${
+                            formData.acceptedPayments.includes('online')
+                              ? 'border-green-500 bg-green-50 dark:bg-green-900/20'
+                              : 'border-gray-200 dark:border-gray-700 hover:border-green-300'
+                          }`}
+                        >
+                          <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center mr-3 ${
+                            formData.acceptedPayments.includes('online') ? 'border-green-500 bg-green-500' : 'border-gray-300'
+                          }`}>
+                            {formData.acceptedPayments.includes('online') && <div className="w-2 h-2 bg-white rounded-full" />}
+                          </div>
+                          <div className="flex-1">
+                            <div className="flex items-center justify-between">
+                              <p className="text-sm font-medium text-gray-900 dark:text-white">Online Payments</p>
+                              {!user?.is_paymongo_ready && <span className="text-[10px] bg-red-100 text-red-600 px-2 py-0.5 rounded-full font-bold">LOCKED</span>}
+                            </div>
+                            <p className="text-xs text-gray-500">GCash, Maya, Cards (via PayMongo)</p>
+                          </div>
+                        </div>
+                      </div>
+                      {!user?.is_paymongo_ready && (
+                        <p className="mt-3 text-xs text-red-500 flex items-center gap-1">
+                          Complete PayMongo verification in Settings &gt; Payments to enable online payments.
+                        </p>
+                      )}
                     </div>
                   </div>
                 </div>

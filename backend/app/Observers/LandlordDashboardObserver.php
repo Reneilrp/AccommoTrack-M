@@ -48,6 +48,7 @@ class LandlordDashboardObserver
             // Also invalidate the stats cache fragment
             \Illuminate\Support\Facades\Cache::forget("landlord_stats_{$landlordId}_landlord");
             \Illuminate\Support\Facades\Cache::forget("landlord_stats_{$landlordId}_caretaker");
+            \Illuminate\Support\Facades\Cache::forget("user_counters_{$landlordId}");
             
         } catch (\Throwable $e) {
             Log::error("Failed to log landlord activity: " . $e->getMessage());

@@ -83,6 +83,14 @@ class GenerateMonthlyInvoices extends Command
             $bookings = Booking::query()
                 ->whereIn('status', ['confirmed', 'active'])
                 ->where('payment_plan', 'monthly')
+                // TERMINATION GUARD: Don't generate invoices for those leaving very soon
+                ->whereDoesntHave('scheduledEviction', function($q) use ($today) {
+                    $q->whereDate('scheduled_for', '<=', $today->copy()->addDays(7)->toDateString());
+                })
+                ->where(function($q) use ($today) {
+                    $q->whereNull('end_date')
+                      ->orWhere('end_date', '>', $today->copy()->addDays(2)->toDateString());
+                })
                 ->where(function ($query) use ($today) {
                     $query->whereNull('next_billing_date')
                         ->orWhere(function ($openEnded) use ($today) {
@@ -390,11 +398,11 @@ class GenerateMonthlyInvoices extends Command
                 ];
             }
 
-            $totalAmountCents = $roomAmountCents + $addonsTotalCents;
+            // Fix: amount_cents should only be the room rent. 
+            // Addons will be generated as separate standalone invoices below.
+            $totalAmountCents = $roomAmountCents; 
+            
             $description = 'Monthly invoice for booking '.$booking->booking_reference;
-            if ($addonsTotalCents > 0) {
-                $description .= "\n+ Includes active Add-ons";
-            }
 
             $invoice = Invoice::create([
                 'reference' => $reference,

@@ -182,6 +182,7 @@ class RoomService
         $room->update($updatePayload);
 
         $room->property->updateAvailableRooms();
+        broadcast(new \App\Events\RoomAvailabilityUpdated($room))->toOthers();
 
         return $room->load('tenants');
     }
@@ -244,6 +245,20 @@ class RoomService
             } else {
                 $newEnd->addDays($value);
                 $priceResult = $room->calculatePriceForDays($value);
+            }
+
+            // 1.5. OVERLAP GUARD: Check for future bookings that might conflict with this extension
+            $conflict = Booking::where('room_id', $room->id)
+                ->where('id', '!=', $booking->id) // Not this booking
+                ->whereIn('status', ['reserved', 'confirmed', 'active'])
+                ->where('start_date', '<', $newEnd->format('Y-m-d'))
+                ->where('start_date', '>=', $currentEnd->format('Y-m-d'))
+                ->with('tenant')
+                ->first();
+
+            if ($conflict) {
+                $conflictingTenant = $conflict->tenant ? ($conflict->tenant->first_name . ' ' . $conflict->tenant->last_name) : 'another tenant';
+                throw new \Exception("Cannot extend stay. Room {$room->room_number} is already reserved by {$conflictingTenant} starting on " . \Carbon\Carbon::parse($conflict->start_date)->format('M d, Y') . ".");
             }
 
             $extensionAmount = $priceResult['total'] * ($booking->bed_count ?? 1);

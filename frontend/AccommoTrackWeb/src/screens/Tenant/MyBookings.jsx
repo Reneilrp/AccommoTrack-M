@@ -1335,9 +1335,9 @@ const CurrentStayTab = ({ stays = [], selectedBookingId = null, onSelectBookingI
             const isProxyBooking = String(booking?.booking_mode || booking?.bookingMode || '').toLowerCase() === 'proxy';
 
             return (
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
                 {/* Main Column */}
-                <div className="lg:col-span-2 space-y-6">
+                <div className="lg:col-span-3 space-y-6">
                   {booking.paymentStatus === 'refunded' && !['refunded', 'cancelled', 'rejected', 'voided'].includes(String(booking.status || '').toLowerCase()) && (
                     <div className="bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 p-4 rounded-xl flex items-start gap-4 animate-pulse">
                       <ShieldAlert className="w-5 h-5 text-purple-600 dark:text-purple-400 shrink-0 mt-0.5" />
@@ -1477,8 +1477,8 @@ const CurrentStayTab = ({ stays = [], selectedBookingId = null, onSelectBookingI
 
                       <div className="mt-6 pt-6 border-t border-gray-100 dark:border-gray-700">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
-                          {/* Left Column: Lease Info */}
-                          <div className="flex flex-col gap-1">
+                          {/* Left Column: Lease & Transfer Info */}
+                          <div className="flex flex-col gap-2">
                             <div className="flex items-center gap-2">
                               <Calendar className="w-4 h-4 text-gray-400" />
                               <p className="text-sm text-gray-600 dark:text-gray-300">
@@ -1489,11 +1489,17 @@ const CurrentStayTab = ({ stays = [], selectedBookingId = null, onSelectBookingI
                                 </span>
                               </p>
                             </div>
+                            <div className="flex items-center gap-2">
+                              <Shuffle className="w-4 h-4 text-gray-400" />
+                              <p className="text-sm text-gray-600 dark:text-gray-300">
+                                <span className="font-bold text-gray-900 dark:text-white mr-1">Transfer Limit:</span>
+                                {monthlyTransferCount}/{property?.transfer_limit ?? 1}
+                              </p>
+                            </div>
                           </div>
 
                           {/* Right Column: Action Buttons */}
-                          <div className="flex flex-col md:items-end gap-3 w-full">
-                            {/* Top Row: Extend Stay */}
+                          <div className="flex flex-row items-center md:justify-end gap-3 w-full">
                             {(() => {
                               const hasNotice = !!(booking.notice_given_at || booking.noticeGivenAt);
                               if (hasNotice) return null;
@@ -1507,7 +1513,7 @@ const CurrentStayTab = ({ stays = [], selectedBookingId = null, onSelectBookingI
                               return (
                                 <button
                                   onClick={onRequestExtension}
-                                  className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-bold shadow-md shadow-blue-500/20 transition-all active:scale-95"
+                                  className="flex items-center whitespace-nowrap gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-bold shadow-md shadow-blue-500/20 transition-all active:scale-95"
                                 >
                                   <CalendarDays className="w-4 h-4" />
                                   Extend Stay
@@ -1515,118 +1521,110 @@ const CurrentStayTab = ({ stays = [], selectedBookingId = null, onSelectBookingI
                               );
                             })()}
 
-                            {/* Bottom Row: Transfer & Move-out */}
-                            <div className="flex flex-wrap items-start justify-end gap-3 w-full">
-                              {/* Transfer button */}
-                              {(() => {
-                                const isPendingForThisBooking = booking?.id ? pendingTransferBookingIds.includes(booking.id) : false;
-                                const pendingRequestForThisBooking = booking?.id ? pendingTransferRequests.find(
-                                  (request) => Number(request.booking_id) === Number(booking.id),
-                                ) : null;
-                                const transferLimit = property?.transfer_limit ?? 1;
-                                const limitReached = monthlyTransferCount >= transferLimit;
-                                const now = new Date();
-                                const nextMonthStart = new Date(now.getFullYear(), now.getMonth() + 1, 1);
-                                const daysUntilTransferReset = Math.max(
-                                  1,
-                                  Math.ceil((nextMonthStart.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
-                                );
-                                const isDisabled = isPendingForThisBooking || limitReached;
-                                let buttonText = 'Transfer';
-                                let buttonTitle = 'Request a room transfer';
-                                if (isPendingForThisBooking) {
-                                  buttonText = 'Transfer Pending';
-                                  buttonTitle = 'You already have a pending transfer request for this booking';
-                                } else if (limitReached) {
-                                  buttonText = 'Limit Reached';
-                                  buttonTitle = `Transfer limit reached for this property. Try again in ${daysUntilTransferReset} day${daysUntilTransferReset === 1 ? '' : 's'}.`;
-                                }
-                                return (
-                                  <div className="flex flex-col gap-1 items-end">
-                                    <div className="flex items-center gap-2">
-                                      {!pendingRequestForThisBooking ? (
-                                        <button
-                                          onClick={() => {
-                                            if (limitReached) {
-                                              showError(`Transfer limit reached for this property. You can request again in ${daysUntilTransferReset} day${daysUntilTransferReset === 1 ? '' : 's'}.`);
-                                              return;
-                                            }
-                                            onRequestTransfer?.();
-                                          }}
-                                          disabled={limitReached}
-                                          title={buttonTitle}
-                                          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all ${limitReached
-                                            ? 'bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed opacity-70'
-                                            : 'bg-amber-600 hover:bg-amber-700 text-white shadow-md shadow-amber-500/20 active:scale-95'
-                                            }`}
-                                        >
-                                          <Shuffle className="w-4 h-4" />
-                                          {buttonText}
-                                        </button>
-                                      ) : (
-                                        <button
-                                          onClick={() => onCancelTransferRequest?.(pendingRequestForThisBooking.id)}
-                                          disabled={cancellingTransferRequestId === pendingRequestForThisBooking.id}
-                                          className="flex items-center gap-2 px-4 py-2.5 bg-red-100 hover:bg-red-200 text-red-600 dark:bg-red-900/30 dark:hover:bg-red-900/50 dark:text-red-400 rounded-xl text-sm font-bold transition-all active:scale-95"
-                                          title="Cancel pending transfer request"
-                                        >
-                                          {cancellingTransferRequestId === pendingRequestForThisBooking.id && (
-                                            <RefreshCw className="w-4 h-4 animate-spin" />
-                                          )}
-                                          Cancel Transfer
-                                        </button>
-                                      )}
-                                    </div>
-                                    <p className="text-[10px] text-gray-400 dark:text-gray-500 font-medium px-1">
-                                      Limit: {monthlyTransferCount}/{transferLimit}
-                                    </p>
-                                  </div>
-                                );
-                              })()}
 
-                              {/* Move-out button */}
-                              {(() => {
-                                const rawStatus = String(booking.status || booking.status_raw || '').toLowerCase();
-                                const effectiveStatus = rawStatus || 'confirmed';
-                                const canRequestMoveOut = ['confirmed', 'active'].includes(effectiveStatus);
-                                const hasNotice = !!(booking.notice_given_at || booking.noticeGivenAt);
-                                const billingMode = String(booking.billing_policy || booking.payment_plan || '').toLowerCase();
-                                const isMonthlyBilling = billingMode === 'monthly';
-                                const paymentStatus = String(
-                                  booking.is_overdue || booking.isOverdue
-                                    ? 'overdue'
-                                    : (booking.paymentStatus || booking.payment_status || ''),
-                                ).toLowerCase();
-                                const isCurrentMonthPaid = !isMonthlyBilling || ['paid', 'settled', 'succeeded', 'verified', 'completed'].includes(paymentStatus);
+                            {/* Move-out button */}
+                            {(() => {
+                              const rawStatus = String(booking.status || booking.status_raw || '').toLowerCase();
+                              const effectiveStatus = rawStatus || 'confirmed';
+                              const canRequestMoveOut = ['confirmed', 'active'].includes(effectiveStatus);
+                              const hasNotice = !!(booking.notice_given_at || booking.noticeGivenAt);
+                              const billingMode = String(booking.billing_policy || booking.payment_plan || '').toLowerCase();
+                              const isMonthlyBilling = billingMode === 'monthly';
+                              const paymentStatus = String(
+                                booking.is_overdue || booking.isOverdue
+                                  ? 'overdue'
+                                  : (booking.paymentStatus || booking.payment_status || ''),
+                              ).toLowerCase();
+                              const isCurrentMonthPaid = !isMonthlyBilling || ['paid', 'settled', 'succeeded', 'verified', 'completed'].includes(paymentStatus);
 
-                                if (!canRequestMoveOut || hasNotice) return null;
+                              if (!canRequestMoveOut || hasNotice) return null;
 
-                                return (
-                                  <button
-                                    onClick={() => onRequestMoveOut?.()}
-                                    disabled={!isCurrentMonthPaid}
-                                    title={!isCurrentMonthPaid ? 'Move-out is available only when current month status is Paid.' : ''}
-                                    className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold shadow-md transition-all active:scale-95 ${!isCurrentMonthPaid
-                                      ? 'bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed shadow-none'
-                                      : 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-indigo-500/20'
-                                      }`}
-                                  >
-                                    <DoorOpen className="w-4 h-4" />
-                                    Move-out
-                                  </button>
-                                );
-                              })()}
-
-                              {!!(booking.notice_given_at || booking.noticeGivenAt) && (
-                                <div
-                                  title="Move-out notice already submitted."
-                                  className="bg-teal-100 dark:bg-teal-900/30 text-teal-700 dark:text-teal-400 px-4 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2"
+                              return (
+                                <button
+                                  onClick={() => onRequestMoveOut?.()}
+                                  disabled={!isCurrentMonthPaid}
+                                  title={!isCurrentMonthPaid ? 'Move-out is available only when current month status is Paid.' : ''}
+                                  className={`flex items-center whitespace-nowrap gap-2 px-4 py-2.5 rounded-xl text-sm font-bold shadow-md transition-all active:scale-95 ${!isCurrentMonthPaid
+                                    ? 'bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed shadow-none'
+                                    : 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-indigo-500/20'
+                                    }`}
                                 >
                                   <DoorOpen className="w-4 h-4" />
-                                  Notice Submitted
-                                </div>
-                              )}
-                            </div>
+                                  Move-out
+                                </button>
+                              );
+                            })()}
+
+                            {/* Transfer button */}
+                            {(() => {
+                              const isPendingForThisBooking = booking?.id ? pendingTransferBookingIds.includes(booking.id) : false;
+                              const pendingRequestForThisBooking = booking?.id ? pendingTransferRequests.find(
+                                (request) => Number(request.booking_id) === Number(booking.id),
+                              ) : null;
+                              const transferLimit = property?.transfer_limit ?? 1;
+                              const limitReached = monthlyTransferCount >= transferLimit;
+                              const now = new Date();
+                              const nextMonthStart = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+                              const daysUntilTransferReset = Math.max(
+                                1,
+                                Math.ceil((nextMonthStart.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
+                              );
+                              let buttonText = 'Transfer';
+                              let buttonTitle = 'Request a room transfer';
+                              if (isPendingForThisBooking) {
+                                buttonText = 'Transfer Pending';
+                                buttonTitle = 'You already have a pending transfer request for this booking';
+                              } else if (limitReached) {
+                                buttonText = 'Limit Reached';
+                                buttonTitle = `Transfer limit reached for this property. Try again in ${daysUntilTransferReset} day${daysUntilTransferReset === 1 ? '' : 's'}.`;
+                              }
+                              return (
+                                <>
+                                  {!pendingRequestForThisBooking ? (
+                                    <button
+                                      onClick={() => {
+                                        if (limitReached) {
+                                          showError(`Transfer limit reached for this property. You can request again in ${daysUntilTransferReset} day${daysUntilTransferReset === 1 ? '' : 's'}.`);
+                                          return;
+                                        }
+                                        onRequestTransfer?.();
+                                      }}
+                                      disabled={limitReached}
+                                      title={buttonTitle}
+                                      className={`flex items-center whitespace-nowrap gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all ${limitReached
+                                        ? 'bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed opacity-70'
+                                        : 'bg-amber-600 hover:bg-amber-700 text-white shadow-md shadow-amber-500/20 active:scale-95'
+                                        }`}
+                                    >
+                                      <Shuffle className="w-4 h-4" />
+                                      {buttonText}
+                                    </button>
+                                  ) : (
+                                    <button
+                                      onClick={() => onCancelTransferRequest?.(pendingRequestForThisBooking.id)}
+                                      disabled={cancellingTransferRequestId === pendingRequestForThisBooking.id}
+                                      className="flex items-center whitespace-nowrap gap-2 px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-xl text-sm font-bold shadow-md shadow-red-500/20 transition-all active:scale-95"
+                                      title="Cancel pending transfer request"
+                                    >
+                                      {cancellingTransferRequestId === pendingRequestForThisBooking.id && (
+                                        <RefreshCw className="w-4 h-4 animate-spin" />
+                                      )}
+                                      Cancel Transfer Request
+                                    </button>
+                                  )}
+                                </>
+                              );
+                            })()}
+
+                            {!!(booking.notice_given_at || booking.noticeGivenAt) && (
+                              <div
+                                title="Move-out notice already submitted."
+                                className="bg-teal-100 dark:bg-teal-900/30 text-teal-700 dark:text-teal-400 px-4 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2"
+                              >
+                                <DoorOpen className="w-4 h-4" />
+                                Notice Submitted
+                              </div>
+                            )}
                           </div>
                         </div>
                       </div>

@@ -668,7 +668,7 @@ export default function BookingsScreen({ navigation, route }) {
     closeCancelModal();
   };
 
-  const renderBookingCard = ({ item }) => {
+  const renderBookingCard = useCallback(({ item }) => {
     const statusBadge = STATUS_BADGES[item.status] || STATUS_BADGES.pending;
     const paymentBadge = PAYMENT_BADGES[item.paymentStatus] || PAYMENT_BADGES.unpaid;
     const modeLabel = resolveBookingMode(item) === 'proxy' ? 'Proxy' : 'Normal';
@@ -719,7 +719,7 @@ export default function BookingsScreen({ navigation, route }) {
         </View>
       </TouchableOpacity>
     );
-  };
+  }, [openDetailModal]);
 
   const handleTransferRequestAction = async (requestId, action) => {
     if (guardAnyBookingAction()) return;
@@ -912,7 +912,7 @@ export default function BookingsScreen({ navigation, route }) {
 
       <FlatList
         data={activeTab === 'bookings' ? filteredBookings : []}
-        keyExtractor={(item) => item.id?.toString() ?? Math.random().toString()}
+        keyExtractor={(item, index) => item.id?.toString() ?? `booking-${index}`}
         renderItem={activeTab === 'bookings' ? renderBookingCard : null}
         ListHeaderComponent={listHeader}
         ListFooterComponent={() => (

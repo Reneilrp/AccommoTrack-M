@@ -257,12 +257,38 @@ export default function RoomListScreen({ route }) {
           ) : (
             <View style={styles.roomsContainer}>
               {filteredRooms.map((room) => {
-                const isOccupied = room.status === 'occupied';
+                const rawStatus = (room.display_status || room.status || 'available').toString().toLowerCase();
+                const isOccupied = rawStatus === 'occupied' || rawStatus === 'reserved';
+                
+                // Calculate if booking is limited for this tenant
+                const normalLimit = property?.normal_booking_limit || 1;
+                const currentUsage = property?.tenant_usage?.normal || 0;
+                const isLimitReached = currentUsage >= normalLimit;
+                
+                // Room is bookable if available AND limit not reached, OR if it's THEIR room
+                const isMyRoom = room.reserved_by_me || room.is_tenant;
+                const showLimitBadge = isLimitReached && !isMyRoom && rawStatus === 'available';
+                const isGreyedOut = (isOccupied || showLimitBadge) && !isMyRoom;
+
                 const promoTerms = getPromoTerms(room);
+                
+                const getStatusText = () => {
+                   if (isMyRoom) return room.is_tenant ? 'Your Room' : 'Reserved by You';
+                   if (showLimitBadge) return 'Limit Reached';
+                   return capitalizeStatus(room.status);
+                };
+
+                const getBadgeColor = () => {
+                   if (isMyRoom) return theme.colors.warning;
+                   if (showLimitBadge) return theme.colors.textSecondary;
+                   return getStatusColor(room.status);
+                };
+
                 return (
                 <TouchableOpacity
                   key={room.id}
-                  style={[styles.roomCard, isOccupied && styles.roomCardOccupied]}
+                  style={[styles.roomCard, isGreyedOut && { opacity: 0.5 }]}
+                  disabled={isGreyedOut}
                   onPress={() => navigation.navigate('RoomDetails', { room, property })}
                 >
                   {/* Left: Image + Price */}
@@ -284,10 +310,10 @@ export default function RoomListScreen({ route }) {
                   <View style={styles.roomInfo}>
                     <View style={styles.roomHeader}>
                       <Text style={styles.roomNumber}>Room {room.room_number}</Text>
-                      <View style={[styles.statusBadge, { backgroundColor: getStatusColor(room.status) + '20' }]}>
-                        <Ionicons name={getStatusIcon(room.status)} size={14} color={getStatusColor(room.status)} />
-                        <Text style={[styles.statusText, { color: getStatusColor(room.status) }]}>
-                          {capitalizeStatus(room.status)}
+                      <View style={[styles.statusBadge, { backgroundColor: getBadgeColor() + '20' }]}>
+                        <Ionicons name={isMyRoom ? 'star' : getStatusIcon(room.status)} size={14} color={getBadgeColor()} />
+                        <Text style={[styles.statusText, { color: getBadgeColor() }]}>
+                          {getStatusText()}
                         </Text>
                       </View>
                     </View>
@@ -317,11 +343,14 @@ export default function RoomListScreen({ route }) {
 
                     {/* View Details Button */}
                     <TouchableOpacity
-                      style={styles.viewDetailsButton}
+                      style={[styles.viewDetailsButton, isGreyedOut && { opacity: 0.5 }]}
+                      disabled={isGreyedOut}
                       onPress={() => navigation.navigate('RoomDetails', { room, property })}
                     >
-                      <Text style={[styles.viewDetailsText, { color: theme.colors.primary }]}>View Details</Text>
-                      <Ionicons name="arrow-forward" size={16} color={theme.colors.primary} />
+                      <Text style={[styles.viewDetailsText, { color: isGreyedOut ? theme.colors.textSecondary : theme.colors.primary }]}>
+                        {isGreyedOut && showLimitBadge ? 'Limited' : 'View Details'}
+                      </Text>
+                      <Ionicons name="arrow-forward" size={16} color={isGreyedOut ? theme.colors.textSecondary : theme.colors.primary} />
                     </TouchableOpacity>
                   </View>
                 </TouchableOpacity>

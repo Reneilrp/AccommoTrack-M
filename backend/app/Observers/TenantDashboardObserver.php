@@ -50,7 +50,7 @@ class TenantDashboardObserver
 
     protected function resolveTenantId($model): ?int
     {
-        return $model->tenant_id ?? null;
+        return $model->tenant_id ?? $model->user_id ?? null;
     }
 
     protected function formatPayload($model): ?array
@@ -86,8 +86,10 @@ class TenantDashboardObserver
 
         if ($tenantId) {
             Cache::forget("tenant_dashboard_{$tenantId}");
+            Cache::forget("tenant_stats_{$tenantId}");
             Cache::forget("tenant_stay_details_{$tenantId}");
             Cache::forget("tenant_payment_breakdown_{$tenantId}");
+            Cache::forget("user_counters_{$tenantId}");
             
             try {
                 broadcast(new DashboardUpdated((int) $tenantId));

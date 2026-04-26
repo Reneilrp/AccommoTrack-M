@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Image, RefreshControl, Alert, Animated, Modal, TextInput, Platform, useWindowDimensions, FlatList, ActivityIndicator } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, Image, RefreshControl, Alert, Animated, Modal, TextInput, Platform, useWindowDimensions } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
@@ -2305,10 +2305,16 @@ export default function MyBookings() {
                   <View style={styles.actionRow}>
                     {!hasMoveOutNotice ? (
                       <TouchableOpacity
-                        style={[styles.actionBtn, { backgroundColor: (!isCurrentMonthPaidForMoveOut || submittingMoveOut) ? theme.colors.textTertiary : (theme.isDark ? '#3730a3' : '#4F46E5') }]}
+                        style={[styles.actionBtn, { 
+                          backgroundColor: (!isCurrentMonthPaidForMoveOut || submittingMoveOut) ? theme.colors.textTertiary : (theme.isDark ? '#3730a3' : '#4F46E5'),
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          gap: 6
+                        }]}
                         disabled={submittingMoveOut || !isCurrentMonthPaidForMoveOut}
                         onPress={() => handleRequestMoveOut(booking, property, room)}
                       >
+                        <Ionicons name="exit-outline" size={16} color="#FFFFFF" />
                         <Text style={styles.actionBtnText}>
                           {submittingMoveOut ? 'Submitting...' : 'Move-out'}
                         </Text>
@@ -2319,11 +2325,17 @@ export default function MyBookings() {
 
                     {canRequestExtension ? (
                       <TouchableOpacity
-                        style={[styles.actionBtn, { backgroundColor: submittingExtension ? theme.colors.textTertiary : (theme.isDark ? '#1d4ed8' : '#2563EB') }]}
+                        style={[styles.actionBtn, { 
+                          backgroundColor: submittingExtension ? theme.colors.textTertiary : (theme.isDark ? '#1d4ed8' : '#2563EB'),
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          gap: 6
+                        }]}
                         disabled={submittingExtension}
                         onPress={() => handleRequestExtension(booking)}
                       >
-                        <Text style={styles.actionBtnText}>Extend</Text>
+                        <Ionicons name="calendar-outline" size={16} color="#FFFFFF" />
+                        <Text style={styles.actionBtnText}>Extend Stay</Text>
                       </TouchableOpacity>
                     ) : (
                       <View style={styles.actionBtnPlaceholder} />
@@ -2368,23 +2380,36 @@ export default function MyBookings() {
                     </Text>
                     {pendingTransferForBooking ? (
                       <TouchableOpacity
-                        style={[styles.reviewBtn, { backgroundColor: theme.isDark ? '#991b1b' : '#DC2626', marginTop: 0 }]}
+                        style={[styles.reviewBtn, { 
+                          backgroundColor: theme.isDark ? '#991b1b' : '#DC2626', 
+                          marginTop: 0,
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: 6
+                        }]}
                         disabled={cancellingTransferRequestId === pendingTransferForBooking.id}
                         onPress={() => handleCancelTransferRequest(pendingTransferForBooking.id)}
                       >
+                        <Ionicons name="close-circle-outline" size={16} color="#FFFFFF" />
                         <Text style={{ color: '#fff', fontWeight: 'bold' }}>
-                          {cancellingTransferRequestId === pendingTransferForBooking.id ? 'Cancelling...' : 'Cancel Pending Transfer'}
+                          {cancellingTransferRequestId === pendingTransferForBooking.id ? 'Cancelling...' : 'Cancel Transfer Request'}
                         </Text>
                       </TouchableOpacity>
                     ) : (
                       <TouchableOpacity
                         style={[styles.reviewBtn, {
                           backgroundColor: transferButtonDisabled ? theme.colors.textTertiary : (theme.isDark ? '#6d28d9' : '#7C3AED'),
-                          marginTop: 0
+                          marginTop: 0,
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: 6
                         }]}
                         disabled={transferButtonDisabled}
                         onPress={() => handleRequestTransfer(booking, property)}
                       >
+                        <Ionicons name="shuffle-outline" size={16} color="#FFFFFF" />
                         <Text style={{ color: '#fff', fontWeight: 'bold' }}>
                           {transferLimitReached
                             ? 'Transfer Limit Reached'
@@ -3255,9 +3280,14 @@ export default function MyBookings() {
               alignItems: 'center',
               justifyContent: 'space-between',
             }}>
-              <Text style={{ fontSize: 16, fontWeight: '700', color: theme.colors.text }}>
-                Request Room Transfer
-              </Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                <View style={{ padding: 6, backgroundColor: theme.colors.primaryLight, borderRadius: 8 }}>
+                  <Ionicons name="shuffle-outline" size={18} color={theme.colors.primary} />
+                </View>
+                <Text style={{ fontSize: 16, fontWeight: '700', color: theme.colors.text }}>
+                  Request Room Transfer
+                </Text>
+              </View>
               <TouchableOpacity onPress={closeTransferModal} style={{ padding: 4 }}>
                 <Ionicons name="close" size={20} color={theme.colors.textSecondary} />
               </TouchableOpacity>
@@ -4311,9 +4341,14 @@ export default function MyBookings() {
               alignItems: 'center',
               justifyContent: 'space-between',
             }}>
-              <Text style={{ fontSize: 16, fontWeight: '700', color: theme.colors.text }}>
-                Request Move-out
-              </Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                <View style={{ padding: 6, backgroundColor: theme.colors.primaryLight, borderRadius: 8 }}>
+                  <Ionicons name="exit-outline" size={18} color={theme.colors.primary} />
+                </View>
+                <Text style={{ fontSize: 16, fontWeight: '700', color: theme.colors.text }}>
+                  Request Move-out
+                </Text>
+              </View>
               <TouchableOpacity onPress={closeMoveOutModal} style={{ padding: 4 }}>
                 <Ionicons name="close" size={20} color={theme.colors.textSecondary} />
               </TouchableOpacity>

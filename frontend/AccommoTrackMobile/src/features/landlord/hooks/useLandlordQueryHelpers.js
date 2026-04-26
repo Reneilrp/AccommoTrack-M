@@ -19,6 +19,7 @@ export const landlordQueryKeys = {
     return ['landlordMaintenanceRequests', options, 'all'];
   },
   dashboardBundle: () => ['landlordDashboardBundle'],
+  counters: () => ['userCounters'],
   unreadNotificationCount: () => ['landlordUnreadNotificationCount'],
   pendingTransferCount: () => ['landlordPendingTransferCount'],
   propertyActivityLogs: (propertyId) => ['landlordPropertyActivityLogs', propertyId],
@@ -90,11 +91,15 @@ export const refetchLandlordQueries = async (refetchers = []) => {
 };
 
 export const useLandlordFocusRefetch = ({ enabled = true, refetchers = [] }) => {
+  // DISABLING AGGRESSIVE FOCUS REFETCHING:
+  // The app now uses global WebSockets (Echo) via useRealTimeSync.
+  // Data is automatically invalidated when it changes on the server.
+  // Forcing a refetch on every tab switch causes massive CPU spikes.
+  // Manual Pull-to-Refresh remains fully functional.
   useFocusEffect(
     useCallback(() => {
-      if (!enabled) return;
-      refetchLandlordQueries(refetchers);
-    }, [enabled, refetchers]),
+      // Intentionally left blank to protect server CPU.
+    }, []),
   );
 };
 

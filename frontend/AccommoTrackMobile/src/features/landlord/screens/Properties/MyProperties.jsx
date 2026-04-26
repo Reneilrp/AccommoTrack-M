@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useCallback } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -205,7 +205,7 @@ export default function MyPropertiesScreen({ navigation }) {
     return null;
   };
 
-  const renderProperty = ({ item }) => {
+  const renderProperty = useCallback(({ item }) => {
     let statusKey = (item.current_status || "pending").toLowerCase();
     if (statusKey === 'active' && !item.is_published) {
       statusKey = 'hidden';
@@ -311,7 +311,7 @@ export default function MyPropertiesScreen({ navigation }) {
         </TouchableOpacity>
       </View>
     );
-  };
+  }, [theme, navigation]);
 
   const renderListHeader = () => (
     <View style={styles.section}>

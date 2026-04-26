@@ -74,6 +74,26 @@ const ChatArea = ({
       }));
   }, [messages]);
 
+  const fileItems = useMemo(() => {
+    if (!Array.isArray(messages)) return [];
+
+    const seen = new Set();
+
+    return messages
+      .filter((msg) => {
+        const fileUrl = msg?.file_url;
+        if (!fileUrl || msg.is_unsent || seen.has(fileUrl)) return false;
+        seen.add(fileUrl);
+        return true;
+      })
+      .map((msg) => ({
+        id: msg.id,
+        file_url: msg.file_url,
+        file_name: msg.file_name || 'Document',
+        created_at: msg.created_at,
+      }));
+  }, [messages]);
+
   const formatPreferences = (preferences) => {
     if (!preferences) return [];
     if (Array.isArray(preferences)) {
@@ -300,16 +320,16 @@ const ChatArea = ({
                             )}
                             {msg.file_url && (
                               <div
-                                className={`mb-2 p-3 rounded-xl border flex items-center gap-3 cursor-pointer hover:opacity-90 transition-opacity min-w-[200px] ${isMine
+                                className={`mb-2 p-3 rounded-xl border flex items-center gap-2 cursor-pointer hover:opacity-90 transition-opacity w-full max-w-[260px] overflow-hidden ${isMine
                                   ? 'bg-green-700/30 border-green-500 text-white'
                                   : 'bg-gray-50 dark:bg-gray-800/50 border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white'
                                   }`}
-                                onClick={() => window.open(msg.file_url, '_blank')}
+                                onClick={() => window.open(msg.download_url || msg.file_url, '_blank')}
                               >
-                                <div className={`p-2 rounded-lg ${isMine ? 'bg-green-500' : 'bg-blue-500'} text-white`}>
+                                <div className={`p-2 rounded-lg flex-shrink-0 ${isMine ? 'bg-green-500' : 'bg-blue-500'} text-white`}>
                                   <FileText className="w-5 h-5" />
                                 </div>
-                                <div className="flex-1 overflow-hidden">
+                                <div className="flex-1 min-w-0 overflow-hidden">
                                   <p className="text-sm font-medium truncate" title={msg.file_name || 'Document'}>
                                     {msg.file_name || 'Document'}
                                   </p>
@@ -317,7 +337,7 @@ const ChatArea = ({
                                     {msg.file_name?.toLowerCase().endsWith('.pdf') ? 'PDF Document' : 'DOCX Document'}
                                   </p>
                                 </div>
-                                <Download className="w-4 h-4 opacity-70" />
+                                <Download className="w-4 h-4 flex-shrink-0 opacity-70" />
                               </div>
                             )}
                             {msg.message && (
@@ -629,6 +649,46 @@ const ChatArea = ({
                       </button>
                     ))}
                   </div>
+                </div>
+              )}
+            </section>
+
+            <section className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900/30 p-4">
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-[11px] uppercase tracking-wide font-bold text-gray-500 dark:text-gray-400">Files</p>
+                <span className="text-xs text-gray-500 dark:text-gray-400">{fileItems.length} file{fileItems.length === 1 ? '' : 's'}</span>
+              </div>
+
+              {fileItems.length === 0 ? (
+                <p className="text-sm text-gray-500 dark:text-gray-400">No files shared in this conversation yet.</p>
+              ) : (
+                <div className="max-h-52 overflow-y-auto pr-1 space-y-2">
+                  {fileItems.map((item) => {
+                    const ext = item.file_name.split('.').pop().toUpperCase();
+                    const isPdf = ext === 'PDF';
+                    return (
+                      <button
+                        key={item.id}
+                        type="button"
+                        onClick={() => window.open(item.file_url, '_blank', 'noopener,noreferrer')}
+                        className="w-full flex items-center gap-3 p-2.5 rounded-xl border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800/60 transition-colors text-left group"
+                        title={`Open ${item.file_name}`}
+                      >
+                        <div className={`p-2 rounded-lg flex-shrink-0 ${isPdf ? 'bg-red-100 dark:bg-red-900/30' : 'bg-blue-100 dark:bg-blue-900/30'}`}>
+                          <FileText className={`w-4 h-4 ${isPdf ? 'text-red-500 dark:text-red-400' : 'text-blue-500 dark:text-blue-400'}`} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-semibold text-gray-800 dark:text-gray-200 truncate">{item.file_name}</p>
+                          <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-0.5">
+                            {item.created_at ? formatTime(item.created_at) : ''}
+                          </p>
+                        </div>
+                        <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded flex-shrink-0 ${isPdf ? 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400' : 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'}`}>
+                          {ext}
+                        </span>
+                      </button>
+                    );
+                  })}
                 </div>
               )}
             </section>

@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Jobs\ProcessPropertyMedia;
 use App\Models\LandlordVerification;
 use App\Models\Property;
 use App\Models\PropertyImage;
@@ -284,6 +285,14 @@ class PropertyService
                 $validated['reservation_fee_gap_days'] = max(0, (int) $validated['reservation_fee_gap_days']);
             }
 
+            // Sync GCash Name and Number explicitly
+            if (array_key_exists('gcash_name', $validated)) {
+                $property->gcash_name = $validated['gcash_name'];
+            }
+            if (array_key_exists('gcash_number', $validated)) {
+                $property->gcash_number = $validated['gcash_number'];
+            }
+
             $property->update($validated);
 
             if ($request->has('is_eligible')) {
@@ -301,12 +310,25 @@ class PropertyService
         });
     }
 
+    private function handleGcashQrUpload(Property $property, $file): void
+    {
+        try {
+            $path = $file->store('property_qrs');
+            $property->update(['gcash_qr_path' => $path]);
+        } catch (\Exception $e) {
+            \Log::error("GCash QR upload failed for property {$property->id}: " . $e->getMessage());
+        }
+    }
+
     public function getPublicProperties(Request $request)
     {
         $tenantId = Auth::id();
         $blockedStatuses = ['pending', 'confirmed', 'active', 'completed', 'partial-completed'];
-        $excludeTenantBookedRooms = function ($roomQuery) use ($tenantId, $blockedStatuses) {
-            if (! $tenantId) {
+        
+        $shouldExcludeBooked = $request->boolean('available_only') || $request->boolean('availability') || $request->has('min_price') || $request->has('max_price');
+
+        $excludeTenantBookedRooms = function ($roomQuery) use ($tenantId, $blockedStatuses, $shouldExcludeBooked) {
+            if (! $tenantId || !$shouldExcludeBooked) {
                 return;
             }
 
@@ -426,7 +448,7 @@ class PropertyService
                 ]);
             })
             ->orderBy('created_at', 'desc')
-            ->get();
+            ->paginate($request->input('per_page', 12));
     }
 
     public function getPublicPropertyTypes(): array
@@ -571,37 +593,29 @@ class PropertyService
     private function handleFileUploads(Property $property, Request $request, bool $isUpdate = false): void
     {
         if ($request->hasFile('images')) {
-            try {
-                $manager = new ImageManager(new Driver);
-                foreach ($request->file('images') as $index => $file) {
-                    try {
-                        $image = $manager->read($file->getRealPath());
-                        $image->scaleDown(width: 1920);
-                        $encoded = $image->toWebp(80);
-                        $filename = 'property_'.time().'_'.uniqid().'.webp';
-                        $path = 'property_images/'.$filename;
-                        Storage::put($path, (string) $encoded);
-                        PropertyImage::create([
-                            'property_id' => $property->id,
-                            'image_url' => $path,
-                            'is_primary' => $isUpdate ? ($index === 0 && $property->images()->where('is_primary', true)->doesntExist()) : ($index === 0),
-                            'display_order' => $property->images()->count() + $index,
-                            'media_type' => 'image',
-                        ]);
-                        unset($image, $encoded);
-                    } catch (\Exception $fe) {
-                        \Illuminate\Support\Facades\Log::error('Individual image processing failed', [
-                            'property_id' => $property->id,
-                            'file' => $file->getClientOriginalName(),
-                            'error' => $fe->getMessage(),
-                        ]);
-                    }
+            foreach ($request->file('images') as $index => $file) {
+                try {
+                    // Store raw image initially
+                    $path = $file->store('property_images/raw');
+
+                    $media = PropertyImage::create([
+                        'property_id' => $property->id,
+                        'image_url' => $path,
+                        'is_primary' => $isUpdate ? ($index === 0 && $property->images()->where('is_primary', true)->doesntExist()) : ($index === 0),
+                        'display_order' => $property->images()->count() + $index,
+                        'media_type' => 'image',
+                    ]);
+
+                    // Dispatch background optimization job
+                    ProcessPropertyMedia::dispatch($media->id)->onQueue('media');
+
+                } catch (\Exception $fe) {
+                    \Illuminate\Support\Facades\Log::error('Image upload failed', [
+                        'property_id' => $property->id,
+                        'file' => $file->getClientOriginalName(),
+                        'error' => $fe->getMessage(),
+                    ]);
                 }
-            } catch (\Exception $me) {
-                \Illuminate\Support\Facades\Log::error('Image manager initialization failed', [
-                    'property_id' => $property->id,
-                    'error' => $me->getMessage(),
-                ]);
             }
         }
 
@@ -652,42 +666,29 @@ class PropertyService
 
     private function uploadVideo(Property $property, $videoFile): void
     {
-        // Check duration locally first to avoid remote S3 read timeout
+        // For 2 CPU server, we offload ALL video processing to background.
+        // Web request ONLY stores the raw file.
         try {
-            // Use ffprobe directly via the helper if possible, or store temporarily
-            // For now, let's store it to local disk first to ensure FFMpeg can read it reliably
-            $tempName = 'temp_video_' . time() . '_' . $videoFile->getClientOriginalName();
-            $tempPath = $videoFile->storeAs('temp_durations', $tempName, 'local');
-            $absoluteTempPath = storage_path('app/' . $tempPath);
+            $path = $videoFile->store('property_videos/raw');
 
-            $duration = FFMpeg::fromDisk('local')->open($tempPath)->getDurationInSeconds();
-            
-            // Clean up temp file
-            Storage::disk('local')->delete($tempPath);
+            $media = PropertyImage::create([
+                'property_id' => $property->id,
+                'image_url' => $path,
+                'is_primary' => false,
+                'display_order' => 99,
+                'media_type' => 'video',
+            ]);
 
-            if ($duration > 45) {
-                throw new \Exception('Video duration must not exceed 45 seconds. Your video is ' . round($duration) . ' seconds long.');
-            }
+            // Dispatch background job for duration check and optimization
+            ProcessPropertyMedia::dispatch($media->id)->onQueue('media');
+
         } catch (\Exception $e) {
-            if (isset($tempPath)) Storage::disk('local')->delete($tempPath);
-            
-            \Illuminate\Support\Facades\Log::error('Video processing failure', [
+            \Illuminate\Support\Facades\Log::error('Video upload failed', [
                 'property_id' => $property->id,
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
             ]);
-            throw new \Exception('Could not process video file: ' . $e->getMessage());
+            throw new \Exception('Could not upload video file.');
         }
-
-        $path = $videoFile->store('property_videos');
-
-        PropertyImage::create([
-            'property_id' => $property->id,
-            'image_url' => $path,
-            'is_primary' => false,
-            'display_order' => 99,
-            'media_type' => 'video',
-        ]);
     }
 
     private function handleDeletions(Property $property, Request $request): void

@@ -36,6 +36,9 @@ class MessageResource extends JsonResource
             'is_edited' => (bool) $this->is_edited,
             'image_url' => (! $this->is_unsent && $this->image_url) ? (str_starts_with($this->image_url, 'http') ? $this->image_url : \Illuminate\Support\Facades\Storage::url($this->image_url)) : null,
             'file_url' => (! $this->is_unsent && $this->file_url) ? (str_starts_with($this->file_url, 'http') ? $this->file_url : \Illuminate\Support\Facades\Storage::url($this->file_url)) : null,
+            'download_url' => (! $this->is_unsent && $this->file_url) ? url("/api/messages/messages/{$this->id}/download") : null,
+            'image_path' => $this->image_url, // Alias for mobile compatibility
+            'file_path' => $this->file_url,   // Alias for mobile compatibility
             'file_name' => $this->file_name,
             'is_read' => (bool) $this->is_read,
             'read_at' => $this->read_at,

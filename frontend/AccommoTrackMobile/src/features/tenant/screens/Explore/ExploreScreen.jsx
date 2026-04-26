@@ -257,7 +257,8 @@ export default function TenantHomePage({
   }, [invalidateData, refreshExploreProperties]);
 
   const filterProperties = useCallback(() => {
-    let filtered = [...properties];
+    const safeProps = Array.isArray(properties) ? properties : [];
+    let filtered = [...safeProps];
 
     if (selectedFilter !== "All") {
       filtered = filtered.filter((prop) => {

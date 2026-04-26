@@ -297,28 +297,45 @@ const PropertyCarousel = ({ property, onOpenDetails }) => {
 
             const isOccupied = effectiveDisplayStatus === 'occupied' || effectiveDisplayStatus === 'reserved';
 
+            // Calculate if booking is limited for this tenant
+            const normalLimit = property?.normal_booking_limit || 1;
+            const currentUsage = property?.tenant_usage?.normal || 0;
+            const isLimitReached = currentUsage >= normalLimit;
+            
+            // A room is "bookable" if it's available AND the limit isn't reached, 
+            // OR if the tenant already has a booking/stay in it (reserved_by_me or is_tenant).
+            const showLimitBadge = isLimitReached && !room.reserved_by_me && !room.is_tenant && effectiveDisplayStatus === 'available';
+
             const statusBadgeText = room.reserved_by_me
               ? 'Reserved by you (Pending)'
-              : (room.display_status_label || effectiveDisplayStatus || '').toString().charAt(0).toUpperCase() +
-              (room.display_status_label || effectiveDisplayStatus || '').toString().slice(1);
+              : room.is_tenant
+                ? 'Your Current Room'
+                : showLimitBadge
+                  ? 'Booking Limit Reached'
+                  : (room.display_status_label || effectiveDisplayStatus || '').toString().charAt(0).toUpperCase() +
+                  (room.display_status_label || effectiveDisplayStatus || '').toString().slice(1);
 
-            const statusBadgeClassName = room.reserved_by_me
+            const statusBadgeClassName = (room.reserved_by_me || room.is_tenant)
               ? 'bg-amber-50 text-amber-800 border border-amber-100'
-              : effectiveDisplayStatus === 'occupied'
-                ? 'bg-red-50 text-red-700 border border-red-100'
-                : effectiveDisplayStatus === 'reserved'
-                  ? 'bg-amber-50 text-amber-800 border border-amber-100'
-                  : effectiveDisplayStatus === 'maintenance'
-                    ? 'bg-yellow-50 text-yellow-700 border border-yellow-100'
-                    : 'bg-green-50 text-green-700 border border-green-100';
+              : showLimitBadge
+                ? 'bg-gray-100 text-gray-600 border border-gray-200'
+                : effectiveDisplayStatus === 'occupied'
+                  ? 'bg-red-50 text-red-700 border border-red-100'
+                  : effectiveDisplayStatus === 'reserved'
+                    ? 'bg-amber-50 text-amber-800 border border-amber-100'
+                    : effectiveDisplayStatus === 'maintenance'
+                      ? 'bg-yellow-50 text-yellow-700 border border-yellow-100'
+                      : 'bg-green-50 text-green-700 border border-green-100';
+
+            const isGreyedOut = (isOccupied || showLimitBadge) && !room.reserved_by_me && !room.is_tenant;
 
             return (
               <div
                 key={room.id}
-                className={`flex-none w-[210px] sm:w-[200px] md:w-[190px] lg:w-[calc((100%-2.25rem)/4.25)] xl:w-[calc((100%-3rem)/4.25)] bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-100 dark:border-gray-700 hover:shadow-lg hover:border-green-300 dark:hover:border-green-600 transition-all duration-300 snap-start overflow-hidden group/card flex flex-col ${isOccupied ? 'opacity-50' : ''}`}
+                className={`flex-none w-[210px] sm:w-[200px] md:w-[190px] lg:w-[calc((100%-2.25rem)/4.25)] xl:w-[calc((100%-3rem)/4.25)] bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-100 dark:border-gray-700 hover:shadow-lg hover:border-green-300 dark:hover:border-green-600 transition-all duration-300 snap-start overflow-hidden group/card flex flex-col ${isGreyedOut ? 'opacity-50 grayscale-[0.5]' : ''}`}
               >
                 {/* Image Click -> Open Room Details */}
-                <div className="relative h-32 overflow-hidden bg-gray-200 dark:bg-gray-700 cursor-pointer" onClick={() => onOpenDetails(room, property)}>
+                <div className="relative h-32 overflow-hidden bg-gray-200 dark:bg-gray-700 cursor-pointer" onClick={() => !isGreyedOut && onOpenDetails(room, property)}>
                   {getImageUrl(room.imageSource) ? (
                     <img
                       src={getImageUrl(room.imageSource)}
@@ -346,9 +363,9 @@ const PropertyCarousel = ({ property, onOpenDetails }) => {
                 <div className="p-3 flex-1 flex flex-col">
                   <div className="flex items-center justify-between gap-1.5 mb-1">
                     <h4
-                      className="text-sm font-bold text-gray-900 dark:text-white line-clamp-1 cursor-pointer hover:text-green-600 dark:hover:text-green-400 transition-colors"
+                      className={`text-sm font-bold text-gray-900 dark:text-white line-clamp-1 ${!isGreyedOut ? 'cursor-pointer hover:text-green-600 dark:hover:text-green-400' : ''} transition-colors`}
                       title={room.displayName}
-                      onClick={() => onOpenDetails(room, property)}
+                      onClick={() => !isGreyedOut && onOpenDetails(room, property)}
                     >
                       {room.displayName}
                     </h4>
@@ -410,10 +427,11 @@ const PropertyCarousel = ({ property, onOpenDetails }) => {
                       </span>
                     </div>
                     <button
-                      onClick={() => onOpenDetails(room, property)}
-                      className="px-2.5 py-1 rounded-md bg-gray-900 text-white text-[11px] font-semibold hover:bg-green-600 transition-colors shadow-sm whitespace-nowrap shrink-0"
+                      onClick={() => !isGreyedOut && onOpenDetails(room, property)}
+                      disabled={isGreyedOut}
+                      className={`px-2.5 py-1 rounded-md text-[11px] font-semibold transition-colors shadow-sm whitespace-nowrap shrink-0 ${isGreyedOut ? 'bg-gray-200 text-gray-500 cursor-not-allowed' : 'bg-gray-900 text-white hover:bg-green-600'}`}
                     >
-                      View Details
+                      {isGreyedOut && showLimitBadge ? 'Limited' : 'View Details'}
                     </button>
                   </div>
                 </div>

@@ -10,6 +10,7 @@ use App\Models\PaymentTransaction;
 use App\Models\User;
 use App\Services\AuditLogService;
 use App\Services\PaymentLedgerService;
+use App\Services\UserCounterService;
 use App\Support\SystemToggle;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -31,6 +32,7 @@ class InvoiceController extends Controller
     public function __construct(
         protected AuditLogService $auditLogService,
         private readonly PaymentLedgerService $paymentLedgerService,
+        private readonly UserCounterService $counterService,
     ) {}
 
     /**
@@ -461,9 +463,6 @@ class InvoiceController extends Controller
                 ],
             ]);
 
-            // Broadcast the update to the tenant
-            broadcast(new InvoiceUpdated($invoice))->toOthers();
-
             DB::commit();
 
             return response()->json($tx->fresh(), 200);
@@ -539,10 +538,10 @@ class InvoiceController extends Controller
                 ],
             ]);
 
-            // Broadcast the update to the tenant
-            broadcast(new InvoiceUpdated($invoice))->toOthers();
-
             DB::commit();
+
+            // BROADCAST COUNTERS to Landlord
+            $this->counterService->broadcastCounters((int) $invoice->landlord_id);
 
             return response()->json($tx->fresh(), 201);
         } catch (\Exception $e) {
@@ -730,6 +729,9 @@ class InvoiceController extends Controller
 
             DB::commit();
 
+            // BROADCAST COUNTERS to Landlord
+            $this->counterService->broadcastCounters((int) $invoice->landlord_id);
+
             return response()->json(['success' => true, 'transaction' => $tx->fresh()], 201);
         } catch (\Exception $e) {
             DB::rollBack();
@@ -757,8 +759,6 @@ class InvoiceController extends Controller
             'reason_code' => 'required_if:action,reject|in:invalid_proof,wrong_amount,unclear_image,mismatched_reference,duplicate_submission,other',
             'reason' => ['required_if:action,reject', 'string', 'max:500', 'not_regex:/^\s*$/'],
         ]);
-
-        $shouldBroadcastInvoiceUpdate = false;
 
         DB::beginTransaction();
         try {
@@ -830,8 +830,6 @@ class InvoiceController extends Controller
                         ]);
                     }
                 }
-
-                $shouldBroadcastInvoiceUpdate = true;
             } else {
                 $rejectionReason = trim((string) ($validated['reason'] ?? ''));
 
@@ -898,16 +896,8 @@ class InvoiceController extends Controller
 
             DB::commit();
 
-            if ($shouldBroadcastInvoiceUpdate) {
-                try {
-                    broadcast(new InvoiceUpdated($invoice))->toOthers();
-                } catch (\Throwable $broadcastError) {
-                    \Log::warning('verifyCash broadcast failed', [
-                        'invoice_id' => $invoice->id,
-                        'error' => $broadcastError->getMessage(),
-                    ]);
-                }
-            }
+            // BROADCAST COUNTERS to Landlord
+            $this->counterService->broadcastCounters((int) $invoice->landlord_id);
 
             return response()->json([
                 'success' => true,

@@ -1,10 +1,12 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import Logo from '../../assets/Logo.png';
 import { useSidebar } from '../../contexts/SidebarContext.jsx';
 import LogoutConfirmModal from '../Shared/LogoutConfirmModal';
 import __api, { getImageUrl } from '../../utils/api';
 import NotificationDropdown from '../Shared/NotificationDropdown';
+import RealTimeStatus from '../Shared/RealTimeStatus';
+import { useUserCounters } from '../../hooks/useLandlordQueries';
 import { useUIState } from '../../contexts/UIStateContext';
 import {
   Plus,
@@ -25,9 +27,11 @@ export default function LandlordLayout({ user, onLogout, children, accessRole = 
   const { isSidebarOpen, setIsSidebarOpen, asideRef } = useSidebar();
   const { uiState } = useUIState();
   const [showLogoutModal, setShowLogoutModal] = useState(false);
-  const [messageUnreadCount, setMessageUnreadCount] = useState(0);
   const location = useLocation();
   const navigate = useNavigate();
+
+  // GLOBAL COUNTERS (TanStack + WebSockets)
+  const { data: counters } = useUserCounters(!!user?.id);
 
   // Maintenance, Add-ons, and Tenants are intentionally excluded here.
   // Landlords access those modules via PropertySummary shortcuts (property context).
@@ -36,49 +40,27 @@ export default function LandlordLayout({ user, onLogout, children, accessRole = 
     { path: '/dashboard',  label: 'Dashboard',    icon: <LayoutDashboard className="w-5 h-5" /> },
     { path: '/properties', label: 'My Properties', icon: <Building2 className="w-5 h-5" /> },
     { path: '/bookings',   label: 'Bookings',      icon: <Calendar className="w-5 h-5" /> },
-    { path: '/payments',   label: 'Payments',      icon: <Banknote className="w-5 h-5" /> },
-    { path: '/messages',   label: 'Messages',      icon: <MessageSquare className="w-5 h-5" /> },
+    { path: '/payments',   label: 'Payments',      icon: <Banknote className="w-5 h-5" />, countKey: 'payments' },
+    { path: '/messages',   label: 'Messages',      icon: <MessageSquare className="w-5 h-5" />, countKey: 'messages' },
     { path: '/analytics',  label: 'Analytics',     icon: <BarChart3 className="w-5 h-5" /> },
     { path: '/settings',   label: 'Settings',      icon: <SettingsIcon className="w-5 h-5" /> },
   ];
 
-  const refreshMessageUnreadCount = useCallback(async () => {
-    try {
-      const response = await __api.get('/messages/conversations');
-      const rows = Array.isArray(response.data) ? response.data : [];
-      const unread = rows.reduce((sum, conv) => sum + (Number(conv?.unread_count) || 0), 0);
-      setMessageUnreadCount(unread);
-    } catch (_error) {
-      // Keep the previous count if refresh fails.
-    }
-  }, []);
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return undefined;
-
-    refreshMessageUnreadCount();
-
-    const handleWindowFocus = () => refreshMessageUnreadCount();
-    const handleUnreadUpdate = (event) => {
-      const eventCount = Number.parseInt(String(event?.detail?.count ?? ''), 10);
-      if (Number.isFinite(eventCount)) {
-        setMessageUnreadCount(Math.max(0, eventCount));
-        return;
-      }
-      refreshMessageUnreadCount();
-    };
-
-    window.addEventListener('focus', handleWindowFocus);
-    window.addEventListener('accommo:messages-unread-updated', handleUnreadUpdate);
-
-    return () => {
-      window.removeEventListener('focus', handleWindowFocus);
-      window.removeEventListener('accommo:messages-unread-updated', handleUnreadUpdate);
-    };
-  }, [refreshMessageUnreadCount]);
-
   const handleLogoutClick = () => setShowLogoutModal(true);
   const confirmLogout = () => { setShowLogoutModal(false); onLogout(); };
+
+  const renderBadge = (count) => {
+    if (!count || count <= 0) return null;
+    return (
+      <span
+        className={`inline-flex items-center justify-center rounded-full bg-red-600 text-white text-[10px] font-bold leading-none h-5 min-w-[20px] px-1.5 ${
+          isSidebarOpen ? 'ml-auto' : 'absolute top-2 right-2'
+        }`}
+      >
+        {count > 99 ? '99+' : count}
+      </span>
+    );
+  };
 
   const getPageTitle = () => {
     if (location.pathname === '/properties' && uiState.data?.landlord_property_view === 'add') {
@@ -201,15 +183,7 @@ export default function LandlordLayout({ user, onLogout, children, accessRole = 
             >
               {item.icon}
               {isSidebarOpen && <span className="font-medium truncate">{item.label}</span>}
-              {item.path === '/messages' && messageUnreadCount > 0 && (
-                <span
-                  className={`inline-flex items-center justify-center rounded-full bg-red-600 text-white text-[10px] font-bold leading-none h-5 min-w-[20px] px-1.5 ${
-                    isSidebarOpen ? 'ml-auto' : 'absolute top-2 right-2'
-                  }`}
-                >
-                  {messageUnreadCount > 99 ? '99+' : messageUnreadCount}
-                </span>
-              )}
+              {item.countKey && renderBadge(counters?.[item.countKey])}
             </NavLink>
           ))}
         </nav>
@@ -261,6 +235,7 @@ export default function LandlordLayout({ user, onLogout, children, accessRole = 
               {getPageTitle()}
             </h1>
             <div className="absolute right-4 lg:right-8 flex items-center gap-4">
+              <RealTimeStatus />
               {location.pathname === '/properties' && uiState.data?.landlord_property_view !== 'add' && (
                 <button
                   onClick={() => window.dispatchEvent(new CustomEvent('open-add-property'))}

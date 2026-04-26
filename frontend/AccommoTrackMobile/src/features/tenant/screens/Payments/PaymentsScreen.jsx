@@ -139,7 +139,7 @@ export default function PaymentsScreen() {
     refetchers: paymentRefetchers,
   });
 
-  // Real-time updates
+  // System settings setup
   useEffect(() => {
     let mounted = true;
     SystemToggleService.getToggles().then((result) => {
@@ -151,36 +151,6 @@ export default function PaymentsScreen() {
       mounted = false;
     };
   }, []);
-
-  useEffect(() => {
-    if (!userId) return;
-
-    let echoInstance = null;
-    let channel = null;
-
-    const setupEcho = async () => {
-      echoInstance = await createEcho();
-      if (!echoInstance) return;
-
-      channel = echoInstance.private(`user.${userId}`)
-        .listen('.invoice.updated', (e) => {
-          console.log('[PaymentsScreen] Real-time update:', e);
-          triggerPaymentDataRefresh();
-          showSuccess('Payment Updated', 'Your payment status has been updated.');
-        });
-    };
-
-    setupEcho();
-
-    return () => {
-      if (channel) {
-        channel.stopListening('.invoice.updated');
-      }
-      if (echoInstance) {
-        echoInstance.disconnect();
-      }
-    };
-  }, [userId, triggerPaymentDataRefresh]);
 
   const resolveEntryKey = React.useCallback((item) => {
     if (!item || typeof item !== 'object') return null;

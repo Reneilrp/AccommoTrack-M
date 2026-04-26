@@ -223,10 +223,14 @@ class RefundService
             // Remove tenant from the room pivot so occupancy counters drop correctly.
             if ($booking->room) {
                 try {
-                    // Use forceVacate to ensure all associations are wiped
-                    $booking->room->forceVacate();
+                    // Surgical removal: only remove the specific tenant getting the refund
+                    if ($booking->tenant_id) {
+                        $booking->room->removeTenant($booking->tenant_id);
+                    } else {
+                        $booking->room->removeTenant(null);
+                    }
                 } catch (\Exception $e) {
-                    Log::error('RefundService: failed to force vacate room during refund', [
+                    Log::error('RefundService: failed to remove tenant from room during refund', [
                         'booking_id' => $booking->id,
                         'room_id'    => $booking->room_id,
                         'error'      => $e->getMessage(),

@@ -9,11 +9,16 @@ import { showSuccess, showError } from '../utils/toast.js';
 import { useTheme } from '../contexts/ThemeContext.jsx';
 import { useQueryClient } from '@tanstack/react-query';
 import { landlordQueryKeys } from '../features/landlord/hooks/useLandlordQueryHelpers.js';
+import { useUserCounters } from '../features/tenant/hooks/useTenantQueryHelpers.js';
+import { useAuthStore } from '../stores/auth/authStore.js';
 
 export default function StaffToolbelt() {
   const { theme } = useTheme();
   const navigation = useNavigation();
   const queryClient = useQueryClient();
+  
+  const userId = useAuthStore((state) => state.userId);
+  const { data: counters } = useUserCounters(!!userId);
 
   const [isOpen, setIsOpen] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
@@ -74,6 +79,11 @@ export default function StaffToolbelt() {
               activeOpacity={0.8}
             >
               <Ionicons name="chatbubbles" size={20} color="#2563EB" />
+              {counters?.messages > 0 && (
+                <View style={styles.badgeContainer}>
+                   <Text style={styles.badgeText}>{counters.messages > 99 ? '99+' : counters.messages}</Text>
+                </View>
+              )}
             </TouchableOpacity>
           </Animated.View>
 
@@ -459,5 +469,24 @@ const styles = StyleSheet.create({
   statusOptionText: {
     fontSize: 16,
     color: "#374151",
+  },
+  badgeContainer: {
+    position: 'absolute',
+    right: -5,
+    top: -5,
+    backgroundColor: '#EF4444',
+    borderRadius: 10,
+    minWidth: 18,
+    height: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 3,
+    borderWidth: 1.5,
+    borderColor: '#DBEAFE',
+  },
+  badgeText: {
+    color: '#FFFFFF',
+    fontSize: 9,
+    fontWeight: '800',
   }
 });

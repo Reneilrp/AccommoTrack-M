@@ -194,6 +194,8 @@ class TenantSettingsController extends Controller
                 }
 
                 if (is_array($newPrefs)) {
+                    // [SINGLE SOURCE OF TRUTH] Filter out gender/sex
+                    unset($newPrefs['sex'], $newPrefs['gender']);
                     $tenantProfile->preference = array_merge($currentPrefs, $newPrefs);
                 }
             }

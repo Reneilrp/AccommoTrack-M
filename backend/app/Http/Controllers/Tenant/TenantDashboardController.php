@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Tenant;
 
 use App\Http\Controllers\Controller;
 use App\Services\TenantDashboardService;
+use App\Services\UserCounterService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
@@ -105,9 +106,10 @@ class TenantDashboardController extends Controller
         ];
     }
 
-    public function __construct(TenantDashboardService $dashboardService)
+    public function __construct(TenantDashboardService $dashboardService, UserCounterService $counterService)
     {
         $this->dashboardService = $dashboardService;
+        $this->counterService = $counterService;
     }
 
     public function getStats()
@@ -173,39 +175,32 @@ class TenantDashboardController extends Controller
     {
         try {
             $tenantId = Auth::id();
-            $cacheKey = "tenant_dashboard_{$tenantId}";
 
-            $bundle = Cache::remember($cacheKey, 60, function () use ($tenantId, $request) {
-                // 1. Core dashboard stats
-                $stats = $this->dashboardService->getStats($tenantId);
+            // 1. Core dashboard stats
+            $stats = $this->dashboardService->getStats($tenantId);
 
-                // 2. Recent activities
-                $activities = $this->dashboardService->getRecentActivities($tenantId)->values();
+            // 2. Recent activities
+            $activities = $this->dashboardService->getRecentActivities($tenantId)->values();
 
-                // 3. Upcoming payments/check-ins
-                $upcomingRaw = $this->dashboardService->getUpcomingPayments($tenantId);
-                $upcoming = $this->formatUpcomingPayments($upcomingRaw);
+            // 3. Upcoming payments/check-ins
+            $upcomingRaw = $this->dashboardService->getUpcomingPayments($tenantId);
+            $upcoming = $this->formatUpcomingPayments($upcomingRaw);
 
-                // 4. Stay details (Consolidated with Fragment Caching)
-                $stayData = Cache::remember("tenant_stay_details_{$tenantId}", 60, function() use ($tenantId) {
-                    return $this->getStayDetailsInternal($tenantId);
-                });
+            // 4. Stay details
+            $stayData = $this->getStayDetailsInternal($tenantId);
 
-                // 5. Payment breakdown (Invoke standalone controller method with caching)
-                $breakdown = Cache::remember("tenant_payment_breakdown_{$tenantId}", 1800, function() use ($request) {
-                    $paymentController = app(\App\Http\Controllers\Tenant\TenantPaymentController::class);
-                    $breakdownResponse = $paymentController->getBreakdown($request);
-                    return $breakdownResponse->getData(true);
-                });
+            // 5. Payment breakdown (Invoke standalone controller method)
+            $paymentController = app(\App\Http\Controllers\Tenant\TenantPaymentController::class);
+            $breakdownResponse = $paymentController->getBreakdown($request);
+            $breakdown = $breakdownResponse->getData(true);
 
-                return [
-                    'stats' => $stats,
-                    'activities' => $activities,
-                    'upcoming' => $upcoming,
-                    'stay' => $stayData,
-                    'breakdown' => $breakdown['data'] ?? ['upcoming_months' => []],
-                ];
-            });
+            $bundle = [
+                'stats' => $stats,
+                'activities' => $activities,
+                'upcoming' => $upcoming,
+                'stay' => $stayData,
+                'breakdown' => $breakdown['data'] ?? ['upcoming_months' => []],
+            ];
 
             return response()->json([
                 'success' => true,
@@ -576,6 +571,16 @@ class TenantDashboardController extends Controller
             ]);
             $addon = $this->dashboardService->requestAddonForActiveBooking(Auth::id(), $validated);
 
+            // BROADCAST COUNTERS to Landlord
+            try {
+                $booking = \App\Models\Booking::find($addon->pivot->booking_id);
+                if ($booking) {
+                    $this->counterService->broadcastCounters((int) $booking->landlord_id);
+                }
+            } catch (\Exception $e) {
+                \Log::warning('Failed to broadcast addon request counters', ['error' => $e->getMessage()]);
+            }
+
             return response()->json(['success' => true, 'message' => 'Addon request submitted successfully', 'addon' => $addon], 201);
         } catch (\Exception $e) {
             return response()->json(['message' => $e->getMessage()], $e->getCode() >= 400 && $e->getCode() < 500 ? $e->getCode() : 500);
@@ -586,6 +591,18 @@ class TenantDashboardController extends Controller
     {
         try {
             $result = $this->dashboardService->cancelAddonRequestForActiveBooking(Auth::id(), $addonId);
+
+            // BROADCAST COUNTERS to Landlord
+            try {
+                $booking = \App\Models\Booking::where('tenant_id', Auth::id())
+                    ->whereIn('status', ['confirmed', 'active', 'completed', 'partial-completed'])
+                    ->first();
+                if ($booking) {
+                    $this->counterService->broadcastCounters((int) $booking->landlord_id);
+                }
+            } catch (\Exception $e) {
+                \Log::warning('Failed to broadcast addon cancel counters', ['error' => $e->getMessage()]);
+            }
 
             return response()->json([
                 'success' => true,

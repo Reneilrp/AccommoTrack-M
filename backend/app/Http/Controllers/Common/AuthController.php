@@ -11,6 +11,7 @@ use App\Models\User;
 use App\Services\AuditLogService;
 use App\Services\AuthService;
 use App\Services\LegalConsentService;
+use App\Services\UserCounterService;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -43,14 +44,39 @@ class AuthController extends Controller
 
     protected AuditLogService $auditLogService;
 
+    protected UserCounterService $counterService;
+
     public function __construct(
         AuthService $authService,
         LegalConsentService $legalConsentService,
-        AuditLogService $auditLogService
+        AuditLogService $auditLogService,
+        UserCounterService $counterService
     ) {
         $this->authService = $authService;
         $this->legalConsentService = $legalConsentService;
         $this->auditLogService = $auditLogService;
+        $this->counterService = $counterService;
+    }
+
+    /**
+     * Get unread/pending counts across all modules.
+     */
+    public function getCounters(Request $request): JsonResponse
+    {
+        try {
+            $user = $request->user();
+            if (!$user) {
+                return response()->json(['success' => false, 'message' => 'Unauthorized'], 401);
+            }
+
+            return response()->json([
+                'success' => true,
+                'data' => $this->counterService->getCounters($user)
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Failed to fetch counters', ['error' => $e->getMessage()]);
+            return response()->json(['success' => false, 'message' => 'Failed to load counters'], 500);
+        }
     }
 
     protected function webCookieModeAllowedForEnvironment(): bool
@@ -484,13 +510,19 @@ class AuthController extends Controller
             return response()->json(['message' => 'Verification code not found.'], 404);
         }
 
+        if ($lockoutResponse = $this->checkOtpLockout($user)) {
+            return $lockoutResponse;
+        }
+
         if (Carbon::now()->isAfter($user->email_otp_expires_at)) {
             return response()->json(['message' => 'Verification code has expired.'], 422);
         }
 
         if (! Hash::check($validated['email_otp_code'], $user->email_otp_code)) {
-            return response()->json(['message' => 'Invalid verification code.'], 422);
+            return $this->handleFailedOtpAttempt($user);
         }
+
+        $this->clearOtpAttempts($user);
 
         $securityPreferences = $this->getNormalizedSecurityPreferences($user);
         $isTenantTwoFactorLoginVerification = $user->role === 'tenant'
@@ -927,6 +959,18 @@ class AuthController extends Controller
             // Manually check request for these fields since they aren't in the strict users validation rules
             $tenantData = $request->only($tenantProfileFields);
 
+            // [SINGLE SOURCE OF TRUTH] Filter out gender/sex from preference JSON
+            if (isset($tenantData['preference'])) {
+                $prefs = $tenantData['preference'];
+                if (is_string($prefs)) {
+                    $prefs = json_decode($prefs, true) ?? [];
+                }
+                if (is_array($prefs)) {
+                    unset($prefs['sex'], $prefs['gender']);
+                    $tenantData['preference'] = $prefs;
+                }
+            }
+
             if (! empty($tenantData) && $user->role === 'tenant') {
                 $user->tenantProfile()->updateOrCreate(
                     ['user_id' => $user->id],
@@ -1123,6 +1167,10 @@ class AuthController extends Controller
             ], 404);
         }
 
+        if ($lockoutResponse = $this->checkOtpLockout($user)) {
+            return $lockoutResponse;
+        }
+
         if (Carbon::now()->isAfter($user->email_otp_expires_at)) {
             return response()->json([
                 'message' => 'Verification code has expired. Please request a new code.',
@@ -1130,10 +1178,10 @@ class AuthController extends Controller
         }
 
         if (! Hash::check($validated['email_otp_code'], $user->email_otp_code)) {
-            return response()->json([
-                'message' => 'Invalid verification code.',
-            ], 422);
+            return $this->handleFailedOtpAttempt($user);
         }
+
+        $this->clearOtpAttempts($user);
 
         $securityPreferences = $this->getNormalizedSecurityPreferences($user);
 
@@ -1217,6 +1265,10 @@ class AuthController extends Controller
             ], 404);
         }
 
+        if ($lockoutResponse = $this->checkOtpLockout($user)) {
+            return $lockoutResponse;
+        }
+
         if (Carbon::now()->isAfter($user->email_otp_expires_at)) {
             return response()->json([
                 'message' => 'Verification code has expired. Please request a new code.',
@@ -1224,10 +1276,10 @@ class AuthController extends Controller
         }
 
         if (! Hash::check($validated['email_otp_code'], $user->email_otp_code)) {
-            return response()->json([
-                'message' => 'Invalid verification code.',
-            ], 422);
+            return $this->handleFailedOtpAttempt($user);
         }
+
+        $this->clearOtpAttempts($user);
 
         $user->forceFill([
             'email_otp_code' => null,
@@ -1358,5 +1410,45 @@ class AuthController extends Controller
                 'error' => $e->getMessage(),
             ], 500);
         }
+    }
+
+    private function handleFailedOtpAttempt(User $user): JsonResponse
+    {
+        $userId = $user->id;
+        $key = "otp_attempts_{$userId}";
+        $attempts = (int) \Illuminate\Support\Facades\Cache::get($key, 0) + 1;
+        
+        \Illuminate\Support\Facades\Cache::put($key, $attempts, now()->addMinutes(30));
+
+        if ($attempts >= 5) {
+            return response()->json([
+                'message' => 'Too many failed attempts. OTP verification has been locked for 30 minutes.',
+            ], 429);
+        }
+
+        $remaining = 5 - $attempts;
+        return response()->json([
+            'message' => "Invalid verification code. You have {$remaining} attempts remaining before lockout.",
+        ], 422);
+    }
+
+    private function checkOtpLockout(User $user): ?JsonResponse
+    {
+        $userId = $user->id;
+        $key = "otp_attempts_{$userId}";
+        $attempts = (int) \Illuminate\Support\Facades\Cache::get($key, 0);
+
+        if ($attempts >= 5) {
+            return response()->json([
+                'message' => "Too many failed attempts. This feature has been locked temporarily for security. Please try again later.",
+            ], 429);
+        }
+
+        return null;
+    }
+
+    private function clearOtpAttempts(User $user): void
+    {
+        \Illuminate\Support\Facades\Cache::forget("otp_attempts_{$user->id}");
     }
 }

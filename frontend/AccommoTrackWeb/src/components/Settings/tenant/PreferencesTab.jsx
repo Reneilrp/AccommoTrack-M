@@ -22,27 +22,26 @@ const PreferencesTab = () => {
   });
 
   const [newPreference, setNewPreference] = useState("");
+const mapDataToForm = useCallback((data) => {
+  let prefs = data.tenant_profile?.preference || {};
 
-  const mapDataToForm = useCallback((data) => {
-    let prefs = data.tenant_profile?.preference || {};
-
-    if (typeof prefs === "string") {
-      try {
-        prefs = JSON.parse(prefs);
-      } catch (__e) {
-        prefs = {};
-      }
+  if (typeof prefs === "string") {
+    try {
+      prefs = JSON.parse(prefs);
+    } catch (__e) {
+      prefs = {};
     }
+  }
 
-    setFormData({
-      room_preference: prefs.room_preference || "",
-      budget_range: prefs.budget_range || "",
-      attitude: prefs.attitude || "",
-      behavior: prefs.behavior || "",
-      lifestyle_notes: prefs.lifestyle_notes || prefs.lifestyle || "",
-      custom_preferences: Array.isArray(prefs.custom_preferences) ? prefs.custom_preferences : [],
-    });
-  }, []);
+  setFormData({
+    room_preference: prefs.room_preference || "",
+    budget_range: prefs.budget_range || "",
+    attitude: prefs.attitude || "",
+    behavior: prefs.behavior || "",
+    lifestyle_notes: prefs.lifestyle_notes || prefs.lifestyle || "",
+    custom_preferences: Array.isArray(prefs.custom_preferences) ? prefs.custom_preferences : [],
+  });
+}, []);
 
   const fetchPreferences = useCallback(async () => {
     try {

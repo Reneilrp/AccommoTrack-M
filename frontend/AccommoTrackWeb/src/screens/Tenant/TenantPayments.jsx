@@ -12,7 +12,6 @@ import { SkeletonWallet, SkeletonTableRow } from '../../components/Shared/Skelet
 import { useUIState } from "../../contexts/UIStateContext";
 import { showSuccess, showError, showLoading } from '../../utils/toast';
 import { CircleDollarSign, ClipboardCheck, Calendar, Search, RefreshCw, Loader2, Receipt, X, FileText, AlertCircle } from 'lucide-react';
-import createEcho from '../../utils/echo';
 import systemToggleService from '../../services/systemToggleService';
 import Decimal from '../../utils/decimal';
 
@@ -37,7 +36,7 @@ const formatDate = (date) => {
   }
 };
 
-export default function TenantPayments({ user }) {
+export default function TenantPayments() {
   const navigate = useNavigate();
   const { uiState, updateScreenState } = useUIState();
   const { statusFilter, archiveFilter, timeRange, searchQuery } = uiState.wallet || {
@@ -113,26 +112,6 @@ export default function TenantPayments({ user }) {
       })();
     }
   }, [tenantPaymentsTempDisabled, archiveFilter, loadData, navigate]);
-
-  // Real-time updates
-  useEffect(() => {
-    if (!user?.id) return;
-
-    const echo = createEcho();
-    if (!echo) return;
-
-    const channel = echo.private(`user.${user.id}`)
-      .listen('.invoice.updated', (e) => {
-        console.log('Real-time invoice update received:', e);
-        loadData();
-        showSuccess('Payment status updated!');
-      });
-
-    return () => {
-      channel.stopListening('.invoice.updated');
-      echo.disconnect();
-    };
-  }, [user?.id, loadData]);
 
   const resolvePaymentEntryKey = useCallback((payment) => {
     if (!payment || typeof payment !== 'object') return null;

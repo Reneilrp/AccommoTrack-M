@@ -8,6 +8,7 @@ use App\Models\Booking;
 use App\Models\MaintenanceRequest;
 use App\Models\MaintenanceUpdate;
 use App\Events\MaintenanceStatusChanged;
+use App\Services\UserCounterService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -15,6 +16,13 @@ use Illuminate\Support\Facades\DB;
 class MaintenanceRequestController extends Controller
 {
     use ResolvesLandlordAccess;
+
+    protected UserCounterService $counterService;
+
+    public function __construct(UserCounterService $counterService)
+    {
+        $this->counterService = $counterService;
+    }
 
     /**
      * Store a new maintenance request from a tenant.
@@ -57,6 +65,9 @@ class MaintenanceRequestController extends Controller
 
             $update = $this->logUpdate($maintenanceRequest, 'status_change', 'Maintenance request submitted', null, 'pending');
             broadcast(new MaintenanceStatusChanged($maintenanceRequest, $update));
+
+            // BROADCAST COUNTERS to Landlord/Caretakers
+            $this->counterService->broadcastCounters((int) $booking->landlord_id);
 
             DB::commit();
 
@@ -250,6 +261,12 @@ class MaintenanceRequestController extends Controller
         $update = $this->logUpdate($maintenanceRequest, 'status_change', $updateContent, $request->notes, $oldStatus, $request->status);
         broadcast(new MaintenanceStatusChanged($maintenanceRequest, $update));
 
+        // BROADCAST COUNTERS
+        $this->counterService->broadcastCounters((int) $context['landlord_id']);
+        if ($maintenanceRequest->tenant_id) {
+            $this->counterService->broadcastCounters((int) $maintenanceRequest->tenant_id);
+        }
+
         return response()->json([
             'success' => true,
             'message' => 'Maintenance request status updated',
@@ -304,6 +321,10 @@ class MaintenanceRequestController extends Controller
         $update = $this->logUpdate($maintenanceRequest, 'assignment', $updateContent, null, $oldStatus, $maintenanceRequest->status);
         broadcast(new MaintenanceStatusChanged($maintenanceRequest, $update));
 
+        // BROADCAST COUNTERS
+        $this->counterService->broadcastCounters((int) $context['landlord_id']);
+        $this->counterService->broadcastCounters((int) $request->worker_id);
+
         return response()->json([
             'success' => true,
             'message' => 'Maintenance request assigned successfully',
@@ -346,6 +367,12 @@ class MaintenanceRequestController extends Controller
 
         $update = $this->logUpdate($maintenanceRequest, 'status_change', 'Maintenance task completed', $request->notes, $oldStatus, 'completed');
         broadcast(new MaintenanceStatusChanged($maintenanceRequest, $update));
+
+        // BROADCAST COUNTERS
+        $this->counterService->broadcastCounters((int) $context['landlord_id']);
+        if ($maintenanceRequest->tenant_id) {
+            $this->counterService->broadcastCounters((int) $maintenanceRequest->tenant_id);
+        }
 
         return response()->json([
             'success' => true,

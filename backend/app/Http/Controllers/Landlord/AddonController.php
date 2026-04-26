@@ -8,6 +8,7 @@ use App\Http\Resources\AddonResource;
 use App\Models\Addon;
 use App\Models\Booking;
 use App\Services\AddonService;
+use App\Services\UserCounterService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
@@ -17,6 +18,7 @@ class AddonController extends Controller
     use ResolvesLandlordAccess;
 
     protected AddonService $addonService;
+    protected UserCounterService $counterService;
 
     private function extractSuggestedPriceFromNote(?string $note): ?float
     {
@@ -38,9 +40,10 @@ class AddonController extends Controller
         return $price > 0 ? $price : null;
     }
 
-    public function __construct(AddonService $addonService)
+    public function __construct(AddonService $addonService, UserCounterService $counterService)
     {
         $this->addonService = $addonService;
+        $this->counterService = $counterService;
     }
 
     private function resolveAddonPropertyContext(Request $request, int $propertyId, string $permissionColumn = 'can_view_properties'): array
@@ -330,6 +333,9 @@ class AddonController extends Controller
                 $context['user']->id,
                 $approvedPrice
             );
+
+            // BROADCAST COUNTERS
+            $this->counterService->broadcastCounters((int) $context['landlord_id']);
 
             return response()->json($result, 200);
         } catch (AccessDeniedHttpException $e) {

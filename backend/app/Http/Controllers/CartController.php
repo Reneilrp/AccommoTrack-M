@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Validator;
 
 class CartController extends Controller
 {
+    use \App\Http\Controllers\Permission\HandlesDomainExceptions;
     protected CartService $cartService;
 
     public function __construct(CartService $cartService)
@@ -255,10 +256,7 @@ class CartController extends Controller
                 'data' => $result,
             ]);
         } catch (\DomainException $e) {
-            return response()->json([
-                'success' => false,
-                'message' => $e->getMessage(),
-            ], 400);
+            return $this->renderDomainException($e, 400);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,

@@ -201,19 +201,19 @@ const TransferModal = ({ isOpen, onClose, onSubmit, booking, isSubmitting }) => 
                     <div className="p-4 space-y-2 text-xs">
                       <div className="flex justify-between">
                         <span className="text-gray-500">Remaining days this cycle</span>
-                        <span className="font-bold">{preview.remaining_days} days</span>
+                        <span className="font-bold text-gray-900 dark:text-white">{preview.remaining_days} days</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-gray-500">Old room unused value</span>
-                        <span className="font-bold text-emerald-600">₱{Number(preview.old_room_unused_value).toLocaleString()}</span>
+                        <span className="font-bold text-gray-900 dark:text-white">₱{Number(preview.old_room_unused_value).toLocaleString()}</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-gray-500">New room cost (remaining days)</span>
-                        <span className="font-bold text-amber-600">₱{Number(preview.new_room_cost).toLocaleString()}</span>
+                        <span className="font-bold text-gray-900 dark:text-white">₱{Number(preview.new_room_cost).toLocaleString()}</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-gray-500">Transfer Processing Fee</span>
-                        <span className="font-bold text-red-500">- ₱{Number(preview.transfer_fee).toLocaleString()}</span>
+                        <span className="font-bold text-red-500">₱{Number(preview.transfer_fee).toLocaleString()}</span>
                       </div>
                       
                       <div className="pt-2 mt-2 border-t border-gray-100 dark:border-gray-700">

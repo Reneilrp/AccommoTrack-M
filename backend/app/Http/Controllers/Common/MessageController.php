@@ -9,8 +9,10 @@ use App\Http\Controllers\Controller;
 use App\Http\Controllers\Permission\ResolvesLandlordAccess;
 use App\Http\Resources\ConversationResource;
 use App\Http\Resources\MessageResource;
+use App\Jobs\ProcessMessageImage;
 use App\Models\Conversation;
 use App\Models\Message;
+use App\Services\UserCounterService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
@@ -18,6 +20,13 @@ use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 class MessageController extends Controller
 {
     use ResolvesLandlordAccess;
+
+    protected UserCounterService $counterService;
+
+    public function __construct(UserCounterService $counterService)
+    {
+        $this->counterService = $counterService;
+    }
 
     // Get all conversations for current user
     public function getConversations(Request $request)
@@ -85,6 +94,35 @@ class MessageController extends Controller
         return MessageResource::collection($messages);
     }
 
+    // Download message attachment
+    public function downloadFile(Message $message)
+    {
+        $userId = Auth::id();
+
+        // Security: Ensure user is part of the conversation
+        $conversation = $message->conversation;
+        if ($conversation->user_one_id !== $userId && $conversation->user_two_id !== $userId) {
+            // Check if user is a caretaker for this property
+            $user = Auth::user();
+            if ($user->role !== 'caretaker' || (int) $conversation->property?->landlord_id !== (int) $user->landlord_id) {
+                throw new AccessDeniedHttpException('You do not have access to this file.');
+            }
+        }
+
+        if (! $message->file_url) {
+            return response()->json(['message' => 'This message has no file attachment.'], 404);
+        }
+
+        $path = $message->file_url;
+        $name = $message->file_name ?: 'document';
+
+        if (! \Illuminate\Support\Facades\Storage::exists($path)) {
+            return response()->json(['message' => 'File not found on server.'], 404);
+        }
+
+        return \Illuminate\Support\Facades\Storage::download($path, $name);
+    }
+
     // Send a message
     public function sendMessage(Request $request)
     {
@@ -114,26 +152,20 @@ class MessageController extends Controller
         // Handle Image Upload
         $imageUrl = null;
         if ($request->hasFile('image')) {
-            $file = $request->file('image');
-            $manager = new \Intervention\Image\ImageManager(new \Intervention\Image\Drivers\Gd\Driver);
-            $image = $manager->read($file->getRealPath());
-            $image->scaleDown(width: 1920);
-            $encoded = $image->toWebp(80);
-
-            $filename = 'msg_'.time().'_'.uniqid().'.webp';
-            $path = 'message_images/'.$filename;
-            \Illuminate\Support\Facades\Storage::put($path, (string) $encoded);
-            $imageUrl = $path;
+            // Store raw image first
+            $imageUrl = $request->file('image')->store('message_images/raw');
         }
+
         // Handle File Upload
         $fileUrl = null;
         $fileName = null;
         if ($request->hasFile('file')) {
             $uploadedFile = $request->file('file');
             $fileName = $uploadedFile->getClientOriginalName();
-            $path = $uploadedFile->store('message_files', 'public');
-            $fileUrl = $path;
+            // Store files (PDFs/Docs) directly - no resizing needed
+            $fileUrl = $uploadedFile->store('message_files');
         }
+
         // Find or create conversation
         if ($request->conversation_id) {
             $conversation = Conversation::findOrFail($request->conversation_id);
@@ -178,6 +210,11 @@ class MessageController extends Controller
             'is_read' => false,
         ]);
 
+        // Dispatch background processing for image
+        if ($imageUrl) {
+            ProcessMessageImage::dispatch($message->id)->onQueue('media');
+        }
+
         $conversation->update(['last_message_at' => now()]);
 
         $message->load(['sender', 'actualSender', 'replyTo.sender']);
@@ -191,12 +228,8 @@ class MessageController extends Controller
 
         // Broadcast the unread count update to the recipient
         try {
-            $unreadCount = Message::where('receiver_id', $recipientId)
-                ->where('is_read', false)
-                ->count();
-            broadcast(new UnreadCountUpdated($recipientId, $unreadCount))->toOthers();
-        } catch (\Exception $e) {
-            \Log::error('Unread count broadcast failed: '.$e->getMessage());
+            $this->counterService->broadcastCounters((int) $recipientId);
+            } catch (\Exception $e) {            \Log::error('Unread count broadcast failed: '.$e->getMessage());
         }
 
         return response()->json(new MessageResource($message));
@@ -503,11 +536,7 @@ class MessageController extends Controller
         if ($updated > 0) {
             try {
                 broadcast(new MessageRead($id, $ownerId))->toOthers();
-                
-                $unreadCount = Message::where('receiver_id', $ownerId)
-                    ->where('is_read', false)
-                    ->count();
-                broadcast(new UnreadCountUpdated($ownerId, $unreadCount))->toOthers();
+                $this->counterService->broadcastCounters((int) $ownerId);
             } catch (\Exception $e) {
                 \Log::error('Broadcasting message read failed: '.$e->getMessage());
             }

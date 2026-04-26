@@ -38,14 +38,6 @@ const ProfileTab = ({ onUserUpdate }) => {
   });
 
   const mapDataToForm = useCallback((data) => {
-    // Extract sex from preferences
-    let prefs = data.tenant_profile?.preference || {};
-    if (typeof prefs === 'string') {
-      try { prefs = JSON.parse(prefs); } catch (__e) { prefs = {}; }
-    }
-
-    const backendGender = data.sex || prefs.sex || '';
-
     setFormData({
       first_name: data.first_name || '',
       middle_name: data.middle_name || '',
@@ -53,7 +45,7 @@ const ProfileTab = ({ onUserUpdate }) => {
       email: data.email || '',
       phone: data.phone || '',
       date_of_birth: data.date_of_birth || '',
-      sex: backendGender,
+      sex: data.sex || '',
       identified_as: data.identified_as || '',
       current_address: data.tenant_profile?.current_address || '',
       emergency_contact_name: data.tenant_profile?.emergency_contact_name || '',
@@ -172,39 +164,44 @@ const ProfileTab = ({ onUserUpdate }) => {
     setSaving(true);
 
     try {
-      const data = new FormData();
-      Object.keys(formData).forEach(key => {
-        if (NAME_FIELDS.includes(key)) {
-          data.append(key, normalizeNameInput(formData[key]));
-          return;
-        }
+      const hasImageUpdate = formData.profile_image instanceof File;
+      let payload;
 
-        // Skip profile_image if it's null (not changed)
-        if (key === 'profile_image') {
-          if (formData[key] instanceof File) {
-            data.append(key, formData[key]);
+      if (hasImageUpdate) {
+        // Use FormData for image upload
+        payload = new FormData();
+        Object.keys(formData).forEach(key => {
+          if (formData[key] !== null && formData[key] !== undefined && key !== 'email') {
+            if (NAME_FIELDS.includes(key)) {
+              payload.append(key, normalizeNameInput(formData[key]));
+            } else if ((key === 'sex' || key === 'identified_as') && !formData[key]) {
+               // Skip empty enums
+            } else {
+              payload.append(key, formData[key]);
+            }
           }
-          return;
-        }
+        });
+      } else {
+        // Use standard JSON for text updates (much more stable)
+        payload = {};
+        Object.keys(formData).forEach(key => {
+          if (key === 'profile_image' || key === 'email') return;
+          
+          if (NAME_FIELDS.includes(key)) {
+            payload[key] = normalizeNameInput(formData[key]);
+          } else if ((key === 'sex' || key === 'identified_as') && !formData[key]) {
+            payload[key] = null;
+          } else {
+            payload[key] = formData[key];
+          }
+        });
+      }
 
-        // Email is display-only in this tab.
-        if (key === 'email') {
-          return;
-        }
+      const res = await tenantService.updateProfile(payload);
 
-        // Skip sex/identified_as empty strings — backend enum validation rejects them
-        if ((key === 'sex' || key === 'identified_as') && !formData[key]) {
-          return;
-        }
-
-        // Always send every field (including empty strings) so the backend
-        // can clear nullable fields like middle_name, phone, etc.
-        if (formData[key] !== null && formData[key] !== undefined) {
-          data.append(key, formData[key]);
-        }
-      });
-
-      const res = await tenantService.updateProfile(data);
+      if (!res.success) {
+        throw new Error(res.error || 'Update failed');
+      }
 
       // Propagate the updated user up to App.jsx (updates header avatar, etc.)
       const updatedUser = res.data?.user || res.data;

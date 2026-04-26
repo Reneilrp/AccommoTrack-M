@@ -196,7 +196,7 @@ export default function PaymentArchive() {
 
       <FlatList
         data={filteredArchived}
-        keyExtractor={(item) => String(item.id || Math.random())}
+        keyExtractor={(item, index) => String(item.id || `archive-${index}`)}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[theme.colors.primary]} />}
         renderItem={({ item }) => (
           <PaymentCard payment={item} theme={theme} onPress={() => handlePaymentPress(item)} />

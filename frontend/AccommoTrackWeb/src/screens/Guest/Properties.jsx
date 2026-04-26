@@ -192,7 +192,9 @@ const Properties = () => {
       setLoading(true);
       setError(null);
       try {
-        const data = await propertyService.getAllProperties();
+        const response = await propertyService.getAllProperties();
+        // Handle paginated response { data: [...], meta: ... } or flat array
+        const data = response.data && Array.isArray(response.data) ? response.data : (Array.isArray(response) ? response : []);
         setProperties(data);
       } catch (err) {
         setError(err.response?.data?.message || 'Error fetching properties');

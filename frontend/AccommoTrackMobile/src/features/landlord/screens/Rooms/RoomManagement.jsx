@@ -2,6 +2,7 @@ import React, {
   useEffect,
   useMemo,
   useState,
+  useCallback,
 } from "react";
 import {
   ActivityIndicator,
@@ -1071,7 +1072,7 @@ export default function RoomManagementScreen({ navigation, route }) {
     return matched?.label || fallback;
   };
 
-  const renderRoomCard = ({ item }) => {
+  const renderRoomCard = useCallback(({ item }) => {
     const badge = statusTokens[item.status] || statusTokens.available;
     const roomTenants = Array.isArray(item.tenants) ? item.tenants : [];
     const calculatedOccupiedCount = roomTenants.reduce((acc, t) => {
@@ -1290,7 +1291,13 @@ export default function RoomManagementScreen({ navigation, route }) {
         </View>
       </View>
     );
-  };
+  }, [
+    theme,
+    navigation,
+    activeMenuRoomId,
+    canManageRooms,
+    canManageTenants,
+  ]);
 
   if (loading && !refreshing && rooms.length === 0) {
     return (

@@ -1,5 +1,7 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import cartService from '../services/cartService';
+import { useWebSocket } from './WebSocketContext';
+import { showWarning } from '../utils/toast';
 
 const CartContext = createContext();
 
@@ -16,6 +18,10 @@ export const CartProvider = ({ children }) => {
   const [cart, setCart] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [staleItemIds, setStaleItemIds] = useState(new Set());
+  
+  const { echo } = useWebSocket();
+  const activeSubscriptions = useRef(new Set());
 
   // Fetch cart from backend
   const fetchCart = useCallback(async (propertyId = null) => {
@@ -25,6 +31,8 @@ export const CartProvider = ({ children }) => {
       const result = await cartService.getCart(propertyId);
       if (result.success) {
         setCart(result.data);
+        // Reset stale items when fetching fresh cart
+        setStaleItemIds(new Set());
       } else {
         setError(result.error);
       }
@@ -34,6 +42,77 @@ export const CartProvider = ({ children }) => {
       setLoading(false);
     }
   }, []);
+
+  // Listen for availability updates for rooms in the cart
+  useEffect(() => {
+    if (!echo || !cart?.items) return;
+
+    // 1. Identify distinct property IDs in the cart to subscribe to channels
+    const propertyIds = [...new Set(cart.items.map(item => item.room?.property_id).filter(Boolean))];
+    
+    // 2. Cleanup old subscriptions that are no longer in cart
+    activeSubscriptions.current.forEach(propId => {
+      if (!propertyIds.includes(propId)) {
+        echo.leave(`property.${propId}`);
+        activeSubscriptions.current.delete(propId);
+      }
+    });
+
+    // 3. Subscribe to new channels
+    propertyIds.forEach(propId => {
+      if (!activeSubscriptions.current.has(propId)) {
+        echo.channel(`property.${propId}`)
+          .listen('.room.availability_updated', (event) => {
+            const { room_id, available_slots } = event;
+            
+            // Check if this room is in our cart
+            const matchingItems = cart.items.filter(item => item.room_id === room_id);
+            
+            matchingItems.forEach(item => {
+              if (available_slots < item.bed_count) {
+                // MARK AS STALE
+                setStaleItemIds(prev => {
+                  const next = new Set(prev);
+                  next.add(item.id);
+                  return next;
+                });
+                
+                showWarning(
+                  'Room Unavailable',
+                  `Room ${item.room?.room_number} is no longer available for the requested slots.`
+                );
+              } else {
+                // If it was stale but now has slots (e.g. someone cancelled), unmark it
+                setStaleItemIds(prev => {
+                  if (!prev.has(item.id)) return prev;
+                  const next = new Set(prev);
+                  next.delete(item.id);
+                  return next;
+                });
+              }
+            });
+          });
+        activeSubscriptions.current.add(propId);
+      }
+    });
+
+    return () => {
+      // Don't leave all channels here, wait for unmount or item removal
+    };
+  }, [echo, cart?.items, staleItemIds]);
+
+  // Clean up on unmount
+  useEffect(() => {
+    return () => {
+      if (echo) {
+        activeSubscriptions.current.forEach(propId => {
+          echo.leave(`property.${propId}`);
+        });
+      }
+    };
+  }, [echo]);
+
+  // ... (rest of cart methods remain similar but may need to check staleItemIds) ...
 
   // Add item to cart
   const addItem = useCallback(async (payload) => {
@@ -220,6 +299,7 @@ export const CartProvider = ({ children }) => {
     cart,
     loading,
     error,
+    staleItemIds,
     fetchCart,
     addToCart: addItem,
     addItem,

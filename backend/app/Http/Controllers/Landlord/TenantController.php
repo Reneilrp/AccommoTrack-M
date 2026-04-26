@@ -54,17 +54,7 @@ class TenantController extends Controller
             $search = trim((string) $request->query('search', ''));
             $landlordId = $context['landlord_id'];
 
-            // If caretaker, ensure they only see tenants from assigned properties
-            $allowedPropertyIds = null;
-            if ($context['is_caretaker']) {
-                $allowedPropertyIds = $context['assignment']->properties()->pluck('properties.id')->toArray();
-
-                // If filtering by property, ensure caretaker is assigned to it
-                if ($propertyId && ! in_array($propertyId, $allowedPropertyIds)) {
-                    return response()->json([], 200);
-                }
-            }
-
+            // Standard confirmed statuses for related data loading
             $confirmedStatuses = ['confirmed', 'completed', 'partial-completed', 'reserved', 'pending_reservation'];
 
             $query = User::where('role', 'tenant')
@@ -93,39 +83,10 @@ class TenantController extends Controller
                 // OPTIMIZATION: Check for overdue invoices in a single subquery
                 ->withExists(['invoices' => function($q) {
                     $q->where('status', 'pending')->where('due_date', '<', now());
-                }])
-                ->where(function ($q) use ($landlordId, $allowedPropertyIds, $confirmedStatuses) {
-                    $q->whereHas('roomAssignments', function ($q2) use ($landlordId, $allowedPropertyIds) {
-                        $q2->whereHas('property', function ($q3) use ($landlordId, $allowedPropertyIds) {
-                            $q3->where('landlord_id', $landlordId);
-                            if ($allowedPropertyIds) {
-                                $q3->whereIn('id', $allowedPropertyIds);
-                            }
-                        });
-                    })
-                        ->orWhereHas('bookings', function ($q2) use ($landlordId, $allowedPropertyIds, $confirmedStatuses) {
-                            $q2->whereIn('status', $confirmedStatuses)
-                                ->whereHas('room', function ($q3) use ($landlordId, $allowedPropertyIds) {
-                                    $q3->whereHas('property', function ($q4) use ($landlordId, $allowedPropertyIds) {
-                                        $q4->where('landlord_id', $landlordId);
-                                        if ($allowedPropertyIds) {
-                                            $q4->whereIn('id', $allowedPropertyIds);
-                                        }
-                                    });
-                                });
-                        })
-                        ->orWhereHas('bookingOccupantRecords.booking', function ($q2) use ($landlordId, $allowedPropertyIds, $confirmedStatuses) {
-                            $q2->whereIn('status', $confirmedStatuses)
-                                ->whereHas('room', function ($q3) use ($landlordId, $allowedPropertyIds) {
-                                    $q3->whereHas('property', function ($q4) use ($landlordId, $allowedPropertyIds) {
-                                        $q4->where('landlord_id', $landlordId);
-                                        if ($allowedPropertyIds) {
-                                            $q4->whereIn('id', $allowedPropertyIds);
-                                        }
-                                    });
-                                });
-                        });
-                });
+                }]);
+
+            // APPLY CENTRALIZED SCOPE (Caretaker Isolation)
+            $this->applyCaretakerTenantScope($query, $context);
 
             // Filter by specific property if provided
             if ($propertyId) {
@@ -397,7 +358,7 @@ class TenantController extends Controller
 
         $room = null;
         if (! empty($validated['room_id'])) {
-            $room = Room::with('property')->findOrFail($validated['room_id']);
+            $room = Room::with('property')->lockForUpdate()->findOrFail($validated['room_id']);
 
             if ($room->property->landlord_id !== $context['landlord_id']) {
                 return response()->json(['error' => 'Unauthorized'], 403);
@@ -543,10 +504,15 @@ class TenantController extends Controller
 
         $user = $this->resolveTenantForLandlord((int) $id, (int) $context['landlord_id'], $context);
 
-        // Check if tenant is currently assigned to a room in landlord's property
-        if ($user->room && $user->room->property->landlord_id === $context['landlord_id']) {
+        // Check if tenant has ANY active or pending stay in landlord's properties
+        $hasActiveStay = Booking::where('tenant_id', $user->id)
+            ->where('landlord_id', $context['landlord_id'])
+            ->whereIn('status', ['confirmed', 'active', 'reserved', 'pending', 'pending_reservation'])
+            ->exists();
+
+        if ($hasActiveStay || ($user->room && $user->room->property->landlord_id === $context['landlord_id'])) {
             return response()->json([
-                'error' => 'Cannot delete tenant who is currently occupying a room. Please unassign them first.',
+                'error' => 'Cannot delete tenant who has an active, pending, or reserved stay. Please unassign or cancel their bookings first.',
             ], 400);
         }
 
@@ -626,7 +592,7 @@ class TenantController extends Controller
     {
         try {
             $context = $this->resolveLandlordContext($request);
-            $this->ensureCaretakerCanManageTenants($context);
+            $this->ensureCaretakerCan($context, 'can_add_manual_bookings');
 
             $validated = $request->validate([
                 'room_id' => 'required|exists:rooms,id',
@@ -638,7 +604,7 @@ class TenantController extends Controller
             ]);
 
             $tenant = $this->resolveTenantForLandlord((int) $id, (int) $context['landlord_id'], $context);
-            $room = Room::with('property')->findOrFail($validated['room_id']);
+            $room = Room::with('property')->lockForUpdate()->findOrFail($validated['room_id']);
 
             if ($this->hasScheduledEviction((int) $tenant->id, (int) $context['landlord_id'])) {
                 return response()->json([
@@ -688,6 +654,8 @@ class TenantController extends Controller
             // Confirm the booking immediately
             $this->bookingService->updateStatus($booking, ['status' => 'confirmed']);
 
+            $this->appendTenantProfileNote($tenant, 'ROOM ASSIGNED: Room '.$room->room_number.'. Start Date: '.$moveInDate);
+
             DB::commit();
 
             return response()->json([
@@ -732,7 +700,7 @@ class TenantController extends Controller
     public function unassignRoom(Request $request, string $id): JsonResponse
     {
         $context = $this->resolveLandlordContext($request);
-        $this->ensureCaretakerCanManageTenants($context);
+        $this->ensureCaretakerCan($context, 'can_cancel_bookings');
 
         $tenant = $this->resolveTenantForLandlord((int) $id, (int) $context['landlord_id'], $context);
 
@@ -754,18 +722,21 @@ class TenantController extends Controller
             $this->checkPropertyAccess($context, (int) $tenant->room->property_id);
         }
 
-        $room = $tenant->room;
+        $room = $tenant->room()->lockForUpdate()->first();
+        if (! $room) {
+             return response()->json(['error' => 'Tenant assignment data inconsistent'], 500);
+        }
 
         try {
             \Illuminate\Support\Facades\DB::beginTransaction();
 
-            // Fix #2: Cancel the active booking via BookingService so status, counters, and hooks are correct
-            $activeBooking = \App\Models\Booking::where('tenant_id', $tenant->id)
+            // GUARD/FIX: Find ALL active/confirmed bookings for this tenant in this room to prevent orphaned records
+            $activeBookings = \App\Models\Booking::where('tenant_id', $tenant->id)
                 ->where('room_id', $room->id)
                 ->whereIn('status', ['confirmed', 'active'])
-                ->first();
+                ->get();
 
-            if ($activeBooking) {
+            foreach ($activeBookings as $activeBooking) {
                 $this->bookingService->updateStatus($activeBooking, ['status' => 'cancelled']);
             }
 
@@ -779,7 +750,10 @@ class TenantController extends Controller
                 ]);
             }
 
+            $this->appendTenantProfileNote($tenant, 'ROOM UNASSIGNED: Room '.$room->room_number);
+
             $room->property->updateAvailableRooms();
+            broadcast(new \App\Events\RoomAvailabilityUpdated($room))->toOthers();
 
             \Illuminate\Support\Facades\DB::commit();
 
@@ -837,12 +811,12 @@ class TenantController extends Controller
 
         $oldRoom = null;
         if ($activeBooking) {
-            $oldRoom = $activeBooking->room;
+            $oldRoom = $activeBooking->room()->lockForUpdate()->first();
         } else {
-            $oldRoom = $tenant->roomAssignments()->first();
+            $oldRoom = $tenant->roomAssignments()->lockForUpdate()->first();
         }
 
-        $newRoom = Room::with('property')->findOrFail($validated['new_room_id']);
+        $newRoom = Room::with('property')->lockForUpdate()->findOrFail($validated['new_room_id']);
 
         // Verify new room belongs to the same landlord
         if ($newRoom->property->landlord_id !== $context['landlord_id']) {
@@ -1040,14 +1014,7 @@ class TenantController extends Controller
                     ]);
                     $transferInvoices[] = $adjustmentInvoice;
                 } else {
-                    TenantCredit::create([
-                        'tenant_id' => $tenant->id,
-                        'property_id' => $newRoom->property_id,
-                        'room_id' => $newRoom->id,
-                        'amount_cents' => (int) round(abs($adj) * 100),
-                        'type' => 'credit',
-                        'description' => 'Room transfer rate adjustment credit',
-                    ]);
+                    $creditAmount += abs($adj);
                 }
             }
 
@@ -1106,13 +1073,35 @@ class TenantController extends Controller
                 }
             }
 
+            // 3.7. Smart Addon Migration: Carry over active monthly subscriptions
+            $migratedAddonNames = [];
+            if ($activeBooking) {
+                $activeMonthlyAddons = $activeBooking->addons()
+                    ->wherePivot('status', 'active')
+                    ->where('price_type', 'monthly')
+                    ->get();
+
+                foreach ($activeMonthlyAddons as $addon) {
+                    $newBooking->addons()->attach($addon->id, [
+                        'quantity' => $addon->pivot->quantity,
+                        'price_at_booking_cents' => $addon->pivot->price_at_booking_cents,
+                        'status' => 'active',
+                        'approved_at' => now(),
+                        'approved_by' => auth()->id(),
+                        'request_note' => 'Migrated from previous booking #' . $activeBooking->id . ' due to room transfer.',
+                    ]);
+                    $migratedAddonNames[] = $addon->name;
+                }
+            }
+
             // 4. Update tenant profile notes
             if ($tenant->tenantProfile) {
                 $currentNotes = $tenant->tenantProfile->notes ?? '';
                 $tReason = $validated['transfer_reason'] ?? 'Tenant Request';
-                $transferLog = "\n[".now()->toDateString().'] Room Transfer: '.($oldRoom ? $oldRoom->room_number : 'N/A').' -> '.$newRoom->room_number.'. Type: '.$tReason.'. Reason: '.$validated['reason'];
+                $addonLog = !empty($migratedAddonNames) ? '. Migrated addons: ' . implode(', ', $migratedAddonNames) : '';
+                $transferLog = "\n[" . now()->toDateString() . '] Room Transfer: ' . ($oldRoom ? $oldRoom->room_number : 'N/A') . ' -> ' . $newRoom->room_number . '. Type: ' . $tReason . '. Reason: ' . $validated['reason'] . $addonLog;
                 $tenant->tenantProfile->update([
-                    'notes' => $currentNotes.$transferLog,
+                    'notes' => $currentNotes . $transferLog,
                 ]);
             }
 
@@ -1120,6 +1109,7 @@ class TenantController extends Controller
 
             return response()->json([
                 'message' => 'Room transfer successful',
+                'migrated_addons' => $migratedAddonNames,
                 'tenant' => $tenant->load(['tenantProfile', 'roomAssignments.property']),
             ]);
         } catch (\Exception $e) {
@@ -1161,6 +1151,15 @@ class TenantController extends Controller
             $senderRole = Auth::user()->role;
             $messageText = $validated['message'];
             $recipientIds = $validated['recipients'];
+
+            // SECURITY: Ensure all recipients are within the caretaker's scope
+            $validRecipientQuery = User::whereIn('id', $recipientIds);
+            $this->applyCaretakerTenantScope($validRecipientQuery, $context);
+            $validCount = $validRecipientQuery->count();
+
+            if ($validCount !== count($recipientIds)) {
+                 throw new AccessDeniedHttpException('One or more recipients are outside your authorized property scope.');
+            }
 
             $sentCount = 0;
 

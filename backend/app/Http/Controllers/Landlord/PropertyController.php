@@ -79,7 +79,7 @@ class PropertyController extends Controller
         try {
             $properties = $this->propertyService->getPublicProperties($request);
 
-            return response()->json(PropertyResource::collection($properties)->resolve());
+            return PropertyResource::collection($properties);
         } catch (\Exception $e) {
             return response()->json(['message' => 'Failed to fetch properties', 'error' => $e->getMessage()], 500);
         }
@@ -109,12 +109,11 @@ class PropertyController extends Controller
     {
         try {
             $tenantId = Auth::id();
-            $blockedStatuses = ['pending', 'confirmed', 'active', 'completed', 'partial-completed'];
             $roomEagerLoads = ['amenities', 'images', 'activeEvictionLock', 'tenants'];
             if ($tenantId) {
                 $roomEagerLoads['bookings'] = function ($bq) use ($tenantId) {
                     $bq->where('tenant_id', $tenantId)
-                        ->whereIn('status', ['pending', 'confirmed']);
+                        ->whereIn('status', ['pending', 'confirmed', 'active']);
                 };
             }
 
@@ -122,14 +121,7 @@ class PropertyController extends Controller
                 ->where('is_available', true)
                 ->with([
                     'amenities',
-                    'rooms' => function ($q) use ($roomEagerLoads, $tenantId, $blockedStatuses) {
-                        if ($tenantId) {
-                            $q->whereDoesntHave('bookings', function ($bq) use ($tenantId, $blockedStatuses) {
-                                $bq->where('tenant_id', $tenantId)
-                                    ->whereIn('status', $blockedStatuses);
-                            });
-                        }
-
+                    'rooms' => function ($q) use ($roomEagerLoads) {
                         $q->withAggregates()->with($roomEagerLoads);
                     },
                     'images', 'landlord:id,first_name,last_name,email,phone,payment_methods_settings',

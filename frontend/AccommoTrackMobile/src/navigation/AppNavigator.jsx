@@ -16,6 +16,7 @@ import { useTheme } from '../contexts/ThemeContext.jsx';
 import { useAuthStore } from '../stores/auth/authStore.js';
 import { registerDevicePushToken, unregisterCurrentDevicePushToken } from '../services/PushNotificationService.js';
 import { setForcedLogoutCallback, setRoleSwitchCallback } from './RootNavigation.js';
+import useRealTimeSync from '../shared/hooks/useRealTimeSync.js';
 
 const Stack = createNativeStackNavigator();
 
@@ -28,6 +29,12 @@ export default function AppNavigator() {
   const clearAuthSession = useAuthStore((state) => state.clearAuthSession);
   const setAuthSession = useAuthStore((state) => state.setAuthSession);
   const setActiveRole = useAuthStore((state) => state.setActiveRole);
+  
+  // REAL-TIME SYNC: Run globally for authenticated users
+  const userId = useAuthStore((state) => state.userId);
+  const activeRole = useAuthStore((state) => state.activeRole);
+  const user = React.useMemo(() => (userId ? { id: userId, role: activeRole } : null), [userId, activeRole]);
+  useRealTimeSync(user);
 
   // Register handlers for navigation events
   useEffect(() => {

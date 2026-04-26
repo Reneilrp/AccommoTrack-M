@@ -298,7 +298,8 @@ export const getStyles = (theme) => StyleSheet.create({
     },
     messageContent: {
         flexDirection: 'column',
-        maxWidth: '92%',
+        maxWidth: '80%',
+        flexShrink: 1,
     },
     myMessageContent: {
         alignItems: 'flex-end',
@@ -326,6 +327,7 @@ export const getStyles = (theme) => StyleSheet.create({
         paddingHorizontal: 16,
         paddingVertical: 8,
         borderRadius: 16,
+        flexShrink: 1,
     },
     myMessageBubble: {
         backgroundColor: theme.colors.primary,
@@ -341,6 +343,7 @@ export const getStyles = (theme) => StyleSheet.create({
     messageText: {
         fontSize: 15,
         lineHeight: 20,
+        flexShrink: 1,
     },
     myMessageText: {
         color: theme.colors.textInverse,
@@ -431,9 +434,10 @@ export const getStyles = (theme) => StyleSheet.create({
         backgroundColor: theme.colors.surface,
         padding: 10,
         borderRadius: 12,
-        minWidth: 200,
+        maxWidth: 260,
         borderWidth: 1,
         borderColor: theme.colors.border,
+        overflow: 'hidden',
     },
     fileIconContainer: {
         width: 36,
@@ -541,6 +545,13 @@ export const getStyles = (theme) => StyleSheet.create({
         paddingVertical: 8,
         marginBottom: 12,
         gap: 8,
+    },
+    detailsSectionTitle: {
+        fontSize: 11,
+        fontWeight: '700',
+        textTransform: 'uppercase',
+        letterSpacing: 0.3,
+        marginBottom: 2,
     },
     detailRow: {
         paddingVertical: 6,

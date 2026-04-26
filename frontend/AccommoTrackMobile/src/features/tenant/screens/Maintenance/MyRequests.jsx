@@ -62,7 +62,7 @@ export default function MyRequests({ hideHeader = false, historyOnly = false, na
       {!hideHeader && <Text style={[styles.title, { color: theme.colors.text }]}>My Maintenance Requests</Text>}
       <FlatList
           data={requests}
-          keyExtractor={(item) => (item.id || item.request_id || String(item.created_at || Math.random())).toString()}
+          keyExtractor={(item, index) => (item.id || item.request_id || `req-${index}`).toString()}
           onEndReached={() => {
             if (maintenanceInfiniteQuery.hasNextPage && !isFetchingNextPage) {
               maintenanceInfiniteQuery.fetchNextPage();

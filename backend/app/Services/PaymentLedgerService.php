@@ -2,6 +2,8 @@
 
 namespace App\Services;
 
+use App\Events\DashboardUpdated;
+use App\Events\InvoiceUpdated;
 use App\Mail\PaymentReceiptMail;
 use App\Models\Invoice;
 use App\Services\Subscription\SubscriptionCheckoutService;
@@ -15,6 +17,7 @@ class PaymentLedgerService
 
     public function recomputeInvoiceAndBookingStatus(Invoice $invoice, ?int $actorUserId = null): Invoice
     {
+        $oldStatus = $invoice->status;
         $netPaidCents = $this->calculateInvoiceNetPaidCents($invoice);
         $resolvedStatus = $this->resolveInvoiceStatus($invoice, $netPaidCents);
 
@@ -37,6 +40,25 @@ class PaymentLedgerService
         if ($booking) {
             $booking->payment_status = $this->resolveBookingPaymentStatus($booking);
             $booking->save();
+        }
+
+        // TRIGGER REAL-TIME PULSE
+        // We broadcast if status changed OR if it was already paid but we re-processed it (e.g. partial payment)
+        if ($oldStatus !== $resolvedStatus || $netPaidCents > 0) {
+            try {
+                // 1. Notify the tenant with full invoice data
+                broadcast(new InvoiceUpdated($invoice))->toOthers();
+
+                // 2. Trigger global dashboard refreshes for both parties
+                if ($invoice->tenant_id) {
+                    broadcast(new DashboardUpdated($invoice->tenant_id))->toOthers();
+                }
+                if ($invoice->landlord_id) {
+                    broadcast(new DashboardUpdated($invoice->landlord_id))->toOthers();
+                }
+            } catch (\Throwable $e) {
+                Log::warning('Ledger failed to broadcast real-time update', ['error' => $e->getMessage()]);
+            }
         }
 
         if ($resolvedStatus === 'paid') {

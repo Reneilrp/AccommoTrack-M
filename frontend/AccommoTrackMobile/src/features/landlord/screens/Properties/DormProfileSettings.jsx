@@ -510,8 +510,18 @@ export default function DormProfileSettings({ route, navigation }) {
   };
 
   const handleSave = async () => {
+    // Basic GCash validation
     const hasGcashName = Boolean((form.gcashName || "").trim());
     const hasGcashNumber = Boolean((form.gcashNumber || "").trim());
+    const hasGcashQr = Boolean(form.gcashQr);
+
+    // If reservation fees are required, payment info is MANDATORY
+    if (form.requireReservationFee) {
+      if (!hasGcashName || !hasGcashNumber || !hasGcashQr) {
+        showError("Missing Payment Info", "GCash Name, Number, and QR Code are required when Reservation Fees are enabled.");
+        return;
+      }
+    }
 
     if (hasGcashName || hasGcashNumber) {
       if (!hasGcashName || !hasGcashNumber) {
@@ -524,14 +534,13 @@ export default function DormProfileSettings({ route, navigation }) {
         showError("Validation Error", "GCash Number must be exactly 11 digits starting with 09.");
         return;
       }
-      
+
       setShowGcashConfirm(true);
       return;
     }
 
     setShowGcashConfirm(true);
   };
-
   const proceedWithSave = async () => {
     try {
       setSaving(true);
@@ -1211,11 +1220,16 @@ export default function DormProfileSettings({ route, navigation }) {
               <TextInput
                 style={styles.input}
                 placeholder="e.g., 09123456789"
+                keyboardType="number-pad"
+                maxLength={11}
                 value={form.gcashNumber}
-                onChangeText={(val) => updateForm('gcashNumber', val)}
+                onChangeText={(val) => updateForm('gcashNumber', val.replace(/[^0-9]/g, ''))}
               />
 
               <Text style={styles.label}>GCash QR Code</Text>
+              <Text style={[styles.switchHelpText, { marginBottom: 8 }]}>
+                Recommendation: Upload your InstaPay-compatible GCash QR code to allow tenants to pay instantly without typing your number.
+              </Text>
               {form.gcashQr ? (
                 <View style={styles.qrPreviewContainer}>
                   <Image source={{ uri: form.gcashQr.uri }} style={styles.qrPreviewImage} />

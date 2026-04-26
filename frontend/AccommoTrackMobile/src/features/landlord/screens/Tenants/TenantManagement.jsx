@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -550,11 +550,17 @@ export default function TenantsScreen({ navigation, route }) {
       if (!response.success) {
         throw new Error(response.error || 'Failed to transfer room.');
       }
+
+      let successMsg = 'Room transfer completed successfully.';
+      if (response.migrated_addons?.length > 0) {
+        successMsg += ` Migrated: ${response.migrated_addons.join(', ')}`;
+      }
+
       setTransferVisible(false);
       setTransferringTenant(null);
       setActionError('');
       await refetchLandlordQueries(tenantListRefetchers);
-      showSuccess('Success', 'Room transfer completed successfully.');
+      showSuccess('Success', successMsg);
     } catch (transferError) {
       const message = getTenantActionError(transferError, 'Unable to transfer tenant right now.');
       setActionError(message);
@@ -636,7 +642,7 @@ export default function TenantsScreen({ navigation, route }) {
       showError('Property required', 'Please select a property before adding a tenant.');
       return;
     }
-    setCreateTenantData({
+    const initialCreateTenantData = {
       first_name: '',
       middle_name: '',
       last_name: '',
@@ -644,11 +650,14 @@ export default function TenantsScreen({ navigation, route }) {
       phone: '',
       password: '',
       confirm_password: '',
-      room_id: '',
+      room_id: null,
       move_in_date: '',
       end_date: '',
       notes: '',
-    });
+      emergency_contact_name: '',
+      emergency_contact_phone: '',
+      emergency_contact_relationship: '',
+    };
     setAvailableRoomsForCreate([]);
     setCreateTenantVisible(true);
     setLoadingRoomsForCreate(true);
@@ -917,7 +926,7 @@ export default function TenantsScreen({ navigation, route }) {
     });
   };
 
-  const renderTenantCard = ({ item }) => {
+  const renderTenantCard = useCallback(({ item }) => {
     const paymentStatus = item.latestBooking?.payment_status || 'unpaid';
     const payment = PAYMENT_BADGES[paymentStatus] || PAYMENT_BADGES.unpaid;
     const initials = (item.first_name?.[0] || '') + (item.last_name?.[0] || '');
@@ -1177,7 +1186,17 @@ export default function TenantsScreen({ navigation, route }) {
         </View>
       </View>
     );
-  };
+  }, [
+    theme,
+    navigation,
+    openActionsTenantId,
+    canManageTenants,
+    canApproveBookings,
+    selectedPropertyId,
+    isTablet,
+    tenantCardWidth,
+    tenantCardMaxWidth,
+  ]);
 
   const detailMonthlyRent = detailTenant
     ? resolveTenantMonthlyRent(detailTenant, detailTenant.room)
@@ -1572,6 +1591,35 @@ export default function TenantsScreen({ navigation, route }) {
                 multiline
               />
 
+              <View style={{ marginTop: 20, paddingTop: 20, borderTopWidth: 1, borderTopColor: theme.colors.border }}>
+                <Text style={[styles.sectionTitle, { marginTop: 0, marginBottom: 15 }]}>Emergency Contact</Text>
+                
+                <Text style={styles.actionFieldLabel}>Contact Name</Text>
+                <TextInput
+                  value={createTenantData.emergency_contact_name}
+                  onChangeText={(value) => setCreateTenantData((current) => ({ ...current, emergency_contact_name: value }))}
+                  placeholder="Full Name"
+                  style={styles.actionInput}
+                />
+
+                <Text style={styles.actionFieldLabel}>Contact Phone</Text>
+                <TextInput
+                  value={createTenantData.emergency_contact_phone}
+                  onChangeText={(value) => setCreateTenantData((current) => ({ ...current, emergency_contact_phone: value }))}
+                  placeholder="Phone Number"
+                  style={styles.actionInput}
+                  keyboardType="phone-pad"
+                />
+
+                <Text style={styles.actionFieldLabel}>Relationship</Text>
+                <TextInput
+                  value={createTenantData.emergency_contact_relationship}
+                  onChangeText={(value) => setCreateTenantData((current) => ({ ...current, emergency_contact_relationship: value }))}
+                  placeholder="e.g. Parent, Sibling"
+                  style={styles.actionInput}
+                />
+              </View>
+
               <View style={styles.modalActionsRow}>
                 <TouchableOpacity
                   style={styles.modalCancelBtn}
@@ -1912,8 +1960,51 @@ export default function TenantsScreen({ navigation, route }) {
                   <View style={styles.detailList}>
                     <Text style={styles.detailLabel}>Name</Text><Text style={styles.detailValue}>{detailTenant.tenantProfile.emergency_contact_name}</Text>
                     <Text style={styles.detailLabel}>Phone</Text><Text style={styles.detailValue}>{detailTenant.tenantProfile.emergency_contact_phone}</Text>
+                    <Text style={styles.detailLabel}>Relationship</Text><Text style={styles.detailValue}>{detailTenant.tenantProfile.emergency_contact_relationship || '—'}</Text>
                   </View>
                 ) : <Text style={styles.helperText}>Not provided</Text>}
+              </View>
+
+              {/* LIFESTYLE SECTION */}
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>Lifestyle & Traits</Text>
+                {detailTenant.tenantProfile?.preference ? (
+                  <View style={{ gap: 12 }}>
+                    {(detailTenant.tenantProfile.preference.attitude || detailTenant.tenantProfile.preference.behavior) && (
+                      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                        {detailTenant.tenantProfile.preference.attitude && (
+                          <View style={styles.traitBadge}>
+                            <Text style={styles.traitText}>{detailTenant.tenantProfile.preference.attitude}</Text>
+                          </View>
+                        )}
+                        {detailTenant.tenantProfile.preference.behavior && (
+                          <View style={[styles.traitBadge, { backgroundColor: '#ecfdf5', borderColor: '#10b981' }]}>
+                            <Text style={[styles.traitText, { color: '#047857' }]}>{detailTenant.tenantProfile.preference.behavior}</Text>
+                          </View>
+                        )}
+                      </View>
+                    )}
+                    
+                    {detailTenant.tenantProfile.preference.lifestyle_notes && (
+                      <View>
+                        <Text style={styles.detailLabel}>Bio / Routine</Text>
+                        <Text style={[styles.detailValue, { fontStyle: 'italic', fontSize: 13, marginTop: 4 }]}>
+                          "{detailTenant.tenantProfile.preference.lifestyle_notes}"
+                        </Text>
+                      </View>
+                    )}
+
+                    {detailTenant.tenantProfile.preference.custom_preferences?.length > 0 && (
+                      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 4 }}>
+                        {detailTenant.tenantProfile.preference.custom_preferences.map((p, idx) => (
+                          <View key={idx} style={styles.customPrefChip}>
+                            <Text style={styles.customPrefText}>{p}</Text>
+                          </View>
+                        ))}
+                      </View>
+                    )}
+                  </View>
+                ) : <Text style={styles.helperText}>No preferences shared</Text>}
               </View>
 
               <TouchableOpacity

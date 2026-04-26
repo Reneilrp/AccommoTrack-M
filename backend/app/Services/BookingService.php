@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Events\RoomAvailabilityUpdated;
 use App\Models\Booking;
 use App\Models\PaymentTransaction;
 use App\Models\Room;
@@ -126,11 +127,123 @@ class BookingService
         }
     }
 
+    /**
+     * Get non-stale active/pending bookings for limit calculation.
+     */
+    protected function getActiveBookingCount(int $tenantId, int $propertyId, string $mode): int
+    {
+        $expiryThreshold = now()->subHours(24);
+
+        // 1. Identify stale bookings first
+        $staleBookings = Booking::where('tenant_id', $tenantId)
+            ->where('property_id', $propertyId)
+            ->where('booking_mode', $mode)
+            ->where('status', 'pending')
+            ->where('created_at', '<=', $expiryThreshold)
+            ->whereDoesntHave('invoices.transactions')
+            ->get();
+
+        // 2. [Self-Healing] Cancel them immediately to keep DB clean and free up slots
+        foreach ($staleBookings as $stale) {
+            try {
+                $this->updateStatus($stale, [
+                    'status' => 'cancelled',
+                    'cancellation_reason' => 'Auto-cancelled to allow new booking (Self-healing limits).'
+                ]);
+            } catch (\Exception $e) {
+                Log::warning("Self-healing failed to cancel booking #{$stale->id}");
+            }
+        }
+
+        // 3. Return count of valid, non-stale bookings
+        return Booking::where('tenant_id', $tenantId)
+            ->where('property_id', $propertyId)
+            ->where('booking_mode', $mode)
+            ->whereIn('status', self::BOOKING_LIMIT_STATUSES)
+            ->count();
+    }
+
+    protected function validateGenderCompatibility(Room $room, ?User $tenant, array $occupants, string $mode): void
+    {
+        $roomRestriction = $this->normalizeRoomRestriction((string) ($room->sex_restriction ?? 'mixed'));
+        if ($roomRestriction === 'mixed') {
+            return;
+        }
+
+        $property = $room->property;
+        $propertyType = $this->normalizePropertyTypeToken($property->property_type ?? '');
+        
+        // Apartments are generally exempt from gender restrictions as they are private units
+        if ($propertyType === 'apartment') {
+            return;
+        }
+
+        if ($mode === 'normal') {
+            if (!$tenant) return;
+            $tenantSex = $this->normalizeGender($tenant->sex);
+
+            if (!$tenantSex) {
+                throw new \DomainException("Room {$room->room_number} is restricted to {$roomRestriction}s. Please update your profile sex (male/female) first.");
+            }
+
+            if ($tenantSex !== $roomRestriction) {
+                throw new \DomainException("Sorry, Room {$room->room_number} is reserved for {$roomRestriction}s only.");
+            }
+        } else {
+            // Proxy mode - validate every occupant for this specific room
+            foreach ($occupants as $index => $occupant) {
+                $occupantSex = $this->normalizeGender((string) ($occupant['sex'] ?? ''));
+                $occupantName = $occupant['first_name'] ?? ('Occupant ' . ($index + 1));
+
+                if (!$occupantSex) {
+                    throw new \DomainException("Sex is required for {$occupantName} to book Room {$room->room_number} ({$roomRestriction} only).");
+                }
+
+                if ($occupantSex !== $roomRestriction) {
+                    throw new \DomainException("{$occupantName} cannot be assigned to Room {$room->room_number} because it is for {$roomRestriction}s only.");
+                }
+            }
+        }
+    }
+
     public function createBooking(array $data, ?int $tenantId = null): Booking
     {
         return DB::transaction(function () use ($data, $tenantId) {
-            $room = Room::with('property')->lockForUpdate()->findOrFail($data['room_id']);
+            $room = Room::query()->with('property')->withAggregates()->lockForUpdate()->findOrFail($data['room_id']);
             $bookingMode = $this->resolveBookingMode($data['booking_mode'] ?? null);
+
+            // ATOMIC CAPACITY CHECK
+            $requestedBeds = (int) ($data['bed_count'] ?? 1);
+            $availableBeds = (int) $room->available_slots;
+
+            if ($availableBeds < $requestedBeds) {
+                // Find alternative rooms to help the "Graceful Redirect" UI
+                $alternatives = Room::where('property_id', $room->property_id)
+                    ->where('id', '!=', $room->id)
+                    ->where('status', 'available')
+                    ->where('room_type', $room->room_type)
+                    ->withAggregates()
+                    ->having('available_slots', '>=', $requestedBeds)
+                    ->limit(3)
+                    ->get(['id', 'room_number', 'monthly_rate', 'daily_rate'])
+                    ->map(fn($r) => [
+                        'id' => $r->id,
+                        'room_number' => $r->room_number,
+                        'rate' => $r->monthly_rate
+                    ]);
+
+                $msg = "Room {$room->room_number} is no longer available for {$requestedBeds} bed(s).";
+                if ($alternatives->isNotEmpty()) {
+                    $msg .= " Suggestion: " . $alternatives->pluck('room_number')->implode(', ');
+                }
+
+                throw new \DomainException(json_encode([
+                    'error' => 'room_full',
+                    'message' => $msg,
+                    'room_number' => $room->room_number,
+                    'alternatives' => $alternatives
+                ]));
+            }
 
             if ($tenantId) {
                 // 1. High-Priority Fix: Overdue Invoice Check
@@ -148,26 +261,14 @@ class BookingService
                     throw new \DomainException('You cannot create a new booking while you have overdue invoices. Please settle your outstanding balance first.');
                 }
 
-                // 2. High-Priority Fix: Unconditional Double-Booking Guard
-                // Check for any booking for this room by this tenant that isn't cancelled or completed
-                $hasExistingBooking = Booking::where('room_id', $room->id)
-                    ->where('tenant_id', $tenantId)
-                    ->whereIn('status', self::BOOKING_LIMIT_STATUSES)
-                    ->exists();
-
-                if ($hasExistingBooking) {
-                    throw new \DomainException('You already have an active or pending booking for this room.');
-                }
+                // [REFINED] Rely on Property Limits instead of a hard Existence check.
+                // This allows a tenant to take another bed in the same room if the property limit is > 1.
 
                 // Only check limits if not skipped (e.g., when pre-validated in a batch)
                 if (empty($data['skip_limit_check'])) {
                     // Check booking limits per mode (normal and proxy are independent)
                     if ($bookingMode === 'normal') {
-                        $normalBookingCount = Booking::where('property_id', $room->property_id)
-                            ->where('tenant_id', $tenantId)
-                            ->where('booking_mode', 'normal')
-                            ->whereIn('status', self::BOOKING_LIMIT_STATUSES)
-                            ->count();
+                        $normalBookingCount = $this->getActiveBookingCount($tenantId, (int) $room->property_id, 'normal');
 
                         $normalLimit = min(4, (int) ($room->property->normal_booking_limit ?? 1));
                         if ($normalBookingCount >= $normalLimit) {
@@ -175,11 +276,7 @@ class BookingService
                         }
                     } else {
                         // Proxy mode
-                        $proxyBookingCount = Booking::where('property_id', $room->property_id)
-                            ->where('tenant_id', $tenantId)
-                            ->where('booking_mode', 'proxy')
-                            ->whereIn('status', self::BOOKING_LIMIT_STATUSES)
-                            ->count();
+                        $proxyBookingCount = $this->getActiveBookingCount($tenantId, (int) $room->property_id, 'proxy');
 
                         $proxyLimit = min(4, (int) ($room->property->proxy_booking_limit ?? 3));
                         if ($proxyBookingCount >= $proxyLimit) {
@@ -227,50 +324,14 @@ class BookingService
                 throw new \DomainException('Room is temporarily locked for new bookings due to a pending eviction process.');
             }
 
-            $roomRestriction = $this->normalizeRoomRestriction((string) ($room->sex_restriction ?? 'mixed'));
-
-            // Check tenant sex compatibility only for normal bookings.
-            // Proxy bookings are validated by occupant sex below.
+            $occupantsPayload = $this->normalizeOccupants($data['occupants'] ?? []);
             $tenant = $tenantId ? User::find($tenantId) : null;
-            if ($tenant && $tenant->role === 'tenant') {
-                $property = $room->property;
-                // Normalize property type token so legacy/camelCase variants compare consistently.
-                $propertyType = $this->normalizePropertyTypeToken($property->property_type ?? '');
-                $targetTypes = ['dormitory', 'boardinghouse', 'bedspacer'];
 
-                // Only enforce for specific property types
-                if ($bookingMode === 'normal' && $propertyType !== 'apartment' && in_array($propertyType, $targetTypes)) {
-                    $tenantSex = $this->normalizeGender($tenant->sex);
+            // CENTRALIZED GENDER VALIDATION
+            $this->validateGenderCompatibility($room, $tenant, $occupantsPayload, $bookingMode);
 
-                    if ($roomRestriction !== 'mixed') {
-                        if (! $tenantSex) {
-                            throw new \DomainException('Please complete your profile sex (male/female) before booking this room type.');
-                        }
-                        if ($roomRestriction !== $tenantSex) {
-                            throw new \DomainException("Sorry, this room is only for specifically {$roomRestriction} only");
-                        }
-                    }
-                }
-            }
-
-            if ($bookingMode === 'proxy' && $roomRestriction !== 'mixed') {
-                foreach ($occupantsPayload as $index => $occupant) {
-                    $occupantSex = $this->normalizeGender((string) ($occupant['sex'] ?? ''));
-
-                    if ($occupantSex !== $roomRestriction) {
-                        throw new \DomainException('Occupant '.($index + 1).' sex must match the room restriction ('.$roomRestriction.').');
-                    }
-                }
-            }
-
-            if ($bookingMode === 'proxy') {
-                foreach ($occupantsPayload as $index => $occupant) {
-                    $occupantSex = $this->normalizeGender((string) ($occupant['sex'] ?? ''));
-
-                    if (! $occupantSex) {
-                        throw new \DomainException('Occupant '.($index + 1).' sex must be male or female.');
-                    }
-                }
+            if ($bookingMode === 'proxy' && count($occupantsPayload) === 0) {
+                throw new \DomainException('Proxy booking requires at least one occupant entry.');
             }
 
             $startDate = Carbon::parse($data['start_date']);
@@ -1012,6 +1073,7 @@ class BookingService
         // Safely update property stats if relationships exist
         if ($booking->room && $booking->room->property) {
             $booking->room->property->updateAvailableRooms();
+            broadcast(new RoomAvailabilityUpdated($booking->room))->toOthers();
         }
     }
 
@@ -1086,10 +1148,16 @@ class BookingService
         // Remove tenant from room only if we had a tenant_id and room exists
         if ($booking->room) {
             try {
-                // Use forceVacate to ensure all associations are wiped
-                $booking->room->forceVacate();
+                if ($booking->tenant_id) {
+                    $booking->room->removeTenant($booking->tenant_id);
+                } else {
+                    // For guest/walk-in cancellations, we don't have a registered tenant_id
+                    // but we still want to ensure the room status is updated if it was the last occupant.
+                    // removeTenant(null) handles the logic of checking remaining occupants.
+                    $booking->room->removeTenant(null);
+                }
             } catch (\Exception $e) {
-                Log::error('Failed to force vacate room during cancellation', [
+                Log::error('Failed to remove tenant from room during cancellation', [
                     'booking_id' => $booking->id,
                     'room_id' => $booking->room_id,
                     'error' => $e->getMessage(),
@@ -1121,6 +1189,7 @@ class BookingService
         // Safely update property stats
         if ($booking->room && $booking->room->property) {
             $booking->room->property->updateAvailableRooms();
+            broadcast(new RoomAvailabilityUpdated($booking->room))->toOthers();
         }
     }
 

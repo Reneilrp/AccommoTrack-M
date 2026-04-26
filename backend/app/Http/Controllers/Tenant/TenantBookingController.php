@@ -64,143 +64,27 @@ class TenantBookingController extends Controller
      */
     public function cancel(Request $request, $id)
     {
-        DB::beginTransaction();
         try {
             $booking = Booking::with(['room', 'tenant.tenantProfile'])
                 ->where('tenant_id', Auth::id())
                 ->findOrFail($id);
 
-            $oldStatus = $booking->status;
-
             // Only allow cancellation for non-completed bookings
             if (in_array($booking->status, ['completed', 'partial-completed', 'cancelled'])) {
-                DB::rollBack();
-
                 return response()->json(['message' => 'Cannot cancel this booking'], 422);
             }
 
-            $booking->status = 'cancelled';
-            $booking->cancelled_at = now();
-            $booking->cancellation_reason = $request->input('cancellation_reason');
-
-            // If tenant was already assigned to room, remove them
-            if ($booking->room) {
-                try {
-                    $booking->room->removeTenant($booking->tenant_id);
-                } catch (\Exception $e) {
-                    Log::warning('Failed to remove tenant from room during tenant cancellation', ['err' => $e->getMessage()]);
-                }
-                // update property availability
-                try {
-                    $booking->room->property->updateAvailableRooms();
-                } catch (\Exception $e) {
-                }
-            }
-
-            [$cancelledInvoiceIds, $voidedPendingTransactionIds] = $this->cancelOpenBookingInvoices($booking);
-
-            // Update tenant profile if exists
-            $tenantProfile = TenantProfile::where('user_id', $booking->tenant_id)
-                ->where('booking_id', $booking->id)
-                ->first();
-
-            if ($tenantProfile) {
-                $tenantProfile->update([
-                    'status' => 'inactive',
-                    'move_out_date' => now()->format('Y-m-d'),
-                ]);
-            }
-
-            $booking->save();
-
-            app(AuditLogService::class)->bookingEvent('booking.cancelled', [
-                'subject_type' => 'booking',
-                'subject_id' => $booking->id,
-                'booking_id' => $booking->id,
-                'property_id' => $booking->property_id,
-                'tenant_id' => $booking->tenant_id,
-                'landlord_id' => $booking->landlord_id,
-                'status_before' => $oldStatus,
-                'status_after' => $booking->status,
-                'summary' => 'Booking cancelled by tenant.',
-                'metadata' => [
-                    'cancellation_reason' => $booking->cancellation_reason,
-                    'cancelled_invoice_ids' => $cancelledInvoiceIds,
-                    'voided_pending_transaction_ids' => $voidedPendingTransactionIds,
-                ],
+            $result = app(\App\Services\BookingService::class)->updateStatus($booking, [
+                'status' => 'cancelled',
+                'cancellation_reason' => $request->input('cancellation_reason'),
             ]);
 
-            DB::commit();
-
-            return response()->json(['message' => 'Booking cancelled', 'booking' => $booking], 200);
+            return response()->json(['message' => 'Booking cancelled', 'booking' => $result['booking']], 200);
         } catch (\Exception $e) {
-            DB::rollBack();
-            Log::error('Tenant cancel booking failed', ['error' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
+            Log::error('Tenant cancel booking failed', ['error' => $e->getMessage()]);
 
             return response()->json(['message' => 'Failed to cancel booking', 'error' => $e->getMessage()], 500);
         }
-    }
-
-    /**
-     * Cancel open booking invoices and void pending offline submissions so
-     * cancelled bookings do not continue to appear as payable.
-     *
-     * @return array{0: array<int>, 1: array<int>}
-     */
-    private function cancelOpenBookingInvoices(Booking $booking): array
-    {
-        $openInvoiceStatuses = ['pending', 'overdue', 'pending_verification', 'unpaid'];
-
-        $openInvoices = Invoice::query()
-            ->where('booking_id', $booking->id)
-            ->whereIn('status', $openInvoiceStatuses)
-            ->lockForUpdate()
-            ->get();
-
-        $cancelledInvoiceIds = [];
-
-        foreach ($openInvoices as $invoice) {
-            $description = trim((string) ($invoice->description ?? ''));
-            $suffix = '(Cancelled due to booking cancellation)';
-            if ($description === '') {
-                $description = $suffix;
-            } elseif (! str_contains($description, $suffix)) {
-                $description .= ' '.$suffix;
-            }
-
-            $invoice->status = 'cancelled';
-            $invoice->description = $description;
-            $invoice->is_archived = true;
-            $invoice->save();
-
-            $cancelledInvoiceIds[] = (int) $invoice->id;
-        }
-
-        if (empty($cancelledInvoiceIds)) {
-            return [[], []];
-        }
-
-        $pendingTransactions = PaymentTransaction::query()
-            ->whereIn('invoice_id', $cancelledInvoiceIds)
-            ->where('status', 'pending_offline')
-            ->lockForUpdate()
-            ->get();
-
-        $voidedPendingTransactionIds = [];
-        foreach ($pendingTransactions as $transaction) {
-            $gatewayResponse = is_array($transaction->gateway_response) ? $transaction->gateway_response : [];
-            $gatewayResponse['verification_action'] = 'booking_cancelled';
-            $gatewayResponse['rejection_reason'] = 'Booking was cancelled before manual verification.';
-            $gatewayResponse['cancelled_at'] = now()->toIso8601String();
-
-            $transaction->status = 'voided';
-            $transaction->gateway_response = $gatewayResponse;
-            $transaction->save();
-
-            $voidedPendingTransactionIds[] = (int) $transaction->id;
-        }
-
-        return [$cancelledInvoiceIds, $voidedPendingTransactionIds];
     }
 
     /**

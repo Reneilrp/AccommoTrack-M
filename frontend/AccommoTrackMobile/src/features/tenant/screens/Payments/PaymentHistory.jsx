@@ -254,7 +254,7 @@ export default function PaymentHistory() {
 
       <FlatList
         data={filteredPayments}
-        keyExtractor={(item) => String(item.id || Math.random())}
+        keyExtractor={(item, index) => String(item.id || `history-${index}`)}
         onEndReached={loadMore}
         onEndReachedThreshold={0.3}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[theme.colors.primary]} />}

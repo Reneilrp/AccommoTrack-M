@@ -76,6 +76,9 @@ export const propertyService = {
             const params = new URLSearchParams();
             if (filters.search) params.append('search', filters.search);
             if (filters.type) params.append('type', filters.type);
+            if (filters.page) params.append('page', filters.page);
+            if (filters.per_page) params.append('per_page', filters.per_page);
+
             if (filters.minPrice || filters.price_min) {
                 params.append('min_price', filters.minPrice ?? filters.price_min);
             }
@@ -94,13 +97,13 @@ export const propertyService = {
             const queryString = params.toString();
             // Use public route for general browsing if it's for guests/explore
             const url = queryString ? `/public/properties?${queryString}` : '/public/properties';
-            
+
             const response = await api.get(url);
-            
-            // Cache the result
-            cacheManager.set(cacheKey, response.data);
-            
-            return response.data;
+            const result = response.data;
+
+            // Cache the result (using a shorter TTL for paginated lists)
+            cacheManager.set(cacheKey, result, 30);
+            return result;
         } catch (error) {
             console.error('Error fetching properties:', error);
             throw error;

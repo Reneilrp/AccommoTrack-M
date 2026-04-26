@@ -1,9 +1,12 @@
+import { useQuery } from '@tanstack/react-query';
 import { useCallback } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
+import api from '../../../services/api.js';
 
 export const tenantQueryKeys = {
   dashboardCurrentStay: () => ['tenantDashboardCurrentStay'],
   dashboardBundle: () => ['tenantDashboardBundle'],
+  counters: () => ['userCounters'],
   dashboardStats: () => ['tenantDashboardStats'],
   dashboardActivities: () => ['tenantDashboardActivities'],
   dashboardUpcoming: () => ['tenantDashboardUpcoming'],
@@ -66,14 +69,15 @@ export const refetchTenantQueries = async (refetchers = []) => {
 };
 
 export const useTenantFocusRefetch = ({ enabled = true, refetchers = [] }) => {
-  // useFocusEffect requires the component to be rendered inside a React Navigation
-  // screen. When enabled=false (e.g. the component is embedded as a tab), skip
-  // the focus subscription entirely to prevent a crash.
+  // DISABLING AGGRESSIVE FOCUS REFETCHING:
+  // The app now uses global WebSockets (Echo) via useRealTimeSync.
+  // Data is automatically invalidated when it changes on the server.
+  // Forcing a refetch on every tab switch causes massive CPU spikes (1,000+ unnecessary API calls/min).
+  // Manual Pull-to-Refresh remains fully functional.
   useFocusEffect(
     useCallback(() => {
-      if (!enabled) return;
-      refetchTenantQueries(refetchers);
-    }, [enabled, refetchers]),
+      // Intentionally left blank to protect server CPU.
+    }, []),
   );
 };
 
@@ -88,3 +92,24 @@ export const useTenantRefreshHandler = ({ enabled = true, setRefreshing, refetch
       setRefreshing?.(false);
     }
   }, [enabled, setRefreshing, refetchers]);
+
+/**
+ * Hook to fetch consolidated unread/pending counters
+ */
+export const useUserCounters = (enabled = true) => {
+  return useQuery({
+    queryKey: tenantQueryKeys.counters(),
+    queryFn: async () => {
+      const res = await api.get('/counters');
+      return res.data?.data || {
+        messages: 0,
+        notifications: 0,
+        maintenance: 0,
+        addons: 0,
+        payments: 0
+      };
+    },
+    enabled,
+    staleTime: 30 * 1000,
+  });
+};

@@ -253,6 +253,7 @@ export default function DormProfileSettings({
         is_published: parseBooleanFlag(data.is_published, false),
         transfer_fee: data.transfer_fee || 0,
         transfer_limit: data.transfer_limit ?? 1,
+        accepted_payments: Array.isArray(data.accepted_payments) ? data.accepted_payments : ['cash'],
         latitude: data.latitude,
         longitude: data.longitude,
         images: images,
@@ -391,6 +392,24 @@ export default function DormProfileSettings({
 
   const handleInputChange = (field, value) => {
     setDormData((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const togglePaymentMethod = (method) => {
+    setDormData((prev) => {
+      const current = prev.accepted_payments || [];
+      if (current.includes(method)) {
+        if (current.length === 1) return prev;
+        return {
+          ...prev,
+          accepted_payments: current.filter((m) => m !== method),
+        };
+      } else {
+        return {
+          ...prev,
+          accepted_payments: [...current, method],
+        };
+      }
+    });
   };
 
   const handleAddressChange = (field, value) => {
@@ -709,6 +728,7 @@ export default function DormProfileSettings({
         longitude: parseFloat(dormData.longitude) || null,
         is_published: dormData.status === 'active' ? (dormData.is_published ? 1 : 0) : 0,
         current_status: dormData.status,
+        accepted_payments: dormData.accepted_payments,
       };
 
       // If there are any new File objects in images, send multipart/form-data
@@ -1420,16 +1440,20 @@ export default function DormProfileSettings({
                                     type="text"
                                     disabled={!isEditing}
                                     value={dormData.gcash_number}
-                                    onChange={(e) => handleInputChange('gcash_number', e.target.value)}
+                                    maxLength={11}
+                                    onChange={(e) => handleInputChange('gcash_number', e.target.value.replace(/[^0-9]/g, ''))}
                                     className="w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 dark:bg-gray-800 dark:border-gray-600 dark:text-white disabled:opacity-50 transition-all duration-200 shadow-sm"
                                     placeholder="e.g. 09123456789"
                                   />
                                 </div>
                               </div>
-                              <div>
+                              <div className="mt-4">
                                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                                   GCash QR Code Image
                                 </label>
+                                <p className="text-xs text-gray-500 dark:text-gray-400 mb-3 italic">
+                                  <strong>Recommendation:</strong> Upload your InstaPay-compatible GCash QR code. This allows tenants to pay instantly via scan, eliminating typing errors.
+                                </p>
                                 {(gcashQrPreview) ? (
                                   <div className="relative inline-block border rounded-lg overflow-hidden bg-gray-50 dark:bg-gray-800 dark:border-gray-600 p-2">
                                     <img src={gcashQrPreview} alt="GCash QR" className="max-h-48 w-auto object-contain" />
@@ -1520,6 +1544,64 @@ export default function DormProfileSettings({
                           </span>
                         </div>
                       </label>
+
+                      {/* Accepted Payment Methods */}
+                      <div className="mt-8 pt-6 border-t border-gray-100 dark:border-gray-700">
+                        <label className="block text-sm font-semibold text-gray-900 dark:text-white mb-4">
+                          Accepted Payment Methods
+                        </label>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div 
+                            onClick={() => isEditing && togglePaymentMethod('cash')}
+                            className={`flex items-center p-4 border rounded-xl transition-all ${
+                              isEditing ? 'cursor-pointer' : 'cursor-default'
+                            } ${
+                              dormData.accepted_payments?.includes('cash')
+                                ? 'border-green-500 bg-green-50 dark:bg-green-900/20'
+                                : 'border-gray-200 dark:border-gray-700 hover:border-green-300'
+                            }`}
+                          >
+                            <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center mr-3 ${
+                              dormData.accepted_payments?.includes('cash') ? 'border-green-500 bg-green-500' : 'border-gray-300'
+                            }`}>
+                              {dormData.accepted_payments?.includes('cash') && <div className="w-2 h-2 bg-white rounded-full" />}
+                            </div>
+                            <div>
+                              <p className="text-sm font-medium text-gray-900 dark:text-white">Cash</p>
+                              <p className="text-xs text-gray-500">Direct physical payment</p>
+                            </div>
+                          </div>
+
+                          <div 
+                            onClick={() => isEditing && user?.is_paymongo_ready && togglePaymentMethod('online')}
+                            className={`flex items-center p-4 border rounded-xl transition-all ${
+                              !user?.is_paymongo_ready ? 'opacity-50 grayscale cursor-not-allowed' : (isEditing ? 'cursor-pointer' : 'cursor-default')
+                            } ${
+                              dormData.accepted_payments?.includes('online')
+                                ? 'border-green-500 bg-green-50 dark:bg-green-900/20'
+                                : 'border-gray-200 dark:border-gray-700 hover:border-green-300'
+                            }`}
+                          >
+                            <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center mr-3 ${
+                              dormData.accepted_payments?.includes('online') ? 'border-green-500 bg-green-500' : 'border-gray-300'
+                            }`}>
+                              {dormData.accepted_payments?.includes('online') && <div className="w-2 h-2 bg-white rounded-full" />}
+                            </div>
+                            <div className="flex-1">
+                              <div className="flex items-center justify-between">
+                                <p className="text-sm font-medium text-gray-900 dark:text-white">Online Payments</p>
+                                {!user?.is_paymongo_ready && <span className="text-[10px] bg-red-100 text-red-600 px-2 py-0.5 rounded-full font-bold">LOCKED</span>}
+                              </div>
+                              <p className="text-xs text-gray-500">GCash, Maya, Cards (via PayMongo)</p>
+                            </div>
+                          </div>
+                        </div>
+                        {isEditing && !user?.is_paymongo_ready && (
+                          <p className="mt-3 text-xs text-red-500 flex items-center gap-1">
+                            Complete PayMongo verification in Settings &gt; Payments to enable online payments.
+                          </p>
+                        )}
+                      </div>
 
                       {/* Booking Limits & Partial Minimum */}
                       <div className="mt-8 pt-6 border-t border-gray-100 dark:border-gray-700">

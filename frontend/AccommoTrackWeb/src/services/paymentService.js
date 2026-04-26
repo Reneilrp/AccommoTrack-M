@@ -37,7 +37,7 @@ export const paymentService = {
             const response = await api.get('/tenant/payments/stats');
             return {
                 success: true,
-                data: response.data
+                data: response.data?.data || response.data
             };
         } catch (error) {
             console.error('Error fetching payment stats:', error);
@@ -57,7 +57,7 @@ export const paymentService = {
             const response = await api.get(`/tenant/payments/${id}`);
             return {
                 success: true,
-                data: response.data
+                data: response.data?.data || response.data
             };
         } catch (error) {
             console.error('Error fetching payment details:', error);
@@ -100,9 +100,10 @@ export const paymentService = {
             const response = await api.get('/tenant/payments/credits/balance', {
                 params: { property_id: propertyId }
             });
+            const payload = response.data?.data || response.data;
             return {
                 success: true,
-                data: response.data?.balance || 0
+                data: payload?.balance || 0
             };
         } catch (error) {
             return {
@@ -119,9 +120,10 @@ export const paymentService = {
     async getWalletBalance() {
         try {
             const response = await api.get('/tenant/payments/stats');
+            const payload = response.data?.data || response.data;
             return {
                 success: true,
-                data: response.data?.totalCredits || 0
+                data: payload?.totalCredits || 0
             };
         } catch (error) {
             return {
@@ -144,7 +146,7 @@ export const paymentService = {
             });
             return {
                 success: true,
-                data: response.data
+                data: response.data?.data || response.data
             };
         } catch (error) {
             return {
@@ -197,7 +199,7 @@ export const paymentService = {
             const response = await api.patch(`/tenant/invoices/${invoiceId}/archive`);
             return {
                 success: true,
-                data: response.data
+                data: response.data?.data || response.data
             };
         } catch (error) {
             console.error('Error archiving invoice:', error);

@@ -182,34 +182,6 @@ const DashboardScreen = () => {
     },
   });
 
-  // Real-time Dashboard Updates
-  useEffect(() => {
-    let echoInstance = null;
-    const userId = useAuthStore.getState().userId;
-
-    const setupEcho = async () => {
-      if (userId) {
-        try {
-          echoInstance = await createEcho();
-          echoInstance.private(`user.${userId}`)
-            .listen('.dashboard.updated', () => {
-              console.log('[Dashboard] Data change detected, refetching...');
-              bundleQuery.refetch();
-            });
-        } catch (error) {
-          console.warn('[Dashboard] Echo setup failed:', error);
-        }
-      }
-    };
-
-    setupEcho();
-    return () => {
-      if (echoInstance && userId) {
-        echoInstance.leave(`user.${userId}`);
-      }
-    };
-  }, [bundleQuery]);
-
   const dashboardRefetchers = useMemo(() => [bundleQuery.refetch], [bundleQuery.refetch]);
 
   useTenantFocusRefetch({ refetchers: dashboardRefetchers });

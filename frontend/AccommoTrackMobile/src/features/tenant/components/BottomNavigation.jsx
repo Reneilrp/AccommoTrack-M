@@ -9,52 +9,16 @@ import { navigationRef, navigate as rootNavigate } from '../../../navigation/Roo
 import { useTheme } from '../../../contexts/ThemeContext.jsx';
 import { getStyles } from '../../../styles/Tenant/HomePage.js';
 import { useAuthStore } from '../../../stores/auth/authStore.js';
-import createEcho from '../../../services/echo.js';
+import { useUserCounters } from '../hooks/useTenantQueryHelpers.js';
 
 export default function BottomNavigation({ activeTab: propActiveTab, onTabPress, isGuest, onAuthRequired, currentRouteName: propRouteName }) {
   const { theme } = useTheme();
   const styles = React.useMemo(() => getStyles(theme), [theme]);
   const insets = useSafeAreaInsets();
   const [isNavigating, setIsNavigating] = useState(false);
-  const [unreadCount, setUnreadCount] = React.useState(0);
-
-  // Real-time unread count via Echo
-  React.useEffect(() => {
-    let echoInstance = null;
-    const userId = useAuthStore.getState().userId;
-
-    const setupEcho = async () => {
-      // 1. Initial load from storage
-      try {
-        const count = await AsyncStorage.getItem('messages_unread_count');
-        if (count) setUnreadCount(parseInt(count, 10));
-      } catch (_e) {}
-
-      // 2. Listen for real-time updates if logged in
-      if (userId) {
-        try {
-          echoInstance = await createEcho();
-          echoInstance.private(`user.${userId}`)
-            .listen('.unread.updated', (data) => {
-              console.log('[BottomNav] Unread count update received:', data);
-              const newCount = parseInt(data.unreadCount || 0, 10);
-              setUnreadCount(newCount);
-              AsyncStorage.setItem('messages_unread_count', String(newCount)).catch(() => {});
-            });
-        } catch (error) {
-          console.error('[BottomNav] Echo setup failed:', error);
-        }
-      }
-    };
-    
-    setupEcho();
-
-    return () => {
-      if (echoInstance && userId) {
-        echoInstance.leave(`user.${userId}`);
-      }
-    };
-  }, []);
+  
+  const userId = useAuthStore((state) => state.userId);
+  const { data: counters } = useUserCounters(!!userId);
 
   // Determine current route name. Prefer propRouteName (provided by layout),
   // otherwise fall back to navigationRef (safe outside navigator hooks).
@@ -79,11 +43,39 @@ export default function BottomNavigation({ activeTab: propActiveTab, onTabPress,
 
   const tabs = [
     { id: 'Explore', icon: 'search', label: 'Explore', route: 'TenantHome' },
-    { id: 'Dashboard', icon: 'grid', label: 'Dashboard', route: 'Dashboard' },
+    { id: 'Dashboard', icon: 'grid', label: 'Dashboard', route: 'Dashboard', countKey: 'maintenance' },
     { id: 'Bookings', icon: 'calendar', label: 'My Bookings', route: 'MyBookings' },
-    { id: 'Messages', icon: 'chatbubbles', label: 'Messages', route: 'Messages' },
+    { id: 'Messages', icon: 'chatbubbles', label: 'Messages', route: 'Messages', countKey: 'messages' },
     { id: 'Settings', icon: 'settings', label: 'Settings', route: 'Settings' },
   ];
+
+  const renderBadge = (count) => {
+    if (!count || count <= 0) return null;
+    return (
+      <View style={{
+        position: 'absolute',
+        right: -6,
+        top: -3,
+        backgroundColor: '#EF4444',
+        borderRadius: 10,
+        minWidth: 20,
+        height: 20,
+        justifyContent: 'center',
+        alignItems: 'center',
+        paddingHorizontal: 4,
+        borderWidth: 2,
+        borderColor: theme.colors.surface,
+      }}>
+        <Text style={{
+          color: '#FFFFFF',
+          fontSize: 10,
+          fontWeight: '700',
+        }}>
+          {count > 99 ? '99+' : count}
+        </Text>
+      </View>
+    );
+  };
 
   const getActiveTabFromRoute = (routeName) => {
     switch (routeName) {
@@ -164,30 +156,7 @@ export default function BottomNavigation({ activeTab: propActiveTab, onTabPress,
                       size={24}
                       color={isTabActive ? theme.colors.primary : theme.colors.textTertiary}
                     />
-                    {tab.id === 'Messages' && unreadCount > 0 && (
-                      <View style={{
-                        position: 'absolute',
-                        right: -6,
-                        top: -3,
-                        backgroundColor: '#EF4444',
-                        borderRadius: 10,
-                        minWidth: 20,
-                        height: 20,
-                        justifyContent: 'center',
-                        alignItems: 'center',
-                        paddingHorizontal: 4,
-                        borderWidth: 2,
-                        borderColor: theme.colors.surface,
-                      }}>
-                        <Text style={{
-                          color: '#FFFFFF',
-                          fontSize: 10,
-                          fontWeight: '700',
-                        }}>
-                          {unreadCount > 99 ? '99+' : unreadCount}
-                        </Text>
-                      </View>
-                    )}
+                    {tab.countKey && renderBadge(counters?.[tab.countKey])}
                   </View>
                   <Text
                     style={[

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import {
   Home,
@@ -14,101 +14,45 @@ import {
   ArrowLeftRight,
   LogOut,
 } from 'lucide-react';
-import api from '../../utils/api';
-import { useUIState } from '../../contexts/UIStateContext';
-import { cacheManager } from '../../utils/cache';
+import { useLandlordDashboardBundle, useLandlordVerificationStatus } from '../../hooks/useLandlordQueries';
 
 export default function DashboardPage({ user }) {
   const __navigate = useNavigate();
-  const { uiState, updateData } = useUIState();
   const isCaretaker = user?.role === 'caretaker';
-  const dashboardKey = isCaretaker ? 'caretaker_dashboard' : 'landlord_dashboard';
-  const cachedData = uiState.data?.[dashboardKey] || cacheManager.get(dashboardKey);
 
-  const [stats, setStats] = useState(cachedData?.stats || null);
-  const [activities, setActivities] = useState(cachedData?.activities || []);
-  const [verificationStatus, setVerificationStatus] = useState(null);
-  const [upcomingPayments, setUpcomingPayments] = useState(
-    cachedData?.upcomingPayments || {
-      upcomingCheckouts: [],
-      unpaidBookings: [],
-      vacatingSoon: [],
-      billingHealth: {
-        dueForBillingCount: 0,
-        dueForBilling: [],
-        overdueInvoicesCount: 0,
-        overdueInvoicesAmount: 0,
-        dueSoonInvoicesCount: 0,
-        dueSoonInvoicesAmount: 0,
-        overdueInvoices: [],
-        dueSoonInvoices: [],
-      },
-    }
-  );
-  const [loading, setLoading] = useState(!cachedData);
-  const [error, setError] = useState('');
-  const initialLoadRef = React.useRef(!cachedData);
+  // TANSTACK QUERY HOOKS
+  const { 
+    data: dashboardData, 
+    isLoading: dashboardLoading, 
+    error: dashboardError,
+    refetch: fetchDashboardData 
+  } = useLandlordDashboardBundle(isCaretaker);
 
-  const fetchVerificationStatus = React.useCallback(async () => {
-    if (isCaretaker) {
-      setVerificationStatus(null);
-      return;
-    }
+  const {
+    data: verificationStatus,
+    isLoading: verificationLoading
+  } = useLandlordVerificationStatus(isCaretaker);
 
-    try {
-      const res = await api.get('/landlord/my-verification');
-      setVerificationStatus(res.data);
-    } catch (err) {
-      if (err.response?.status === 404) {
-        setVerificationStatus({ status: 'not_submitted' });
-      }
-    }
-  }, [isCaretaker]);
+  const stats = dashboardData?.stats;
+  const activities = dashboardData?.activities || [];
+  const upcomingPayments = dashboardData?.upcomingPayments || {
+    upcomingCheckouts: [],
+    unpaidBookings: [],
+    vacatingSoon: [],
+    billingHealth: {
+      dueForBillingCount: 0,
+      dueForBilling: [],
+      overdueInvoicesCount: 0,
+      overdueInvoicesAmount: 0,
+      dueSoonInvoicesCount: 0,
+      dueSoonInvoicesAmount: 0,
+      overdueInvoices: [],
+      dueSoonInvoices: [],
+    },
+  };
 
-  const fetchDashboardData = React.useCallback(async () => {
-    try {
-      if (initialLoadRef.current) setLoading(true);
-      initialLoadRef.current = false;
-      setError('');
-
-      const [statsRes, activitiesRes, paymentsRes] = await Promise.all([
-        api.get('/landlord/dashboard/stats'),
-        api.get('/landlord/dashboard/recent-activities'),
-        api.get('/landlord/dashboard/upcoming-payments')
-      ]);
-
-      const statsData = statsRes.data;
-      const activitiesData = activitiesRes.data;
-      const paymentsData = paymentsRes.data;
-
-      setStats(statsData);
-      setActivities(activitiesData);
-      setUpcomingPayments(paymentsData);
-
-      const dashboardState = {
-        stats: statsData,
-        activities: activitiesData,
-        upcomingPayments: paymentsData
-      };
-
-      updateData(dashboardKey, dashboardState);
-      cacheManager.set(dashboardKey, dashboardState);
-
-    } catch (err) {
-      console.error('Error fetching dashboard data:', err);
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  }, [dashboardKey, updateData]);
-
-  useEffect(() => {
-    fetchDashboardData();
-  }, [fetchDashboardData]);
-
-  useEffect(() => {
-    fetchVerificationStatus();
-  }, [fetchVerificationStatus]);
+  const loading = dashboardLoading || (verificationLoading && !isCaretaker);
+  const error = dashboardError?.message || '';
 
   const getActivityIcon = (type) => {
     switch (type) {

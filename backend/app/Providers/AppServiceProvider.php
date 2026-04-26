@@ -37,6 +37,13 @@ class AppServiceProvider extends ServiceProvider
             return Limit::perMinute(5)->by($request->email ?: $request->ip());
         });
 
+        // Global API rate limiter
+        RateLimiter::for('global', function (Request $request) {
+            return $request->user()
+                ? Limit::perMinute(180)->by($request->user()->id)
+                : Limit::perMinute(60)->by($request->ip());
+        });
+
         // CORS headers are managed by Laravel's CORS middleware (config/cors.php).
         // Remove manual header() calls to avoid duplicate/multiple Access-Control-Allow-Origin
         // values which cause browsers to reject requests. See config/cors.php for allowed
@@ -46,6 +53,13 @@ class AppServiceProvider extends ServiceProvider
         Property::observe(PropertyObserver::class);
         Room::observe(RoomObserver::class);
         Review::observe(ReviewObserver::class);
+        
+        // Supporting models that impact public data
+        \App\Models\PropertyImage::observe(\App\Observers\PublicCacheObserver::class);
+        \App\Models\RoomImage::observe(\App\Observers\PublicCacheObserver::class);
+        \App\Models\Addon::observe(\App\Observers\PublicCacheObserver::class);
+        \App\Models\Amenity::observe(\App\Observers\PublicCacheObserver::class);
+        \App\Models\Booking::observe(\App\Observers\PublicCacheObserver::class);
 
         // Dashboard Cache Invalidation
         $dashboardObserverModels = [
@@ -53,6 +67,7 @@ class AppServiceProvider extends ServiceProvider
             \App\Models\Invoice::class,
             \App\Models\PaymentTransaction::class,
             \App\Models\MaintenanceRequest::class,
+            \App\Models\Notification::class,
         ];
 
         foreach ($dashboardObserverModels as $model) {

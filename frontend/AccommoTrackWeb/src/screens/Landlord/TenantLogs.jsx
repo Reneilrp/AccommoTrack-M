@@ -10,6 +10,7 @@ import {
   History,
   Wrench,
   Sparkles,
+  ShieldAlert,
   CalendarDays,
   Home,
   CheckCircle2,
@@ -424,8 +425,70 @@ export default function TenantLogs() {
                 </div>
               </div>
 
-              <div className="space-y-4 pt-4">
-                <div className="p-4 bg-gray-50 dark:bg-gray-900/50 rounded-xl border border-gray-100 dark:border-gray-700">
+              {/* EMERGENCY CONTACT SECTION */}
+              <div className="mt-6 pt-4 border-t dark:border-gray-700">
+                <h4 className="text-[10px] font-bold text-purple-600 dark:text-purple-400 uppercase tracking-widest mb-3 flex items-center gap-2">
+                  <ShieldAlert className="w-3 h-3" /> Emergency Contact
+                </h4>
+                {tenant?.tenantProfile?.emergency_contact_name ? (
+                  <div className="space-y-3 bg-purple-50/50 dark:bg-purple-900/10 p-3 rounded-xl border border-purple-100 dark:border-purple-900/30">
+                    <div>
+                      <p className="text-[9px] font-bold text-gray-400 uppercase">Contact Name</p>
+                      <p className="text-xs font-bold text-gray-800 dark:text-gray-200">{tenant.tenantProfile.emergency_contact_name}</p>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <p className="text-[9px] font-bold text-gray-400 uppercase">Relationship</p>
+                        <p className="text-xs font-medium text-gray-700 dark:text-gray-300">{tenant.tenantProfile.emergency_contact_relationship || '—'}</p>
+                      </div>
+                      <div>
+                        <p className="text-[9px] font-bold text-gray-400 uppercase">Phone</p>
+                        <p className="text-xs font-bold text-gray-700 dark:text-gray-300">{tenant.tenantProfile.emergency_contact_phone || '—'}</p>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-xs italic text-gray-400">No emergency info provided.</p>
+                )}
+              </div>
+
+              {/* LIFESTYLE PREFERENCES SECTION */}
+              <div className="mt-6 pt-4 border-t dark:border-gray-700">
+                <h4 className="text-[10px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-widest mb-3 flex items-center gap-2">
+                  <Sparkles className="w-3 h-3" /> Lifestyle & Traits
+                </h4>
+                {tenant?.tenantProfile?.preference ? (
+                  <div className="space-y-3">
+                    {(tenant.tenantProfile.preference.attitude || tenant.tenantProfile.preference.behavior) && (
+                      <div className="flex flex-wrap gap-2">
+                        {tenant.tenantProfile.preference.attitude && (
+                          <span className="px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 text-[10px] font-bold rounded-lg border border-blue-200 dark:border-blue-800">
+                            {tenant.tenantProfile.preference.attitude}
+                          </span>
+                        )}
+                        {tenant.tenantProfile.preference.behavior && (
+                          <span className="px-2 py-1 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 text-[10px] font-bold rounded-lg border border-emerald-200 dark:border-emerald-800">
+                            {tenant.tenantProfile.preference.behavior}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                    {tenant.tenantProfile.preference.lifestyle_notes && (
+                       <div>
+                         <p className="text-[9px] font-bold text-gray-400 uppercase mb-1">Bio / Routine</p>
+                         <p className="text-xs text-gray-600 dark:text-gray-400 italic">"{tenant.tenantProfile.preference.lifestyle_notes}"</p>
+                       </div>
+                    )}
+                    {tenant.tenantProfile.preference.room_preference && (
+                      <p className="text-xs text-gray-500">Prefers: <span className="font-bold text-gray-700 dark:text-gray-300">{tenant.tenantProfile.preference.room_preference}</span></p>
+                    )}
+                  </div>
+                ) : (
+                  <p className="text-xs italic text-gray-400">No preferences shared.</p>
+                )}
+              </div>
+
+              <div className="space-y-4 pt-6 mt-4 border-t dark:border-gray-700">                <div className="p-4 bg-gray-50 dark:bg-gray-900/50 rounded-xl border border-gray-100 dark:border-gray-700">
                   <p className="text-[10px] font-bold text-gray-500 dark:text-gray-500 uppercase mb-2">Current Room</p>
                   <p className="font-bold text-sm text-gray-900 dark:text-gray-200">
                     {currentRoom ? `Room ${currentRoom.room_number} • ${currentRoom.type_label || 'Active'}` : 'No active room'}

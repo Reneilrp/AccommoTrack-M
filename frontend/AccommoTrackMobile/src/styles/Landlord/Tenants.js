@@ -780,6 +780,33 @@ export const getStyles = (theme) => StyleSheet.create({
   },
   modalDisabledBtn: {
     opacity: 0.45
+  },
+  traitBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    backgroundColor: '#eff6ff',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#3b82f6',
+  },
+  traitText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#1d4ed8',
+    textTransform: 'uppercase',
+  },
+  customPrefChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: theme.colors.backgroundSecondary,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  customPrefText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: theme.colors.textSecondary,
   }
 });
 

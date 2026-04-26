@@ -96,37 +96,6 @@ function normalizeAmount(value) {
   return Number.isFinite(n) ? n : null;
 }
 
-function toCountNumber(value, fallback = null) {
-  const n = Number(value);
-  if (!Number.isFinite(n)) return fallback;
-  return Math.max(0, n);
-}
-
-function resolveRoomAvailabilityStatus(room) {
-  const rawStatus = String(room?.status || '').toLowerCase();
-  if (rawStatus === 'maintenance') return 'maintenance';
-
-  const capacity = Math.max(1, toCountNumber(room?.capacity ?? room?.raw_capacity, 1));
-  const explicitAvailableSlots = toCountNumber(room?.available_slots ?? room?.availableSlots, null);
-  const explicitOccupied = toCountNumber(room?.occupied_count ?? room?.occupied, null);
-
-  const occupiedCount = explicitOccupied !== null
-    ? Math.min(capacity, explicitOccupied)
-    : (explicitAvailableSlots !== null ? Math.max(0, capacity - explicitAvailableSlots) : 0);
-
-  const availableSlots = explicitAvailableSlots !== null
-    ? Math.max(0, explicitAvailableSlots)
-    : Math.max(0, capacity - occupiedCount);
-
-  if (availableSlots > 0) {
-    return rawStatus === 'reserved' ? 'reserved' : 'available';
-  }
-
-  if (occupiedCount >= capacity) return 'occupied';
-
-  return rawStatus === 'reserved' ? 'reserved' : 'occupied';
-}
-
 function extractSuggestedPrice(value) {
   if (!value || typeof value !== 'string') return null;
   const match = value.match(/suggested\s*price\s*:\s*₱?\s*([\d,]+(?:\.\d+)?)/i);
@@ -248,18 +217,15 @@ function TypeBadge({ type }) {
   );
 }
 
+import { useLandlordPropertySummary } from '../../hooks/useLandlordQueries';
+
 function PropertyDashboard({ propertyId, navigate, onCountsChange }) {
-  const [dashData, setDashData] = useState({
-    pendingBookings: [],
-    overdueInvoices: [],
-    pendingAddonRequests: [],
-    maintenanceRequests: [],
-    transferRequests: [],
-    recentReviews: [],
-    occupiedRooms: 0,
-    totalRooms: 0,
-  });
-  const [loading, setLoading] = useState(true);
+  const { 
+    data: dashData, 
+    isLoading: loading, 
+    refetch: loadDashboard 
+  } = useLandlordPropertySummary(propertyId);
+
   const [actionLoading, setActionLoading] = useState({});
   const [activeFilter, setActiveFilter] = useState('all');
   const [addonActionNotes, setAddonActionNotes] = useState({});
@@ -294,87 +260,19 @@ function PropertyDashboard({ propertyId, navigate, onCountsChange }) {
     isOpen: false,
     item: null,
   });
-  const dashboardLoadInFlightRef = useRef(false);
 
-  const withRequestTimeout = useCallback((promise, label = 'request') => {
-    return Promise.race([
-      promise,
-      new Promise((_, reject) => {
-        setTimeout(() => {
-          reject(new Error(`${label} timed out after ${DASHBOARD_REQUEST_TIMEOUT_MS}ms`));
-        }, DASHBOARD_REQUEST_TIMEOUT_MS);
-      }),
-    ]);
-  }, []);
-
-
-  const loadDashboard = useCallback(async () => {
-    if (!propertyId || dashboardLoadInFlightRef.current) return;
-    dashboardLoadInFlightRef.current = true;
-    setLoading(true);
-    try {
-      const [bookingsRes, invoicesRes, addonRequestsRes, maintenanceRes, transfersRes, reviewsRes, roomsRes] = await Promise.allSettled([
-        withRequestTimeout(api.get(`/bookings?property_id=${propertyId}&status=pending`), 'bookings request'),
-        withRequestTimeout(api.get(`/invoices?property_id=${propertyId}&status=overdue`), 'invoices request'),
-        withRequestTimeout(api.get(`/landlord/properties/${propertyId}/addons/pending`), 'addons request'),
-        withRequestTimeout(api.get(`/landlord/maintenance-requests?property_id=${propertyId}&status=pending`), 'maintenance request'),
-        withRequestTimeout(api.get(`/landlord/transfers?property_id=${propertyId}&status=pending`), 'transfers request'),
-        withRequestTimeout(api.get(`/landlord/reviews?property_id=${propertyId}&limit=3`), 'reviews request'),
-        withRequestTimeout(api.get(`/rooms/property/${propertyId}`), 'rooms request'),
-      ]);
-
-      const get = (res) => {
-        if (res.status !== 'fulfilled') return [];
-        const payload = res.value?.data;
-        if (Array.isArray(payload?.data)) return payload.data;
-        if (Array.isArray(payload)) return payload;
-        return [];
-      };
-
-      const rooms = get(roomsRes);
-      const totalRooms = rooms.length;
-      const occupiedRooms = rooms.filter((room) => resolveRoomAvailabilityStatus(room) === 'occupied').length;
-      const pendingAddonRequests = addonRequestsRes.status === 'fulfilled'
-        ? (addonRequestsRes.value?.data?.pendingRequests || [])
-        : [];
-
-      const pendingBookings = get(bookingsRes);
-      const overdueInvoices = (invoicesRes.status === 'fulfilled' ? invoicesRes.value?.data?.data : []) || [];
-      const maintenanceRequests = (maintenanceRes.status === 'fulfilled' ? maintenanceRes.value?.data?.data : []) || [];
-      const transferRequests = get(transfersRes);
-
-      setDashData({
-        pendingBookings,
-        overdueInvoices,
-        pendingAddonRequests,
-        maintenanceRequests,
-        transferRequests,
-        recentReviews: get(reviewsRes),
-        occupiedRooms,
-        totalRooms,
-      });
-
-      // Notify parent of count changes
-      if (onCountsChange) {
-        onCountsChange({
-          addons: pendingAddonRequests.length,
-          maintenance: maintenanceRequests.length,
-          transfers: transferRequests.length,
-          bookings: pendingBookings.length,
-          payments: overdueInvoices.length,
-        });
-      }
-    } catch (err) {
-      console.error('Dashboard load error', err);
-    } finally {
-      setLoading(false);
-      dashboardLoadInFlightRef.current = false;
-    }
-  }, [propertyId, onCountsChange, withRequestTimeout]);
-
+  // Notify parent of count changes
   useEffect(() => {
-    loadDashboard();
-  }, [loadDashboard]);
+    if (dashData && onCountsChange) {
+      onCountsChange({
+        addons: dashData.pendingAddonRequests.length,
+        maintenance: dashData.maintenanceRequests.length,
+        transfers: dashData.transferRequests.length,
+        bookings: dashData.pendingBookings.length,
+        payments: dashData.overdueInvoices.length,
+      });
+    }
+  }, [dashData, onCountsChange]);
 
   const handleBookingAction = async (bookingId, action, cancellationReason = null) => {
     if (!bookingId) {
@@ -396,7 +294,7 @@ function PropertyDashboard({ propertyId, navigate, onCountsChange }) {
       }
 
       await api.patch(`/bookings/${bookingId}/status`, payload);
-      setDashData(p => ({ ...p, pendingBookings: p.pendingBookings.filter(b => b.id !== bookingId) }));
+      loadDashboard(); // Refetch via TanStack
       showSuccess(action === 'confirm' ? 'Booking confirmed!' : 'Booking declined.', { id: toastId });
     } catch (err) {
       console.error(`Failed to ${action} booking`, err);
@@ -417,7 +315,7 @@ function PropertyDashboard({ propertyId, navigate, onCountsChange }) {
     const toastId = showLoading(action === 'approve' ? 'Approving transfer...' : 'Rejecting transfer...');
     try {
       await api.patch(`/landlord/transfers/${transferId}/handle`, { action, ...payload });
-      setDashData(p => ({ ...p, transferRequests: p.transferRequests.filter(t => t.id !== transferId) }));
+      loadDashboard(); // Refetch via TanStack
       showSuccess(`Transfer ${action}d successfully!`, { id: toastId });
       return true;
     } catch (err) {
@@ -500,10 +398,7 @@ function PropertyDashboard({ propertyId, navigate, onCountsChange }) {
       const response = await maintenanceService.updateStatus(id, newStatus);
       if (response.success) {
         showSuccess(`Request marked as ${newStatus.replace('_', ' ')}`);
-        setDashData(p => ({
-          ...p,
-          maintenanceRequests: p.maintenanceRequests.map(r => r.id === id ? { ...r, status: newStatus } : r),
-        }));
+        loadDashboard();
       }
     } catch {
       showError('Failed to update status');
@@ -515,10 +410,7 @@ function PropertyDashboard({ propertyId, navigate, onCountsChange }) {
       const response = await maintenanceService.completeRequest(id);
       if (response.success) {
         showSuccess(response.message || 'Request resolved');
-        setDashData(p => ({
-          ...p,
-          maintenanceRequests: p.maintenanceRequests.map(r => r.id === id ? response.data : r),
-        }));
+        loadDashboard();
       }
     } catch {
       showError('Failed to mark as completed');
@@ -530,10 +422,7 @@ function PropertyDashboard({ propertyId, navigate, onCountsChange }) {
       const response = await maintenanceService.assignWorker(id, workerId);
       if (response.success) {
         showSuccess(response.message || 'Worker assigned successfully');
-        setDashData(p => ({
-          ...p,
-          maintenanceRequests: p.maintenanceRequests.map(r => r.id === id ? response.data : r),
-        }));
+        loadDashboard();
         setMaintenanceAssignModal({ isOpen: false, item: null });
       } else {
         showError(response.message || 'Failed to assign worker');
@@ -565,10 +454,7 @@ function PropertyDashboard({ propertyId, navigate, onCountsChange }) {
       }
 
       await api.patch(`/landlord/bookings/${bookingId}/addons/${addonId}`, payload);
-      setDashData(p => ({
-        ...p,
-        pendingAddonRequests: p.pendingAddonRequests.filter(r => r.requestId !== requestId),
-      }));
+      loadDashboard();
       setAddonActionNotes((prev) => {
         const next = { ...prev };
         delete next[requestId];

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, TextInput, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform, StatusBar, ActivityIndicator, RefreshControl, Text, Image, Alert, Linking, useWindowDimensions, Animated, Pressable, Keyboard, Modal } from 'react-native';
+import { View, TextInput, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform, StatusBar, ActivityIndicator, RefreshControl, Text, Image, Alert, Linking, useWindowDimensions, Animated, Pressable, Modal } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -122,7 +122,6 @@ export default function ChatScreen({ navigation, route }) {
     const [replyingTo, setReplyingTo] = useState(null);
     const [editingMessage, setEditingMessage] = useState(null);
     const safeAreaEdges = ['top', 'bottom'];
-    const [isKeyboardVisible, setKeyboardVisible] = useState(false);
     const [isOtherTyping, setIsOtherTyping] = useState(false);
     const typingTimeoutRef = useRef(null);
     const [historyViewingMessage, setHistoryViewingMessage] = useState(null);
@@ -294,19 +293,6 @@ export default function ChatScreen({ navigation, route }) {
             inputRef.current?.focus();
         }
     }, [replyingTo, editingMessage]);
-
-    useEffect(() => {
-        const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
-        const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
-
-        const showSubscription = Keyboard.addListener(showEvent, () => setKeyboardVisible(true));
-        const hideSubscription = Keyboard.addListener(hideEvent, () => setKeyboardVisible(false));
-
-        return () => {
-            showSubscription.remove();
-            hideSubscription.remove();
-        };
-    }, []);
 
     useEffect(() => {
         if (!conv?.id) return;
@@ -539,11 +525,23 @@ export default function ChatScreen({ navigation, route }) {
         });
     }, [messages]);
 
+    const fileItems = React.useMemo(() => {
+        if (!Array.isArray(messages)) return [];
+
+        const seen = new Set();
+        return messages.filter((msg) => {
+            const filePath = msg?.file_path;
+            if (!filePath || msg?.is_unsent || seen.has(filePath)) return false;
+            seen.add(filePath);
+            return true;
+        });
+    }, [messages]);
+
     return (
         <SafeAreaView edges={safeAreaEdges} style={[styles.safeArea, { backgroundColor: theme.colors.background }]}>
             <KeyboardAvoidingView
                 style={styles.container}
-                behavior={Platform.OS === 'ios' ? 'padding' : (isKeyboardVisible ? 'height' : undefined)}
+                behavior={Platform.OS === 'ios' ? 'padding' : undefined}
                 keyboardVerticalOffset={0}
             >
                 <StatusBar barStyle="light-content" />
@@ -733,67 +731,68 @@ export default function ChatScreen({ navigation, route }) {
                                                         borderColor: theme.colors.border,
                                                         borderStyle: 'dashed'
                                                     },
-                                                    (msg.image_path || msg.file_path) && !isUnsent && {
-                                                        backgroundColor: 'transparent',
-                                                        padding: 0,
-                                                        borderWidth: 0,
-                                                        elevation: 0,
-                                                        shadowOpacity: 0
-                                                    }
-                                                ]}
-                                            >
-                                                {isUnsent ? (
-                                                    <Text style={[styles.messageText, { color: theme.colors.textSecondary, fontStyle: 'italic', fontSize: 12 }]}>This message was unsent</Text>
-                                                ) : (
-                                                    <>
-                                                        {replyingToMessage && (
-                                                            <View style={{
-                                                                backgroundColor: isMine ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.05)',
-                                                                padding: 8,
-                                                                borderRadius: 6,
-                                                                borderLeftWidth: 3,
-                                                                borderLeftColor: theme.colors.primary,
-                                                                marginBottom: 8
-                                                            }}>
-                                                                <Text style={{ fontSize: 10, fontWeight: 'bold', color: isMine ? '#FFF' : theme.colors.primary, marginBottom: 2 }}>
-                                                                    {String(replyingToMessage.sender_id) === String(currentUserId) ? 'You' : (replyingToMessage.sender?.first_name || 'Someone')}
-                                                                </Text>
-                                                                <Text style={{ fontSize: 11, color: isMine ? '#EEE' : theme.colors.textSecondary }} numberOfLines={2}>
-                                                                    {replyingToMessage.image_path ? '📷 Photo' : replyingToMessage.file_path ? '📄 Document' : replyingToMessage.message}
-                                                                </Text>
-                                                            </View>
-                                                        )}
-                                                        {msg.image_path && (
-                                                            <TouchableOpacity onPress={() => setSelectedImage(getImageUrl(msg.image_path))}>
-                                                                <Image
-                                                                    source={{ uri: getImageUrl(msg.image_path) }}
-                                                                    style={{ width: 200, height: 200, borderRadius: 12 }}
-                                                                    resizeMode="cover"
-                                                                />
-                                                            </TouchableOpacity>
-                                                        )}
-                                                        {msg.file_path && (
-                                                            <TouchableOpacity
-                                                                style={styles.fileCard}
-                                                                onPress={() => Linking.openURL(getImageUrl(msg.file_path))}
-                                                            >
-                                                                <View style={styles.fileIconContainer}>
-                                                                    <Ionicons
-                                                                        name={msg.file_path.toLowerCase().endsWith('.pdf') ? 'document-text' : 'document'}
-                                                                        size={24}
-                                                                        color={theme.colors.primary}
-                                                                    />
-                                                                </View>
-                                                                <View style={styles.fileInfo}>
-                                                                    <Text style={styles.fileName} numberOfLines={1}>{msg.file_name || 'Document'}</Text>
-                                                                    <Text style={styles.fileExt}>{msg.file_path.split('.').pop().toUpperCase()}</Text>
-                                                                </View>
-                                                                <Ionicons name="download-outline" size={20} color={theme.colors.textSecondary} />
-                                                            </TouchableOpacity>
-                                                        )}
-                                                        {msg.message ? (
-                                                            <View style={[(msg.image_path || msg.file_path) ? { padding: 10, backgroundColor: isMine ? theme.colors.primary : '#fff', borderRadius: 10, marginTop: 4 } : null]}>
-                                                                <Text style={[styles.messageText, isMine ? styles.myMessageText : styles.theirMessageText]}>{msg.message}</Text>
+                                                    (msg.image_url || msg.image_path || msg.file_url || msg.file_path) && !isUnsent && {
+                                                          backgroundColor: 'transparent',
+                                                          padding: 0,
+                                                          borderWidth: 0,
+                                                          elevation: 0,
+                                                          shadowOpacity: 0
+                                                      }
+                                                    ]}
+                                                    >
+                                                    {isUnsent ? (
+                                                      <Text style={[styles.messageText, { color: theme.colors.textSecondary, fontStyle: 'italic', fontSize: 12 }]}>This message was unsent</Text>
+                                                    ) : (
+                                                      <>
+                                                          {replyingToMessage && (
+                                                              <View style={{
+                                                                  backgroundColor: isMine ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.05)',
+                                                                  padding: 8,
+                                                                  borderRadius: 6,
+                                                                  borderLeftWidth: 3,
+                                                                  borderLeftColor: theme.colors.primary,
+                                                                  marginBottom: 8
+                                                              }}>
+                                                                  <Text style={{ fontSize: 10, fontWeight: 'bold', color: isMine ? '#FFF' : theme.colors.primary, marginBottom: 2 }}>
+                                                                      {String(replyingToMessage.sender_id) === String(currentUserId) ? 'You' : (replyingToMessage.sender?.first_name || 'Someone')}
+                                                                  </Text>
+                                                                  <Text style={{ fontSize: 11, color: isMine ? '#EEE' : theme.colors.textSecondary }} numberOfLines={2}>
+                                                                      {(replyingToMessage.image_url || replyingToMessage.image_path) ? '📷 Photo' : (replyingToMessage.file_url || replyingToMessage.file_path) ? '📄 Document' : replyingToMessage.message}
+                                                                  </Text>
+                                                              </View>
+                                                          )}
+                                                          {(msg.image_url || msg.image_path) && (
+                                                              <TouchableOpacity onPress={() => setSelectedImage(getImageUrl(msg.image_url || msg.image_path))}>
+                                                                  <Image
+                                                                      source={{ uri: getImageUrl(msg.image_url || msg.image_path) }}
+                                                                      style={{ width: 200, height: 200, borderRadius: 12 }}
+                                                                      resizeMode="cover"
+                                                                  />
+                                                              </TouchableOpacity>
+                                                          )}
+                                                          {(msg.file_url || msg.file_path) && (
+                                                              <TouchableOpacity
+                                                                  style={styles.fileCard}
+                                                                  onPress={() => Linking.openURL(msg.download_url || getImageUrl(msg.file_url || msg.file_path))}
+                                                              >
+                                                                  <View style={styles.fileIconContainer}>
+                                                                      <Ionicons
+                                                                          name={(msg.file_url || msg.file_path).toLowerCase().endsWith('.pdf') ? 'document-text' : 'document'}
+                                                                          size={24}
+                                                                          color={theme.colors.primary}
+                                                                      />
+                                                                  </View>
+                                                                  <View style={styles.fileInfo}>
+                                                                      <Text style={styles.fileName} numberOfLines={1}>{msg.file_name || 'Document'}</Text>
+                                                                      <Text style={styles.fileExt}>
+                                                                          {String(msg.file_url || msg.file_path || '').split('.').pop()?.split('?')[0]?.toUpperCase() || 'FILE'}
+                                                                      </Text>
+                                                                  </View>
+                                                                  <Ionicons name="download-outline" size={20} color={theme.colors.textSecondary} />
+                                                              </TouchableOpacity>
+                                                          )}
+                                                          {msg.message ? (
+                                                              <View style={[(msg.image_url || msg.image_path || msg.file_url || msg.file_path) ? { padding: 10, backgroundColor: isMine ? theme.colors.primary : '#fff', borderRadius: 10, marginTop: 4 } : null]}>                                                                <Text style={[styles.messageText, isMine ? styles.myMessageText : styles.theirMessageText]}>{msg.message}</Text>
                                                                 {msg.is_edited && (
                                                                     <TouchableOpacity onPress={() => setHistoryViewingMessage(msg)}>
                                                                         <Text style={{ fontSize: 9, color: isMine ? 'rgba(255,255,255,0.7)' : theme.colors.textSecondary, marginLeft: 4, fontWeight: 'bold', textDecorationLine: 'underline' }}>
@@ -1003,6 +1002,43 @@ export default function ChatScreen({ navigation, route }) {
                                             </TouchableOpacity>
                                         ))}
                                     </View>
+                                </ScrollView>
+                            )}
+                        </View>
+
+                        <View style={[styles.detailsSection, { borderColor: theme.colors.border }]}>
+                            <Text style={[styles.detailsSectionTitle, { color: theme.colors.textSecondary }]}>Files</Text>
+                            {fileItems.length === 0 ? (
+                                <Text style={[styles.detailValue, { color: theme.colors.textSecondary }]}>No files shared yet.</Text>
+                            ) : (
+                                <ScrollView style={{ maxHeight: 200 }} nestedScrollEnabled>
+                                    {fileItems.map((item) => {
+                                        const ext = (item.file_path || '').split('.').pop().toUpperCase();
+                                        const isPdf = ext === 'PDF';
+                                        return (
+                                            <TouchableOpacity
+                                                key={item.id}
+                                                style={[
+                                                    styles.fileCard,
+                                                    { marginBottom: 8, backgroundColor: theme.colors.backgroundSecondary, borderColor: theme.colors.border }
+                                                ]}
+                                                onPress={() => Linking.openURL(getImageUrl(item.file_path))}
+                                            >
+                                                <View style={[styles.fileIconContainer, { backgroundColor: isPdf ? 'rgba(239,68,68,0.12)' : theme.colors.primaryLight }]}>
+                                                    <Ionicons
+                                                        name={isPdf ? 'document-text' : 'document'}
+                                                        size={20}
+                                                        color={isPdf ? '#EF4444' : theme.colors.primary}
+                                                    />
+                                                </View>
+                                                <View style={styles.fileInfo}>
+                                                    <Text style={styles.fileName} numberOfLines={1}>{item.file_name || 'Document'}</Text>
+                                                    <Text style={styles.fileExt}>{ext}</Text>
+                                                </View>
+                                                <Ionicons name="open-outline" size={16} color={theme.colors.textSecondary} />
+                                            </TouchableOpacity>
+                                        );
+                                    })}
                                 </ScrollView>
                             )}
                         </View>

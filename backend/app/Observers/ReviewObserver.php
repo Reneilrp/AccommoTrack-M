@@ -12,7 +12,7 @@ class ReviewObserver
      */
     public function saved(Review $review): void
     {
-        PurgeCloudflareCacheJob::dispatch();
+        PurgeCloudflareCacheJob::markAsPending();
     }
 
     /**
@@ -20,7 +20,7 @@ class ReviewObserver
      */
     public function deleted(Review $review): void
     {
-        PurgeCloudflareCacheJob::dispatch();
+        PurgeCloudflareCacheJob::markAsPending();
     }
 
     /**
@@ -28,7 +28,7 @@ class ReviewObserver
      */
     public function restored(Review $review): void
     {
-        PurgeCloudflareCacheJob::dispatch();
+        PurgeCloudflareCacheJob::markAsPending();
     }
 
     /**
@@ -36,6 +36,6 @@ class ReviewObserver
      */
     public function forceDeleted(Review $review): void
     {
-        PurgeCloudflareCacheJob::dispatch();
+        PurgeCloudflareCacheJob::markAsPending();
     }
 }

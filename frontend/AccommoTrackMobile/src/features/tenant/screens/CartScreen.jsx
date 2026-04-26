@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -15,7 +15,8 @@ import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { useTheme } from '../../../contexts/ThemeContext.jsx';
 import CartService from '../../../services/CartService.js';
 import { BASE_URL as API_BASE_URL } from '../../../config/index.js';
-import { showError } from '../../../utils/toast.js';
+import { showError, showWarning, showSuccess } from '../../../utils/toast.js';
+import createEcho from '../../../utils/echo.js';
 
 export default function CartScreen() {
   const navigation = useNavigation();
@@ -25,15 +26,72 @@ export default function CartScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [removingItemId, setRemovingItemId] = useState(null);
   const [checkingOut, setCheckingOut] = useState(false);
+  
+  // Real-time states
+  const [staleItemIds, setStaleItemIds] = useState(new Set());
+  const activeSubscriptions = useRef(new Set());
 
   const fetchCart = useCallback(async () => {
     const result = await CartService.getCart();
     if (result.success) {
       setCart(result.data);
+      setStaleItemIds(new Set());
     } else {
       showError('Error', result.error || 'Failed to load book');
     }
     setLoading(false);
+  }, []);
+
+  // Set up real-time listeners for rooms in cart
+  useEffect(() => {
+    if (!cart?.items) return;
+
+    const echo = createEcho();
+    const propertyIds = [...new Set(cart.items.map(i => i.room?.property_id).filter(Boolean))];
+
+    // Cleanup old
+    activeSubscriptions.current.forEach(id => {
+      if (!propertyIds.includes(id)) {
+        echo.leave(`property.${id}`);
+        activeSubscriptions.current.delete(id);
+      }
+    });
+
+    // Subscribe new
+    propertyIds.forEach(id => {
+      if (!activeSubscriptions.current.has(id)) {
+        echo.channel(`property.${id}`)
+          .listen('.room.availability_updated', (event) => {
+             const { room_id, available_slots } = event;
+             const matchingItems = cart.items.filter(i => i.room_id === room_id);
+             
+             matchingItems.forEach(item => {
+               if (available_slots < item.bed_count) {
+                 setStaleItemIds(prev => new Set([...prev, item.id]));
+                 showWarning('Unavailable', `Room ${item.room?.room_number} is no longer available.`);
+               } else {
+                 setStaleItemIds(prev => {
+                   const next = new Set(prev);
+                   next.delete(item.id);
+                   return next;
+                 });
+               }
+             });
+          });
+        activeSubscriptions.current.add(id);
+      }
+    });
+
+    return () => {
+      // Cleanup happens on unmount or cart changes
+    };
+  }, [cart?.items]);
+
+  useEffect(() => {
+    return () => {
+       const echo = createEcho();
+       activeSubscriptions.current.forEach(id => echo.leave(`property.${id}`));
+    };
   }, []);
 
   useFocusEffect(
@@ -105,8 +163,33 @@ export default function CartScreen() {
     });
   };
 
+  const handleSwapRoom = async (oldItemId, newRoomId) => {
+    const oldItem = cart.items.find(i => i.id === oldItemId);
+    if (!oldItem) return;
+
+    const payload = {
+      room_id: newRoomId,
+      start_date: oldItem.start_date,
+      end_date: oldItem.end_date,
+      bed_count: oldItem.bed_count,
+    };
+
+    const result = await CartService.updateCartItem(oldItemId, payload);
+    if (result.success) {
+      fetchCart();
+      showSuccess('Success', 'Room swapped successfully!');
+    } else {
+      showError('Error', result.error || 'Failed to swap room');
+    }
+  };
+
   const handleCheckout = async () => {
     if (!cart?.id) return;
+    
+    if (staleItemIds.size > 0) {
+      showError('Unavailable', 'Please remove sold-out rooms before proceeding.');
+      return;
+    }
 
     setCheckingOut(true);
     const result = await CartService.checkout(cart.id);
@@ -144,7 +227,30 @@ export default function CartScreen() {
       }
       setCart(null);
     } else {
-      showError('Checkout Failed', result.error || 'Failed to complete checkout');
+      // GRACEFUL REDIRECT HANDLER
+      if (result.error?.includes('room_full')) {
+         try {
+           const collision = JSON.parse(result.error);
+           const itemId = cart.items.find(i => i.room?.room_number === collision.room_number)?.id;
+           
+           if (collision.alternatives?.length > 0) {
+             Alert.alert(
+               'Room Taken!',
+               `Someone just grabbed the last spot in Room ${collision.room_number}. Would you like to switch to Room ${collision.alternatives[0].room_number} instead?`,
+               [
+                 { text: 'Cancel', style: 'cancel' },
+                 { text: `Switch to ${collision.alternatives[0].room_number}`, onPress: () => handleSwapRoom(itemId, collision.alternatives[0].id) }
+               ]
+             );
+           } else {
+             showError('Room Taken', `Room ${collision.room_number} is no longer available.`);
+           }
+         } catch (e) {
+           showError('Checkout Failed', 'Room no longer available. Please refresh.');
+         }
+      } else {
+        showError('Checkout Failed', result.error || 'Failed to complete checkout');
+      }
     }
     setCheckingOut(false);
   };
@@ -248,9 +354,13 @@ export default function CartScreen() {
             </TouchableOpacity>
           )}
         </View>
-        {isExpired() && (
-          <View style={{ marginTop: 8, padding: 8, backgroundColor: theme.colors.error + '20', borderRadius: 6 }}>
-            <Text style={{ color: theme.colors.error, fontSize: 12 }}>⚠️ Selection expired. Please refresh.</Text>
+        {(isExpired() || staleItemIds.size > 0) && (
+          <View style={{ marginTop: 8, padding: 8, backgroundColor: theme.colors.error + '20', borderRadius: 6, marginHorizontal: 16 }}>
+            <Text style={{ color: theme.colors.error, fontSize: 12, fontWeight: 'bold' }}>
+              {staleItemIds.size > 0 
+                ? `⚠️ ${staleItemIds.size} room(s) no longer available. Please remove them.` 
+                : '⚠️ Selection expired. Please refresh.'}
+            </Text>
           </View>
         )}
       </View>
@@ -261,30 +371,54 @@ export default function CartScreen() {
       >
         {/* Cart Items */}
         <View style={{ padding: 16, gap: 12 }}>
-          {cart.items.map((item) => (
+          {cart.items.map((item) => {
+            const isStale = staleItemIds.has(item.id);
+            return (
             <View
               key={item.id}
               style={{
                 backgroundColor: theme.colors.surface,
                 borderRadius: 12,
                 borderWidth: 1,
-                borderColor: theme.colors.border,
+                borderColor: isStale ? theme.colors.error : theme.colors.border,
                 overflow: 'hidden',
+                opacity: isStale ? 0.8 : 1,
               }}
             >
-              <Image
-                source={getImageUrl(
-                  item.room?.property?.image ||
-                  item.room?.property?.image_url ||
-                  (item.room?.images && item.room.images.length > 0 ? item.room.images[0] : null)
+              <View>
+                <Image
+                  source={getImageUrl(
+                    item.room?.property?.image ||
+                    item.room?.property?.image_url ||
+                    (item.room?.images && item.room.images.length > 0 ? item.room.images[0] : null)
+                  )}
+                  style={{ width: '100%', height: 150, opacity: isStale ? 0.5 : 1 }}
+                  resizeMode="cover"
+                />
+                {isStale && (
+                  <View style={{ 
+                    position: 'absolute', 
+                    inset: 0, 
+                    justifyContent: 'center', 
+                    alignItems: 'center',
+                    backgroundColor: 'rgba(0,0,0,0.3)'
+                  }}>
+                    <View style={{ backgroundColor: theme.colors.error, paddingHorizontal: 16, paddingVertical: 6, borderRadius: 20 }}>
+                      <Text style={{ color: '#fff', fontWeight: '900', fontSize: 12, letterSpacing: 1 }}>SOLD OUT</Text>
+                    </View>
+                  </View>
                 )}
-                style={{ width: '100%', height: 150 }}
-                resizeMode="cover"
-              />
+              </View>
+
               <View style={{ padding: 12 }}>
-                <Text style={{ fontSize: 16, fontWeight: '700', color: theme.colors.text }}>
-                  {item.room?.property?.title || 'Property'}
-                </Text>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <Text style={{ fontSize: 16, fontWeight: '700', color: theme.colors.text, flex: 1 }}>
+                    {item.room?.property?.title || 'Property'}
+                  </Text>
+                  {isStale && (
+                    <Text style={{ fontSize: 10, fontWeight: 'bold', color: theme.colors.error }}>UNAVAILABLE</Text>
+                  )}
+                </View>
                 <Text style={{ fontSize: 14, color: theme.colors.textSecondary, marginTop: 2 }}>
                   Room {item.room?.room_number || 'N/A'}
                 </Text>
@@ -350,12 +484,13 @@ export default function CartScreen() {
                   <TouchableOpacity
                     style={{
                       flex: 1,
-                      backgroundColor: theme.colors.primary,
+                      backgroundColor: isStale ? theme.colors.textTertiary : theme.colors.primary,
                       paddingVertical: 10,
                       borderRadius: 8,
                       alignItems: 'center',
                     }}
-                    onPress={() => handleEditItem(item)}
+                    onPress={() => !isStale && handleEditItem(item)}
+                    disabled={isStale}
                   >
                     <Text style={{ color: '#fff', fontWeight: '600', fontSize: 14 }}>Edit</Text>
                   </TouchableOpacity>
@@ -377,7 +512,8 @@ export default function CartScreen() {
                 </View>
               </View>
             </View>
-          ))}
+            );
+          })}
         </View>
       </ScrollView>
 
@@ -407,16 +543,16 @@ export default function CartScreen() {
 
         <TouchableOpacity
           style={{
-            backgroundColor: checkingOut || isExpired() ? theme.colors.textTertiary : theme.colors.primary,
+            backgroundColor: checkingOut || isExpired() || staleItemIds.size > 0 ? theme.colors.textTertiary : theme.colors.primary,
             paddingVertical: 14,
             borderRadius: 8,
             alignItems: 'center',
           }}
           onPress={handleCheckout}
-          disabled={checkingOut || isExpired()}
+          disabled={checkingOut || isExpired() || staleItemIds.size > 0}
         >
           <Text style={{ color: '#fff', fontWeight: '700', fontSize: 16 }}>
-            {checkingOut ? 'Processing...' : 'Proceed to Checkout'}
+            {checkingOut ? 'Creating Bookings...' : 'Proceed to Checkout'}
           </Text>
         </TouchableOpacity>
       </View>

@@ -1,10 +1,12 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useSidebar } from '../../contexts/SidebarContext';
 import LogoutConfirmModal from '../Shared/LogoutConfirmModal';
 import Logo from '../../assets/Logo.png';
-import api, { getImageUrl } from '../../utils/api';
+import { getImageUrl } from '../../utils/api';
 import NotificationDropdown from '../Shared/NotificationDropdown';
+import RealTimeStatus from '../Shared/RealTimeStatus';
+import { useUserCounters } from '../../hooks/useLandlordQueries';
 import { useCart } from '../../contexts/CartContext';
 import CartDrawer from '../Tenant/CartDrawer';
 import {
@@ -30,7 +32,6 @@ import EditCartItemModal from '../Modals/EditCartItemModal';
 export default function TenantLayout({ user, onLogout, children }) {
   const { isSidebarOpen, setIsSidebarOpen, asideRef } = useSidebar();
   const [showLogoutModal, setShowLogoutModal] = useState(false);
-  const [messageUnreadCount, setMessageUnreadCount] = useState(0);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -38,11 +39,17 @@ export default function TenantLayout({ user, onLogout, children }) {
   const location = useLocation();
   const navigate = useNavigate();
 
+  const displayName = user?.first_name ? `${user.first_name} ${user.last_name || ''}`.trim() : (user?.name || 'Tenant');
+
+  // GLOBAL COUNTERS (TanStack + WebSockets)
+  const { data: counters } = useUserCounters(!!user?.id);
+
   const tenantMenu = [
     {
       path: '/dashboard',
       label: 'Dashboard',
-      icon: <LayoutDashboard className="w-5 h-5" />
+      icon: <LayoutDashboard className="w-5 h-5" />,
+      countKey: 'maintenance'
     },
     {
       path: '/explore',
@@ -62,7 +69,8 @@ export default function TenantLayout({ user, onLogout, children }) {
     {
       path: '/messages',
       label: 'Messages',
-      icon: <MessageSquare className="w-5 h-5" />
+      icon: <MessageSquare className="w-5 h-5" />,
+      countKey: 'messages'
     },
     {
       path: '/settings',
@@ -71,6 +79,18 @@ export default function TenantLayout({ user, onLogout, children }) {
     },
   ];
 
+  const renderBadge = (count) => {
+    if (!count || count <= 0) return null;
+    return (
+      <span
+        className={`inline-flex items-center justify-center rounded-full bg-red-600 text-white text-[10px] font-bold leading-none h-5 min-w-[20px] px-1.5 ${
+          isSidebarOpen ? 'ml-auto' : 'absolute top-2 right-2'
+        }`}
+      >
+        {count > 99 ? '99+' : count}
+      </span>
+    );
+  };
 
   const getPageTitle = () => {
     const item = tenantMenu.find(m => m.path === location.pathname);
@@ -79,46 +99,6 @@ export default function TenantLayout({ user, onLogout, children }) {
     if (location.pathname.startsWith('/property/')) return 'Property Details';
     return 'AccommoTrack';
   };
-
-  const displayName = user?.first_name ? `${user.first_name} ${user.last_name || ''}`.trim() : (user?.name || 'Tenant');
-
-  const refreshMessageUnreadCount = useCallback(async () => {
-    try {
-      const response = await api.get('/messages/conversations');
-      const rows = Array.isArray(response.data) ? response.data : [];
-      const unread = rows.reduce((sum, conv) => sum + (Number(conv?.unread_count) || 0), 0);
-      setMessageUnreadCount(unread);
-    } catch (_error) {
-      // Keep the previous count if refresh fails.
-    }
-  }, []);
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return undefined;
-
-    refreshMessageUnreadCount();
-    const intervalId = window.setInterval(refreshMessageUnreadCount, 30000);
-
-    const handleWindowFocus = () => refreshMessageUnreadCount();
-    const handleUnreadUpdate = (event) => {
-      const eventCount = Number.parseInt(String(event?.detail?.count ?? ''), 10);
-      if (Number.isFinite(eventCount)) {
-        setMessageUnreadCount(Math.max(0, eventCount));
-        return;
-      }
-
-      refreshMessageUnreadCount();
-    };
-
-    window.addEventListener('focus', handleWindowFocus);
-    window.addEventListener('accommo:messages-unread-updated', handleUnreadUpdate);
-
-    return () => {
-      window.clearInterval(intervalId);
-      window.removeEventListener('focus', handleWindowFocus);
-      window.removeEventListener('accommo:messages-unread-updated', handleUnreadUpdate);
-    };
-  }, [refreshMessageUnreadCount]);
 
   const suppressHeader = location.pathname === '/payments/logs';
 
@@ -209,14 +189,7 @@ export default function TenantLayout({ user, onLogout, children }) {
               {isSidebarOpen && (
                 <span className="font-medium truncate">{item.label}</span>
               )}
-              {item.path === '/messages' && messageUnreadCount > 0 && (
-                <span
-                  className={`inline-flex items-center justify-center rounded-full bg-red-600 text-white text-[10px] font-bold leading-none h-5 min-w-[20px] px-1.5 ${isSidebarOpen ? 'ml-auto' : 'absolute top-2 right-2'
-                    }`}
-                >
-                  {messageUnreadCount > 99 ? '99+' : messageUnreadCount}
-                </span>
-              )}
+              {item.countKey && renderBadge(counters?.[item.countKey])}
             </NavLink>
           ))}
         </nav>
@@ -264,6 +237,7 @@ export default function TenantLayout({ user, onLogout, children }) {
             </h1>
 
             <div className="flex items-center gap-4 z-10">
+              <RealTimeStatus />
               {/* Cart Icon Button */}
               <button
                 onClick={() => setIsCartOpen(true)}

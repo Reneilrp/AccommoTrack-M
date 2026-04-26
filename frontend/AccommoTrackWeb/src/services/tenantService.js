@@ -275,12 +275,22 @@ export const tenantService = {
 
     /**
      * Update Tenant Profile
-     * @param {FormData} formData 
+     * @param {Object|FormData} payload 
      */
-    async updateProfile(formData) {
+    async updateProfile(payload) {
         try {
-            formData.append('_method', 'PUT'); 
-            const response = await api.post('/tenant/profile', formData);
+            let response;
+            
+            // If it's FormData (has an image), use POST with spoofing
+            if (payload instanceof FormData) {
+                if (!payload.has('_method')) {
+                    payload.append('_method', 'PUT');
+                }
+                response = await api.post('/tenant/profile', payload);
+            } else {
+                // Standard JSON update (more stable)
+                response = await api.put('/tenant/profile', payload);
+            }
 
             // Invalidate cache so next fetch gets fresh data
             cacheManager.invalidate(CACHE_KEYS.PROFILE);
@@ -288,7 +298,11 @@ export const tenantService = {
             return { success: true, data: response.data };
         } catch (_err) {
             console.error('Error updating profile:', _err);
-            return { success: false, error: _err?.response?.data?.message || _err.message };
+            return { 
+                success: false, 
+                error: _err?.response?.data?.message || _err.message,
+                errors: _err?.response?.data?.errors || null
+            };
         }
     },
     

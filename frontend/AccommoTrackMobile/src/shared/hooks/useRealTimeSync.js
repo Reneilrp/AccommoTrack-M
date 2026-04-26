@@ -31,6 +31,27 @@ export const useRealTimeSync = (user) => {
       }
     });
 
+    // Unified Counter Updates
+    userChannel.listen('.counters.updated', (event) => {
+      console.log('[RealTimeSync] Global counters update received', event.counters);
+      const queryKey = (user.role === 'landlord' || user.role === 'caretaker')
+        ? landlordQueryKeys.counters()
+        : tenantQueryKeys.counters();
+      queryClient.setQueryData(queryKey, event.counters);
+    });
+
+    // Specific Invoice Updates (Direct from Ledger Pulse)
+    userChannel.listen('.invoice.updated', (event) => {
+      console.log('[RealTimeSync] Invoice update received', event);
+      if (user.role === 'tenant') {
+        queryClient.invalidateQueries({ queryKey: tenantQueryKeys.payments() });
+        queryClient.invalidateQueries({ queryKey: tenantQueryKeys.paymentStats() });
+        queryClient.invalidateQueries({ queryKey: tenantQueryKeys.dashboardBundle() });
+      } else {
+        queryClient.invalidateQueries({ queryKey: landlordQueryKeys.dashboardBundle() });
+      }
+    });
+
     // Message unread count updates
     userChannel.listen('.unread_count.updated', (event) => {
       console.log('[RealTimeSync] Unread count update received', event);

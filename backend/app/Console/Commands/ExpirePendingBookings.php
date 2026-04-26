@@ -26,48 +26,58 @@ class ExpirePendingBookings extends Command
     /**
      * Execute the console command.
      */
-    public function handle()
+    public function handle(\App\Services\BookingService $bookingService)
     {
         $forcedNow = \App\Support\SystemToggle::getString('system_forced_now');
         if ($forcedNow && $forcedNow !== '') {
             try {
-                Carbon::setTestNow(Carbon::parse($forcedNow));
+                \Carbon\Carbon::setTestNow(\Carbon\Carbon::parse($forcedNow));
             } catch (\Exception $e) {
                 // Ignore parsing errors
             }
         }
 
-        $expirationDays = 2;
-        $this->info("Searching for pending bookings older than {$expirationDays} days...");
+        $expirationHours = 24;
+        $expiryThreshold = \Carbon\Carbon::now()->subHours($expirationHours);
+        
+        $this->info("Searching for stale bookings older than {$expirationHours} hours...");
         Log::info('Running ExpirePendingBookings command...');
 
-        $expiredBookings = Booking::where('status', 'pending')
-            ->where('created_at', '<=', Carbon::now()->subDays($expirationDays))
+        // 1. Find pure 'pending' bookings (never reached payment step)
+        $expiredPending = Booking::where('status', 'pending')
+            ->where('created_at', '<=', $expiryThreshold)
             ->get();
 
-        if ($expiredBookings->isEmpty()) {
-            $this->info('No expired pending bookings found.');
-            Log::info('No expired pending bookings found.');
+        // 2. Find 'pending_reservation' that timed out without a transaction
+        $expiredUnpaid = Booking::where('status', 'pending_reservation')
+            ->where('created_at', '<=', $expiryThreshold)
+            ->whereDoesntHave('invoices.transactions')
+            ->get();
 
+        $allStale = $expiredPending->merge($expiredUnpaid);
+
+        if ($allStale->isEmpty()) {
+            $this->info('No stale bookings found.');
+            Log::info('No stale bookings found.');
             return;
         }
 
-        $count = $expiredBookings->count();
-        $this->info("Found {$count} expired pending bookings. Proceeding with cancellation...");
+        $count = $allStale->count();
+        $this->info("Found {$count} stale bookings. Proceeding with service-level cancellation...");
 
-        foreach ($expiredBookings as $booking) {
-            $booking->status = 'cancelled';
-            $booking->cancellation_reason = 'Booking request expired after '.$expirationDays.' days.';
-            $booking->cancelled_at = Carbon::now();
-            $booking->save();
-
-            // Optional: Re-calculate property availability if needed
-            // $booking->room->property->updateAvailableRooms();
-
-            Log::info("Booking #{$booking->id} has expired and was automatically cancelled.");
+        foreach ($allStale as $booking) {
+            try {
+                $bookingService->updateStatus($booking, [
+                    'status' => 'cancelled',
+                    'cancellation_reason' => "Booking request automatically expired after {$expirationHours} hours of inactivity."
+                ]);
+                Log::info("Booking #{$booking->id} was automatically expired and cleaned up.");
+            } catch (\Exception $e) {
+                Log::error("Failed to expire booking #{$booking->id}: " . $e->getMessage());
+            }
         }
 
-        $this->info("Successfully cancelled {$count} expired bookings.");
-        Log::info("Successfully cancelled {$count} expired bookings.");
+        $this->info("Successfully processed {$count} bookings.");
+        Log::info("Successfully processed {$count} bookings.");
     }
 }

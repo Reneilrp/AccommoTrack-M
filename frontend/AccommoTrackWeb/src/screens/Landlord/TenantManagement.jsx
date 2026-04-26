@@ -461,7 +461,7 @@ export default function TenantManagement() {
       return;
     }
 
-    setCreateTenantData({
+    const initialCreateTenantData = {
       first_name: '',
       middle_name: '',
       last_name: '',
@@ -470,11 +470,16 @@ export default function TenantManagement() {
       password: '',
       confirm_password: '',
       sex: '',
+      date_of_birth: '',
       room_id: '',
       move_in_date: '',
       end_date: '',
       notes: '',
-    });
+      emergency_contact_name: '',
+      emergency_contact_phone: '',
+      emergency_contact_relationship: '',
+    };
+    setCreateTenantData(initialCreateTenantData);
     setAvailableRoomsForCreate([]);
     setShowCreateTenantModal(true);
     setLoadingRoomsForCreate(true);
@@ -703,7 +708,13 @@ export default function TenantManagement() {
       if (!response.success) {
         throw new Error(response.error || 'Failed to transfer room');
       }
-      showSuccess("Room transfer completed successfully");
+      
+      let successMsg = "Room transfer completed successfully";
+      if (response.migrated_addons?.length > 0) {
+        successMsg += `. Migrated: ${response.migrated_addons.join(', ')}`;
+      }
+      
+      showSuccess(successMsg);
       setShowTransferModal(false);
       loadTenants();
     } catch (err) {
@@ -1377,6 +1388,44 @@ const CreateTenantModal = ({ data, setData, availableRooms, loading, isSubmittin
             onChange={e => setData({ ...data, notes: e.target.value })}
             placeholder="Optional assignment notes"
           />
+        </div>
+
+        <div className="space-y-4 pt-4 border-t border-gray-100 dark:border-gray-700">
+          <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider flex items-center gap-2">
+            <ShieldAlert className="w-4 h-4 text-purple-500" /> Emergency Contact (Optional)
+          </h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Contact Name</label>
+              <input
+                type="text"
+                className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-3 focus:ring-2 focus:ring-emerald-500 outline-none dark:bg-gray-700 dark:text-white"
+                value={data.emergency_contact_name}
+                onChange={e => setData({ ...data, emergency_contact_name: e.target.value })}
+                placeholder="Full Name"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Contact Phone</label>
+              <input
+                type="text"
+                className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-3 focus:ring-2 focus:ring-emerald-500 outline-none dark:bg-gray-700 dark:text-white"
+                value={data.emergency_contact_phone}
+                onChange={e => setData({ ...data, emergency_contact_phone: e.target.value })}
+                placeholder="09XXXXXXXXX"
+              />
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Relationship</label>
+            <input
+              type="text"
+              className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-3 focus:ring-2 focus:ring-emerald-500 outline-none dark:bg-gray-700 dark:text-white"
+              value={data.emergency_contact_relationship}
+              onChange={e => setData({ ...data, emergency_contact_relationship: e.target.value })}
+              placeholder="e.g. Parent, Sibling"
+            />
+          </div>
         </div>
 
         <div className="flex gap-4 pt-2">

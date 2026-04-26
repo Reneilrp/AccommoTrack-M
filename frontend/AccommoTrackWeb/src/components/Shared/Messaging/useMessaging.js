@@ -9,7 +9,7 @@ import { useWebSocket } from '../../../contexts/WebSocketContext';
 export const useMessaging = (user, accessRole = 'landlord') => {
   const location = useLocation();
   const { uiState, updateScreenState, updateData } = useUIState();
-  const echo = useWebSocket();
+  const { echo } = useWebSocket();
   const cachedConversations = uiState.data?.messages || [];
   
   // ... other states ...

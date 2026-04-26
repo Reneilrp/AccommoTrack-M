@@ -140,18 +140,21 @@ const ExploreProperties = () => {
     rating: 0,
     sexPolicy: "All",
   });
-  const [propertyTypeOptions, setPropertyTypeOptions] = useState(
-    FALLBACK_TYPE_OPTIONS,
-  );
+  const [pagination, setPagination] = useState({
+    total: 0,
+    totalPages: 0,
+    currentPage: 1,
+  });
 
   const selectedTypeMeta = resolveSelectedTypeMeta(
     selectedType,
     propertyTypeOptions,
   );
+
   const normalizedSelectedType = selectedTypeMeta.value;
 
   // Search & Pagination helpers
-  const pageSize = 5;
+  const pageSize = 12;
 
   // Modal State
   const [selectedRoomData, setSelectedRoomData] = useState(null);
@@ -165,6 +168,7 @@ const ExploreProperties = () => {
   const [activeTab, setActiveTab] = useState("Overview");
 
   const [modalLoading, setModalLoading] = useState(false);
+  const [propertyTypeOptions, setPropertyTypeOptions] = useState(FALLBACK_TYPE_OPTIONS);
   const [__modalError, setModalError] = useState(null);
 
   // Reviews State
@@ -341,10 +345,30 @@ const ExploreProperties = () => {
               ? advancedFilters.sexPolicy
               : undefined,
           amenities: advancedFilters.amenities,
+          page: currentPage,
+          per_page: pageSize,
         };
 
-        const data = await propertyService.getAllProperties(params);
-        setProperties(data);
+        const response = await propertyService.getAllProperties(params);
+        
+        // Handle paginated vs non-paginated response
+        if (response.data && response.meta) {
+          setProperties(response.data);
+          setPagination({
+            total: response.meta.total,
+            totalPages: response.meta.last_page,
+            currentPage: response.meta.current_page,
+          });
+        } else {
+          // Fallback if backend isn't paginating as expected
+          const data = Array.isArray(response) ? response : (response.data || []);
+          setProperties(data);
+          setPagination({
+            total: data.length,
+            totalPages: Math.ceil(data.length / pageSize),
+            currentPage: 1,
+          });
+        }
       } catch (err) {
         console.error("Error fetching properties:", err?.response?.data || err);
         const msg = err.response?.data?.message || "Error fetching properties";
@@ -356,7 +380,7 @@ const ExploreProperties = () => {
     };
 
     fetchProperties();
-  }, [debouncedSearch, normalizedSelectedType, advancedFilters]);
+  }, [debouncedSearch, normalizedSelectedType, advancedFilters, currentPage]);
 
   const safeProperties = Array.isArray(properties) ? properties : [];
 
@@ -371,13 +395,8 @@ const ExploreProperties = () => {
     })
     .filter(Boolean);
 
-  // Most filtering is handled by backend query params; sex policy is applied client-side.
-  const filteredProperties = mapDisplayProperties.filter((property) => {
-    const selectedGender = String(advancedFilters.sexPolicy || "All").toLowerCase().trim();
-    if (!selectedGender || selectedGender === "all") return true;
-    const propertySex = normalizeGenderPolicy(property?.sex_restriction);
-    return propertySex === selectedGender;
-  });
+  // Use the results directly from the server (filtering is now backend-side)
+  const filteredProperties = mapDisplayProperties;
 
   const availableAmenities = Array.from(
     new Set(
@@ -449,11 +468,8 @@ const ExploreProperties = () => {
   }, [mapSearchTimerRef]);
 
   // Pagination
-  const totalPages = Math.ceil(filteredProperties.length / pageSize);
-  const paginated = filteredProperties.slice(
-    (currentPage - 1) * pageSize,
-    currentPage * pageSize,
-  );
+  const totalPages = pagination.totalPages;
+  const paginated = filteredProperties;
 
   const handleSearchChange = (e) => {
     updateScreenState("explore", { search: e.target.value, currentPage: 1 });
@@ -700,7 +716,7 @@ const ExploreProperties = () => {
               {/* Helper Text */}
               <div className="flex items-center gap-2 text-xs md:text-sm text-gray-500 dark:text-gray-400 mb-6 font-medium">
                 <Filter className="w-4 h-4" />
-                <span>Showing {filteredProperties.length} {filteredProperties.length === 1 ? "property" : "properties"}</span>
+                <span>Showing {pagination.total} {pagination.total === 1 ? "property" : "properties"}</span>
               </div>
 
               {loading && (

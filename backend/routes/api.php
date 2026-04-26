@@ -108,12 +108,6 @@ Route::get('/reverse-geocode', [GeocodeController::class, 'reverse']);
 Route::post('/landlord-verification', [LandlordVerificationController::class, 'store']);
 Route::get('/valid-id-types', [LandlordVerificationController::class, 'getValidIdTypes']);
 
-// --- Room Aliases for Mobile Frontend ---
-Route::put('/rooms/{id}', [RoomController::class, 'update'])->middleware('auth:sanctum');
-Route::delete('/rooms/{id}', [RoomController::class, 'destroy'])->middleware('auth:sanctum');
-Route::patch('/rooms/{id}/status', [RoomController::class, 'updateStatus']);
-// ----------------------------------------
-
 // ====================================
 // PROTECTED ROUTES (Authentication required)
 // ====================================
@@ -123,6 +117,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/me', [AuthController::class, 'me']);
     Route::post('/switch-role', [AuthController::class, 'switchRole']);
+    Route::get('/counters', [AuthController::class, 'getCounters']);
     Route::put('/me', [AuthController::class, 'updateProfile']);
     Route::post('/me', [AuthController::class, 'updateProfile']); // For FormData with image upload
     Route::delete('/me/profile-image', [AuthController::class, 'removeProfileImage']);
@@ -500,7 +495,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::prefix('messages')->group(function () {
         // Messages (Tenant & Generic)
         Route::get('/unread-count', [MessageController::class, 'getUnreadCount']);
-        Route::get('/conversations', [MessageController::class, 'getConversations']);
+        Route::get('/messages/{message}/download', [MessageController::class, 'downloadFile']);
+    Route::get('/conversations', [MessageController::class, 'getConversations']);
         Route::get('/conversations/{id}', [MessageController::class, 'getMessages']);
         Route::post('/start', [MessageController::class, 'startConversation']);
         Route::post('/start-landlord-chat', [MessageController::class, 'startDirectLandlordConversation']);

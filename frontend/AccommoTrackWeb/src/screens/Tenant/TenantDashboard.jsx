@@ -18,28 +18,27 @@ const DEFAULT_TOGGLES = systemToggleService.getDefaults();
 // ═════════════════════════════════════════════════════════════════════════════
 // MAIN COMPONENT
 // ═════════════════════════════════════════════════════════════════════════════
-const TenantDashboard = ({ user }) => {
+const TenantDashboard = () => {
   const navigate = useNavigate();
-  const { uiState, updateData, updateScreenState } = useUIState();
+  const { updateScreenState } = useUIState();
 
   const dashboardQuery = useTenantDashboardBundle();
   const { data: dashboardData, isLoading: queryLoading, refetch } = dashboardQuery;
 
-  // Derived data with fallback to cached UI state during initial load
-  const cachedData = uiState.data.dashboard;
-  const stayData = dashboardData?.stay || cachedData?.stayData || null;
-  const stats = dashboardData?.stats || cachedData?.stats || null;
+  // Derived data
+  const stayData = dashboardData?.stay || null;
+  const stats = dashboardData?.stats || null;
   const activities = useMemo(() => {
-    const raw = dashboardData?.activities || cachedData?.activities || [];
+    const raw = dashboardData?.activities || [];
     return Array.isArray(raw) ? raw : (raw?.items || []);
-  }, [dashboardData?.activities, cachedData?.activities]);
+  }, [dashboardData?.activities]);
 
   const upcomingSchedule = useMemo(() => {
-    const raw = dashboardData?.breakdown?.upcoming_months || cachedData?.upcomingSchedule || [];
+    const raw = dashboardData?.breakdown?.upcoming_months || [];
     return Array.isArray(raw) ? raw : (raw?.upcoming_months || raw?.items || []);
-  }, [dashboardData?.breakdown?.upcoming_months, cachedData?.upcomingSchedule]);
+  }, [dashboardData?.breakdown?.upcoming_months]);
 
-  const loading = queryLoading && !cachedData;
+  const loading = queryLoading;
 
   const [openSummaryPanel, setOpenSummaryPanel] = useState(null);
   const [dismissedNotifications, setDismissedNotifications] = useState({
@@ -55,16 +54,8 @@ const TenantDashboard = ({ user }) => {
     if (stats) {
       const newWalletBalance = Number(stats?.payments?.walletBalance || stats?.payments?.wallet_balance || 0);
       updateScreenState('wallet', { balance: newWalletBalance });
-
-      // Update the UIStateContext bucket for other components that might still consume it
-      updateData('dashboard', {
-        stayData,
-        stats,
-        activities,
-        upcomingSchedule
-      });
     }
-  }, [stats, stayData, activities, upcomingSchedule, updateScreenState, updateData]);
+  }, [stats, updateScreenState]);
 
   useEffect(() => {
     let mounted = true;
@@ -94,27 +85,6 @@ const TenantDashboard = ({ user }) => {
       clearInterval(interval);
     };
   }, [refetch]);
-
-  // ── Real-time Listeners (Pusher/Echo) ──
-  useEffect(() => {
-    if (!user?.id || !window.Echo) return;
-
-    const channel = window.Echo.private(`tenant.${user.id}`);
-
-    channel.listen('InvoiceUpdated', (e) => {
-      console.log('[Dashboard] Invoice updated event received:', e);
-      refetch();
-    });
-
-    channel.listen('PaymentVerified', (e) => {
-      console.log('[Dashboard] Payment verified event received:', e);
-      refetch();
-    });
-
-    return () => {
-      window.Echo.leave(`tenant.${user.id}`);
-    };
-  }, [user?.id, refetch]);
 
   // ── Helpers ──
   const formatPeso = useCallback((amount) => {
@@ -192,7 +162,7 @@ const TenantDashboard = ({ user }) => {
     }
   }, [unpaidBalance, openSummaryPanel]);
 
-  const roomBreakdownRows = stays.map((stay, idx) => {
+  const roomBreakdownRows = (Array.isArray(stays) ? stays : []).map((stay, idx) => {
     const roomNumber = stay?.room?.roomNumber || stay?.room?.room_number || '—';
     const propertyName = stay?.property?.title || stay?.property?.name || '—';
     const floor = stay?.room?.floor || stay?.room?.floor_number || stay?.room?.floorNumber;
@@ -920,7 +890,7 @@ const TenantDashboard = ({ user }) => {
               {activities.length === 0 ? (
                 <p className="text-center py-8 text-gray-500 italic">No recent activities</p>
               ) : (
-                activities.slice(0, 6).map((activity, idx) => {
+                (Array.isArray(activities) ? activities : []).slice(0, 6).map((activity, idx) => {
                   const iconMap = {
                     booking: Calendar,
                     payment: CreditCard,
@@ -991,10 +961,10 @@ const TenantDashboard = ({ user }) => {
                         </span>
                       )}
                     </button>
-                  );
-                })
-              )}
-            </div>
+                    );
+                    })
+                    )}
+                    </div>
           </div>
         </div>
 
@@ -1051,7 +1021,7 @@ const TenantDashboard = ({ user }) => {
             <div className="px-6 py-6 flex-1 flex flex-col">
               {upcomingSchedule.length > 0 ? (
                 <div className="space-y-0 relative">
-                  {upcomingSchedule.map((schedule, idx) => {
+                {(Array.isArray(upcomingSchedule) ? upcomingSchedule : []).map((schedule, idx) => {
                     const scheduleDate = new Date(schedule.due_date || schedule.dueDate);
                     const isNext = idx === 0;
                     return (

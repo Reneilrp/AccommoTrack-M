@@ -231,7 +231,7 @@ export default function AddonsScreen({ hideHeader = false, historyOnly = false }
       <View style={{ flex: 1 }}>
         <FlatList
           data={requests}
-          keyExtractor={(item) => (item.id || item.request_id || String(item.created_at || Math.random())).toString()}
+          keyExtractor={(item, index) => (item.id || item.request_id || `addon-${index}`).toString()}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={[styles.listContent, contentWrapStyle, { paddingBottom: insets.bottom + 20 }]}
           ListHeaderComponent={() => (

@@ -86,4 +86,39 @@ trait ResolvesLandlordAccess
             throw new AccessDeniedHttpException('This action is restricted to landlords only.');
         }
     }
+
+    /**
+     * Centralized scoping logic for Tenants.
+     * Ensures caretakers only see users/tenants belonging to their assigned properties.
+     */
+    protected function applyCaretakerTenantScope($query, array $context): void
+    {
+        if (! $context['is_caretaker']) {
+            // Standard landlord scope: filter by landlord_id via existing relationships
+            $query->where(function($q) use ($context) {
+                $q->whereHas('roomAssignments.property', fn($p) => $q->where('landlord_id', $context['landlord_id']))
+                  ->orWhereHas('bookings', fn($b) => $b->where('landlord_id', $context['landlord_id']))
+                  ->orWhereHas('bookingOccupantRecords.booking', fn($b) => $b->where('landlord_id', $context['landlord_id']));
+            });
+            return;
+        }
+
+        $assignment = $context['assignment'];
+        if (! $assignment) {
+            throw new AccessDeniedHttpException('Caretaker assignment not found.');
+        }
+
+        $allowedPropertyIds = $assignment->properties()->pluck('properties.id')->toArray();
+
+        if (empty($allowedPropertyIds)) {
+            $query->whereRaw('1=0'); // Block all results if no properties assigned
+            return;
+        }
+
+        $query->where(function ($q) use ($allowedPropertyIds) {
+            $q->whereHas('roomAssignments', fn ($q2) => $q2->whereIn('property_id', $allowedPropertyIds))
+                ->orWhereHas('bookings', fn ($q2) => $q2->whereIn('property_id', $allowedPropertyIds))
+                ->orWhereHas('bookingOccupantRecords.booking', fn ($q2) => $q2->whereIn('property_id', $allowedPropertyIds));
+        });
+    }
 }
