@@ -42,14 +42,24 @@ class TenantPaymentController extends Controller
 
                 $lastTx = $invoice->transactions->where('status', 'succeeded')->last();
 
-                $totalCents = $invoice->total_cents ?? $invoice->amount_cents;
+                // If original_amount is in metadata (from RefundService), use it, otherwise use current invoice amount
+                $originalAmountCents = isset($invoice->metadata['original_amount']) 
+                    ? (int) round($invoice->metadata['original_amount'] * 100)
+                    : ($invoice->total_cents ?? $invoice->amount_cents);
+
                 $refundedCents = $invoice->transactions->sum('refunded_amount_cents');
+                
+                // Also check for negative amount transactions (separate refund records)
+                $negativeTxCents = abs($invoice->transactions->where('amount_cents', '<', 0)->sum('amount_cents'));
+                $totalRefundedCents = max($refundedCents, $negativeTxCents);
+
                 $paidCents = $invoice->transactions
                     ->whereIn('status', ['succeeded', 'paid', 'partially_refunded'])
                     ->sum(function ($tx) {
-                        return $tx->amount_cents - ($tx->refunded_amount_cents ?? 0);
+                        return max(0, $tx->amount_cents - ($tx->refunded_amount_cents ?? 0));
                     });
-                $remainingCents = max(0, $totalCents - $paidCents);
+                
+                $remainingCents = max(0, $originalAmountCents - $paidCents - $totalRefundedCents);
 
                 return [
                     'id' => $invoice->id,
@@ -61,8 +71,8 @@ class TenantPaymentController extends Controller
                     'booking_id' => $invoice->booking_id,
                     'propertyName' => $propertyName,
                     'roomNumber' => $roomNumber,
-                    'amount' => (float) ($totalCents / 100),
-                    'refunded_amount' => (float) ($refundedCents / 100),
+                    'amount' => (float) ($originalAmountCents / 100),
+                    'refunded_amount' => (float) ($totalRefundedCents / 100),
                     'remainingBalance' => (float) ($remainingCents / 100),
                     'date' => $invoice->issued_at ?: $invoice->created_at,
                     'due_date' => $invoice->due_date,
@@ -84,7 +94,7 @@ class TenantPaymentController extends Controller
                         return [
                             'id' => $tx->id,
                             'amount' => (float) ($tx->amount_cents / 100),
-                            'refunded_amount' => (float) (($tx->refunded_amount_cents ?? 0) / 100),
+                            'refunded_amount' => (float) (max($tx->refunded_amount_cents ?? 0, $tx->amount_cents < 0 ? abs($tx->amount_cents) : 0) / 100),
                             'status' => $tx->status,
                             'method' => $tx->method,
                             'date' => $tx->created_at,
@@ -148,10 +158,20 @@ class TenantPaymentController extends Controller
 
             $pendingAmountCents = 0;
             foreach ($pendingInvoices as $inv) {
+                $originalAmountCents = isset($inv->metadata['original_amount']) 
+                    ? (int) round($inv->metadata['original_amount'] * 100)
+                    : ($inv->total_cents ?? $inv->amount_cents);
+
                 $totalPaid = $inv->transactions
                     ->filter(fn($tx) => in_array($tx->status, ['succeeded', 'paid', 'partially_refunded', 'pending_offline']))
-                    ->sum(fn($tx) => $tx->amount_cents - ($tx->refunded_amount_cents ?? 0));
-                $pendingAmountCents += max(0, ($inv->total_cents ?? $inv->amount_cents) - $totalPaid);
+                    ->sum(fn($tx) => max(0, $tx->amount_cents - ($tx->refunded_amount_cents ?? 0)));
+                
+                $totalRefunded = max(
+                    $inv->transactions->sum('refunded_amount_cents'),
+                    abs($inv->transactions->where('amount_cents', '<', 0)->sum('amount_cents'))
+                );
+
+                $pendingAmountCents += max(0, $originalAmountCents - $totalPaid - $totalRefunded);
             }
 
             $totalCreditsCents = \App\Models\TenantCredit::getBalance($tenantId);
@@ -186,9 +206,55 @@ class TenantPaymentController extends Controller
                 ->where('tenant_id', Auth::id())
                 ->findOrFail($id);
 
+            $propertyName = $invoice->property->title ?? ($invoice->booking->property->title ?? 'N/A');
+            $roomNumber = $invoice->booking->room->room_number ?? 'N/A';
+
+            $originalAmountCents = isset($invoice->metadata['original_amount']) 
+                ? (int) round($invoice->metadata['original_amount'] * 100)
+                : ($invoice->total_cents ?? $invoice->amount_cents);
+
+            $refundedCents = $invoice->transactions->sum('refunded_amount_cents');
+            $negativeTxCents = abs($invoice->transactions->where('amount_cents', '<', 0)->sum('amount_cents'));
+            $totalRefundedCents = max($refundedCents, $negativeTxCents);
+
+            $paidCents = $invoice->transactions
+                ->whereIn('status', ['succeeded', 'paid', 'partially_refunded'])
+                ->sum(function ($tx) {
+                    return max(0, $tx->amount_cents - ($tx->refunded_amount_cents ?? 0));
+                });
+            
+            $remainingCents = max(0, $originalAmountCents - $paidCents - $totalRefundedCents);
+
+            $data = [
+                'id' => $invoice->id,
+                'invoice_id' => $invoice->id,
+                'invoiceNumber' => $invoice->invoice_number,
+                'propertyName' => $propertyName,
+                'roomNumber' => $roomNumber,
+                'amount' => (float) ($originalAmountCents / 100),
+                'refunded_amount' => (float) ($totalRefundedCents / 100),
+                'remainingBalance' => (float) ($remainingCents / 100),
+                'date' => $invoice->issued_at ?: $invoice->created_at,
+                'dueDate' => $invoice->due_date,
+                'status' => $invoice->status,
+                'is_archived' => (bool) $invoice->is_archived,
+                'transactions' => $invoice->transactions->map(function ($tx) {
+                    return [
+                        'id' => $tx->id,
+                        'amount' => (float) ($tx->amount_cents / 100),
+                        'refunded_amount' => (float) (max($tx->refunded_amount_cents ?? 0, $tx->amount_cents < 0 ? abs($tx->amount_cents) : 0) / 100),
+                        'status' => $tx->status,
+                        'method' => $tx->method,
+                        'date' => $tx->created_at,
+                    ];
+                }),
+                'booking' => $invoice->booking,
+                'property' => $invoice->property,
+            ];
+
             return response()->json([
                 'success' => true,
-                'data' => $invoice,
+                'data' => $data,
                 'message' => ''
             ], 200);
         } catch (\Exception $e) {
