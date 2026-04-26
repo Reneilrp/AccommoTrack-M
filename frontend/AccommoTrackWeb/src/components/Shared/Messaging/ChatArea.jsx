@@ -34,7 +34,8 @@ const ChatArea = ({
   isOtherTyping,
   selectedFile,
   handleFileSelect,
-  removeSelectedFile
+  removeSelectedFile,
+  currentUserId
 }) => {
   const imageInputRef = useRef(null);
   const docInputRef = useRef(null);
@@ -205,8 +206,8 @@ const ChatArea = ({
           </div>
         ) : (
           messages.map((msg, idx) => {
-            // Using standardized fields from MessageResource
-            const isMine = msg.is_mine;
+            // Determine isMine locally based on IDs for real-time consistency
+            const isMine = currentUserId && String(msg.actual_sender_id || msg.sender_id) === String(currentUserId);
             const incomingSender = !isMine
               ? (msg.actual_sender || msg.sender || selectedChat?.other_user || null)
               : null;
