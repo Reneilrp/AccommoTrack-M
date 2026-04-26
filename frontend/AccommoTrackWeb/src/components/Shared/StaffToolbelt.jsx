@@ -36,18 +36,20 @@ const StaffToolbelt = ({ user }) => {
               </div>
             </button>
 
-            <button
-              onClick={() => {
-                setShowChatModal(true);
-                setIsOpen(false);
-              }}
-              className="flex items-center gap-3 px-4 py-3 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all group"
-            >
-              <span className="font-bold text-sm tracking-wide">Message Landlord</span>
-              <div className="p-2 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-lg group-hover:scale-110 transition-transform">
-                <MessageSquare className="w-5 h-5" />
-              </div>
-            </button>
+            {activeUser.role === 'caretaker' && (
+              <button
+                onClick={() => {
+                  setShowChatModal(true);
+                  setIsOpen(false);
+                }}
+                className="flex items-center gap-3 px-4 py-3 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all group"
+              >
+                <span className="font-bold text-sm tracking-wide">Message Landlord</span>
+                <div className="p-2 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-lg group-hover:scale-110 transition-transform">
+                  <MessageSquare className="w-5 h-5" />
+                </div>
+              </button>
+            )}
           </div>
         )}
 
@@ -71,6 +73,7 @@ const StaffToolbelt = ({ user }) => {
         <DirectLandlordChatModal 
           isOpen={showChatModal} 
           onClose={() => setShowChatModal(false)} 
+          user={activeUser}
         />
       )}
     </>

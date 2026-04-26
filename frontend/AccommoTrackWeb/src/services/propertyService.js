@@ -63,30 +63,34 @@ const normalizeTypeOption = (item) => {
 
 export const propertyService = {
     // Fetch all properties with optional filters
-    async getAllProperties(filters = {}) {
+    async getAllProperties(filters = {}, isAuthenticated = false) {
         try {
-            // Create a unique cache key based on filters
-            const filterKey = JSON.stringify(filters);
+            // Create a unique cache key based on filters and auth status
+            const filterKey = JSON.stringify({ ...filters, auth: isAuthenticated });
             const cacheKey = `${CACHE_KEYS.PROPERTIES_PREFIX}${filterKey}`;
             
             const cachedData = cacheManager.get(cacheKey);
             if (cachedData) return cachedData;
 
             // Convert filters to query string parameters
-            const params = new URLSearchParams();
-            if (filters.search) params.append('search', filters.search);
-            if (filters.type) params.append('type', filters.type);
-            if (filters.page) params.append('page', filters.page);
-            if (filters.per_page) params.append('per_page', filters.per_page);
+            const queryParams = {
+                search: filters.search,
+                type: filters.type,
+                page: filters.page,
+                per_page: filters.per_page,
+                min_price: filters.minPrice ?? filters.price_min,
+                max_price: filters.maxPrice ?? filters.price_max,
+                availability: filters.availability,
+                min_rating: filters.min_rating,
+                sex_policy: filters.sex_policy
+            };
 
-            if (filters.minPrice || filters.price_min) {
-                params.append('min_price', filters.minPrice ?? filters.price_min);
-            }
-            if (filters.maxPrice || filters.price_max) {
-                params.append('max_price', filters.maxPrice ?? filters.price_max);
-            }
-            if (filters.availability) params.append('availability', filters.availability);
-            if (filters.min_rating) params.append('min_rating', filters.min_rating);
+            const params = new URLSearchParams();
+            Object.entries(queryParams).forEach(([key, value]) => {
+                if (value !== undefined && value !== null && value !== '') {
+                    params.append(key, value);
+                }
+            });
 
             if (Array.isArray(filters.amenities) && filters.amenities.length > 0) {
                 filters.amenities.forEach((amenity) => {
@@ -95,11 +99,30 @@ export const propertyService = {
             }
 
             const queryString = params.toString();
-            // Use public route for general browsing if it's for guests/explore
-            const url = queryString ? `/public/properties?${queryString}` : '/public/properties';
+            
+            // Try protected endpoint first if authenticated, else public
+            const endpoints = isAuthenticated 
+                ? [queryString ? `/properties?${queryString}` : '/properties', queryString ? `/public/properties?${queryString}` : '/public/properties']
+                : [queryString ? `/public/properties?${queryString}` : '/public/properties'];
 
-            const response = await api.get(url);
-            const result = response.data;
+            let result = null;
+            let lastError = null;
+
+            for (const endpoint of endpoints) {
+                try {
+                    const response = await api.get(endpoint);
+                    result = response.data;
+                    break;
+                } catch (error) {
+                    lastError = error;
+                    // Only fallback on 401/403
+                    if (error?.response?.status !== 401 && error?.response?.status !== 403) {
+                        throw error;
+                    }
+                }
+            }
+
+            if (!result && lastError) throw lastError;
 
             // Cache the result (using a shorter TTL for paginated lists)
             cacheManager.set(cacheKey, result, 30);
@@ -111,17 +134,36 @@ export const propertyService = {
     },
 
     // Fetch a single property by ID
-    async getPropertyById(id) {
+    async getPropertyById(id, isAuthenticated = false) {
         try {
-            const cacheKey = `${CACHE_KEYS.SINGLE_PROPERTY_PREFIX}${id}`;
+            const cacheKey = `${CACHE_KEYS.SINGLE_PROPERTY_PREFIX}${id}_${isAuthenticated ? 'auth' : 'pub'}`;
             const cachedData = cacheManager.get(cacheKey);
             if (cachedData) return cachedData;
 
-            const response = await api.get(`/public/properties/${id}`);
+            const endpoints = isAuthenticated
+                ? [`/properties/${id}`, `/public/properties/${id}`]
+                : [`/public/properties/${id}`];
+
+            let result = null;
+            let lastError = null;
+
+            for (const endpoint of endpoints) {
+                try {
+                    const response = await api.get(endpoint);
+                    result = response.data;
+                    break;
+                } catch (error) {
+                    lastError = error;
+                    if (error?.response?.status !== 401 && error?.response?.status !== 403) {
+                        throw error;
+                    }
+                }
+            }
+
+            if (!result && lastError) throw lastError;
             
-            cacheManager.set(cacheKey, response.data);
-            
-            return response.data;
+            cacheManager.set(cacheKey, result);
+            return result;
         } catch (error) {
             console.error(`Error fetching property ${id}:`, error);
             throw error;

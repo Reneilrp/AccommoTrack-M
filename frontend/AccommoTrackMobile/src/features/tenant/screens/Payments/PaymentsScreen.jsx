@@ -660,9 +660,27 @@ export default function PaymentsScreen() {
                     </Text>
                   </View>
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                    <Text style={{ color: theme.colors.textSecondary, fontSize: 12 }}>Amount</Text>
-                    <Text style={{ color: theme.colors.primary, fontWeight: '800', fontSize: 18 }}>{formatCurrency(selectedPayment.amount)}</Text>
+                    <Text style={{ color: theme.colors.textSecondary, fontSize: 12 }}>Total Amount</Text>
+                    <Text style={{ color: theme.colors.text, fontWeight: '700', fontSize: 16 }}>{formatCurrency(selectedPayment.amount)}</Text>
                   </View>
+                  {Number(selectedPayment.refunded_amount || 0) > 0 && (
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                      <Text style={{ color: '#D97706', fontSize: 12 }}>Refunded</Text>
+                      <Text style={{ color: '#D97706', fontWeight: '700', fontSize: 14 }}>-{formatCurrency(selectedPayment.refunded_amount)}</Text>
+                    </View>
+                  )}
+                  {Number(selectedPayment.refunded_amount || 0) > 0 && (
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingTop: 8, borderTopWidth: 1, borderTopColor: theme.colors.border }}>
+                      <Text style={{ color: theme.colors.textSecondary, fontSize: 12 }}>Net Paid</Text>
+                      <Text style={{ color: theme.colors.primary, fontWeight: '800', fontSize: 18 }}>{formatCurrency(selectedPayment.amount - selectedPayment.refunded_amount)}</Text>
+                    </View>
+                  )}
+                  {!selectedPayment.refunded_amount && (
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                      <Text style={{ color: theme.colors.textSecondary, fontSize: 12 }}>Amount</Text>
+                      <Text style={{ color: theme.colors.primary, fontWeight: '800', fontSize: 18 }}>{formatCurrency(selectedPayment.amount)}</Text>
+                    </View>
+                  )}
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                     <Text style={{ color: theme.colors.textSecondary, fontSize: 12 }}>Status</Text>
                     <View style={{ backgroundColor: `${getStatusColor(selectedPayment.status || selectedPayment.paymentStatus)}20`, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 }}>

@@ -18,6 +18,7 @@ export default function StaffToolbelt() {
   const queryClient = useQueryClient();
   
   const userId = useAuthStore((state) => state.userId);
+  const activeRole = useAuthStore((state) => state.activeRole);
   const { data: counters } = useUserCounters(!!userId);
 
   const [isOpen, setIsOpen] = useState(false);
@@ -71,21 +72,23 @@ export default function StaffToolbelt() {
         {/* Floating Actions container */}
         <View style={styles.actionContainer} pointerEvents="box-none">
           
-          <Animated.View style={[styles.actionItem, { opacity, transform: [{ translateY: translateYChat }] }]} pointerEvents={isOpen ? 'auto' : 'none'}>
-            <Text style={[styles.actionLabel, { color: theme.colors.text }]}>Message Landlord</Text>
-            <TouchableOpacity 
-              style={[styles.smallFab, { backgroundColor: '#DBEAFE' }]} 
-              onPress={handleStartLandlordChat}
-              activeOpacity={0.8}
-            >
-              <Ionicons name="chatbubbles" size={20} color="#2563EB" />
-              {counters?.messages > 0 && (
-                <View style={styles.badgeContainer}>
-                   <Text style={styles.badgeText}>{counters.messages > 99 ? '99+' : counters.messages}</Text>
-                </View>
-              )}
-            </TouchableOpacity>
-          </Animated.View>
+          {activeRole === 'caretaker' && (
+            <Animated.View style={[styles.actionItem, { opacity, transform: [{ translateY: translateYChat }] }]} pointerEvents={isOpen ? 'auto' : 'none'}>
+              <Text style={[styles.actionLabel, { color: theme.colors.text }]}>Message Landlord</Text>
+              <TouchableOpacity 
+                style={[styles.smallFab, { backgroundColor: '#DBEAFE' }]} 
+                onPress={handleStartLandlordChat}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="chatbubbles" size={20} color="#2563EB" />
+                {counters?.messages > 0 && (
+                  <View style={styles.badgeContainer}>
+                    <Text style={styles.badgeText}>{counters.messages > 99 ? '99+' : counters.messages}</Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+            </Animated.View>
+          )}
 
           <Animated.View style={[styles.actionItem, { opacity, transform: [{ translateY: translateYReport }] }]} pointerEvents={isOpen ? 'auto' : 'none'}>
             <Text style={[styles.actionLabel, { color: theme.colors.text }]}>Quick Report</Text>

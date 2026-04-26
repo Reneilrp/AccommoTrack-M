@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import PropertyCarousel from '../Tenant/PropertyCarousel';
 import { useNavigate } from 'react-router-dom';
 import { X, Check, MapPin, Star, Shield, ArrowRight, Loader2 } from 'lucide-react';
-import api, { getImageUrl } from '../../utils/api';
+import { getImageUrl } from '../../utils/api';
 import { propertyService } from '../../services/propertyService';
 import { mapRoom, mapProperty } from '../../utils/propertyHelpers';
 import ImagePlaceholder from '../../components/Shared/ImagePlaceholder';
@@ -192,7 +192,7 @@ const Properties = () => {
       setLoading(true);
       setError(null);
       try {
-        const response = await propertyService.getAllProperties();
+        const response = await propertyService.getAllProperties({}, false);
         // Handle paginated response { data: [...], meta: ... } or flat array
         const data = response.data && Array.isArray(response.data) ? response.data : (Array.isArray(response) ? response : []);
         setProperties(data);
@@ -223,8 +223,7 @@ const Properties = () => {
     }, 12000);
 
     try {
-      const res = await api.get(`/public/properties/${property.id}`);
-      const fullProperty = res.data;
+      const fullProperty = await propertyService.getPropertyById(property.id, false);
       const fullRoom = Array.isArray(fullProperty.rooms)
         ? fullProperty.rooms.find(r => r.id === room.id)
         : null;

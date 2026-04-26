@@ -43,6 +43,7 @@ class TenantPaymentController extends Controller
                 $lastTx = $invoice->transactions->where('status', 'succeeded')->last();
 
                 $totalCents = $invoice->total_cents ?? $invoice->amount_cents;
+                $refundedCents = $invoice->transactions->sum('refunded_amount_cents');
                 $paidCents = $invoice->transactions
                     ->whereIn('status', ['succeeded', 'paid', 'partially_refunded'])
                     ->sum(function ($tx) {
@@ -61,6 +62,7 @@ class TenantPaymentController extends Controller
                     'propertyName' => $propertyName,
                     'roomNumber' => $roomNumber,
                     'amount' => (float) ($totalCents / 100),
+                    'refunded_amount' => (float) ($refundedCents / 100),
                     'remainingBalance' => (float) ($remainingCents / 100),
                     'date' => $invoice->issued_at ?: $invoice->created_at,
                     'due_date' => $invoice->due_date,
@@ -82,6 +84,7 @@ class TenantPaymentController extends Controller
                         return [
                             'id' => $tx->id,
                             'amount' => (float) ($tx->amount_cents / 100),
+                            'refunded_amount' => (float) (($tx->refunded_amount_cents ?? 0) / 100),
                             'status' => $tx->status,
                             'method' => $tx->method,
                             'date' => $tx->created_at,

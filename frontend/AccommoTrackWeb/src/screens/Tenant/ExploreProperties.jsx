@@ -119,6 +119,7 @@ const resolveSelectedTypeMeta = (selectedType, options) => {
 const ExploreProperties = () => {
   const navigate = useNavigate();
   const { uiState, updateScreenState } = useUIState();
+  const isAuthenticated = !!localStorage.getItem("userData");
   const { search, selectedType, currentPage, showMapModal } =
     uiState.explore || {
       search: "",
@@ -146,6 +147,9 @@ const ExploreProperties = () => {
     currentPage: 1,
   });
 
+  const [propertyTypeOptions, setPropertyTypeOptions] = useState(FALLBACK_TYPE_OPTIONS);
+  const [typesLoaded, setTypesLoaded] = useState(false);
+
   const selectedTypeMeta = resolveSelectedTypeMeta(
     selectedType,
     propertyTypeOptions,
@@ -160,7 +164,7 @@ const ExploreProperties = () => {
   const [selectedRoomData, setSelectedRoomData] = useState(null);
 
   // State for the slide-in card inside Map
-  const [__selectedMapProperty, setSelectedMapProperty] = useState(null); // Used primarily for Map Centering logic if needed
+  const [__selectedMapProperty, setSelectedMapProperty] = useState(null);
 
   // Drawer State
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -168,7 +172,6 @@ const ExploreProperties = () => {
   const [activeTab, setActiveTab] = useState("Overview");
 
   const [modalLoading, setModalLoading] = useState(false);
-  const [propertyTypeOptions, setPropertyTypeOptions] = useState(FALLBACK_TYPE_OPTIONS);
   const [__modalError, setModalError] = useState(null);
 
   // Reviews State
@@ -196,13 +199,6 @@ const ExploreProperties = () => {
     (advancedFilters.rating > 0 ? 1 : 0) +
     (advancedFilters.sexPolicy && advancedFilters.sexPolicy !== "All" ? 1 : 0) +
     (advancedFilters.amenities.length > 0 ? 1 : 0);
-
-  const normalizeGenderPolicy = (value) => {
-    const normalized = String(value || "mixed").toLowerCase().trim();
-    if (["male", "boys", "boy"].includes(normalized)) return "male";
-    if (["female", "girls", "girl"].includes(normalized)) return "female";
-    return "mixed";
-  };
 
   const openFullGallery = (property) => {
     if (!property) return;
@@ -303,11 +299,13 @@ const ExploreProperties = () => {
         }
 
         setPropertyTypeOptions(normalizeTypeOptions(typeOptions));
+        setTypesLoaded(true);
       } catch (_err) {
         console.error("Error fetching property types:", _err?.response?.data || _err);
         showError("Failed to load property categories.");
         if (isMounted) {
           setPropertyTypeOptions(FALLBACK_TYPE_OPTIONS);
+          setTypesLoaded(true);
         }
       }
     };
@@ -320,13 +318,15 @@ const ExploreProperties = () => {
   }, []);
 
   useEffect(() => {
-    if (selectedType !== normalizedSelectedType) {
+    // ONLY normalize if types have finished loading. 
+    // This prevents premature reset to 'All' on mount.
+    if (typesLoaded && selectedType !== normalizedSelectedType) {
       updateScreenState("explore", {
         selectedType: normalizedSelectedType,
         currentPage: 1,
       });
     }
-  }, [selectedType, normalizedSelectedType, updateScreenState]);
+  }, [typesLoaded, selectedType, normalizedSelectedType, updateScreenState]);
 
   // Fetch properties from backend
   useEffect(() => {
@@ -349,7 +349,7 @@ const ExploreProperties = () => {
           per_page: pageSize,
         };
 
-        const response = await propertyService.getAllProperties(params);
+        const response = await propertyService.getAllProperties(params, isAuthenticated);
         
         // Handle paginated vs non-paginated response
         if (response.data && response.meta) {
@@ -380,7 +380,7 @@ const ExploreProperties = () => {
     };
 
     fetchProperties();
-  }, [debouncedSearch, normalizedSelectedType, advancedFilters, currentPage]);
+  }, [debouncedSearch, normalizedSelectedType, advancedFilters, currentPage, isAuthenticated]);
 
   const safeProperties = Array.isArray(properties) ? properties : [];
 

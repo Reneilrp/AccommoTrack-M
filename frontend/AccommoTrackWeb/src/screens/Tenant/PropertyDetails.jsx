@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { showError } from "../../utils/toast";
 import {
@@ -72,7 +72,7 @@ const greenMarkerIcon = L.icon({
 export default function PropertyDetails({ propertyId, onBack }) {
   const navigate = useNavigate();
   const [property, setProperty] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!!propertyId);
   const [activeTab, setActiveTab] = useState("overview");
   const [selectedRoom, setSelectedRoom] = useState(null);
   const isAuthenticated = !!localStorage.getItem("userData");
@@ -86,6 +86,14 @@ export default function PropertyDetails({ propertyId, onBack }) {
 
   // Hero image carousel index
   const [heroImageIndex, setHeroImageIndex] = useState(0);
+
+  // Use a ref to ensure the initial URL-based selection only runs once per property load
+  const initialSelectionHandledRef = useRef(false);
+
+  useEffect(() => {
+    // Reset the ref whenever propertyId changes
+    initialSelectionHandledRef.current = false;
+  }, [propertyId]);
 
 
 
@@ -273,29 +281,31 @@ export default function PropertyDetails({ propertyId, onBack }) {
   // If navigation included state or query params to open booking, handle it after property loads
   const location = useLocation();
   useEffect(() => {
-    if (!loading && property) {
+    if (!loading && property && !initialSelectionHandledRef.current) {
       const qs = new URLSearchParams(location.search);
       const roomId = location.state?.room_id || qs.get("room_id");
-      const openBooking =
-        location.state?.openBooking ||
-        qs.get("open_booking") === "1" ||
-        qs.get("open_booking") === "true";
       const openVideo =
         location.state?.openVideo || qs.get("open_video") === "1";
+      
       if (roomId) {
         const found = (property.rooms || []).find(
           (r) => String(r.id) === String(roomId),
         );
         if (found) {
           setSelectedRoom(found);
+          initialSelectionHandledRef.current = true;
         }
       }
-      if (openBooking && roomId) {
-        // ensure modal opens in booking view by passing initialView prop below
-        // We rely on selectedRoom being set; RoomDetailsModal will accept initialView
-      }
+      
       if (openVideo && property.video_url) {
         openFullGallery(0);
+        initialSelectionHandledRef.current = true;
+      }
+
+      // If nothing was found to select but the property loaded, we still mark it handled
+      // to avoid re-running on unrelated location changes.
+      if (!roomId && !openVideo) {
+        initialSelectionHandledRef.current = true;
       }
     }
   }, [loading, property, location.search, location.state, openFullGallery]);
@@ -769,7 +779,7 @@ export default function PropertyDetails({ propertyId, onBack }) {
         </div>
 
         {/* ══════ 4. BOOKING LIMITS ══════ */}
-        {property &&
+        {isAuthenticated && property &&
           (property.normal_booking_limit > 0 ||
             property.proxy_booking_limit > 0) && (
             <div className={`${CARD} p-6`}>

@@ -697,9 +697,23 @@ export default function TenantPayments() {
                 {/* Payment Info */}
                 <div className="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg space-y-3">
                   <div className="flex justify-between items-center">
-                    <span className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Amount</span>
+                    <span className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Total Amount</span>
                     <span className="text-lg font-bold text-gray-900 dark:text-white">{paymentService.formatAmount(toPrice(selectedPayment.amount))}</span>
                   </div>
+                  {Number(selectedPayment.refunded_amount || 0) > 0 && (
+                    <div className="flex justify-between items-center text-amber-600 dark:text-amber-400">
+                      <span className="text-xs font-bold uppercase">Refunded</span>
+                      <span className="text-md font-bold">-{paymentService.formatAmount(toPrice(selectedPayment.refunded_amount))}</span>
+                    </div>
+                  )}
+                  {Number(selectedPayment.refunded_amount || 0) > 0 && (
+                    <div className="flex justify-between items-center pt-2 border-t border-gray-200 dark:border-gray-600">
+                      <span className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Net Paid</span>
+                      <span className="text-lg font-bold text-green-600 dark:text-green-400">
+                        {paymentService.formatAmount(toPrice(selectedPayment.amount - selectedPayment.refunded_amount))}
+                      </span>
+                    </div>
+                  )}
                   <div className="flex justify-between items-center">
                     <span className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Status</span>
                     <span className={`px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${paymentService.getStatusColor(selectedPayment.status)}`}>

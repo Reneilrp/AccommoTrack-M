@@ -3,13 +3,15 @@ import { MessageSquare, X, Loader2 } from 'lucide-react';
 import api from '../../../utils/api';
 import { showError } from '../../../utils/toast';
 
-const DirectLandlordChatModal = ({ isOpen, onClose }) => {
+const DirectLandlordChatModal = ({ isOpen, onClose, user }) => {
   const [conversation, setConversation] = useState(null);
   const [messages, setMessages] = useState([]);
   const [messageText, setMessageText] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [isSending, setIsSending] = useState(false);
   const messagesEndRef = useRef(null);
+
+  const userId = user?.id;
 
   useEffect(() => {
     if (isOpen) {
@@ -91,7 +93,7 @@ const DirectLandlordChatModal = ({ isOpen, onClose }) => {
           ) : (
             <div className="flex flex-col gap-3">
               {messages.map((msg, i) => {
-                const isMine = msg.sender_role === 'caretaker'; 
+                const isMine = Number(msg.actual_sender_id) === Number(userId); 
                 return (
                   <div key={i} className={`flex px-2 ${isMine ? 'justify-end' : 'justify-start'}`}>
                     <div className={`max-w-[85%] px-4 py-2 text-sm rounded-2xl shadow-sm ${isMine ? 'bg-blue-600 text-white rounded-br-none' : 'bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 border border-gray-100 dark:border-gray-700 rounded-bl-none'}`}>
