@@ -96,7 +96,7 @@ trait ResolvesLandlordAccess
         if (! $context['is_caretaker']) {
             // Standard landlord scope: filter by landlord_id via existing relationships
             $query->where(function($q) use ($context) {
-                $q->whereHas('roomAssignments.property', fn($p) => $q->where('landlord_id', $context['landlord_id']))
+                $q->whereHas('roomAssignments.property', fn($p) => $p->where('landlord_id', $context['landlord_id']))
                   ->orWhereHas('bookings', fn($b) => $b->where('landlord_id', $context['landlord_id']))
                   ->orWhereHas('bookingOccupantRecords.booking', fn($b) => $b->where('landlord_id', $context['landlord_id']));
             });

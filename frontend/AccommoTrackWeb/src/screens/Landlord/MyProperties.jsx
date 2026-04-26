@@ -135,18 +135,15 @@ export default function MyProperties({ user }) {
 
       // Pre-cache individual property summaries to enable instant transition to PropertySummary
       if (Array.isArray(scopedProperties)) {
-        scopedProperties.forEach(prop => {
-          const summaryKey = `property_summary_${prop.id}`;
-          const existingSummary = cacheManager.get(summaryKey);
-
-          // Only update if summary doesn't exist or we want to refresh the basic property info
-          const updatedSummary = {
-            ...(existingSummary || {}),
-            property: prop // Update the property object with latest from list
-          };
-
-          updateData(summaryKey, updatedSummary);
-          cacheManager.set(summaryKey, updatedSummary);
+        updateData('landlord_property_details', (prev) => {
+          const next = { ...(prev || {}) };
+          scopedProperties.forEach(prop => {
+            next[prop.id] = {
+              ...(next[prop.id] || {}),
+              property: prop
+            };
+          });
+          return next;
         });
       }
 

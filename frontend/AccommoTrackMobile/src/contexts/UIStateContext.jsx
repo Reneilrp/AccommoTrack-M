@@ -48,6 +48,8 @@ const INITIAL_STATE = {
     landlord_property_details: {}, // Store by propertyId
     landlord_rooms: null,
     landlord_tenants: null,
+    explore_list: null,
+    guest_properties: null,
   }
 };
 

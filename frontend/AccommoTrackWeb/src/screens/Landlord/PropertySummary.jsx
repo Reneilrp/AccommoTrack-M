@@ -10,7 +10,6 @@ import RoomDetails from '../../components/Rooms/RoomDetails';
 import PropertyActivityLogs from './PropertyActivityLogs';
 import { useSidebar } from '../../contexts/SidebarContext';
 import { useUIState } from '../../contexts/UIStateContext';
-import { cacheManager } from '../../utils/cache';
 import { maintenanceService } from '../../services/maintenanceService';
 import roomService from '../../services/roomService';
 import AssignWorkerModal from '../../components/Maintenance/AssignWorkerModal';
@@ -68,6 +67,15 @@ const TYPE_META = {
     dot: 'bg-yellow-500',
     label: 'Review',
   },
+};
+
+const EMPTY_DASH_DATA = {
+  pendingBookings: [],
+  overdueInvoices: [],
+  pendingAddonRequests: [],
+  maintenanceRequests: [],
+  transferRequests: [],
+  recentReviews: [],
 };
 
 function formatDisplayDate(value) {
@@ -220,10 +228,10 @@ function TypeBadge({ type }) {
 import { useLandlordPropertySummary } from '../../hooks/useLandlordQueries';
 
 function PropertyDashboard({ propertyId, navigate, onCountsChange }) {
-  const { 
-    data: dashData, 
-    isLoading: loading, 
-    refetch: loadDashboard 
+  const {
+    data: dashData,
+    isLoading: loading,
+    refetch: loadDashboard
   } = useLandlordPropertySummary(propertyId);
 
   const [actionLoading, setActionLoading] = useState({});
@@ -601,7 +609,7 @@ function PropertyDashboard({ propertyId, navigate, onCountsChange }) {
     maintenanceRequests,
     transferRequests,
     recentReviews,
-  } = dashData;
+  } = dashData || EMPTY_DASH_DATA;
 
   const activityItems = [
     ...pendingBookings.map((b) => ({
@@ -1352,15 +1360,13 @@ export default function PropertySummary({ caretakerPermissions = null }) {
   const navigate = useNavigate();
   const { uiState, updateData } = useUIState();
 
-  const cacheKey = `property_summary_${id}`;
-
   // ── Caretaker permission gating ─────────────────────────────────────────────
   const isCaretaker = !!caretakerPermissions;
   const ctPerms = caretakerPermissions || {};
 
   const getCachedData = useCallback(() => {
-    return uiState.data?.[cacheKey] || cacheManager.get(cacheKey);
-  }, [uiState.data, cacheKey]);
+    return uiState.data?.landlord_property_details?.[id];
+  }, [uiState.data?.landlord_property_details, id]);
 
   const [property, setProperty] = useState(() => getCachedData()?.property || null);
   const [loading, setLoading] = useState(!property);
@@ -1404,7 +1410,7 @@ export default function PropertySummary({ caretakerPermissions = null }) {
       setProperty(cached.property);
       setLoading(false);
     }
-  }, [getCachedData, property, cacheKey]);
+  }, [getCachedData, property]);
 
   useEffect(() => {
     if (property?.images) {
@@ -1422,21 +1428,26 @@ export default function PropertySummary({ caretakerPermissions = null }) {
 
   const loadProperty = useCallback(async () => {
     try {
-      setLoading(true);
+      if (!property) setLoading(true);
       setError(null);
       const res = await api.get(`/landlord/properties/${id}?t=${Date.now()}`);
       const data = res.data;
       setProperty(data);
-      const newState = { ...(cacheManager.get(cacheKey) || {}), property: data };
-      updateData(cacheKey, newState);
-      cacheManager.set(cacheKey, newState);
+
+      updateData('landlord_property_details', (prev) => ({
+        ...(prev || {}),
+        [id]: {
+          ...(prev?.[id] || {}),
+          property: data
+        }
+      }));
     } catch (err) {
       console.error('Failed to fetch property', err);
       setError(err.response?.data?.message || err.message || 'Failed to load property');
     } finally {
       setLoading(false);
     }
-  }, [id, updateData, cacheKey]);
+  }, [id, updateData, property]);
 
   useEffect(() => {
     if (!id) return;

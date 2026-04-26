@@ -93,7 +93,8 @@ export default function TenantHomePage({
   const navigation = useNavigation();
   const { uiState, updateData, invalidateData, showAlert: uiShowAlert } = useUIState();
   const showAlert = uiShowAlert || Alert.alert;
-  const BUCKET = 'explore_properties';
+  const BUCKET = 'explore_list';
+
 
   const [searchQuery, setSearchQuery] = useState("");
   const [filterModalVisible, setFilterModalVisible] = useState(false);
@@ -224,11 +225,9 @@ export default function TenantHomePage({
   useEffect(() => {
     if (!explorePropertiesInfiniteQuery.data) return;
 
-    // setProperties(properties); // properties is already memoized from the query pages
-    if (!hasServerFilters) {
-      updateData(BUCKET, properties);
-    }
-  }, [explorePropertiesInfiniteQuery.data, hasServerFilters, updateData, properties]);
+    // Persist to UIState cache for instant mounting on next visit
+    updateData(BUCKET, properties);
+  }, [explorePropertiesInfiniteQuery.data, updateData, properties]);
 
   useEffect(() => {
     if (!explorePropertiesInfiniteQuery.error) return;

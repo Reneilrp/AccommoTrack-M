@@ -55,7 +55,7 @@ class TenantController extends Controller
             $landlordId = $context['landlord_id'];
 
             // Standard confirmed statuses for related data loading
-            $confirmedStatuses = ['confirmed', 'completed', 'partial-completed', 'reserved', 'pending_reservation'];
+            $confirmedStatuses = ['confirmed', 'active', 'completed', 'partial-completed', 'reserved', 'pending_reservation'];
 
             $query = User::where('role', 'tenant')
                 ->with([
