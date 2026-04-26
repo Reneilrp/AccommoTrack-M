@@ -30,6 +30,12 @@ const INITIAL_STATE = {
     showFilters: false,
     filterProperty: ""
   },
+  guest_explore: {
+    search: "",
+    selectedType: "All",
+    currentPage: 1,
+    showMapModal: false
+  },
   // Timestamps for data buckets persisted in sessionStorage.
   dataMeta: {},
   // Data buckets for instant UI mounting
@@ -39,6 +45,7 @@ const INITIAL_STATE = {
     wallet: null,
     messages: null,
     profile: null,
+    guest_properties: null,
     // Landlord Data Buckets
     landlord_dashboard: null,
     landlord_properties: null,
@@ -50,7 +57,8 @@ const INITIAL_STATE = {
     landlord_rooms: null,
     landlord_tenants: null,
     landlord_dorm_profiles: {}, // Store by propertyId
-    landlord_property_view: 'list' // 'list', 'add'
+    landlord_property_view: 'list', // 'list', 'add'
+    explore_list: null
   }
 };
 

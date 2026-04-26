@@ -280,6 +280,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::delete('/rooms/{id}/remove-tenant', [RoomController::class, 'removeTenant']);
         Route::get('/rooms', [RoomController::class, 'index']);
         Route::get('/dashboard/bundle', [LandlordDashboardController::class, 'getDashboardBundle']);
+        Route::get('/properties/{id}/summary-bundle', [LandlordDashboardController::class, 'getPropertySummaryBundle']);
         Route::get('/dashboard/stats', [LandlordDashboardController::class, 'getStats']);
         Route::get('/dashboard/recent-activities', [LandlordDashboardController::class, 'getRecentActivities']);
         Route::post('/property-reports', [LandlordDashboardController::class, 'storeCaretakerReport']);

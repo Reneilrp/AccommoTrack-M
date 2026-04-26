@@ -118,7 +118,7 @@ const resolveSelectedTypeMeta = (selectedType, options) => {
 
 const ExploreProperties = () => {
   const navigate = useNavigate();
-  const { uiState, updateScreenState } = useUIState();
+  const { uiState, updateScreenState, updateData } = useUIState();
   const isAuthenticated = !!localStorage.getItem("userData");
   const { search, selectedType, currentPage, showMapModal } =
     uiState.explore || {
@@ -128,8 +128,10 @@ const ExploreProperties = () => {
       showMapModal: false,
     };
 
-  const [properties, setProperties] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const cached = uiState.data?.explore_list;
+
+  const [properties, setProperties] = useState(cached?.items || []);
+  const [loading, setLoading] = useState(!cached);
   const [__error, setError] = useState(null);
   const [debouncedSearch, setDebouncedSearch] = useState(search || "");
   const [isFilterOpen, setIsFilterOpen] = useState(false);
@@ -141,7 +143,7 @@ const ExploreProperties = () => {
     rating: 0,
     sexPolicy: "All",
   });
-  const [pagination, setPagination] = useState({
+  const [pagination, setPagination] = useState(cached?.pagination || {
     total: 0,
     totalPages: 0,
     currentPage: 1,
@@ -331,7 +333,14 @@ const ExploreProperties = () => {
   // Fetch properties from backend
   useEffect(() => {
     const fetchProperties = async () => {
-      setLoading(true);
+      // If we have cached data and it matches current filters/page, 
+      // we might skip the very first fetch if desired, 
+      // but standard project pattern is: mount instant with cache, then fetch fresh in background (SWR-like)
+      // To truly prevent "re-renders again" visual jump, we only show loader if no properties.
+      if (properties.length === 0) {
+        setLoading(true);
+      }
+
       try {
         const params = {
           search: debouncedSearch,
@@ -351,24 +360,32 @@ const ExploreProperties = () => {
 
         const response = await propertyService.getAllProperties(params, isAuthenticated);
         
+        let finalItems = [];
+        let finalPagination = { total: 0, totalPages: 0, currentPage: 1 };
+
         // Handle paginated vs non-paginated response
         if (response.data && response.meta) {
-          setProperties(response.data);
-          setPagination({
+          finalItems = response.data;
+          finalPagination = {
             total: response.meta.total,
             totalPages: response.meta.last_page,
             currentPage: response.meta.current_page,
-          });
+          };
         } else {
           // Fallback if backend isn't paginating as expected
           const data = Array.isArray(response) ? response : (response.data || []);
-          setProperties(data);
-          setPagination({
+          finalItems = data;
+          finalPagination = {
             total: data.length,
             totalPages: Math.ceil(data.length / pageSize),
             currentPage: 1,
-          });
+          };
         }
+
+        setProperties(finalItems);
+        setPagination(finalPagination);
+        updateData('explore_list', { items: finalItems, pagination: finalPagination });
+
       } catch (err) {
         console.error("Error fetching properties:", err?.response?.data || err);
         const msg = err.response?.data?.message || "Error fetching properties";
@@ -380,7 +397,7 @@ const ExploreProperties = () => {
     };
 
     fetchProperties();
-  }, [debouncedSearch, normalizedSelectedType, advancedFilters, currentPage, isAuthenticated]);
+  }, [debouncedSearch, normalizedSelectedType, advancedFilters, currentPage, isAuthenticated, updateData]);
 
   const safeProperties = Array.isArray(properties) ? properties : [];
 

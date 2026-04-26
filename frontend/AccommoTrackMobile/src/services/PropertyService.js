@@ -377,6 +377,18 @@ const PropertyService = {
   },
 
   /**
+   * Get property summary bundle (Consolidated data for PropertySummary screen)
+   */
+  async getPropertySummaryBundle(propertyId) {
+    try {
+      const response = await api.get(`/properties/${propertyId}/summary-bundle`);
+      return normalizeResponse(response);
+    } catch (error) {
+      return normalizeError(error);
+    }
+  },
+
+  /**
    * Get specific landlord property with relations
    * Matches: GET /api/landlord/properties/{id}
    */

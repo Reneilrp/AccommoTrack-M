@@ -6,6 +6,7 @@ import { getImageUrl } from '../../utils/api';
 import { propertyService } from '../../services/propertyService';
 import { mapRoom, mapProperty } from '../../utils/propertyHelpers';
 import ImagePlaceholder from '../../components/Shared/ImagePlaceholder';
+import { useUIState } from '../../contexts/UIStateContext';
 
 /* ─── Room Details Modal ─── */
 const RoomDetailsModal = ({ room, property, onClose }) => {
@@ -180,22 +181,28 @@ const ModalOverlay = ({ children, onClose }) => (
 /* ─── Main component ─── */
 const Properties = () => {
   const navigate = useNavigate();
-  const [properties, setProperties]       = useState([]);
-  const [loading, setLoading]             = useState(true);
-  const [error, setError]                 = useState(null);
+  const { uiState, updateData } = useUIState();
+  const cached = uiState.data?.guest_properties;
+
+  const [properties, setProperties]       = useState(cached || []);
+  const [loading, setLoading]             = useState(!cached);
+  const [error, setError]                 =                 useState(null);
   const [selectedRoomData, setSelectedRoomData] = useState(null);
   const [modalLoading, setModalLoading]   = useState(false);
   const [modalError, setModalError]       = useState(null);
 
   useEffect(() => {
     const fetchProperties = async () => {
-      setLoading(true);
+      if (properties.length === 0) {
+        setLoading(true);
+      }
       setError(null);
       try {
         const response = await propertyService.getAllProperties({}, false);
         // Handle paginated response { data: [...], meta: ... } or flat array
         const data = response.data && Array.isArray(response.data) ? response.data : (Array.isArray(response) ? response : []);
         setProperties(data);
+        updateData('guest_properties', data);
       } catch (err) {
         setError(err.response?.data?.message || 'Error fetching properties');
       } finally {

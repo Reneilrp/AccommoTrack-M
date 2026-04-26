@@ -21,6 +21,7 @@ import {
   useLandlordRefreshHandler,
 } from '../../hooks/useLandlordQueryHelpers.js';
 import api from '../../../../services/api.js';
+import PropertyService from '../../../../services/PropertyService.js';
 import MaintenanceService from '../../../../services/MaintenanceService.js';
 import { getStyles } from '../../../../styles/Landlord/DormProfile.js';
 import AssignWorkerModal from '../../components/Maintenance/AssignWorkerModal.jsx';
@@ -130,31 +131,11 @@ export default function PropertySummaryScreen({ route, navigation }) {
     queryKey: landlordQueryKeys.propertySummaryActivity(propertyId),
     enabled: Boolean(propertyId),
     queryFn: async () => {
-      const [bookingsRes, invoicesRes, addonRequestsRes, maintenanceRes, transfersRes, reviewsRes] = await Promise.allSettled([
-        api.get(`/bookings?property_id=${propertyId}&status=pending`),
-        api.get(`/invoices?property_id=${propertyId}&status=overdue`),
-        api.get(`/landlord/properties/${propertyId}/addons/pending`),
-        api.get(`/landlord/maintenance-requests?property_id=${propertyId}&status=pending`),
-        api.get(`/landlord/transfers?property_id=${propertyId}&status=pending`),
-        api.get(`/landlord/reviews?property_id=${propertyId}&limit=3`),
-      ]);
-
-      const getResData = (res) => {
-        if (res.status !== 'fulfilled') return [];
-        const payload = res.value?.data;
-        if (Array.isArray(payload?.data)) return payload.data;
-        if (Array.isArray(payload)) return payload;
-        return [];
-      };
-
-      return {
-        pendingBookings: getResData(bookingsRes),
-        overdueInvoices: (invoicesRes.status === 'fulfilled' ? invoicesRes.value?.data?.data : []) || [],
-        pendingAddonRequests: addonRequestsRes.status === 'fulfilled' ? (addonRequestsRes.value?.data?.pendingRequests || []) : [],
-        maintenanceRequests: (maintenanceRes.status === 'fulfilled' ? maintenanceRes.value?.data?.data : []) || [],
-        transferRequests: getResData(transfersRes),
-        recentReviews: getResData(reviewsRes),
-      };
+      const res = await PropertyService.getPropertySummaryBundle(propertyId);
+      if (!res.success) {
+        throw new Error(res.error || 'Failed to load property summary');
+      }
+      return res.data;
     },
     placeholderData: (previousData) => previousData,
   });

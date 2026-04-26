@@ -6,6 +6,12 @@ use App\Http\Controllers\Controller;
 use App\Http\Controllers\Permission\ResolvesLandlordAccess;
 use App\Services\LandlordDashboardService;
 use Illuminate\Http\Request;
+use App\Models\Booking;
+use App\Models\Invoice;
+use App\Models\MaintenanceRequest;
+use App\Models\TransferRequest;
+use App\Models\Review;
+use Illuminate\Support\Facades\DB;
 
 class LandlordDashboardController extends Controller
 {
@@ -16,6 +22,173 @@ class LandlordDashboardController extends Controller
     public function __construct(LandlordDashboardService $dashboardService)
     {
         $this->dashboardService = $dashboardService;
+    }
+
+    /**
+     * Get a consolidated bundle of activity and requests for a specific property.
+     * Consolidates 6 parallel requests into one to optimize mobile performance.
+     */
+    public function getPropertySummaryBundle(Request $request, $id)
+    {
+        try {
+            $context = $this->resolveLandlordContext($request);
+            $this->checkPropertyAccess($context, (int) $id);
+
+            // 1. Pending Bookings - Use Resource for consistent mapping
+            $bookings = Booking::where('property_id', $id)
+                ->where('status', 'pending')
+                ->with(['tenant', 'room', 'property'])
+                ->orderBy('created_at', 'desc')
+                ->limit(50)
+                ->get();
+            $bookingsMapped = \App\Http\Resources\BookingResource::collection($bookings)->resolve();
+
+            // 2. Overdue Invoices
+            $invoices = Invoice::where('property_id', $id)
+                ->where(function($q) {
+                    $q->where('status', 'overdue')
+                      ->orWhere(function($sq) {
+                          $sq->where('status', 'pending')
+                            ->whereDate('due_date', '<', now()->toDateString());
+                      });
+                })
+                ->with(['tenant:id,first_name,last_name,email', 'booking.room:id,room_number'])
+                ->orderBy('due_date', 'asc')
+                ->limit(50)
+                ->get()
+                ->map(function($inv) {
+                    $item = $inv->toArray();
+                    $item['room'] = $inv->booking?->room;
+                    $item['room_number'] = $inv->booking?->room?->room_number;
+                    return $item;
+                });
+
+            // 3. Pending Add-on Requests
+            $addonRequests = DB::table('booking_addons')
+                ->join('addons', 'booking_addons.addon_id', '=', 'addons.id')
+                ->join('bookings', 'booking_addons.booking_id', '=', 'bookings.id')
+                ->join('users', 'bookings.tenant_id', '=', 'users.id')
+                ->join('rooms', 'bookings.room_id', '=', 'rooms.id')
+                ->where('addons.property_id', $id)
+                ->where('booking_addons.status', 'pending')
+                ->select([
+                    'booking_addons.id as request_id',
+                    'booking_addons.booking_id',
+                    'booking_addons.addon_id',
+                    'booking_addons.quantity',
+                    'booking_addons.price_at_booking_cents',
+                    'addons.price_cents as current_price_cents',
+                    'booking_addons.request_note',
+                    'booking_addons.created_at as requested_at',
+                    'addons.name as addon_name',
+                    'addons.price_type',
+                    'addons.addon_type',
+                    'addons.stock',
+                    'users.first_name as tenant_first_name',
+                    'users.last_name as tenant_last_name',
+                    'users.email as tenant_email',
+                    'rooms.room_number',
+                ])
+                ->orderBy('booking_addons.created_at', 'asc')
+                ->get()
+                ->map(function ($request) {
+                    $price = (float) ($request->price_at_booking_cents / 100);
+                    if ($price <= 0) {
+                        $currentPriceCents = (int) ($request->current_price_cents ?? 0);
+                        if ($currentPriceCents > 0) {
+                            $price = (float) ($currentPriceCents / 100);
+                        }
+                    }
+
+                    return [
+                        'requestId' => $request->request_id,
+                        'bookingId' => $request->booking_id,
+                        'addonId' => $request->addon_id,
+                        'addonName' => $request->addon_name,
+                        'quantity' => $request->quantity,
+                        'price' => $price,
+                        'priceType' => $request->price_type,
+                        'addonType' => $request->addon_type,
+                        'stock' => $request->stock,
+                        'requestNote' => $request->request_note,
+                        'requestedAt' => $request->requested_at,
+                        'tenant' => [
+                            'name' => $request->tenant_first_name.' '.$request->tenant_last_name,
+                            'email' => $request->tenant_email,
+                        ],
+                        'roomNumber' => $request->room_number,
+                    ];
+                });
+
+            // 4. Pending Maintenance Requests
+            $maintenance = MaintenanceRequest::where('property_id', $id)
+                ->where('status', 'pending')
+                ->with(['tenant:id,first_name,last_name', 'booking.room:id,room_number'])
+                ->orderBy('created_at', 'desc')
+                ->get()
+                ->map(function($m) {
+                    $item = $m->toArray();
+                    $item['room'] = $m->booking?->room;
+                    $item['room_number'] = $m->booking?->room?->room_number;
+                    return $item;
+                });
+
+            // 5. Pending Transfer Requests
+            $transfers = TransferRequest::whereHas('currentRoom', function($q) use ($id) {
+                    $q->where('property_id', $id);
+                })
+                ->where('status', 'pending')
+                ->with(['tenant:id,first_name,last_name', 'currentRoom:id,room_number', 'requestedRoom:id,room_number'])
+                ->orderBy('created_at', 'desc')
+                ->get()
+                ->map(function($t) {
+                    $item = $t->toArray();
+                    // Provide compatibility with frontend expectation of from_room/to_room
+                    $item['from_room'] = $t->currentRoom;
+                    $item['to_room'] = $t->requestedRoom;
+                    $item['from_room_name'] = $t->currentRoom?->room_number;
+                    $item['to_room_name'] = $t->requestedRoom?->room_number;
+                    return $item;
+                });
+
+            // 6. Recent Reviews
+            $reviews = Review::where('property_id', $id)
+                ->with(['tenant:id,first_name,last_name,profile_image', 'booking.room:id,room_number'])
+                ->orderBy('created_at', 'desc')
+                ->limit(3)
+                ->get()
+                ->map(function ($review) {
+                    return [
+                        'id' => $review->id,
+                        'rating' => $review->rating,
+                        'comment' => $review->comment,
+                        'reviewer_name' => $review->reviewer_name,
+                        'reviewer_image' => $review->tenant?->profile_image,
+                        'room' => $review->booking?->room, // Ensure room object is available for the frontend mapping
+                        'time_ago' => $review->time_ago,
+                        'created_at' => $review->created_at->toISOString(),
+                        'landlord_response' => $review->landlord_response,
+                    ];
+                });
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'pendingBookings' => $bookingsMapped,
+                    'overdueInvoices' => $invoices,
+                    'pendingAddonRequests' => $addonRequests, 
+                    'maintenanceRequests' => $maintenance,
+                    'transferRequests' => $transfers,
+                    'recentReviews' => $reviews,
+                ]
+            ]);
+        } catch (\Throwable $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch property summary bundle',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 
     public function getDashboardBundle(Request $request)
