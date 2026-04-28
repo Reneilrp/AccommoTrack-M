@@ -112,8 +112,6 @@ class User extends Authenticatable
         'password' => 'hashed',
         'is_blocked' => 'boolean',
         'is_active' => 'boolean',
-        'push_notifications_enabled' => 'boolean',
-        'email_notifications_enabled' => 'boolean',
         'last_active_at' => 'datetime',
         'suspended_until' => 'datetime',
         'strikes' => 'integer',

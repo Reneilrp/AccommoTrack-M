@@ -25,36 +25,38 @@ class UserCounterService
 
         return Cache::remember($cacheKey, now()->addMinutes(10), function () use ($user, $userId) {
             $role = $user->role;
+            $landlordId = $user->effectiveLandlordId();
 
-            // 1. Messages (Universal)
-            $messageCount = Message::where('receiver_id', $userId)
-                ->where('is_read', false)
-                ->count();
-
-            // 2. Notifications (Universal)
-            $notificationCount = $user->unreadNotifications()->count();
-
+            // Default values
             $counters = [
-                'messages' => $messageCount,
-                'notifications' => $notificationCount,
+                'messages' => 0,
+                'notifications' => $user->unreadNotifications()->count(),
                 'maintenance' => 0,
                 'addons' => 0,
                 'payments' => 0,
             ];
 
             if ($role === 'tenant') {
-                // Tenant Maintenance: Count requests with new updates (simplified to active requests for now)
+                // 1. Messages (Tenant)
+                $counters['messages'] = Message::where('receiver_id', $userId)
+                    ->where('is_read', false)
+                    ->count();
+
+                // 2. Maintenance (Tenant)
                 $counters['maintenance'] = MaintenanceRequest::where('tenant_id', $userId)
                     ->whereIn('status', ['pending', 'in_progress'])
                     ->count();
             } else {
                 // Landlord / Caretaker Scoping
-                $landlordId = ($role === 'landlord') ? $userId : $user->caretakerAssignment?->landlord_id;
-                
-                if (!$landlordId) return $counters;
+                if (!$landlordId) {
+                    return $counters;
+                }
 
                 $allowedPropertyIds = null;
-                if ($role === 'caretaker' && $user->caretakerAssignment) {
+                if ($role === 'caretaker') {
+                    if (!$user->caretakerAssignment) {
+                        return $counters;
+                    }
                     $allowedPropertyIds = $user->caretakerAssignment->getAssignedPropertyIds();
                     
                     // If caretaker has no assigned properties, they see nothing
@@ -63,24 +65,47 @@ class UserCounterService
                     }
                 }
 
-                // Maintenance (Pending)
+                // 1. Messages (Landlord / Caretaker)
+                $messageQuery = Message::where('receiver_id', $landlordId)
+                    ->where('is_read', false);
+
+                if ($role === 'caretaker') {
+                    $messageQuery->whereHas('conversation', function ($q) use ($userId, $allowedPropertyIds) {
+                        $q->where(function ($q2) use ($userId) {
+                            $q2->whereNull('caretaker_id')
+                                ->orWhere('caretaker_id', $userId);
+                        });
+                        if ($allowedPropertyIds) {
+                            $q->whereIn('property_id', $allowedPropertyIds);
+                        }
+                    });
+                }
+                $counters['messages'] = $messageQuery->count();
+
+                // 2. Maintenance (Pending)
                 $maintenanceQuery = MaintenanceRequest::where('landlord_id', $landlordId)->where('status', 'pending');
-                if ($allowedPropertyIds) $maintenanceQuery->whereIn('property_id', $allowedPropertyIds);
+                if ($allowedPropertyIds) {
+                    $maintenanceQuery->whereIn('property_id', $allowedPropertyIds);
+                }
                 $counters['maintenance'] = $maintenanceQuery->count();
 
-                // Addons (Pending Requests)
+                // 3. Addons (Pending Requests)
                 $addonQuery = DB::table('booking_addons')
                     ->join('addons', 'booking_addons.addon_id', '=', 'addons.id')
                     ->where('addons.landlord_id', $landlordId)
                     ->where('booking_addons.status', 'pending');
-                if ($allowedPropertyIds) $addonQuery->whereIn('addons.property_id', $allowedPropertyIds);
+                if ($allowedPropertyIds) {
+                    $addonQuery->whereIn('addons.property_id', $allowedPropertyIds);
+                }
                 $counters['addons'] = $addonQuery->count();
 
-                // Payments (Awaiting Verification)
+                // 4. Payments (Awaiting Verification)
                 $paymentQuery = PaymentTransaction::where('status', 'pending_offline')
-                    ->whereHas('invoice', function($q) use ($landlordId, $allowedPropertyIds) {
+                    ->whereHas('invoice', function ($q) use ($landlordId, $allowedPropertyIds) {
                         $q->where('landlord_id', $landlordId);
-                        if ($allowedPropertyIds) $q->whereIn('property_id', $allowedPropertyIds);
+                        if ($allowedPropertyIds) {
+                            $q->whereIn('property_id', $allowedPropertyIds);
+                        }
                     });
                 $counters['payments'] = $paymentQuery->count();
             }

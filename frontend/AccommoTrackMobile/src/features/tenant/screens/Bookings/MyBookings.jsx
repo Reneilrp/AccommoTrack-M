@@ -814,14 +814,26 @@ export default function MyBookings() {
     });
   }, [myBookingsBundleQuery.data, updateData, historyDataFromState, viewMode]);
 
+  const overdueStays = useMemo(() =>
+    (stayData?.stays || []).filter(s => s?.booking?.is_overdue || s?.booking?.isOverdue),
+    [stayData]
+  );
+
+  const overduePendingBookings = useMemo(() =>
+    (pendingBookings || []).filter(b => b?.is_overdue || b?.isOverdue),
+    [pendingBookings]
+  );
+
+  const overdueCheckIns = useMemo(() =>
+    (pendingCheckIns || []).filter(pc => pc?.isOverdue || pc?.daysOverdue > 0),
+    [pendingCheckIns]
+  );
+
   const loading = myBookingsBundleQuery.isLoading && !myBookingsBundleQuery.data;
 
   const tabs = useMemo(() => {
     const hasStays = (stayData?.stays || []).length > 0;
     const hasPending = (pendingBookings || []).length > 0 || (pendingCheckIns || []).length > 0;
-    const overdueStays = (stayData?.stays || []).filter(s => s?.booking?.is_overdue || s?.booking?.isOverdue);
-    const overduePendingBookings = (pendingBookings || []).filter(b => b?.is_overdue || b?.isOverdue);
-    const overdueCheckIns = (pendingCheckIns || []).filter(pc => pc?.isOverdue || pc?.daysOverdue > 0);
     const hasAnyOverdue = overdueStays.length > 0 || overduePendingBookings.length > 0 || overdueCheckIns.length > 0;
 
     const list = [];
@@ -829,7 +841,7 @@ export default function MyBookings() {
     if (hasPending || hasAnyOverdue) list.push({ id: 'pending', label: 'Pending', color: '#F59E0B' });
     if (hasAnyOverdue) list.push({ id: 'overdue', label: 'Overdue', color: theme.colors.error });
     return list.filter(Boolean);
-  }, [stayData, pendingBookings, pendingCheckIns, theme.colors.success, theme.colors.error]);
+  }, [stayData, pendingBookings, pendingCheckIns, overdueStays, overduePendingBookings, overdueCheckIns, theme.colors.success, theme.colors.error]);
 
   useEffect(() => {
     if (tabs.length <= 1) return;
@@ -901,9 +913,13 @@ export default function MyBookings() {
   }, [stayData?.stays]);
 
   const getPropertySwitchOptions = () => {
-    return viewMode === 'active'
-      ? (Array.isArray(stayData?.stays) ? stayData.stays : [])
-      : (Array.isArray(pendingBookings) ? pendingBookings : []);
+    if (viewMode === 'active') {
+      return Array.isArray(stayData?.stays) ? stayData.stays : [];
+    }
+    if (viewMode === 'overdue') {
+      return overdueStays;
+    }
+    return Array.isArray(pendingBookings) ? pendingBookings : [];
   };
 
   const getPropertyOptionLabel = (item) => {
@@ -923,12 +939,13 @@ export default function MyBookings() {
   };
 
   const selectPropertyFromModal = (item) => {
-    if (!item?.id) return;
+    const targetId = item?.booking?.id || item?.id;
+    if (!targetId) return;
 
-    if (viewMode === 'active' || viewMode === 'overdue') {
-      setSelectedBookingId(item.id);
+    if (viewMode === 'active' || (viewMode === 'overdue' && overdueStays.length > 0)) {
+      setSelectedBookingId(targetId);
     } else {
-      setSelectedPendingId(item.id);
+      setSelectedPendingId(targetId);
     }
     setShowPropertySwitchModal(false);
   };
@@ -1711,10 +1728,6 @@ export default function MyBookings() {
     const nonOverduePendingBookings = (pendingBookings || []).filter(b => !(b?.is_overdue || b?.isOverdue));
     const nonOverdueCheckIns = (pendingCheckIns || []).filter(pc => !(pc?.isOverdue || pc?.daysOverdue > 0));
 
-    const overdueStays = (stayData?.stays || []).filter(s => s?.booking?.is_overdue || s?.booking?.isOverdue);
-    const overduePendingBookings = (pendingBookings || []).filter(b => b?.is_overdue || b?.isOverdue);
-    const overdueCheckIns = (pendingCheckIns || []).filter(pc => pc?.isOverdue || pc?.daysOverdue > 0);
-
     const hasAnyOverdue = overdueStays.length > 0 || overduePendingBookings.length > 0 || overdueCheckIns.length > 0;
 
     const displayedStays = viewMode === 'overdue' ? overdueStays : (viewMode === 'active' ? nonOverdueStays : []);
@@ -1959,12 +1972,12 @@ export default function MyBookings() {
           <View style={{ flexDirection: 'row', gap: 8, justifyContent: 'center' }}>
             <TouchableOpacity
               style={[styles.actionBtn, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border, borderWidth: 1, minHeight: 40 }]}
-              onPress={() => {
-                const propertyId = pc?.property_id || pc?.propertyId || pc?.property?.id;
-                if (propertyId) navigation.navigate('RoomDetails', { roomId: pc?.room_id, propertyId });
-              }}
+              onPress={() => handleOpenRoomDetails(pc)}
+              disabled={openingRoomDetails}
             >
-              <Text style={[styles.actionBtnText, { color: theme.colors.text }]}>Room Details</Text>
+              <Text style={[styles.actionBtnText, { color: theme.colors.text }]}>
+                {openingRoomDetails ? 'Opening...' : 'Room Details'}
+              </Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.actionBtn, { backgroundColor: theme.colors.error, minHeight: 40 }]}
@@ -2053,12 +2066,12 @@ export default function MyBookings() {
 
           <TouchableOpacity
             style={[styles.actionBtn, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border, borderWidth: 1, alignSelf: 'center', minHeight: 36, paddingHorizontal: 20 }]}
-            onPress={() => {
-              const propertyId = pb?.property_id || pb?.property?.id;
-              if (propertyId) navigation.navigate('RoomDetails', { roomId: pb?.room?.id, propertyId });
-            }}
+            onPress={() => handleOpenRoomDetails(pb)}
+            disabled={openingRoomDetails}
           >
-            <Text style={[styles.actionBtnText, { color: theme.colors.text }]}>View Room Details</Text>
+            <Text style={[styles.actionBtnText, { color: theme.colors.text }]}>
+              {openingRoomDetails ? 'Opening...' : 'View Room Details'}
+            </Text>
           </TouchableOpacity>
         </View>
       );
@@ -2914,13 +2927,14 @@ export default function MyBookings() {
               showsVerticalScrollIndicator={false}
             >
               {getPropertySwitchOptions().map((item) => {
+                const itemId = item?.booking?.id || item?.id;
                 const isSelected = (viewMode === 'active' || viewMode === 'overdue')
-                  ? item.id === selectedBookingId
-                  : item.id === selectedPendingId;
+                  ? itemId === selectedBookingId
+                  : itemId === selectedPendingId;
 
                 return (
                   <TouchableOpacity
-                    key={`property-switch-${item?.id}`}
+                    key={`property-switch-${itemId}`}
                     style={[
                       styles.propertySwitchOptionButton,
                       isSelected && styles.propertySwitchOptionButtonActive,

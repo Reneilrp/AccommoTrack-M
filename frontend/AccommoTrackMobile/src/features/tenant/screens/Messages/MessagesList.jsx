@@ -116,8 +116,8 @@ export default function MessagesList({
                                         paddingVertical: 8,
                                         borderRadius: 999,
                                         borderWidth: 1,
-                                        borderColor: !selectedPropertyId ? theme.colors.primary : theme.colors.border,
-                                        backgroundColor: !selectedPropertyId ? theme.colors.primary : theme.colors.surface,
+                                        borderColor: !selectedPropertyId ? theme.colors.messagingPrimary : theme.colors.border,
+                                        backgroundColor: !selectedPropertyId ? theme.colors.messagingPrimary : theme.colors.surface,
                                     }}
                                     onPress={() => setSelectedPropertyId(null)}
                                 >
@@ -136,8 +136,8 @@ export default function MessagesList({
                                                 paddingVertical: 8,
                                                 borderRadius: 999,
                                                 borderWidth: 1,
-                                                borderColor: isActive ? theme.colors.primary : theme.colors.border,
-                                                backgroundColor: isActive ? theme.colors.primary : theme.colors.surface,
+                                                borderColor: isActive ? theme.colors.messagingPrimary : theme.colors.border,
+                                                backgroundColor: isActive ? theme.colors.messagingPrimary : theme.colors.surface,
                                             }}
                                             onPress={() => setSelectedPropertyId(prop.id)}
                                         >

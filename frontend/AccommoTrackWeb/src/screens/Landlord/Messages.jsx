@@ -32,7 +32,7 @@ export default function Messages({ user, accessRole = 'landlord' }) {
             <h2 className="text-lg font-bold text-gray-800 dark:text-white">Messages</h2>
             <button
               onClick={() => setShowBroadcastModal(true)}
-              className="p-2 bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 rounded-full hover:bg-green-200 transition-colors title='Send Announcement'"
+              className="p-2 bg-messaging-light text-messaging-primary rounded-full hover:opacity-80 transition-colors title='Send Announcement'"
               title="Property Announcement"
             >
               <Megaphone className="w-5 h-5" />
@@ -51,7 +51,7 @@ export default function Messages({ user, accessRole = 'landlord' }) {
       {showBroadcastModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
           <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200">
-            <div className="p-6 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between bg-green-600">
+            <div className="p-6 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between bg-messaging-primary">
               <div className="flex items-center gap-3 text-white">
                 <Megaphone className="w-6 h-6" />
                 <h3 className="text-xl font-bold">Property Broadcast</h3>
@@ -73,7 +73,7 @@ export default function Messages({ user, accessRole = 'landlord' }) {
                 <select
                   value={broadcastProperty}
                   onChange={(e) => setBroadcastProperty(e.target.value)}
-                  className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent dark:text-white outline-none"
+                  className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-messaging-primary focus:border-transparent dark:text-white outline-none"
                   disabled={sendingBroadcast}
                 >
                   <option value="">Select a property...</option>
@@ -94,7 +94,7 @@ export default function Messages({ user, accessRole = 'landlord' }) {
                   value={broadcastMsg}
                   onChange={(e) => setBroadcastMsg(e.target.value)}
                   placeholder="e.g. Water maintenance scheduled for 2 PM today..."
-                  className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent dark:text-white outline-none min-h-[120px] resize-none"
+                  className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-messaging-primary focus:border-transparent dark:text-white outline-none min-h-[120px] resize-none"
                   disabled={sendingBroadcast}
                 />
               </div>
@@ -110,7 +110,7 @@ export default function Messages({ user, accessRole = 'landlord' }) {
                 <button
                   onClick={onSendBroadcast}
                   disabled={sendingBroadcast || !broadcastProperty || !broadcastMsg.trim()}
-                  className="flex-1 px-6 py-3 bg-green-600 text-white font-bold rounded-xl hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  className="flex-1 px-6 py-3 bg-messaging-primary text-white font-bold rounded-xl hover:opacity-90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
                   {sendingBroadcast ? (
                     <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />

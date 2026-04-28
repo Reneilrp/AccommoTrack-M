@@ -10,14 +10,13 @@ import {
 import { tenantService } from '../../services/tenantService';
 import api, { getImageUrl } from '../../utils/api';
 import ImagePlaceholder from '../../components/Shared/ImagePlaceholder';
-import { SkeletonMyBookings, SkeletonFinancials, SkeletonHistory } from '../../components/Shared/Skeleton';
+import { SkeletonMyBookings, SkeletonHistory } from '../../components/Shared/Skeleton';
 import ReviewModal from '../../components/Modals/ReviewModal';
 import { useUIState } from "../../contexts/UIStateContext";
 import { showSuccess, showError } from '../../utils/toast';
 import {
   Home,
   Calendar,
-  DollarSign,
   Clock,
   AlertCircle,
   XCircle,
@@ -30,7 +29,6 @@ import {
   RefreshCw,
   Star,
   ShieldAlert,
-  ArrowRight,
   Wrench,
   ChevronDown,
   DoorOpen,
@@ -53,7 +51,9 @@ const MyBookings = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { uiState, updateScreenState } = useUIState();
-  const activeTab = uiState.bookings?.activeTab || 'current';
+  const activeTab = ['current', 'history'].includes(uiState.bookings?.activeTab)
+    ? uiState.bookings.activeTab
+    : 'current';
 
   // --- Queries ---
   const stayBundleQuery = useTenantStayBundle();
@@ -288,25 +288,25 @@ const MyBookings = () => {
 
   useEffect(() => {
     const handleFocusRefresh = () => {
-      if (activeTab === 'current' || activeTab === 'financials') {
+      if (activeTab === 'current') {
         fetchData();
       }
     };
 
     const handleVisibilityRefresh = () => {
-      if (document.visibilityState === 'visible' && (activeTab === 'current' || activeTab === 'financials')) {
+      if (document.visibilityState === 'visible' && activeTab === 'current') {
         fetchData();
       }
     };
 
     const handleNotificationRefresh = () => {
-      if (activeTab === 'current' || activeTab === 'financials') {
+      if (activeTab === 'current') {
         invalidateTenantStayCache();
         fetchData();
       }
     };
 
-    const hasLiveStayTab = activeTab === 'current' || activeTab === 'financials';
+    const hasLiveStayTab = activeTab === 'current';
 
     window.addEventListener('focus', handleFocusRefresh);
     document.addEventListener('visibilitychange', handleVisibilityRefresh);
@@ -387,7 +387,6 @@ const MyBookings = () => {
 
   const tabs = [
     { id: 'current', label: 'My Stay', icon: Home },
-    { id: 'financials', label: 'Financials', icon: DollarSign },
     { id: 'history', label: 'History', icon: Clock }
   ];
 
@@ -420,8 +419,6 @@ const MyBookings = () => {
       {loading ? (
         activeTab === 'current' ? (
           <SkeletonMyBookings />
-        ) : activeTab === 'financials' ? (
-          <SkeletonFinancials />
         ) : (
           <SkeletonHistory />
         )
@@ -462,14 +459,6 @@ const MyBookings = () => {
                 setReschedulingBookingId(id);
                 setShowRescheduleModal(true);
               }}
-              navigate={navigate}
-            />
-          )}
-          {activeTab === 'financials' && (
-            <FinancialsTab
-              stays={activeStays}
-              selectedBookingId={selectedBookingId}
-              onSelectBookingId={setSelectedBookingId}
               navigate={navigate}
             />
           )}
@@ -1805,174 +1794,6 @@ const StaySelector = ({ stays, selectedBookingId, onSelectBookingId, className =
       </select>
       <div className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-gray-500 dark:text-gray-500">
         <ChevronDown className="w-5 h-5" />
-      </div>
-    </div>
-  );
-};
-
-// ==================== Financials Tab ====================
-const FinancialsTab = ({ stays = [], selectedBookingId = null, onSelectBookingId, navigate }) => {
-  const hasStays = stays && stays.length > 0;
-
-  const data = useMemo(() => {
-    if (!selectedBookingId) return stays[0] || null;
-    return stays.find(s => s.booking.id === selectedBookingId) || stays[0] || null;
-  }, [stays, selectedBookingId]);
-
-  if (!hasStays) {
-    return (
-      <div className="text-center py-12 bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-300 dark:border-gray-700">
-        <DollarSign className="w-16 h-16 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
-        <h3 className="text-xl font-bold text-gray-700 dark:text-gray-200">No Active Booking</h3>
-        <p className="text-gray-500 dark:text-gray-400">Financial details will appear when you have an active stay.</p>
-      </div>
-    );
-  }
-
-  const { financials } = data;
-
-  const parseActivityTimestamp = (value) => {
-    const parsed = new Date(value);
-    return Number.isNaN(parsed.getTime()) ? 0 : parsed.getTime();
-  };
-
-  // Flatten all transactions from all invoices into a single sorted list
-  const invoices = Array.isArray(financials?.invoices) ? financials.invoices : [];
-  const allTransactions = invoices
-    .flatMap(inv => (Array.isArray(inv.transactions) ? inv.transactions : []).map(tx => {
-      const resolvedDate = tx.date || tx.created_at;
-      return {
-        ...tx,
-        date: resolvedDate,
-        amount: tx.amount ?? (tx.amount_cents ? tx.amount_cents / 100 : 0),
-        invoiceRef: inv.id,
-        timestamp: parseActivityTimestamp(resolvedDate),
-        normalizedStatus: String(tx.status || '').toLowerCase(),
-      };
-    }))
-    .sort((a, b) => b.timestamp - a.timestamp);
-
-  // Hide outdated failed attempts when a newer transaction exists for the same invoice.
-  const newestTimestampByInvoice = new Map();
-  allTransactions.forEach((tx) => {
-    const key = String(tx.invoiceRef || tx.id || '');
-    if (!newestTimestampByInvoice.has(key)) {
-      newestTimestampByInvoice.set(key, tx.timestamp);
-    }
-  });
-
-  const recentTransactions = allTransactions
-    .filter((tx) => {
-      const key = String(tx.invoiceRef || tx.id || '');
-      const latestTimestamp = newestTimestampByInvoice.get(key) ?? tx.timestamp;
-      const hasNewerAttempt = latestTimestamp > tx.timestamp;
-      const isFailedAttempt = ['expired', 'failed', 'cancelled', 'voided'].includes(tx.normalizedStatus);
-
-      return !(hasNewerAttempt && isFailedAttempt);
-    })
-    .slice(0, 3);
-
-  return (
-    <div className="space-y-6">
-      {/* Adaptive Stay Selector */}
-      <StaySelector
-        stays={stays}
-        selectedBookingId={selectedBookingId}
-        onSelectBookingId={onSelectBookingId}
-      />
-
-      {/* Action Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-green-600 rounded-xl p-6 text-white shadow-lg shadow-green-600/20">
-        <div>
-          <h3 className="text-xl font-semibold">Billing & Payments</h3>
-          <p className="text-green-100 text-sm mt-2">Manage your invoices, view full history and make payments.</p>
-        </div>
-        <button
-          onClick={() => navigate('/payments')}
-          className="bg-white text-green-700 px-6 py-4 rounded-xl font-bold flex items-center gap-2 hover:bg-green-50 transition-all shadow-md active:scale-95 whitespace-nowrap"
-        >
-          View Full History
-          <ArrowRight className="w-5 h-5" />
-        </button>
-      </div>
-
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6 border border-gray-300 dark:border-gray-700">
-          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
-            {financials?.billing_policy === 'daily' ? 'Daily Rent' : 'Monthly Rent'}
-          </p>
-          <p className="text-2xl font-bold text-gray-900 dark:text-white">
-            ₱{(financials?.unit_price || financials?.monthlyRent || 0).toLocaleString()}
-          </p>
-        </div>
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6 border border-gray-300 dark:border-gray-700">
-          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
-            {financials?.billing_policy === 'daily' ? 'Daily Add-ons' : 'Monthly Add-ons'}
-          </p>
-          <p className="text-2xl font-bold text-amber-600 dark:text-amber-400">+₱{(financials?.monthlyAddons || 0).toLocaleString()}</p>
-        </div>
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6 border border-gray-300 dark:border-gray-700">
-          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
-            {financials?.billing_policy === 'daily' ? 'Total Due/day' : 'Total Due/mo'}
-          </p>
-          <p className="text-2xl font-bold text-green-600 dark:text-green-400">₱{(financials?.monthlyTotal || 0).toLocaleString()}</p>
-        </div>
-      </div>
-
-      {/* Recent Activity */}
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-300 dark:border-gray-700 overflow-hidden">
-        <div className="p-6 border-b border-gray-300 dark:border-gray-700 flex items-center justify-between">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-            <RefreshCw className="w-5 h-5 text-green-500" />
-            Recent Activity
-          </h3>
-          <button
-            onClick={() => navigate('/payments')}
-            className="text-sm font-bold text-green-600 dark:text-green-400 hover:underline"
-          >
-            See all
-          </button>
-        </div>
-        {recentTransactions.length > 0 ? (
-          <div className="overflow-x-auto no-scrollbar">
-            <table className="w-full">
-              <thead>
-                <tr className="bg-gray-50 dark:bg-gray-900/50 border-b border-gray-300 dark:border-gray-700">
-                  <th className="text-left py-4 px-6 text-xs font-semibold text-gray-500 uppercase tracking-wider">ID</th>
-                  <th className="text-left py-4 px-6 text-xs font-semibold text-gray-500 uppercase tracking-wider">Date</th>
-                  <th className="text-left py-4 px-6 text-xs font-semibold text-gray-500 uppercase tracking-wider">Amount</th>
-                  <th className="text-left py-4 px-6 text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-300 dark:divide-gray-700">
-                {recentTransactions.map((tx) => (
-                  <tr key={tx.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-                    <td className="py-4 px-6 text-sm font-bold text-gray-900 dark:text-white whitespace-nowrap">
-                      #{invoices.find(inv => inv.id === tx.invoiceRef)?.invoice_number || tx.invoiceRef}
-                    </td>
-                    <td className="py-4 px-6 text-sm font-medium text-gray-600 dark:text-gray-400">
-                      {new Date(tx.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                    </td>
-                    <td className="py-4 px-6 text-sm font-bold text-gray-900 dark:text-white">₱{(tx.amount || 0).toLocaleString()}</td>
-                    <td className="py-4 px-6">
-                      <span className={`px-2 py-2 rounded-md text-[10px] font-bold uppercase ${['succeeded', 'paid', 'completed', 'approved', 'verified'].includes(tx.normalizedStatus)
-                        ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
-                        : ['expired', 'failed', 'cancelled', 'voided'].includes(tx.normalizedStatus)
-                          ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
-                          : 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'
-                        }`}>
-                        {tx.status}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <p className="text-gray-500 dark:text-gray-500 text-center py-12 italic text-sm font-medium">No recent transactions.</p>
-        )}
       </div>
     </div>
   );

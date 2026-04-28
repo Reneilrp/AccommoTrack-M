@@ -28,6 +28,8 @@
   --text-muted: #71717a;
   --border-color: #e5e7eb;
   --border-light: #f3f4f6;
+  --messaging-primary: #34C759;
+  --messaging-primary-light: #d1fae5;
 }
 
 /* Dark theme colors */
@@ -40,6 +42,8 @@
   --text-muted: #71717a;
   --border-color: #374151;
   --border-light: #4b5563;
+  --messaging-primary: #30D158;
+  --messaging-primary-light: #064e3b;
 }
 
 /* Smooth theme transitions */

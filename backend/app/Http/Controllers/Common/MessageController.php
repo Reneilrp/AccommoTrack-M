@@ -33,16 +33,28 @@ class MessageController extends Controller
     {
         $context = $this->resolveMessageContext($request);
         $ownerId = $context['owner_id'];
+        $viewerId = $context['viewer_id'];
+        $isCaretaker = $context['is_caretaker'] ?? false;
+
+        $allowedPropertyIds = null;
+        if ($isCaretaker) {
+            $user = $request->user();
+            $allowedPropertyIds = $user->caretakerAssignment?->getAssignedPropertyIds();
+        }
 
         $conversations = Conversation::where(function ($q) use ($ownerId) {
             $q->where('user_one_id', $ownerId)
                 ->orWhere('user_two_id', $ownerId);
         })
-            ->when($context['is_caretaker'] ?? false, function ($q) use ($context) {
-                $q->where(function ($q2) use ($context) {
+            ->when($isCaretaker, function ($q) use ($viewerId, $allowedPropertyIds) {
+                $q->where(function ($q2) use ($viewerId) {
                     $q2->whereNull('caretaker_id')
-                        ->orWhere('caretaker_id', $context['viewer_id']);
+                        ->orWhere('caretaker_id', $viewerId);
                 });
+                
+                if ($allowedPropertyIds !== null) {
+                    $q->whereIn('property_id', $allowedPropertyIds);
+                }
             })
             ->with(['userOne', 'userTwo', 'property', 'lastMessage'])
             ->withCount(['messages as unread_count' => function ($q) use ($ownerId) {
@@ -62,17 +74,29 @@ class MessageController extends Controller
     {
         $context = $this->resolveMessageContext($request);
         $ownerId = $context['owner_id'];
+        $viewerId = $context['viewer_id'];
+        $isCaretaker = $context['is_caretaker'] ?? false;
+
+        $allowedPropertyIds = null;
+        if ($isCaretaker) {
+            $user = $request->user();
+            $allowedPropertyIds = $user->caretakerAssignment?->getAssignedPropertyIds();
+        }
 
         $conversation = Conversation::where('id', $conversationId)
             ->where(function ($q) use ($ownerId) {
                 $q->where('user_one_id', $ownerId)
                     ->orWhere('user_two_id', $ownerId);
             })
-            ->when($context['is_caretaker'] ?? false, function ($q) use ($context) {
-                $q->where(function ($q2) use ($context) {
+            ->when($isCaretaker, function ($q) use ($viewerId, $allowedPropertyIds) {
+                $q->where(function ($q2) use ($viewerId) {
                     $q2->whereNull('caretaker_id')
-                        ->orWhere('caretaker_id', $context['viewer_id']);
+                        ->orWhere('caretaker_id', $viewerId);
                 });
+
+                if ($allowedPropertyIds !== null) {
+                    $q->whereIn('property_id', $allowedPropertyIds);
+                }
             })
             ->firstOrFail();
 
@@ -169,29 +193,59 @@ class MessageController extends Controller
         // Find or create conversation
         if ($request->conversation_id) {
             $conversation = Conversation::findOrFail($request->conversation_id);
+
+            // SECURITY: If caretaker, ensure they have access to this conversation
+            if ($user->isCaretaker()) {
+                $allowedPropertyIds = $user->caretakerAssignment?->getAssignedPropertyIds() ?? [];
+                
+                // 1. Check property isolation
+                if ($conversation->property_id && !in_array($conversation->property_id, $allowedPropertyIds)) {
+                    throw new AccessDeniedHttpException('You do not have access to this conversation (Property mismatch).');
+                }
+
+                // 2. Check caretaker delegation
+                if ($conversation->caretaker_id && $conversation->caretaker_id !== $user->id) {
+                    throw new AccessDeniedHttpException('This conversation is assigned to another caretaker.');
+                }
+            }
+
             $recipientId = $conversation->user_one_id === $userId
                 ? $conversation->user_two_id
                 : $conversation->user_one_id;
         } else {
             $recipientId = $request->recipient_id;
+            $propertyId = $request->property_id;
+
+            // SECURITY: If caretaker, ensure they are allowed to message about this property
+            if ($user->isCaretaker()) {
+                $allowedPropertyIds = $user->caretakerAssignment?->getAssignedPropertyIds() ?? [];
+                if ($propertyId && !in_array($propertyId, $allowedPropertyIds)) {
+                    throw new AccessDeniedHttpException('You are not authorized to start conversations for this property.');
+                }
+            }
 
             $conversation = Conversation::where(function ($q) use ($userId, $recipientId) {
-                $q->where('user_one_id', $userId)->where('user_two_id', $recipientId);
+                $q->where(function ($q2) use ($userId, $recipientId) {
+                    $q2->where('user_one_id', $userId)
+                        ->where('user_two_id', $recipientId);
+                })->orWhere(function ($q2) use ($userId, $recipientId) {
+                    $q2->where('user_one_id', $recipientId)
+                        ->where('user_two_id', $userId);
+                });
             })
-                ->orWhere(function ($q) use ($userId, $recipientId) {
-                    $q->where('user_one_id', $recipientId)->where('user_two_id', $userId);
-                })
-                ->when($request->property_id, function ($q) use ($request) {
-                    $q->where('property_id', $request->property_id);
-                })
-                ->first();
+            ->where('property_id', $propertyId)
+            ->first();
 
             if (! $conversation) {
                 $conversation = Conversation::create([
                     'user_one_id' => $userId,
                     'user_two_id' => $recipientId,
-                    'property_id' => $request->property_id,
+                    'property_id' => $propertyId,
+                    'caretaker_id' => $user->isCaretaker() ? $user->id : null,
                 ]);
+            } else {
+                $conversation->clearDeletedForUser((int) $userId);
+                $conversation->save();
             }
         }
 
@@ -330,17 +384,29 @@ class MessageController extends Controller
     {
         $context = $this->resolveMessageContext($request);
         $ownerId = $context['owner_id'];
+        $viewerId = $context['viewer_id'];
+        $isCaretaker = $context['is_caretaker'] ?? false;
+
+        $allowedPropertyIds = null;
+        if ($isCaretaker) {
+            $user = $request->user();
+            $allowedPropertyIds = $user->caretakerAssignment?->getAssignedPropertyIds();
+        }
 
         $visibleConversationIds = Conversation::query()
             ->where(function ($q) use ($ownerId) {
                 $q->where('user_one_id', $ownerId)
                     ->orWhere('user_two_id', $ownerId);
             })
-            ->when($context['is_caretaker'] ?? false, function ($q) use ($context) {
-                $q->where(function ($q2) use ($context) {
+            ->when($isCaretaker, function ($q) use ($viewerId, $allowedPropertyIds) {
+                $q->where(function ($q2) use ($viewerId) {
                     $q2->whereNull('caretaker_id')
-                        ->orWhere('caretaker_id', $context['viewer_id']);
+                        ->orWhere('caretaker_id', $viewerId);
                 });
+
+                if ($allowedPropertyIds !== null) {
+                    $q->whereIn('property_id', $allowedPropertyIds);
+                }
             })
             ->get()
             ->filter(fn (Conversation $conversation) => ! $conversation->isHiddenForUser((int) $ownerId))

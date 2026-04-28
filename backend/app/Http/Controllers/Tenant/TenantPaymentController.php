@@ -152,7 +152,7 @@ class TenantPaymentController extends Controller
             // Total outstanding balance - calculate by summing (amount_cents - successful transactions' sum)
             $pendingInvoices = Invoice::with('transactions')
                 ->where('tenant_id', $tenantId)
-                ->whereIn('status', ['pending', 'partial', 'unpaid', 'overdue'])
+                ->whereIn('status', ['pending', 'partial', 'unpaid', 'overdue', 'pending_verification'])
                 ->where('is_archived', false)
                 ->get();
 
@@ -163,7 +163,7 @@ class TenantPaymentController extends Controller
                     : ($inv->total_cents ?? $inv->amount_cents);
 
                 $totalPaid = $inv->transactions
-                    ->filter(fn($tx) => in_array($tx->status, ['succeeded', 'paid', 'partially_refunded', 'pending_offline']))
+                    ->filter(fn($tx) => in_array($tx->status, ['succeeded', 'paid', 'partially_refunded']))
                     ->sum(fn($tx) => max(0, $tx->amount_cents - ($tx->refunded_amount_cents ?? 0)));
                 
                 $totalRefunded = max(

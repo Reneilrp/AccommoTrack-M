@@ -239,7 +239,7 @@ export default function MessagesPage({ navigation, route }) {
         return (
             <SafeAreaView style={styles.safeArea} edges={['top']}>
                 <View style={styles.loadingContainer}>
-                    <ActivityIndicator size="large" color={theme.colors.primary} />
+                    <ActivityIndicator size="large" color={theme.colors.messagingPrimary} />
                     <Text style={styles.loadingText}>Starting conversation...</Text>
                 </View>
             </SafeAreaView>

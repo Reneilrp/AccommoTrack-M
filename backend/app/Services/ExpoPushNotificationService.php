@@ -19,7 +19,10 @@ class ExpoPushNotificationService
     public function sendToUser(User $user, array $payload): void
     {
         // 1. Check the global toggle first
-        if (! (bool) ($user->push_notifications_enabled ?? true)) {
+        $prefs = $user->notification_preferences ?? [];
+        $enabled = (bool) ($prefs['push'] ?? true);
+
+        if (! $enabled) {
             Log::info("Push notification skipped for user #{$user->id} (Notifications disabled)");
             return;
         }

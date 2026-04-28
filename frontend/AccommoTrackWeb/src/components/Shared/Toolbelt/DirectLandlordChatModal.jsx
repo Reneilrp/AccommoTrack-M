@@ -68,7 +68,7 @@ const DirectLandlordChatModal = ({ isOpen, onClose, user }) => {
       <div className="relative flex flex-col bg-gray-50 dark:bg-gray-900 rounded-2xl shadow-xl w-full max-w-md h-[500px] max-h-[85vh] overflow-hidden">
         {/* Header */}
         <div className="flex items-center gap-3 px-4 py-3 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 shadow-sm shrink-0">
-          <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold">
+          <div className="w-10 h-10 rounded-full bg-messaging-light flex items-center justify-center text-messaging-primary font-bold">
             LL
           </div>
           <div className="flex-1">
@@ -83,7 +83,7 @@ const DirectLandlordChatModal = ({ isOpen, onClose, user }) => {
         {/* Messages */}
         <div className="flex-1 p-4 overflow-y-auto w-full no-scrollbar">
           {isLoading ? (
-            <div className="flex items-center justify-center h-full"><Loader2 className="w-8 h-8 animate-spin text-blue-500" /></div>
+            <div className="flex items-center justify-center h-full"><Loader2 className="w-8 h-8 animate-spin text-messaging-primary" /></div>
           ) : messages.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-center p-4">
               <MessageSquare className="w-12 h-12 text-gray-300 dark:text-gray-600 mb-3" />
@@ -96,7 +96,7 @@ const DirectLandlordChatModal = ({ isOpen, onClose, user }) => {
                 const isMine = Number(msg.actual_sender_id) === Number(userId); 
                 return (
                   <div key={i} className={`flex px-2 ${isMine ? 'justify-end' : 'justify-start'}`}>
-                    <div className={`max-w-[85%] px-4 py-2 text-sm rounded-2xl shadow-sm ${isMine ? 'bg-blue-600 text-white rounded-br-none' : 'bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 border border-gray-100 dark:border-gray-700 rounded-bl-none'}`}>
+                    <div className={`max-w-[85%] px-4 py-2 text-sm rounded-2xl shadow-sm ${isMine ? 'bg-messaging-primary text-white rounded-br-none' : 'bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 border border-gray-100 dark:border-gray-700 rounded-bl-none'}`}>
                       {msg.message}
                     </div>
                   </div>
@@ -127,7 +127,7 @@ const DirectLandlordChatModal = ({ isOpen, onClose, user }) => {
             <button
               type="submit"
               disabled={!messageText.trim() || isLoading || isSending}
-              className="p-3 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 dark:disabled:bg-gray-700 disabled:cursor-not-allowed text-white rounded-full transition-colors shrink-0 flex items-center justify-center shadow-lg shadow-blue-500/30"
+              className="p-3 bg-messaging-primary hover:opacity-90 disabled:bg-gray-300 dark:disabled:bg-gray-700 disabled:cursor-not-allowed text-white rounded-full transition-colors shrink-0 flex items-center justify-center shadow-lg"
             >
               {isSending ? <Loader2 className="w-5 h-5 animate-spin" /> : <MessageSquare className="w-5 h-5 fill-current" />}
             </button>

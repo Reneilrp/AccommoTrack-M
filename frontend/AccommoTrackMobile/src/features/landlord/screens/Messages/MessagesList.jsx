@@ -134,8 +134,8 @@ export default function MessagesList({
                                 paddingVertical: 8,
                                 borderRadius: 999,
                                 borderWidth: 1,
-                                borderColor: !selectedPropertyId ? theme.colors.primary : theme.colors.border,
-                                backgroundColor: !selectedPropertyId ? theme.colors.primary : theme.colors.surface,
+                                borderColor: !selectedPropertyId ? theme.colors.messagingPrimary : theme.colors.border,
+                                backgroundColor: !selectedPropertyId ? theme.colors.messagingPrimary : theme.colors.surface,
                             }}
                             onPress={() => setSelectedPropertyId(null)}
                         >
@@ -154,8 +154,8 @@ export default function MessagesList({
                                         paddingVertical: 8,
                                         borderRadius: 999,
                                         borderWidth: 1,
-                                        borderColor: isActive ? theme.colors.primary : theme.colors.border,
-                                        backgroundColor: isActive ? theme.colors.primary : theme.colors.surface,
+                                        borderColor: isActive ? theme.colors.messagingPrimary : theme.colors.border,
+                                        backgroundColor: isActive ? theme.colors.messagingPrimary : theme.colors.surface,
                                     }}
                                     onPress={() => setSelectedPropertyId(prop.id)}
                                 >
@@ -311,8 +311,8 @@ export default function MessagesList({
                         <RefreshControl 
                             refreshing={refreshing} 
                             onRefresh={onRefresh} 
-                            colors={[theme.colors.primary]} 
-                            tintColor={theme.colors.primary} 
+                            colors={[theme.colors.messagingPrimary]} 
+                            tintColor={theme.colors.messagingPrimary} 
                         />
                     }
                 />
@@ -326,7 +326,7 @@ export default function MessagesList({
                     width: 56,
                     height: 56,
                     borderRadius: 28,
-                    backgroundColor: theme.colors.primary,
+                    backgroundColor: theme.colors.messagingPrimary,
                     justifyContent: 'center',
                     alignItems: 'center',
                     shadowColor: '#000',
@@ -378,8 +378,8 @@ export default function MessagesList({
                                             paddingVertical: 10,
                                             borderRadius: 12,
                                             borderWidth: 1,
-                                            borderColor: isActive ? theme.colors.primary : theme.colors.border,
-                                            backgroundColor: isActive ? theme.colors.primary : theme.colors.backgroundSecondary,
+                                            borderColor: isActive ? theme.colors.messagingPrimary : theme.colors.border,
+                                            backgroundColor: isActive ? theme.colors.messagingPrimary : theme.colors.backgroundSecondary,
                                         }}
                                         onPress={() => setBroadcastTargetPropertyId(prop.id)}
                                         disabled={isSendingBroadcast}
@@ -416,7 +416,7 @@ export default function MessagesList({
 
                         <TouchableOpacity
                             style={{
-                                backgroundColor: theme.colors.primary,
+                                backgroundColor: theme.colors.messagingPrimary,
                                 borderRadius: 16,
                                 paddingVertical: 16,
                                 alignItems: 'center',

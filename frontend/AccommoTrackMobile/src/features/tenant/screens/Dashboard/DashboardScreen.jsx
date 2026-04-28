@@ -278,7 +278,7 @@ const DashboardScreen = () => {
 
     const unpaid = resolvedStays
       .flatMap((stay) => safeArray(stay?.financials?.invoices))
-      .filter((invoice) => ['pending', 'partial', 'overdue', 'unpaid'].includes(String(invoice?.status || '').toLowerCase()))
+      .filter((invoice) => ['pending', 'partial', 'overdue', 'unpaid', 'pending_verification'].includes(String(invoice?.status || '').toLowerCase()))
       .slice(0, 8)
       .map((invoice) => ({
         id: invoice.id,

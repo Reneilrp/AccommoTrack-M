@@ -19,6 +19,10 @@ export default {
           700: '#047857',
           800: '#065f46',
           900: '#064e3b',
+        },
+        messaging: {
+          primary: 'var(--messaging-primary)',
+          light: 'var(--messaging-primary-light)',
         }
       },
       keyframes: {

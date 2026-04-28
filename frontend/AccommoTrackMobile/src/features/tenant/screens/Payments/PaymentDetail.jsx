@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, TextInput, Image } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, TextInput, Image, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
@@ -447,22 +447,52 @@ export default function PaymentDetail() {
   };
 
   const handleProofImagePick = async () => {
-    const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    Alert.alert(
+      'Upload Proof',
+      'Choose a source for your payment proof.',
+      [
+        {
+          text: 'Take Photo',
+          onPress: async () => {
+            const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
+            if (permissionResult.granted === false) {
+              showWarning('Permission required', "You've refused to allow this app to access your camera!");
+              return;
+            }
 
-    if (permissionResult.granted === false) {
-      showWarning('Permission required', "You've refused to allow this app to access your photos!");
-      return;
-    }
+            const result = await ImagePicker.launchCameraAsync({
+              mediaTypes: ImagePicker.MediaTypeOptions.Images,
+              quality: 0.8,
+            });
 
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      quality: 0.8,
-    });
+            if (!result.canceled) {
+              setProofImage(result.assets[0]);
+            }
+          }
+        },
+        {
+          text: 'Choose from Library',
+          onPress: async () => {
+            const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+            if (permissionResult.granted === false) {
+              showWarning('Permission required', "You've refused to allow this app to access your photos!");
+              return;
+            }
 
-    if (!result.canceled) {
-      setProofImage(result.assets[0]);
-    }
+            const result = await ImagePicker.launchImageLibraryAsync({
+              mediaTypes: ImagePicker.MediaTypeOptions.Images,
+              allowsEditing: true,
+              quality: 0.8,
+            });
+
+            if (!result.canceled) {
+              setProofImage(result.assets[0]);
+            }
+          }
+        },
+        { text: 'Cancel', style: 'cancel' }
+      ]
+    );
   };
 
   const handleOfflinePayment = async (method) => {

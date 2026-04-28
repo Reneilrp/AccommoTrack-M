@@ -35,7 +35,7 @@ class TenantDashboardService
                 $q->whereIn('status', ['succeeded', 'paid', 'partially_refunded', 'refunded']);
             }])
                 ->where('tenant_id', $tenantId)
-                ->whereIn('status', ['pending', 'partial', 'overdue'])
+                ->whereIn('status', ['pending', 'partial', 'overdue', 'pending_verification'])
                 ->get();
 
             $monthlyDueCents = 0;
@@ -56,7 +56,7 @@ class TenantDashboardService
                     }
                 }
 
-                if ($inv->status === 'pending') {
+                if ($inv->status === 'pending' || $inv->status === 'pending_verification') {
                     $countPending++;
                 } elseif ($inv->status === 'partial') {
                     $countPartial++;
@@ -77,7 +77,7 @@ class TenantDashboardService
 
             // 4. Latest unpaid invoice
             $latestUnpaidInvoice = Invoice::where('tenant_id', $tenantId)
-                ->whereIn('status', ['pending', 'partial', 'overdue'])
+                ->whereIn('status', ['pending', 'partial', 'overdue', 'pending_verification'])
                 ->orderBy('due_date', 'asc')
                 ->first();
 

@@ -372,7 +372,7 @@ export default function MessagesPage({ navigation, route }) {
     if (startConversationMutation.isPending) {
         return (
             <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color={theme.colors.primary} />
+                <ActivityIndicator size="large" color={theme.colors.messagingPrimary} />
                 <Text style={styles.loadingText}>Starting conversation...</Text>
             </View>
         );

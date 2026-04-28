@@ -547,7 +547,7 @@ export default function ChatScreen({ navigation, route }) {
                 <StatusBar barStyle="light-content" />
 
                 {/* Chat Header */}
-                <View style={[styles.chatScreenHeader, { backgroundColor: theme.colors.primary }]}>
+                <View style={[styles.chatScreenHeader, { backgroundColor: theme.colors.messagingPrimary }]}>
                     <TouchableOpacity
                         onPress={() => navigation.goBack()}
                         style={styles.backButton}
@@ -605,11 +605,11 @@ export default function ChatScreen({ navigation, route }) {
                     showsVerticalScrollIndicator={false}
                     keyboardShouldPersistTaps="handled"
                     keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
-                    refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[theme.colors.primary]} tintColor={theme.colors.primary} />}
+                    refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[theme.colors.messagingPrimary]} tintColor={theme.colors.messagingPrimary} />}
                 >
                     {conv?.property && (
                         <View style={[styles.propertyCard, { backgroundColor: theme.colors.surface }]}>
-                            <Ionicons name="home-outline" size={24} color={theme.colors.primary} />
+                            <Ionicons name="home-outline" size={24} color={theme.colors.messagingPrimary} />
                             <View style={styles.propertyCardInfo}>
                                 <Text style={[styles.propertyCardTitle, { color: theme.colors.text }]}>{conv.property.title}</Text>
                                 <Text style={[styles.propertyCardSubtitle, { color: theme.colors.textSecondary }]}>Conversation about this property</Text>
@@ -619,7 +619,7 @@ export default function ChatScreen({ navigation, route }) {
 
                     {isLoading ? (
                         <View style={{ flex: 1, justifyContent: 'center', paddingVertical: 40 }}>
-                            <ActivityIndicator size="large" color={theme.colors.primary} />
+                            <ActivityIndicator size="large" color={theme.colors.messagingPrimary} />
                         </View>
                     ) : orderedMessages.length === 0 ? (
                         <View style={styles.emptyMessagesContainer}>
@@ -699,7 +699,7 @@ export default function ChatScreen({ navigation, route }) {
                                 <View key={msg.id} style={[styles.messageWrapper, isMine ? styles.myMessageWrapper : styles.theirMessageWrapper]}>
                                     <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
                                         {!isMine && (
-                                            <View style={{ width: 32, height: 32, borderRadius: 16, overflow: 'hidden', backgroundColor: theme.colors.primaryLight, marginRight: 8, marginTop: 2 }}>
+                                            <View style={{ width: 32, height: 32, borderRadius: 16, overflow: 'hidden', backgroundColor: theme.colors.messagingPrimaryLight, marginRight: 8, marginTop: 2 }}>
                                                 {incomingAvatarPath ? (
                                                     <Image
                                                         source={{ uri: getImageUrl(incomingAvatarPath) }}
@@ -708,7 +708,7 @@ export default function ChatScreen({ navigation, route }) {
                                                     />
                                                 ) : (
                                                     <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-                                                        <Text style={{ color: theme.colors.primary, fontWeight: '700', fontSize: 12 }}>{incomingInitials}</Text>
+                                                        <Text style={{ color: theme.colors.messagingPrimary, fontWeight: '700', fontSize: 12 }}>{incomingInitials}</Text>
                                                     </View>
                                                 )}
                                             </View>
@@ -750,10 +750,10 @@ export default function ChatScreen({ navigation, route }) {
                                                                   padding: 8,
                                                                   borderRadius: 6,
                                                                   borderLeftWidth: 3,
-                                                                  borderLeftColor: theme.colors.primary,
+                                                                  borderLeftColor: theme.colors.messagingPrimary,
                                                                   marginBottom: 8
                                                               }}>
-                                                                  <Text style={{ fontSize: 10, fontWeight: 'bold', color: isMine ? '#FFF' : theme.colors.primary, marginBottom: 2 }}>
+                                                                  <Text style={{ fontSize: 10, fontWeight: 'bold', color: isMine ? '#FFF' : theme.colors.messagingPrimary, marginBottom: 2 }}>
                                                                       {String(replyingToMessage.sender_id) === String(currentUserId) ? 'You' : (replyingToMessage.sender?.first_name || 'Someone')}
                                                                   </Text>
                                                                   <Text style={{ fontSize: 11, color: isMine ? '#EEE' : theme.colors.textSecondary }} numberOfLines={2}>
@@ -779,7 +779,7 @@ export default function ChatScreen({ navigation, route }) {
                                                                       <Ionicons
                                                                           name={(msg.file_url || msg.file_path).toLowerCase().endsWith('.pdf') ? 'document-text' : 'document'}
                                                                           size={24}
-                                                                          color={theme.colors.primary}
+                                                                          color={theme.colors.messagingPrimary}
                                                                       />
                                                                   </View>
                                                                   <View style={styles.fileInfo}>
@@ -792,7 +792,7 @@ export default function ChatScreen({ navigation, route }) {
                                                               </TouchableOpacity>
                                                           )}
                                                           {msg.message ? (
-                                                              <View style={[(msg.image_url || msg.image_path || msg.file_url || msg.file_path) ? { padding: 10, backgroundColor: isMine ? theme.colors.primary : '#fff', borderRadius: 10, marginTop: 4 } : null]}>                                                                <Text style={[styles.messageText, isMine ? styles.myMessageText : styles.theirMessageText]}>{msg.message}</Text>
+                                                              <View style={[(msg.image_url || msg.image_path || msg.file_url || msg.file_path) ? { padding: 10, backgroundColor: isMine ? theme.colors.messagingPrimary : '#fff', borderRadius: 10, marginTop: 4 } : null]}>                                                                <Text style={[styles.messageText, isMine ? styles.myMessageText : styles.theirMessageText]}>{msg.message}</Text>
                                                                 {msg.is_edited && (
                                                                     <TouchableOpacity onPress={() => setHistoryViewingMessage(msg)}>
                                                                         <Text style={{ fontSize: 9, color: isMine ? 'rgba(255,255,255,0.7)' : theme.colors.textSecondary, marginLeft: 4, fontWeight: 'bold', textDecorationLine: 'underline' }}>
@@ -837,7 +837,7 @@ export default function ChatScreen({ navigation, route }) {
                                 <Ionicons
                                     name={selectedFile.name.toLowerCase().endsWith('.pdf') ? 'document-text' : 'document'}
                                     size={32}
-                                    color={theme.colors.primary}
+                                    color={theme.colors.messagingPrimary}
                                 />
                                 <Text style={styles.attachmentPreviewFileName} numberOfLines={1}>{selectedFile.name}</Text>
                             </View>
@@ -856,9 +856,9 @@ export default function ChatScreen({ navigation, route }) {
 
                 {/* Reply Preview */}
                 {replyingTo && (
-                    <View style={[{ padding: 12, backgroundColor: theme.colors.backgroundSecondary, borderTopWidth: 1, borderTopColor: theme.colors.border, borderLeftWidth: 4, borderLeftColor: theme.colors.primary, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }, contentWrapStyle]}>
+                    <View style={[{ padding: 12, backgroundColor: theme.colors.backgroundSecondary, borderTopWidth: 1, borderTopColor: theme.colors.border, borderLeftWidth: 4, borderLeftColor: theme.colors.messagingPrimary, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }, contentWrapStyle]}>
                         <View style={{ flex: 1 }}>
-                            <Text style={{ fontSize: 10, fontWeight: 'bold', color: theme.colors.primary, textTransform: 'uppercase' }}>
+                            <Text style={{ fontSize: 10, fontWeight: 'bold', color: theme.colors.messagingPrimary, textTransform: 'uppercase' }}>
                                 Replying to {replyingTo.sender?.first_name || 'User'}
                             </Text>
                             <Text style={{ fontSize: 12, color: theme.colors.textSecondary }} numberOfLines={1}>
@@ -873,9 +873,9 @@ export default function ChatScreen({ navigation, route }) {
 
                 {/* Edit Preview */}
                 {editingMessage && (
-                    <View style={[{ padding: 12, backgroundColor: theme.colors.backgroundSecondary, borderTopWidth: 1, borderTopColor: theme.colors.border, borderLeftWidth: 4, borderLeftColor: theme.colors.primary, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }, contentWrapStyle]}>
+                    <View style={[{ padding: 12, backgroundColor: theme.colors.backgroundSecondary, borderTopWidth: 1, borderTopColor: theme.colors.border, borderLeftWidth: 4, borderLeftColor: theme.colors.messagingPrimary, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }, contentWrapStyle]}>
                         <View style={{ flex: 1 }}>
-                            <Text style={{ fontSize: 10, fontWeight: 'bold', color: theme.colors.primary, textTransform: 'uppercase' }}>Editing Message</Text>
+                            <Text style={{ fontSize: 10, fontWeight: 'bold', color: theme.colors.messagingPrimary, textTransform: 'uppercase' }}>Editing Message</Text>
                             <Text style={{ fontSize: 12, color: theme.colors.textSecondary }} numberOfLines={1}>{editingMessage.message}</Text>
                         </View>
                         <TouchableOpacity onPress={() => {
@@ -900,10 +900,10 @@ export default function ChatScreen({ navigation, route }) {
                     ]}
                 >
                     <TouchableOpacity style={styles.attachButton} activeOpacity={0.7} onPress={handlePickImage}>
-                        <Ionicons name="camera" size={26} color={theme.colors.primary} />
+                        <Ionicons name="camera" size={26} color={theme.colors.messagingPrimary} />
                     </TouchableOpacity>
                     <TouchableOpacity style={styles.attachButton} activeOpacity={0.7} onPress={handlePickDocument}>
-                        <Ionicons name="attach" size={28} color={theme.colors.primary} />
+                        <Ionicons name="attach" size={28} color={theme.colors.messagingPrimary} />
                     </TouchableOpacity>
                     <TextInput
                         ref={inputRef}
@@ -915,7 +915,7 @@ export default function ChatScreen({ navigation, route }) {
                         multiline
                     />
                     <TouchableOpacity
-                        style={[styles.sendButton, (!messageText.trim() && !selectedImage || sendMessageMutation.isPending || editMessageMutation.isPending) && styles.sendButtonDisabled, !(!messageText.trim() && !selectedImage || sendMessageMutation.isPending || editMessageMutation.isPending) && { backgroundColor: editingMessage ? (theme.colors.success || '#10B981') : theme.colors.primary }]}
+                        style={[styles.sendButton, (!messageText.trim() && !selectedImage || sendMessageMutation.isPending || editMessageMutation.isPending) && styles.sendButtonDisabled, !(!messageText.trim() && !selectedImage || sendMessageMutation.isPending || editMessageMutation.isPending) && { backgroundColor: editingMessage ? (theme.colors.success || '#10B981') : theme.colors.messagingPrimary }]}
                         onPress={handleSendMessage}
                         disabled={(!messageText.trim() && !selectedImage) || sendMessageMutation.isPending || editMessageMutation.isPending}
                     >
@@ -957,7 +957,7 @@ export default function ChatScreen({ navigation, route }) {
 
                     <ScrollView style={styles.detailsContent} contentContainerStyle={{ paddingBottom: 20 }}>
                         <View style={[styles.detailsIdentityCard, { borderColor: theme.colors.border, backgroundColor: theme.colors.backgroundSecondary }]}>
-                            <View style={[styles.detailsAvatarLarge, { backgroundColor: theme.colors.primaryLight }]}>
+                            <View style={[styles.detailsAvatarLarge, { backgroundColor: theme.colors.messagingPrimaryLight }]}>
                                 {conv?.other_user?.profile_image ? (
                                     <Image
                                         source={{ uri: getImageUrl(conv.other_user.profile_image) }}
@@ -965,7 +965,7 @@ export default function ChatScreen({ navigation, route }) {
                                         resizeMode="cover"
                                     />
                                 ) : (
-                                    <Text style={[styles.chatHeaderAvatarText, { color: theme.colors.primary }]}>{getInitials(conv)}</Text>
+                                    <Text style={[styles.chatHeaderAvatarText, { color: theme.colors.messagingPrimary }]}>{getInitials(conv)}</Text>
                                 )}
                             </View>
                             <Text style={[styles.detailsIdentityName, { color: theme.colors.text }]}>{displayParticipantName}</Text>
@@ -1024,11 +1024,11 @@ export default function ChatScreen({ navigation, route }) {
                                                 ]}
                                                 onPress={() => Linking.openURL(getImageUrl(item.file_path))}
                                             >
-                                                <View style={[styles.fileIconContainer, { backgroundColor: isPdf ? 'rgba(239,68,68,0.12)' : theme.colors.primaryLight }]}>
+                                                <View style={[styles.fileIconContainer, { backgroundColor: isPdf ? 'rgba(239,68,68,0.12)' : theme.colors.messagingPrimaryLight }]}>
                                                     <Ionicons
                                                         name={isPdf ? 'document-text' : 'document'}
                                                         size={20}
-                                                        color={isPdf ? '#EF4444' : theme.colors.primary}
+                                                        color={isPdf ? '#EF4444' : theme.colors.messagingPrimary}
                                                     />
                                                 </View>
                                                 <View style={styles.fileInfo}>
@@ -1116,7 +1116,7 @@ export default function ChatScreen({ navigation, route }) {
                             <View style={{ padding: 16, borderTopWidth: 1, borderTopColor: theme.colors.border }}>
                                 <TouchableOpacity
                                     onPress={() => setHistoryViewingMessage(null)}
-                                    style={{ backgroundColor: theme.colors.primary, padding: 12, borderRadius: 10, alignItems: 'center' }}
+                                    style={{ backgroundColor: theme.colors.messagingPrimary, padding: 12, borderRadius: 10, alignItems: 'center' }}
                                 >
                                     <Text style={{ color: '#FFF', fontWeight: 'bold' }}>Close</Text>
                                 </TouchableOpacity>

@@ -68,6 +68,10 @@ export const lightTheme = {
     purple: '#9333ea', // purple-600
     purpleLight: '#e9d5ff', // purple-100
     
+    // Messaging colors
+    messagingPrimary: '#34C759',
+    messagingPrimaryLight: '#d1fae5',
+    
     // Card shadows
     shadow: 'rgba(0, 0, 0, 0.1)',
     shadowDark: 'rgba(0, 0, 0, 0.2)',
@@ -133,6 +137,10 @@ export const darkTheme = {
     // Additional colors used in web app
     purple: '#9333ea', // purple-600
     purpleLight: '#581c87', // purple-900 (dark mode)
+    
+    // Messaging colors
+    messagingPrimary: '#30D158',
+    messagingPrimaryLight: '#064e3b',
     
     // Card shadows
     shadow: 'rgba(0, 0, 0, 0.3)',

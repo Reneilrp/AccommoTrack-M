@@ -147,8 +147,8 @@ const ChatArea = ({
       {/* Chat Header */}
       <div className="bg-white dark:bg-gray-800 border-b border-gray-300 dark:border-gray-700 p-4 flex items-center justify-between z-10 shadow-sm">
         <div className="flex items-center gap-4">
-          <div className="w-10 h-10 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center">
-            <span className="text-green-600 dark:text-green-400 font-semibold">
+          <div className="w-10 h-10 bg-messaging-light rounded-full flex items-center justify-center">
+            <span className="text-messaging-primary font-semibold">
               {getInitials(selectedChat.other_user)}
             </span>
           </div>
@@ -192,7 +192,7 @@ const ChatArea = ({
             <button
               onClick={onLoadMore}
               disabled={loadingMore}
-              className="px-4 py-1.5 text-xs font-bold text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20 rounded-full hover:bg-green-100 dark:hover:bg-green-900/40 transition-colors disabled:opacity-50"
+              className="px-4 py-1.5 text-xs font-bold text-messaging-primary bg-messaging-light rounded-full hover:opacity-80 transition-colors disabled:opacity-50"
             >
               {loadingMore ? <Loader2 className="w-3 h-3 animate-spin mx-auto" /> : 'Load previous messages'}
             </button>
@@ -240,7 +240,7 @@ const ChatArea = ({
               >
                 <div className="flex items-start gap-2">
                   {!isMine && (
-                    <div className="w-8 h-8 mt-0.5 rounded-full bg-green-100 dark:bg-green-900/30 overflow-hidden border border-gray-200 dark:border-gray-700 flex-shrink-0">
+                    <div className="w-8 h-8 mt-0.5 rounded-full bg-messaging-light overflow-hidden border border-gray-200 dark:border-gray-700 flex-shrink-0">
                       {incomingAvatarUrl ? (
                         <img
                           src={incomingAvatarUrl}
@@ -248,7 +248,7 @@ const ChatArea = ({
                           className="w-full h-full object-cover"
                         />
                       ) : (
-                        <span className="w-full h-full flex items-center justify-center text-[11px] font-semibold text-green-600 dark:text-green-400 uppercase">
+                        <span className="w-full h-full flex items-center justify-center text-[11px] font-semibold text-messaging-primary uppercase">
                           {incomingInitials}
                         </span>
                       )}
@@ -269,7 +269,7 @@ const ChatArea = ({
                               setReplyingTo(null);
                               setMessageText(msg.message);
                             }}
-                            className="p-1.5 hover:text-green-500 transition-colors"
+                            className="p-1.5 hover:text-messaging-primary transition-colors"
                             title="Edit"
                           >
                             <Pencil className="w-3.5 h-3.5" />
@@ -293,14 +293,14 @@ const ChatArea = ({
                           : isMine
                             ? isImageOnly
                               ? 'p-0 bg-transparent shadow-none'
-                              : 'px-4 py-2 bg-green-600 dark:bg-green-700 text-white rounded-tr-none shadow-sm'
+                              : 'px-4 py-2 bg-messaging-primary text-white rounded-tr-none shadow-sm'
                             : isImageOnly
                               ? 'p-0 bg-transparent shadow-none'
                               : 'px-4 py-2 bg-white dark:bg-gray-800 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-700 rounded-tl-none shadow-sm'
                           }`}
                       >
                         {replyTo && !isUnsent && (
-                          <div className={`mb-2 p-2 rounded-lg text-xs border-l-4 ${isMine ? 'bg-green-700/50 border-green-300 text-green-50' : 'bg-gray-100 dark:bg-gray-700 border-green-500 text-gray-600 dark:text-gray-300'}`}>
+                          <div className={`mb-2 p-2 rounded-lg text-xs border-l-4 ${isMine ? 'bg-black/20 border-white/40 text-white/90' : 'bg-gray-100 dark:bg-gray-700 border-messaging-primary text-gray-600 dark:text-gray-300'}`}>
                             <p className="font-bold mb-0.5">{replyTo.sender_name}</p>
                             <p className="line-clamp-1 opacity-80">{replyTo.message}</p>
                           </div>
@@ -322,12 +322,12 @@ const ChatArea = ({
                             {msg.file_url && (
                               <div
                                 className={`mb-2 p-3 rounded-xl border flex items-center gap-2 cursor-pointer hover:opacity-90 transition-opacity w-full max-w-[260px] overflow-hidden ${isMine
-                                  ? 'bg-green-700/30 border-green-500 text-white'
+                                  ? 'bg-black/20 border-white/20 text-white'
                                   : 'bg-gray-50 dark:bg-gray-800/50 border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white'
                                   }`}
                                 onClick={() => window.open(msg.download_url || msg.file_url, '_blank')}
                               >
-                                <div className={`p-2 rounded-lg flex-shrink-0 ${isMine ? 'bg-green-500' : 'bg-blue-500'} text-white`}>
+                                <div className={`p-2 rounded-lg flex-shrink-0 ${isMine ? 'bg-messaging-primary' : 'bg-blue-500'} text-white`}>
                                   <FileText className="w-5 h-5" />
                                 </div>
                                 <div className="flex-1 min-w-0 overflow-hidden">
@@ -347,7 +347,7 @@ const ChatArea = ({
                                 {isEdited && (
                                   <button
                                     onClick={() => setViewingHistory(msg)}
-                                    className={`text-[9px] uppercase font-bold tracking-tighter opacity-70 hover:opacity-100 transition-opacity underline cursor-pointer ${isMine ? 'text-green-100' : 'text-gray-400'}`}
+                                    className={`text-[9px] uppercase font-bold tracking-tighter opacity-70 hover:opacity-100 transition-opacity underline cursor-pointer ${isMine ? 'text-white/70' : 'text-gray-400'}`}
                                   >
                                     (edited)
                                   </button>
@@ -362,7 +362,7 @@ const ChatArea = ({
                         <div className="opacity-0 group-hover/msg:opacity-100 flex items-center bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-full shadow-sm border border-gray-200 dark:border-gray-700 transition-all">
                           <button
                             onClick={() => setReplyingTo(msg)}
-                            className="p-1.5 hover:text-blue-500 transition-colors"
+                            className="p-1.5 hover:text-messaging-primary transition-colors"
                             title="Reply"
                           >
                             <Reply className="w-3.5 h-3.5" />
@@ -398,7 +398,7 @@ const ChatArea = ({
         {/* Image Preview */}
         {imagePreview && (
           <div className="mb-4 relative inline-block">
-            <div className="relative rounded-xl overflow-hidden border-2 border-green-500 shadow-lg animate-in zoom-in duration-200">
+            <div className="relative rounded-xl overflow-hidden border-2 border-messaging-primary shadow-lg animate-in zoom-in duration-200">
               <img src={imagePreview} alt="Preview" className="h-32 w-auto object-cover" />
               <button
                 onClick={removeSelectedImage}
@@ -413,9 +413,9 @@ const ChatArea = ({
         {/* File Preview */}
         {selectedFile && (
           <div className="mb-4 relative inline-block">
-            <div className={`p-4 rounded-xl border-2 border-green-500 bg-white dark:bg-gray-800 shadow-lg animate-in zoom-in duration-200 flex items-center gap-3`}>
-              <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-lg">
-                <FileText className="w-6 h-6 text-green-600" />
+            <div className={`p-4 rounded-xl border-2 border-messaging-primary bg-white dark:bg-gray-800 shadow-lg animate-in zoom-in duration-200 flex items-center gap-3`}>
+              <div className="p-2 bg-messaging-light rounded-lg">
+                <FileText className="w-6 h-6 text-messaging-primary" />
               </div>
               <div className="max-w-[150px]">
                 <p className="text-sm font-bold text-gray-900 dark:text-white truncate">{selectedFile.name}</p>
@@ -434,9 +434,9 @@ const ChatArea = ({
 
         {/* Reply Preview */}
         {replyingTo && (
-          <div className="mb-4 p-3 bg-gray-50 dark:bg-gray-900/50 border-l-4 border-green-500 rounded-r-xl flex items-center justify-between animate-in slide-in-from-bottom-2 duration-200">
+          <div className="mb-4 p-3 bg-gray-50 dark:bg-gray-900/50 border-l-4 border-messaging-primary rounded-r-xl flex items-center justify-between animate-in slide-in-from-bottom-2 duration-200">
             <div className="flex-1 min-w-0">
-              <p className="text-[10px] font-bold text-green-600 dark:text-green-400 uppercase tracking-wider">Replying to {replyingTo.sender?.first_name}</p>
+              <p className="text-[10px] font-bold text-messaging-primary uppercase tracking-wider">Replying to {replyingTo.sender?.first_name}</p>
               <p className="text-xs text-gray-600 dark:text-gray-400 truncate">{replyingTo.message}</p>
             </div>
             <button onClick={() => setReplyingTo(null)} className="p-1 hover:bg-gray-200 dark:hover:bg-gray-800 rounded-full transition-colors ml-2">
@@ -447,9 +447,9 @@ const ChatArea = ({
 
         {/* Edit Mode Indicator */}
         {editingMessage && (
-          <div className="mb-4 p-3 bg-green-50 dark:bg-green-900/20 border-l-4 border-green-600 rounded-r-xl flex items-center justify-between animate-in slide-in-from-bottom-2 duration-200">
+          <div className="mb-4 p-3 bg-messaging-light border-l-4 border-messaging-primary rounded-r-xl flex items-center justify-between animate-in slide-in-from-bottom-2 duration-200">
             <div className="flex-1 min-w-0">
-              <p className="text-[10px] font-bold text-green-700 dark:text-green-400 uppercase tracking-wider">Editing Message</p>
+              <p className="text-[10px] font-bold text-messaging-primary uppercase tracking-wider">Editing Message</p>
               <p className="text-xs text-gray-600 dark:text-gray-400 truncate italic">{editingMessage.message}</p>
             </div>
             <button
@@ -457,9 +457,9 @@ const ChatArea = ({
                 setEditingMessage(null);
                 setMessageText('');
               }}
-              className="p-1 hover:bg-green-100 dark:hover:bg-green-900/40 rounded-full transition-colors ml-2"
+              className="p-1 hover:bg-black/10 rounded-full transition-colors ml-2"
             >
-              <X className="w-4 h-4 text-green-600" />
+              <X className="w-4 h-4 text-messaging-primary" />
             </button>
           </div>
         )}
@@ -508,14 +508,14 @@ const ChatArea = ({
                 }
               }}
               placeholder={caretakerMessagingRestricted ? 'Messaging disabled' : 'Type a message...'}
-              className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-2xl focus:ring-2 focus:ring-green-500 focus:border-transparent dark:bg-gray-700 dark:text-white text-sm resize-none scrollbar-hide max-h-32 leading-relaxed"
+              className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-2xl focus:ring-2 focus:ring-messaging-primary focus:border-transparent dark:bg-gray-700 dark:text-white text-sm resize-none scrollbar-hide max-h-32 leading-relaxed"
               disabled={!canSendMessages}
             />
           </div>
           <button
             onClick={editingMessage ? handleEditMessage : handleSendMessage}
             disabled={!canSendMessages || sendingMessage || (!messageText.trim() && !imagePreview && !selectedFile)}
-            className={`p-2.5 rounded-full transition-all shadow-md active:scale-95 disabled:opacity-50 disabled:active:scale-100 flex-shrink-0 ${editingMessage ? 'bg-green-700 hover:bg-green-800' : 'bg-green-600 hover:bg-green-700'} text-white`}
+            className={`p-2.5 rounded-full transition-all shadow-md active:scale-95 disabled:opacity-50 disabled:active:scale-100 flex-shrink-0 bg-messaging-primary hover:opacity-90 text-white`}
           >
             {sendingMessage ? (
               <Loader2 className="w-5 h-5 animate-spin" />
@@ -606,7 +606,7 @@ const ChatArea = ({
                           {userPreferences.map((pref) => (
                             <span
                               key={pref}
-                              className="px-2.5 py-1.5 rounded-full bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-xs font-semibold"
+                              className="px-2.5 py-1.5 rounded-full bg-messaging-light text-messaging-primary text-xs font-semibold"
                             >
                               {pref}
                             </span>
@@ -772,8 +772,8 @@ const ChatArea = ({
                 </button>
               </div>
               <div className="p-4 max-h-[60vh] overflow-y-auto space-y-4">
-                <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded-xl border border-green-100 dark:border-green-800/30">
-                  <p className="text-[10px] font-bold text-green-600 dark:text-green-400 uppercase mb-1">Current Version</p>
+                <div className="p-3 bg-messaging-light rounded-xl border border-messaging-primary/20">
+                  <p className="text-[10px] font-bold text-messaging-primary uppercase mb-1">Current Version</p>
                   <p className="text-sm text-gray-900 dark:text-white">{viewingHistory.message}</p>
                 </div>
 

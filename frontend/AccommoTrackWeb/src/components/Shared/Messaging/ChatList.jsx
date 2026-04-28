@@ -45,20 +45,20 @@ const ChatList = ({
               placeholder="Search messages..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent dark:bg-gray-700 dark:text-white text-sm"
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-messaging-primary focus:border-transparent dark:bg-gray-700 dark:text-white text-sm"
             />
           </div>
           <button
             onClick={() => setShowFilters(!showFilters)}
             className={`relative p-2 border rounded-lg transition-colors ${
               showFilters || activeFiltersCount > 0
-                ? 'bg-green-50 border-green-500 text-green-600'
+                ? 'bg-messaging-light border-messaging-primary text-messaging-primary'
                 : 'border-gray-300 text-gray-600 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-400'
             }`}
           >
             <Filter className="w-5 h-5" />
             {activeFiltersCount > 0 && (
-              <span className="absolute -top-1 -right-1 w-4 h-4 bg-green-600 text-white text-xs rounded-full flex items-center justify-center">
+              <span className="absolute -top-1 -right-1 w-4 h-4 bg-messaging-primary text-white text-xs rounded-full flex items-center justify-center">
                 {activeFiltersCount}
               </span>
             )}
@@ -73,7 +73,7 @@ const ChatList = ({
               {activeFiltersCount > 0 && (
                 <button
                   onClick={clearFilters}
-                  className="text-xs text-green-600 hover:text-green-700 flex items-center gap-2"
+                  className="text-xs text-messaging-primary hover:opacity-80 flex items-center gap-2"
                 >
                   <X className="w-3 h-3" />
                   Clear all
@@ -87,7 +87,7 @@ const ChatList = ({
                 <select
                   value={filterProperty}
                   onChange={(e) => setFilterProperty(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent appearance-none bg-white dark:bg-gray-700 text-sm dark:text-white"
+                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-messaging-primary focus:border-transparent appearance-none bg-white dark:bg-gray-700 text-sm dark:text-white"
                 >
                   <option value="">All Properties</option>
                   {propertyOptions.map((prop) => (
@@ -128,12 +128,12 @@ const ChatList = ({
               key={conv.id}
               onClick={() => setSelectedChat(conv)}
               className={`w-full p-4 flex items-start gap-4 border-b border-gray-300 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors ${
-                selectedChat?.id === conv.id ? 'bg-green-50 dark:bg-green-900/30' : ''
+                selectedChat?.id === conv.id ? 'bg-messaging-light' : ''
               }`}
             >
               <div className="relative">
-                <div className="w-12 h-12 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center flex-shrink-0">
-                  <span className="text-green-600 dark:text-green-400 font-semibold">
+                <div className="w-12 h-12 bg-messaging-light rounded-full flex items-center justify-center flex-shrink-0">
+                  <span className="text-messaging-primary font-semibold">
                     {getInitials(conv.other_user)}
                   </span>
                 </div>

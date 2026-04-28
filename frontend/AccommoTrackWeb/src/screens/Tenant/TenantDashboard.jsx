@@ -241,7 +241,7 @@ const TenantDashboard = () => {
           status: (invoice?.status || 'pending').toLowerCase(),
         };
       }).sort((a, b) => {
-        const rank = { overdue: 0, partial: 1, pending: 2 };
+        const rank = { overdue: 0, partial: 1, pending: 2, pending_verification: 3 };
         if ((rank[a.status] ?? 99) !== (rank[b.status] ?? 99)) {
           return (rank[a.status] ?? 99) - (rank[b.status] ?? 99);
         }
@@ -257,7 +257,7 @@ const TenantDashboard = () => {
         const roomColor = ROOM_COLORS[idx % ROOM_COLORS.length];
 
         return invoices
-          .filter((invoice) => ['pending', 'partial', 'overdue'].includes((invoice?.status || '').toLowerCase()))
+          .filter((invoice) => ['pending', 'partial', 'overdue', 'pending_verification'].includes((invoice?.status || '').toLowerCase()))
           .map((invoice) => {
             const transactions = Array.isArray(invoice?.transactions) ? invoice.transactions : [];
             const paidByTransactions = transactions
@@ -281,7 +281,7 @@ const TenantDashboard = () => {
           });
       })
       .sort((a, b) => {
-        const rank = { overdue: 0, partial: 1, pending: 2 };
+        const rank = { overdue: 0, partial: 1, pending: 2, pending_verification: 3 };
         if ((rank[a.status] ?? 99) !== (rank[b.status] ?? 99)) {
           return (rank[a.status] ?? 99) - (rank[b.status] ?? 99);
         }

@@ -8,9 +8,9 @@ import { useAuthStore } from '../stores/auth/authStore.js';
 const DEVICE_PUSH_TOKEN_STORAGE_KEY = 'device_push_token';
 const REGISTERED_PUSH_TOKEN_PREFIX = 'registered_push_token';
 const EXTENSION_REMINDER_PREFIX = 'extension_one_day_reminder';
-const isTestEnv = process.env.NODE_ENV === 'test' || Boolean(process.env.JEST_WORKER_ID);
 
-if (!isTestEnv && typeof Notifications?.setNotificationHandler === 'function') {
+// Initialize notification handler
+if (typeof Notifications?.setNotificationHandler === 'function') {
   Notifications.setNotificationHandler({
     handleNotification: async () => ({
       shouldShowAlert: true,
@@ -34,12 +34,13 @@ const resolveExpoProjectId = () => {
 };
 
 export const registerDevicePushToken = async () => {
-  if (isTestEnv) {
-    return { success: false, data: null, error: 'Test environment' };
-  }
-
   if (!useAuthStore.getState().authToken) {
     return { success: false, data: null, error: 'Not authenticated' };
+  }
+
+  // Safety check for non-native environments or incomplete polyfills
+  if (typeof Notifications?.getPermissionsAsync !== 'function') {
+    return { success: false, data: null, error: 'Notifications not supported' };
   }
 
   try {
@@ -55,7 +56,7 @@ export const registerDevicePushToken = async () => {
     const existingPermission = await Notifications.getPermissionsAsync();
     let finalStatus = existingPermission?.status;
 
-    if (finalStatus !== 'granted') {
+    if (finalStatus !== 'granted' && typeof Notifications?.requestPermissionsAsync === 'function') {
       const requestedPermission = await Notifications.requestPermissionsAsync();
       finalStatus = requestedPermission?.status;
     }
@@ -94,19 +95,18 @@ export const registerDevicePushToken = async () => {
     }
     return res;
   } catch (error) {
-    console.warn('[PushNotificationService] Failed to register Expo push token:', error?.message || error);
+    if (process.env.NODE_ENV !== 'test') {
+      console.warn('[PushNotificationService] Failed to register Expo push token:', error?.message || error);
+    }
     return normalizeError(error);
   }
 };
 
 export const unregisterCurrentDevicePushToken = async () => {
-  if (isTestEnv) {
-    return { success: false, data: null, error: 'Test environment' };
-  }
-
   try {
     const registrationCacheKey = getRegistrationCacheKey();
     const storedToken = await AsyncStorage.getItem(DEVICE_PUSH_TOKEN_STORAGE_KEY);
+    
     if (!storedToken) {
       await AsyncStorage.removeItem(registrationCacheKey);
       return { success: true, data: null, error: null };
@@ -129,14 +129,20 @@ export const unregisterCurrentDevicePushToken = async () => {
 
     return normalizeResponse(response);
   } catch (error) {
-    console.warn('[PushNotificationService] Failed to unregister Expo push token:', error?.message || error);
+    if (process.env.NODE_ENV !== 'test') {
+      console.warn('[PushNotificationService] Failed to unregister Expo push token:', error?.message || error);
+    }
     return normalizeError(error);
   }
 };
 
 export const sendOneDayExtensionReminder = async ({ bookingId, propertyTitle, endDate }) => {
-  if (isTestEnv || !bookingId) {
-    return { success: false, data: null, error: 'Invalid environment or booking ID' };
+  if (!bookingId) {
+    return { success: false, data: null, error: 'Booking ID is required' };
+  }
+
+  if (typeof Notifications?.scheduleNotificationAsync !== 'function') {
+    return { success: false, data: null, error: 'Notifications not supported' };
   }
 
   try {
@@ -179,7 +185,9 @@ export const sendOneDayExtensionReminder = async ({ bookingId, propertyTitle, en
     await AsyncStorage.setItem(cacheKey, '1');
     return { success: true, data: true, error: null };
   } catch (error) {
-    console.warn('[PushNotificationService] Failed to send one-day extension reminder:', error?.message || error);
+    if (process.env.NODE_ENV !== 'test') {
+      console.warn('[PushNotificationService] Failed to send one-day extension reminder:', error?.message || error);
+    }
     return { success: false, data: null, error: error?.message || 'Failed to send reminder' };
   }
 };

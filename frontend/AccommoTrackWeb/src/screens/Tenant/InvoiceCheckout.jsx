@@ -103,7 +103,10 @@ export default function InvoiceCheckout() {
       const totalCents = invData.amount_cents ?? Math.round(Number(invData.amount || 0) * 100);
 
       const paidCents = invData.transactions
-        ?.filter(tx => REFUND_SETTLED_STATUSES.has(String(tx?.status || '').toLowerCase()))
+        ?.filter(tx => {
+            const status = String(tx?.status || '').toLowerCase();
+            return status !== 'pending_offline' && REFUND_SETTLED_STATUSES.has(status);
+        })
         .reduce((sum, tx) => {
           const txAmountCents = Number(tx?.amount_cents ?? 0);
           const txRefundedCents = Number(tx?.refunded_amount_cents ?? 0);

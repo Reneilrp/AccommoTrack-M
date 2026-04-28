@@ -3,14 +3,14 @@ import { StyleSheet } from 'react-native';
 export const getStyles = (theme) => StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: theme.colors.primary
+    backgroundColor: theme.colors.messagingPrimary
   },
   container: {
     flex: 1,
     backgroundColor: theme.colors.background
   },
   header: {
-    backgroundColor: theme.colors.primary,
+    backgroundColor: theme.colors.messagingPrimary,
     paddingHorizontal: 16,
     paddingVertical: 16,
     flexDirection: 'row',
@@ -108,14 +108,14 @@ export const getStyles = (theme) => StyleSheet.create({
     width: 52,
     height: 52,
     borderRadius: 26,
-    backgroundColor: theme.colors.primaryLight,
+    backgroundColor: theme.colors.messagingPrimaryLight,
     justifyContent: 'center',
     alignItems: 'center'
   },
   avatarText: {
     fontSize: 18,
     fontWeight: '600',
-    color: theme.colors.primary
+    color: theme.colors.messagingPrimary
   },
   conversationInfo: {
     flex: 1
@@ -154,7 +154,7 @@ export const getStyles = (theme) => StyleSheet.create({
   },
   propertyName: {
     fontSize: 12,
-    color: theme.colors.primary,
+    color: theme.colors.messagingPrimary,
     marginTop: 6,
   },
   participantRoomMeta: {
@@ -182,7 +182,7 @@ export const getStyles = (theme) => StyleSheet.create({
     fontWeight: '600'
   },
   chatScreenHeader: {
-    backgroundColor: theme.colors.primary,
+    backgroundColor: theme.colors.messagingPrimary,
     paddingHorizontal: 8,
     paddingVertical: 16,
     flexDirection: 'row',
@@ -331,12 +331,12 @@ export const getStyles = (theme) => StyleSheet.create({
     flexShrink: 1,
   },
   myMessageBubble: {
-    backgroundColor: theme.colors.primary,
+    backgroundColor: theme.colors.messagingPrimary,
     borderBottomRightRadius: 4,
     alignSelf: 'flex-end'
   },
   theirMessageBubble: {
-    backgroundColor: theme.colors.primaryLight,
+    backgroundColor: theme.colors.messagingPrimaryLight,
     borderBottomLeftRadius: 4,
     alignSelf: 'flex-start'
   },
@@ -380,7 +380,7 @@ export const getStyles = (theme) => StyleSheet.create({
     color: theme.colors.text
   },
   sendButton: {
-    backgroundColor: theme.colors.primary,
+    backgroundColor: theme.colors.messagingPrimary,
     width: 40,
     height: 40,
     borderRadius: 20,
@@ -441,7 +441,7 @@ export const getStyles = (theme) => StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 8,
-    backgroundColor: theme.colors.primaryLight,
+    backgroundColor: theme.colors.messagingPrimaryLight,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 10,
