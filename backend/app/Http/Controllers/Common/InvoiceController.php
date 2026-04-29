@@ -580,12 +580,12 @@ class InvoiceController extends Controller
             'method' => ['required', 'string', Rule::in(self::MANUAL_PAYMENT_METHODS)],
             'reference' => 'nullable|string',
             'notes' => 'nullable|string',
-            'proof_image' => 'required|image|mimes:jpeg,jpg,png,webp|max:5120',
+            'proof_image' => 'required|image|mimes:jpeg,jpg,png,webp|max:15360',
         ], [
             'proof_image.required' => 'Proof of payment image is required. Please upload an image.',
             'proof_image.image' => 'Proof of payment must be a valid image file.',
             'proof_image.mimes' => 'Proof of payment image must be a JPEG, JPG, PNG, or WEBP file.',
-            'proof_image.max' => 'Proof of payment image must not exceed 5MB.',
+            'proof_image.max' => 'Proof of payment image must not exceed 15MB.',
         ]);
 
         DB::beginTransaction();

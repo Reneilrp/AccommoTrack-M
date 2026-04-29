@@ -595,19 +595,16 @@ class PropertyService
         if ($request->hasFile('images')) {
             foreach ($request->file('images') as $index => $file) {
                 try {
-                    // Store raw image initially
-                    $path = $file->store('property_images/raw');
+                    // Store image directly (skipping raw folder and optimization job to save CPU)
+                    $path = $file->store('property_images');
 
-                    $media = PropertyImage::create([
+                    PropertyImage::create([
                         'property_id' => $property->id,
                         'image_url' => $path,
                         'is_primary' => $isUpdate ? ($index === 0 && $property->images()->where('is_primary', true)->doesntExist()) : ($index === 0),
                         'display_order' => $property->images()->count() + $index,
                         'media_type' => 'image',
                     ]);
-
-                    // Dispatch background optimization job
-                    ProcessPropertyMedia::dispatch($media->id)->onQueue('media');
 
                 } catch (\Exception $fe) {
                     \Illuminate\Support\Facades\Log::error('Image upload failed', [

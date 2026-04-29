@@ -17,6 +17,19 @@ import Decimal from '../../utils/decimal';
 
 const DEFAULT_TOGGLES = systemToggleService.getDefaults();
 
+const UNPAID_STATUSES = new Set([
+  'pending',
+  'unpaid',
+  'partial',
+  'overdue',
+  'partially paid',
+  'partially_paid',
+  'pending_verification',
+  'awaiting verification',
+]);
+
+const isUnpaidStatus = (status) => UNPAID_STATUSES.has((status || '').toString().toLowerCase());
+
 const toPrice = (val) => {
   try {
     return new Decimal(val || 0).toNumber();
@@ -146,38 +159,55 @@ export default function TenantPayments() {
 
     const bookingId = payment?.bookingId || payment?.booking_id || null;
     let invoiceId = payment?.invoiceId || payment?.invoice_id || payment?.id || null;
+    const shouldIncludeCurrent = isUnpaidStatus(payment?.status) && Boolean(invoiceId);
     const entryKey = resolvePaymentEntryKey(payment) || bookingId || invoiceId;
 
     try {
       setProcessingPaymentKey(entryKey);
 
       if (startFrom === 'next') {
+        const advanceCount = shouldIncludeCurrent ? Math.max(0, monthsCount - 1) : monthsCount;
+
+        if (advanceCount <= 0) {
+          if (!invoiceId && bookingId) {
+            const response = await paymentService.createBookingInvoice(bookingId);
+            if (!response.success || !response.data) {
+              showError(response.error || 'Failed to prepare invoice checkout.');
+              return;
+            }
+            invoiceId = response.data?.id || response.data?.data?.id || null;
+          }
+
+          if (!invoiceId) {
+            showError('Unable to resolve invoice checkout for this payment.');
+            return;
+          }
+
+          navigate(`/checkout/${invoiceId}`);
+          return;
+        }
+
         if (!bookingId) {
           showError('This payment has no booking link for advance generation.');
           return;
         }
 
-        const response = await paymentService.createAdvanceBookingInvoices(bookingId, monthsCount);
+        const response = await paymentService.createAdvanceBookingInvoices(bookingId, advanceCount);
         if (!response.success || !response.data) {
           showError(response.error || 'Failed to prepare advance invoice checkout.');
           return;
         }
 
-        invoiceId = resolveNearestInvoiceId(response.data);
+        const advanceInvoiceId = resolveNearestInvoiceId(response.data);
+        invoiceId = shouldIncludeCurrent ? invoiceId : advanceInvoiceId;
+
         if (!invoiceId) {
           showError('No payable advance invoice was generated for this booking.');
           return;
         }
 
-        if (monthsCount > 1) {
-          const generatedCount = [
-            ...(Array.isArray(response.data?.created) ? response.data.created : []),
-            ...(Array.isArray(response.data?.existing) ? response.data.existing : []),
-          ].filter((invoice) => invoice && invoice.id).length;
-
-          if (generatedCount > 1) {
-            showSuccess('Advance invoices are ready. Opening nearest due invoice first.');
-          }
+        if (shouldIncludeCurrent && advanceCount > 0) {
+          showSuccess('Advance invoices are ready. Opening current due invoice first.');
         }
 
         navigate(`/checkout/${invoiceId}`);

@@ -371,14 +371,10 @@ class RoomService
     private function handleImageUploads(Request $request, Room $room): void
     {
         if ($request->hasFile('images')) {
-            $manager = new ImageManager(new Driver);
             foreach ($request->file('images') as $file) {
-                $image = $manager->read($file->getRealPath());
-                $image->scaleDown(width: 1920);
-                $encoded = $image->toWebp(80);
-                $filename = 'room_'.time().'_'.uniqid().'.webp';
-                $path = 'room_images/'.$filename;
-                Storage::put($path, (string) $encoded);
+                // Store image directly without processing to save CPU
+                $path = $file->store('room_images');
+                
                 RoomImage::create([
                     'room_id' => $room->id,
                     'image_url' => Storage::url($path),

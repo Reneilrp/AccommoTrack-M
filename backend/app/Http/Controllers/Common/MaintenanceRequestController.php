@@ -34,7 +34,7 @@ class MaintenanceRequestController extends Controller
             'description' => 'required|string',
             'priority' => 'required|in:low,medium,high,urgent',
             'booking_id' => 'required|exists:bookings,id',
-            'images.*' => 'nullable|image|max:5120', // Max 5MB
+            'images.*' => 'nullable|image|max:15360', // Max 15MB
         ]);
 
         $booking = Booking::where('id', $request->booking_id)

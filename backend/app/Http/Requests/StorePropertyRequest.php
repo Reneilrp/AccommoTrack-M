@@ -83,10 +83,10 @@ class StorePropertyRequest extends FormRequest
             'amenities' => 'nullable|array',
             'amenities.*' => 'nullable|string',
             'images' => 'required_unless:current_status,draft|max:10',
-            'images.*' => 'nullable|image|mimes:jpeg,png,jpg,webp|max:10240',
+            'images.*' => 'nullable|image|mimes:jpeg,png,jpg,webp|max:15360',
             'video' => 'nullable|mimes:mp4,mov,avi|max:204800',
             'credentials' => 'required_if:is_eligible,1|required_unless:current_status,draft',
-            'credentials.*' => 'nullable|file|mimes:pdf,jpeg,png,jpg|max:10240',
+            'credentials.*' => 'nullable|file|mimes:pdf,jpeg,png,jpg|max:15360',
             'accepted_payments' => 'nullable|array',
             'accepted_payments.*' => 'in:cash,online',
         ];

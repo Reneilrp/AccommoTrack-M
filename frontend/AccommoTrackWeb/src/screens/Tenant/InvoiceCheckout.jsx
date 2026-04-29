@@ -97,15 +97,15 @@ export default function InvoiceCheckout() {
     try {
       setLoading(true);
       const res = await api.get(`/tenant/payments/${id}`);
-      const invData = res.data;
+      const invData = res.data?.data ?? res.data;
       setInvoice(invData);
 
       const totalCents = invData.amount_cents ?? Math.round(Number(invData.amount || 0) * 100);
 
       const paidCents = invData.transactions
         ?.filter(tx => {
-            const status = String(tx?.status || '').toLowerCase();
-            return status !== 'pending_offline' && REFUND_SETTLED_STATUSES.has(status);
+          const status = String(tx?.status || '').toLowerCase();
+          return status !== 'pending_offline' && REFUND_SETTLED_STATUSES.has(status);
         })
         .reduce((sum, tx) => {
           const txAmountCents = Number(tx?.amount_cents ?? 0);
@@ -227,7 +227,7 @@ export default function InvoiceCheckout() {
 
     const remainingAmt = new Decimal(remainingBalance);
     const balanceAmt = new Decimal(walletBalance);
-    
+
     const amountToApply = Decimal.min(remainingAmt, balanceAmt).toDecimalPlaces(2).toNumber();
 
     if (amountToApply <= 0) {
@@ -253,8 +253,8 @@ export default function InvoiceCheckout() {
   const handleProofImageChange = (e) => {
     const file = e.target.files[0];
     if (file) {
-      if (file.size > 10 * 1024 * 1024) {
-        showError('Image size must be less than 10MB');
+      if (file.size > 5 * 1024 * 1024) {
+        showError('Image size must be less than 5MB');
         return;
       }
       setOfflineDetails({ ...offlineDetails, proofImage: file });
@@ -420,7 +420,7 @@ export default function InvoiceCheckout() {
                   <h1 className="text-3xl font-bold text-gray-900 dark:text-white mt-4 uppercase tracking-tight leading-tight">
                     {invoice.propertyName || 'Property Payment'}
                   </h1>
-                  <p className="text-gray-500 dark:text-gray-400 text-xs font-bold mt-2 uppercase">Reference: {invoice.referenceNo || `INV-${invoice.id}`}</p>
+                  <p className="text-gray-500 dark:text-gray-400 text-xs font-bold mt-2 uppercase">Reference: {invoice.referenceNo || invoice.reference || invoice.invoiceNumber || `INV-${invoice.id}`}</p>
                 </div>
               </div>
             </div>

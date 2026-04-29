@@ -3,6 +3,7 @@ import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, TextInput,
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
+import * as ImageManipulator from 'expo-image-manipulator';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { getStyles } from '../../../../styles/Menu/Payments.js';
@@ -12,6 +13,7 @@ import SystemToggleService from '../../../../services/SystemToggleService.js';
 import { useTheme } from '../../../../contexts/ThemeContext.jsx';
 import homeStyles from '../../../../styles/Tenant/HomePage.js';
 import { formatPrice } from '../../../../utils/price.js';
+import Decimal from '../../../../utils/decimal.js';
 import {
   tenantQueryKeys,
   useTenantFocusRefetch,
@@ -32,6 +34,35 @@ const REFUND_SETTLED_STATUSES = new Set([
 
 const REFUND_FIXED_PENALTY_CENTS = 50000;
 const REFUND_ELIGIBLE_STATUSES = ['paid', 'succeeded'];
+
+const IMAGE_MIME_BY_EXT = {
+  jpg: 'image/jpeg',
+  jpeg: 'image/jpeg',
+  png: 'image/png',
+  webp: 'image/webp',
+  heic: 'image/heic',
+  heif: 'image/heif',
+};
+
+const HEIC_MIME_TYPES = new Set([
+  'image/heic',
+  'image/heif',
+  'image/heic-sequence',
+  'image/heif-sequence',
+]);
+
+const ALLOWED_PROOF_MIME_TYPES = new Set([
+  'image/jpeg',
+  'image/jpg',
+  'image/png',
+  'image/webp',
+]);
+
+const normalizeMimeType = (value) => {
+  if (!value || typeof value !== 'string') return '';
+  const normalized = value.toLowerCase();
+  return normalized === 'image/jpg' ? 'image/jpeg' : normalized;
+};
 
 const toDateOnly = (date) => {
   if (!date) return null;
@@ -112,6 +143,67 @@ const parseJsonIfNeeded = (value, fallback) => {
   return value;
 };
 
+const extractImageExtension = (value) => {
+  if (!value || typeof value !== 'string') return '';
+  const clean = value.split('?')[0];
+  const match = /\.([a-zA-Z0-9]+)$/.exec(clean);
+  return match ? match[1].toLowerCase() : '';
+};
+
+const resolveProofMeta = (asset) => {
+  const rawName = asset?.fileName || asset?.name || (asset?.uri ? asset.uri.split('/').pop() : '');
+  const extFromName = extractImageExtension(rawName);
+  const extFromUri = extractImageExtension(asset?.uri || '');
+  const ext = extFromName || extFromUri;
+
+  let mimeFromAsset = normalizeMimeType(asset?.mimeType);
+  
+  // If the asset reports a generic 'image' or is missing a mime type, try to infer from extension
+  if (!mimeFromAsset || mimeFromAsset === 'image') {
+    mimeFromAsset = ext ? IMAGE_MIME_BY_EXT[ext] : '';
+  }
+
+  const mimeFromExt = ext ? IMAGE_MIME_BY_EXT[ext] : '';
+  const mimeType = mimeFromAsset || mimeFromExt || 'image/jpeg';
+
+  const safeExt = ext || (mimeType === 'image/png' ? 'png' : 'jpg');
+  const fileName = rawName && rawName.includes('.')
+    ? rawName
+    : `proof_${Date.now()}.${safeExt}`;
+
+  return { fileName, mimeType, ext };
+};
+
+const normalizeProofImageAsset = async (asset) => {
+  if (!asset?.uri) return asset;
+  const meta = resolveProofMeta(asset);
+  const normalizedMime = normalizeMimeType(meta.mimeType);
+  const isHeic = HEIC_MIME_TYPES.has(normalizedMime) || meta.ext === 'heic' || meta.ext === 'heif';
+  const shouldConvert = isHeic || !normalizedMime || !ALLOWED_PROOF_MIME_TYPES.has(normalizedMime);
+
+  if (shouldConvert) {
+    const converted = await ImageManipulator.manipulateAsync(
+      asset.uri,
+      [],
+      { compress: 0.85, format: ImageManipulator.SaveFormat.JPEG }
+    );
+    return {
+      ...asset,
+      uri: converted.uri,
+      fileName: meta.fileName.replace(/\.[^/.]+$/, '.jpg'),
+      mimeType: 'image/jpeg',
+      type: 'image/jpeg', // Set to actual mime type
+    };
+  }
+
+  return {
+    ...asset,
+    fileName: meta.fileName,
+    mimeType: normalizedMime || 'image/jpeg',
+    type: normalizedMime || 'image/jpeg', // Set to actual mime type
+  };
+};
+
 const normalizeArray = (value, fallback = []) => {
   const parsed = parseJsonIfNeeded(value, value);
   if (Array.isArray(parsed)) return parsed;
@@ -128,6 +220,44 @@ const normalizePaymentSettings = (value) => {
     allowed: normalizeArray(parsed.allowed, ['cash']),
     details: parsed.details && typeof parsed.details === 'object' ? parsed.details : {},
   };
+};
+
+const resolveInvoiceDueDate = (invoice) => (
+  invoice?.due_date || invoice?.dueDateIso || invoice?.dueDate || invoice?.due_at || null
+);
+
+const resolveInvoiceReference = (invoice) => (
+  invoice?.reference ||
+  invoice?.reference_no ||
+  invoice?.referenceNo ||
+  invoice?.invoice_number ||
+  invoice?.invoiceNumber ||
+  invoice?.id ||
+  ''
+);
+
+const resolveInvoiceRoom = (invoice) => (
+  invoice?.booking?.room?.room_number ||
+  invoice?.booking?.room?.roomNumber ||
+  invoice?.booking?.room_number ||
+  invoice?.room_number ||
+  invoice?.roomNumber ||
+  ''
+);
+
+const resolvePropertyTitle = (property, invoice) => (
+  property?.title ||
+  property?.name ||
+  invoice?.property_name ||
+  invoice?.propertyName ||
+  '—'
+);
+
+const formatDateSafe = (value) => {
+  if (!value) return '—';
+  const d = new Date(value);
+  if (isNaN(d.getTime())) return '—';
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 };
 
 const toPositiveInteger = (value) => {
@@ -228,6 +358,11 @@ export default function PaymentDetail() {
   const invoice = paymentDetailQuery.data || null;
 
   const property = invoice?.property || invoice?.booking?.property || null;
+  const dueDateValue = resolveInvoiceDueDate(invoice);
+  const referenceValue = resolveInvoiceReference(invoice);
+  const roomValue = resolveInvoiceRoom(invoice);
+  const propertyTitle = resolvePropertyTitle(property, invoice);
+  const descriptionValue = invoice?.description || invoice?.invoice_description || invoice?.title || 'General Service';
   const landlordSettings = normalizePaymentSettings(
     property?.landlord?.payment_methods_settings || invoice?.landlord?.payment_methods_settings,
   );
@@ -316,20 +451,20 @@ export default function PaymentDetail() {
 
     // Both amount_cents and amount might be present depending on API version.
     // We normalize everything to Pesos for the UI.
-    const totalPesos = invoice.amount_cents 
-      ? Number(invoice.amount_cents) / 100 
+    const totalPesos = invoice.amount_cents
+      ? Number(invoice.amount_cents) / 100
       : Number(invoice.amount ?? 0);
 
     const paidPesos = (invoice.transactions || [])
       .filter((tx) => REFUND_SETTLED_STATUSES.has(String(tx?.status || '').toLowerCase()))
       .reduce((sum, tx) => {
         // If amount_cents is present, it's cents. If only amount is present, it's already pesos.
-        const txAmountPesos = tx.amount_cents 
-          ? Number(tx.amount_cents) / 100 
+        const txAmountPesos = tx.amount_cents
+          ? Number(tx.amount_cents) / 100
           : Number(tx.amount ?? 0);
-          
-        const txRefundedPesos = tx.refunded_amount_cents 
-          ? Number(tx.refunded_amount_cents) / 100 
+
+        const txRefundedPesos = tx.refunded_amount_cents
+          ? Number(tx.refunded_amount_cents) / 100
           : Number(tx.refunded_amount ?? 0);
 
         return sum + Math.max(0, txAmountPesos - txRefundedPesos);
@@ -466,7 +601,18 @@ export default function PaymentDetail() {
             });
 
             if (!result.canceled) {
-              setProofImage(result.assets[0]);
+              try {
+                const asset = result.assets[0];
+                if (asset.fileSize && asset.fileSize > 15 * 1024 * 1024) {
+                  showWarning('File Too Large', 'Image size must be less than 15MB');
+                  return;
+                }
+                const normalized = await normalizeProofImageAsset(asset);
+                setProofImage(normalized);
+              } catch (error) {
+                console.error('Proof image normalization failed', error);
+                showError('Upload Error', 'Unable to process the photo. Please try again.');
+              }
             }
           }
         },
@@ -486,7 +632,18 @@ export default function PaymentDetail() {
             });
 
             if (!result.canceled) {
-              setProofImage(result.assets[0]);
+              try {
+                const asset = result.assets[0];
+                if (asset.fileSize && asset.fileSize > 15 * 1024 * 1024) {
+                  showWarning('File Too Large', 'Image size must be less than 15MB');
+                  return;
+                }
+                const normalized = await normalizeProofImageAsset(asset);
+                setProofImage(normalized);
+              } catch (error) {
+                console.error('Proof image normalization failed', error);
+                showError('Upload Error', 'Unable to process the image. Please try again.');
+              }
             }
           }
         },
@@ -531,7 +688,7 @@ export default function PaymentDetail() {
 
     try {
       setIsPaying(true);
-      const amountCents = Math.round(amountToPay * 100);
+      const amountCents = Math.round(new Decimal(amountToPay).mul(100).toNumber());
       const formData = new FormData();
       formData.append("amount_cents", String(amountCents));
       formData.append("method", method);
@@ -549,14 +706,17 @@ export default function PaymentDetail() {
       );
 
       const proofUri = proofImage.uri;
-      const proofName = proofImage.fileName || proofImage.name || proofUri.split('/').pop() || 'proof.jpg';
-      const proofType = proofImage.mimeType || proofImage.type || 'image/jpeg';
+      const proofMeta = resolveProofMeta(proofImage);
+      const proofName = proofImage.fileName || proofImage.name || proofMeta.fileName;
+      // prioritize .mimeType or .type from the proofImage object, then fallback to metadata or hardcoded jpeg
+      const proofType = proofImage.mimeType || proofImage.type || proofMeta.mimeType || 'image/jpeg';
 
       formData.append("proof_image", {
         uri: proofUri,
         type: proofType,
         name: proofName,
       });
+
 
       const response = await PaymentService.createOfflineRecord(invoice.id, formData);
 
@@ -589,7 +749,7 @@ export default function PaymentDetail() {
     }
 
     const amountToPay = Math.min(remainingBalance, walletBalance);
-    
+
     if (amountToPay <= 0) {
       showWarning('Invalid Amount', 'No remaining balance or wallet credits available.');
       return;
@@ -668,13 +828,13 @@ export default function PaymentDetail() {
         <View style={{ width: 24 }} />
       </View>
 
-      <ScrollView 
-        style={styles.content} 
+      <ScrollView
+        style={styles.content}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 40 }}
       >
         <View style={styles.detailContainer}>
-          
+
           {/* 1. Summary Card */}
           <View style={styles.summaryCard}>
             <View style={styles.summaryHeader}>
@@ -686,16 +846,16 @@ export default function PaymentDetail() {
                 <Text style={styles.summaryStatusText}>{invoice.status}</Text>
               </View>
             </View>
-            
+
             <View style={styles.summaryGrid}>
               <View style={styles.summaryItem}>
                 <Text style={styles.summaryItemLabel}>Reference</Text>
-                <Text style={styles.summaryItemValue}>#{invoice.reference || invoice.id}</Text>
+                <Text style={styles.summaryItemValue}>#{referenceValue || '—'}</Text>
               </View>
               <View style={styles.summaryItem}>
                 <Text style={styles.summaryItemLabel}>Due Date</Text>
                 <Text style={styles.summaryItemValue}>
-                  {invoice.due_date ? new Date(invoice.due_date).toLocaleDateString() : '—'}
+                  {formatDateSafe(dueDateValue)}
                 </Text>
               </View>
             </View>
@@ -706,16 +866,16 @@ export default function PaymentDetail() {
             <Text style={styles.cardSectionTitle}>Invoice Info</Text>
             <View style={styles.infoRow}>
               <Text style={styles.infoRowLabel}>Property</Text>
-              <Text style={styles.infoRowValue}>{property?.title || '—'}</Text>
+              <Text style={styles.infoRowValue}>{propertyTitle}</Text>
             </View>
             <View style={styles.infoRow}>
               <Text style={styles.infoRowLabel}>Room</Text>
-              <Text style={styles.infoRowValue}>{invoice.booking?.room?.room_number || '—'}</Text>
+              <Text style={styles.infoRowValue}>{roomValue || '—'}</Text>
             </View>
             <View style={styles.infoRow}>
               <Text style={styles.infoRowLabel}>Description</Text>
               <Text style={[styles.infoRowValue, { flex: 1, textAlign: 'right', marginLeft: 20 }]}>
-                {invoice.description || 'General Service'}
+                {descriptionValue}
               </Text>
             </View>
           </View>
@@ -727,7 +887,7 @@ export default function PaymentDetail() {
               <Text style={styles.infoRowLabel}>Base Amount</Text>
               <Text style={styles.infoRowValue}>{formatPrice(invoice.total_cents ?? invoice.amount_cents ?? (invoice.amount ? invoice.amount * 100 : 0), { isCents: true })}</Text>
             </View>
-            
+
             {addonTotalCents > 0 && addonLines.map((line) => (
               <View key={line.key} style={styles.infoRow}>
                 <Text style={styles.infoRowLabel}>
@@ -738,7 +898,7 @@ export default function PaymentDetail() {
             ))}
 
             <View style={[styles.separator, { marginVertical: 12 }]} />
-            
+
             <View style={styles.infoRow}>
               <Text style={[styles.infoRowLabel, { fontWeight: '700', color: theme.colors.text }]}>Total Bill</Text>
               <Text style={[styles.infoRowValue, { fontSize: 16, color: theme.colors.primary }]}>
@@ -781,7 +941,7 @@ export default function PaymentDetail() {
                 </View>
                 <View style={styles.refundStatRow}>
                   <Text style={styles.refundStatLabel}>Prorated Amount</Text>
-                  <Text style={styles.refundStatValue}>{formatPrice( ( (invoice.transactions?.filter(t => (t.amount_cents || t.amount || 0) > 0 && REFUND_ELIGIBLE_STATUSES.includes(String(t.status || '').toLowerCase())).reduce((sum, t) => sum + (t.amount_cents || t.amount || 0), 0) || 0) * stayProgress.refundableUnits) / stayProgress.totalUnits, { isCents: true } )}</Text>
+                  <Text style={styles.refundStatValue}>{formatPrice(((invoice.transactions?.filter(t => (t.amount_cents || t.amount || 0) > 0 && REFUND_ELIGIBLE_STATUSES.includes(String(t.status || '').toLowerCase())).reduce((sum, t) => sum + (t.amount_cents || t.amount || 0), 0) || 0) * stayProgress.refundableUnits) / stayProgress.totalUnits, { isCents: true })}</Text>
                 </View>
                 <View style={[styles.separator, { marginVertical: 8, backgroundColor: 'rgba(126,34,206,0.1)' }]} />
                 <View style={styles.refundStatRow}>
@@ -807,7 +967,7 @@ export default function PaymentDetail() {
             </View>
           ) : (
             <View style={{ marginTop: 8 }}>
-              
+
               {/* Payment Disabled Banner */}
               {isPaymentDisabled && (
                 <View style={{ marginBottom: 20, padding: 16, borderRadius: 12, backgroundColor: '#FFFBEB', borderWidth: 1, borderColor: '#FDE68A', flexDirection: 'row' }}>
@@ -826,10 +986,10 @@ export default function PaymentDetail() {
                 return (
                   <View style={{ marginBottom: 24 }}>
                     <Text style={styles.cardSectionTitle}>Submitted Proof</Text>
-                    <Image 
-                      source={{ uri: proofUrl }} 
-                      style={styles.proofPreview} 
-                      resizeMode="contain" 
+                    <Image
+                      source={{ uri: proofUrl }}
+                      style={styles.proofPreview}
+                      resizeMode="contain"
                     />
                     <Text style={{ fontSize: 12, color: theme.colors.textTertiary, textAlign: 'center', marginTop: 8, fontStyle: 'italic' }}>
                       Wait for the landlord to verify your cash submission.
@@ -855,7 +1015,7 @@ export default function PaymentDetail() {
                 <Text style={{ color: theme.colors.error, fontSize: 12, marginLeft: 4, marginBottom: 12 }}>{paymentAmountError}</Text>
               ) : (
                 <Text style={{ fontSize: 11, color: theme.colors.textTertiary, marginLeft: 4, marginBottom: 16 }}>
-                  {allowPartialPayments 
+                  {allowPartialPayments
                     ? `You can pay full or partial balance.`
                     : `Partial payments are disabled for this property.`}
                 </Text>
@@ -865,7 +1025,7 @@ export default function PaymentDetail() {
               {showOnline && !isPaymentDisabled && (
                 <View style={{ marginBottom: 16 }}>
                   <Text style={styles.methodSelectionTitle}>Pay Online (Instant)</Text>
-                  
+
                   <TouchableOpacity style={styles.methodTile} onPress={handleGCashPay} disabled={isPaying || !!paymentAmountError}>
                     <View style={[styles.methodTileIcon, { backgroundColor: '#007AFF' }]}>
                       <Ionicons name="card" size={24} color="#FFF" />
@@ -894,7 +1054,7 @@ export default function PaymentDetail() {
               {(showCash || showManualGcash) && (
                 <View style={{ marginBottom: 16 }}>
                   <Text style={styles.methodSelectionTitle}>Manual / Offline Submission</Text>
-                  
+
                   {showManualGcash && manualPaymentDetails?.gcash_info && (
                     <View style={{ padding: 12, borderRadius: 12, backgroundColor: theme.colors.primary + '10', marginBottom: 16, borderWidth: 1, borderColor: theme.colors.primary + '30' }}>
                       <Text style={{ color: theme.colors.primary, fontWeight: '800', fontSize: 12, marginBottom: 4 }}>Merchant GCash Info:</Text>
@@ -939,8 +1099,8 @@ export default function PaymentDetail() {
 
                   <View style={{ flexDirection: 'row', gap: 12 }}>
                     {showManualGcash && (
-                      <TouchableOpacity 
-                        style={[styles.payBtn, { flex: 1, backgroundColor: '#2563EB', opacity: isPaying ? 0.6 : 1 }]} 
+                      <TouchableOpacity
+                        style={[styles.payBtn, { flex: 1, backgroundColor: '#2563EB', opacity: isPaying ? 0.6 : 1 }]}
                         onPress={() => handleOfflinePayment('gcash')}
                         disabled={isPaying}
                       >
@@ -948,8 +1108,8 @@ export default function PaymentDetail() {
                       </TouchableOpacity>
                     )}
                     {showCash && (
-                      <TouchableOpacity 
-                        style={[styles.payBtn, { flex: 1, backgroundColor: '#16A34A', opacity: isPaying ? 0.6 : 1 }]} 
+                      <TouchableOpacity
+                        style={[styles.payBtn, { flex: 1, backgroundColor: '#16A34A', opacity: isPaying ? 0.6 : 1 }]}
                         onPress={() => handleOfflinePayment('cash')}
                         disabled={isPaying}
                       >
@@ -963,8 +1123,8 @@ export default function PaymentDetail() {
               {/* Wallet Section */}
               {!tenantPaymentsTempDisabled && walletBalance > 0 && (
                 <View style={{ marginTop: 8 }}>
-                  <TouchableOpacity 
-                    style={[styles.payBtn, { backgroundColor: '#7C3AED', opacity: isPaying ? 0.6 : 1 }]} 
+                  <TouchableOpacity
+                    style={[styles.payBtn, { backgroundColor: '#7C3AED', opacity: isPaying ? 0.6 : 1 }]}
                     onPress={handleWalletCreditPayment}
                     disabled={isPaying}
                   >

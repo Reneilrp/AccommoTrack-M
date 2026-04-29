@@ -2403,8 +2403,7 @@ export default function RoomManagementScreen({ navigation, route }) {
               )}
             </View>
             <Text style={[styles.helperText, { marginTop: 8 }]}>
-              PNG, JPG up to 10MB (Max 10 images)
-            </Text>
+              PNG, JPG up to 15MB (Max 10 images)            </Text>
           </ScrollView>
 
           <View style={styles.modalActions}>

@@ -114,7 +114,7 @@ class StoreRoomRequest extends FormRequest
             'duration_pricing.9.discount_value' => 'required_with:duration_pricing.9|numeric|gt:0',
             'duration_pricing.12.discount_value' => 'required_with:duration_pricing.12|numeric|gt:0',
             'images' => 'nullable|array|max:10',
-            'images.*' => 'image|mimes:jpeg,png,jpg|max:10240',
+            'images.*' => 'image|mimes:jpeg,png,jpg|max:15360',
         ];
     }
 

@@ -35,23 +35,17 @@ class ProcessMessageImage implements ShouldQueue
         if (!Storage::disk($disk)->exists($rawPath)) return;
 
         try {
-            $manager = new ImageManager(new Driver);
-            $imageData = Storage::disk($disk)->get($rawPath);
-            
-            $image = $manager->read($imageData);
-            $image->scaleDown(width: 1920);
-            $encoded = $image->toWebp(80);
+            // User wants to avoid CPU intensive compression.
+            // If the path contains "/raw/", move it to the main directory.
+            if (str_contains($rawPath, '/raw/')) {
+                $filename = pathinfo($rawPath, PATHINFO_BASENAME);
+                $newPath = 'message_images/' . $filename;
 
-            $filename = 'processed_' . pathinfo($rawPath, PATHINFO_FILENAME) . '.webp';
-            $newPath = 'message_images/' . $filename;
-
-            Storage::disk($disk)->put($newPath, (string) $encoded);
-            
-            // Update DB and delete raw file
-            $message->update(['image_url' => $newPath]);
-            Storage::disk($disk)->delete($rawPath);
-            
-            unset($image, $encoded, $imageData);
+                if ($rawPath !== $newPath) {
+                    Storage::disk($disk)->move($rawPath, $newPath);
+                    $message->update(['image_url' => $newPath]);
+                }
+            }
         } catch (\Exception $e) {
             Log::error("Message image processing failed for ID {$this->messageId}: " . $e->getMessage());
         }

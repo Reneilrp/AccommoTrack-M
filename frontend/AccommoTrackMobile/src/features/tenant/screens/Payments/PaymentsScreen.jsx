@@ -32,6 +32,24 @@ import {
 } from '../../hooks/useTenantQueryHelpers.js';
 import { formatPrice } from '../../../../utils/price.js';
 
+const UNPAID_STATUSES = new Set([
+  'pending',
+  'unpaid',
+  'partial',
+  'overdue',
+  'partially paid',
+  'partially_paid',
+  'pending_verification',
+  'awaiting verification',
+]);
+
+const isUnpaidStatus = (status) => UNPAID_STATUSES.has((status || '').toString().toLowerCase());
+
+const isPaymentUnpaid = (payment) => {
+  if (!payment || typeof payment !== 'object') return false;
+  return isUnpaidStatus(payment.status) || isUnpaidStatus(payment.paymentStatus);
+};
+
 export default function PaymentsScreen() {
   const { width: viewportWidth } = useWindowDimensions();
   const { theme } = useTheme();
@@ -189,27 +207,54 @@ export default function PaymentsScreen() {
 
     if (startFrom === 'next') {
       const bookingId = item?.bookingId || item?.booking_id || null;
-      if (!bookingId) {
-        showError('Payment Error', 'This payment does not have a booking link for advance invoice generation.');
-        return;
-      }
+      let currentInvoiceId = item?.invoiceId || item?.invoice_id || item?.id || null;
+      const shouldIncludeCurrent = isPaymentUnpaid(item) && Boolean(currentInvoiceId);
+      const advanceCount = shouldIncludeCurrent ? Math.max(0, monthsCount - 1) : monthsCount;
 
       try {
-        setResolvingPaymentId(resolvingKey || bookingId);
+        setResolvingPaymentId(resolvingKey || bookingId || currentInvoiceId);
 
-        const response = await PaymentService.createAdvanceBookingInvoices(bookingId, monthsCount);
+        if (advanceCount <= 0) {
+          if (!currentInvoiceId && bookingId) {
+            const response = await PaymentService.createBookingInvoice(bookingId);
+            if (!response.success || !response.data) {
+              showError('Payment Error', response.error || 'Failed to prepare invoice checkout.');
+              return;
+            }
+            currentInvoiceId = response.data?.id || response.data?.data?.id || null;
+          }
+
+          if (!currentInvoiceId) {
+            showError('Payment Error', 'Unable to resolve invoice checkout for this payment.');
+            return;
+          }
+
+          navigation.navigate('PaymentDetail', { invoiceId: currentInvoiceId });
+          return;
+        }
+
+        if (!bookingId) {
+          showError('Payment Error', 'This payment does not have a booking link for advance invoice generation.');
+          return;
+        }
+
+        const response = await PaymentService.createAdvanceBookingInvoices(bookingId, advanceCount);
         if (!response.success || !response.data) {
           showError('Payment Error', response.error || 'Failed to prepare advance invoice checkout.');
           return;
         }
 
-        const invoiceId = resolveAdvanceInvoiceId(response.data);
-        if (!invoiceId) {
+        const advanceInvoiceId = resolveAdvanceInvoiceId(response.data);
+        const targetInvoiceId = shouldIncludeCurrent ? currentInvoiceId : advanceInvoiceId;
+
+        if (!targetInvoiceId) {
           showError('Payment Error', 'No payable advance invoice was generated for this booking.');
           return;
         }
 
-        if (monthsCount > 1) {
+        if (shouldIncludeCurrent && advanceCount > 0) {
+          showSuccess('Advance Invoices Ready', 'Opening current due invoice first.');
+        } else if (monthsCount > 1) {
           const generatedCount = [
             ...(Array.isArray(response.data?.created) ? response.data.created : []),
             ...(Array.isArray(response.data?.existing) ? response.data.existing : []),
@@ -220,7 +265,7 @@ export default function PaymentsScreen() {
           }
         }
 
-        navigation.navigate('PaymentDetail', { invoiceId });
+        navigation.navigate('PaymentDetail', { invoiceId: targetInvoiceId });
       } catch (error) {
         console.error('Advance invoice resolution error:', error);
         showError('Payment Error', 'Failed to prepare advance invoice checkout.');

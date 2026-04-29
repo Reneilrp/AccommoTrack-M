@@ -38,7 +38,7 @@ class StoreBookingRequest extends FormRequest
             'booking_group_reference' => 'nullable|string|max:64',
             'notes' => 'nullable|string|max:1000',
             'payment_plan' => 'nullable|string|in:full,monthly,promo_one_time',
-            'receipt_image' => 'nullable|image|mimes:jpeg,png,jpg|max:5120',
+            'receipt_image' => 'nullable|image|mimes:jpeg,png,jpg|max:15360',
         ];
 
         $user = $this->user();

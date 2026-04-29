@@ -13,7 +13,6 @@ const isFormData = (data) => data instanceof FormData;
 
 const MULTIPART_CONFIG = {
   headers: {
-    "Content-Type": "multipart/form-data",
     Accept: "application/json",
   },
   transformRequest: (data) => data,

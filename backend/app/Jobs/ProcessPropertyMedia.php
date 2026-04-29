@@ -56,23 +56,19 @@ class ProcessPropertyMedia implements ShouldQueue
         
         if (!Storage::disk($disk)->exists($rawPath)) return;
 
-        $manager = new ImageManager(new Driver);
-        $imageData = Storage::disk($disk)->get($rawPath);
-        
-        $image = $manager->read($imageData);
-        $image->scaleDown(width: 1920);
-        $encoded = $image->toWebp(80);
+        // User wants to avoid CPU intensive compression.
+        // If the path contains "/raw/", move it to the main directory.
+        if (str_contains($rawPath, '/raw/')) {
+            $filename = pathinfo($rawPath, PATHINFO_BASENAME);
+            $newPath = 'property_images/' . $filename;
 
-        $filename = 'processed_' . pathinfo($rawPath, PATHINFO_FILENAME) . '.webp';
-        $newPath = 'property_images/' . $filename;
-
-        Storage::disk($disk)->put($newPath, (string) $encoded);
+            if ($rawPath !== $newPath) {
+                Storage::disk($disk)->move($rawPath, $newPath);
+                $media->update(['image_url' => $newPath]);
+            }
+        }
         
-        // Update DB and delete raw file
-        $media->update(['image_url' => $newPath]);
-        Storage::disk($disk)->delete($rawPath);
-        
-        unset($image, $encoded, $imageData);
+        // No more Intervention Image calls here to save CPU
     }
 
     private function processVideo(PropertyImage $media)

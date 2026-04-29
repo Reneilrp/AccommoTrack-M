@@ -71,7 +71,6 @@ const api = axios.create({
   timeout: 120000,
   headers: {
     'Accept': 'application/json',
-    'Content-Type': 'application/json',
     'X-Client-Platform': 'mobile',
     'X-Requested-With': 'XMLHttpRequest',
   },
@@ -290,15 +289,17 @@ api.interceptors.request.use(async (config) => {
         Array.isArray(config.data._parts));
 
     if (isFormDataPayload) {
-      const hasContentType = config.headers?.['Content-Type'] || config.headers?.['content-type'];
-      if (!hasContentType) {
-        if (typeof config.headers?.delete === 'function') {
-          config.headers.delete('Content-Type');
-        } else {
-          delete config.headers['Content-Type'];
-          delete config.headers['content-type'];
-        }
+      if (config.headers.delete) {
+        config.headers.delete('Content-Type');
+        config.headers.delete('content-type');
+      } else {
+        delete config.headers['Content-Type'];
+        delete config.headers['content-type'];
       }
+      // For React Native, it's often safer to let Axios handle the Content-Type 
+      // but some environments require explicit multipart/form-data
+    } else if (!config.headers['Content-Type'] && !config.headers['content-type']) {
+      config.headers['Content-Type'] = 'application/json';
     }
 
     let token = useAuthStore.getState().authToken;

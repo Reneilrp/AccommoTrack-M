@@ -1171,7 +1171,7 @@ export default function AddProperty({ navigation }) {
             <View style={styles.sectionCard}>
               <Text style={styles.sectionTitle}>Property Photos</Text>
               <Text style={styles.sectionSubtitle}>
-                Add up to 10 photos of your property (Max 5MB each)
+                Add up to 10 photos of your property (Max 15MB each)
               </Text>
 
               <View style={styles.imagesRow}>
