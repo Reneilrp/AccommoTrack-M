@@ -43,41 +43,43 @@ class ExpirePendingBookings extends Command
         $this->info("Searching for stale bookings older than {$expirationHours} hours...");
         Log::info('Running ExpirePendingBookings command...');
 
-        // 1. Find pure 'pending' bookings (never reached payment step)
-        $expiredPending = Booking::where('status', 'pending')
+        $staleQuery = Booking::query()
             ->where('created_at', '<=', $expiryThreshold)
-            ->get();
+            ->where(function ($query) {
+                $query->where('status', 'pending')
+                    ->orWhere(function ($nested) {
+                        $nested->where('status', 'pending_reservation')
+                            ->whereDoesntHave('invoices.transactions');
+                    });
+            });
 
-        // 2. Find 'pending_reservation' that timed out without a transaction
-        $expiredUnpaid = Booking::where('status', 'pending_reservation')
-            ->where('created_at', '<=', $expiryThreshold)
-            ->whereDoesntHave('invoices.transactions')
-            ->get();
+        $totalStale = (clone $staleQuery)->count();
 
-        $allStale = $expiredPending->merge($expiredUnpaid);
-
-        if ($allStale->isEmpty()) {
+        if ($totalStale === 0) {
             $this->info('No stale bookings found.');
             Log::info('No stale bookings found.');
             return;
         }
 
-        $count = $allStale->count();
-        $this->info("Found {$count} stale bookings. Proceeding with service-level cancellation...");
+        $this->info("Found {$totalStale} stale bookings. Proceeding with service-level cancellation...");
 
-        foreach ($allStale as $booking) {
-            try {
-                $bookingService->updateStatus($booking, [
-                    'status' => 'cancelled',
-                    'cancellation_reason' => "Booking request automatically expired after {$expirationHours} hours of inactivity."
-                ]);
-                Log::info("Booking #{$booking->id} was automatically expired and cleaned up.");
-            } catch (\Exception $e) {
-                Log::error("Failed to expire booking #{$booking->id}: " . $e->getMessage());
+        $processed = 0;
+        $staleQuery->chunkById(200, function ($bookings) use ($bookingService, $expirationHours, &$processed) {
+            foreach ($bookings as $booking) {
+                try {
+                    $bookingService->updateStatus($booking, [
+                        'status' => 'cancelled',
+                        'cancellation_reason' => "Booking request automatically expired after {$expirationHours} hours of inactivity."
+                    ]);
+                    $processed++;
+                    Log::info("Booking #{$booking->id} was automatically expired and cleaned up.");
+                } catch (\Exception $e) {
+                    Log::error("Failed to expire booking #{$booking->id}: " . $e->getMessage());
+                }
             }
-        }
+        });
 
-        $this->info("Successfully processed {$count} bookings.");
-        Log::info("Successfully processed {$count} bookings.");
+        $this->info("Successfully processed {$processed} bookings.");
+        Log::info("Successfully processed {$processed} bookings.");
     }
 }
