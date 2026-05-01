@@ -55,12 +55,15 @@ class ExpirePendingBookings extends Command
         $count = $expiredBookings->count();
         $this->info("Found {$count} expired pending bookings. Proceeding with cancellation...");
 
-        foreach ($expiredBookings as $booking) {
-            $booking->status = 'cancelled';
-            $booking->cancellation_reason = 'Booking request expired after '.$expirationDays.' days.';
-            $booking->cancelled_at = Carbon::now();
-            $booking->save();
+        $now = Carbon::now();
+        Booking::whereIn('id', $expiredBookings->pluck('id'))->update([
+            'status' => 'cancelled',
+            'cancellation_reason' => 'Booking request expired after '.$expirationDays.' days.',
+            'cancelled_at' => $now,
+            'updated_at' => $now,
+        ]);
 
+        foreach ($expiredBookings as $booking) {
             // Optional: Re-calculate property availability if needed
             // $booking->room->property->updateAvailableRooms();
 
