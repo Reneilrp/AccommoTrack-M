@@ -61,9 +61,6 @@ class ExpirePendingBookings extends Command
             $booking->cancelled_at = Carbon::now();
             $booking->save();
 
-            // Optional: Re-calculate property availability if needed
-            // $booking->room->property->updateAvailableRooms();
-
             Log::info("Booking #{$booking->id} has expired and was automatically cancelled.");
         }
 
