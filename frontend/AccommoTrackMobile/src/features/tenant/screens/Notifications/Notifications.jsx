@@ -14,6 +14,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useQuery } from "@tanstack/react-query";
 import api from "../../../../services/api.js";
 import { useTheme } from "../../../../contexts/ThemeContext.jsx";
+import { logger } from "../../../../utils/logger.js";
 import {
   tenantQueryKeys,
   useTenantFocusRefetch,
@@ -344,7 +345,7 @@ export default function TenantNotifications({ navigation }) {
           fetchError: feedError,
         };
       } catch (err) {
-        console.warn("Error fetching tenant notifications", err);
+        logger.warn("Error fetching tenant notifications", err);
         return {
           items: [],
           fetchError: "Unable to load notifications right now. Pull to refresh.",
@@ -395,7 +396,7 @@ export default function TenantNotifications({ navigation }) {
       await api.patch(`/notifications/${backendId}/read`);
       setActionError("");
     } catch (err) {
-      console.warn("Failed to mark notification as read", err);
+      logger.warn("Failed to mark notification as read", err);
       setNotifications(previousState);
       setActionError("Could not mark that notification as read. Please try again.");
     }
@@ -409,7 +410,7 @@ export default function TenantNotifications({ navigation }) {
       await api.patch("/notifications/read-all?role=tenant");
       setActionError("");
     } catch (err) {
-      console.warn("Failed to mark all notifications as read", err);
+      logger.warn("Failed to mark all notifications as read", err);
       setNotifications(previousState);
       setActionError("Could not mark all notifications as read. Please try again.");
     }

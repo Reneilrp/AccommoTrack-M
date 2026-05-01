@@ -14,6 +14,7 @@ import { useAuthStore } from '../../../../stores/auth/authStore.js';
 import { useAppVersion } from '../../../../shared/hooks/useAppVersion.js';
 import { downloadAndInstallUpdate } from '../../../../services/AppUpdateService.js';
 import { showError, showSuccess } from '../../../../utils/toast.js';
+import { logger } from '../../../../utils/logger.js';
 import {
   tenantQueryKeys,
   useTenantFocusRefetch,
@@ -318,7 +319,7 @@ export default function Settings({ onLogout, isGuest, onLoginPress }) {
         navigation.navigate('UpdateDetails');
         break;
       default:
-        console.log('Setting pressed:', label);
+        logger.debug('Setting pressed:', label);
     }
   };
 

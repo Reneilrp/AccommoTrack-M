@@ -109,7 +109,6 @@ export default function TenantHomePage({
   const [mapModalVisible, setMapModalVisible] = useState(false);
   const [showGuestBanner, setShowGuestBanner] = useState(true);
   const [headerHeight, setHeaderHeight] = useState(200);
-  const [selectedSort, setSelectedSort] = useState("featured"); // eslint-disable-line no-unused-vars
 
   const scrollY = React.useRef(new Animated.Value(0)).current;
   
@@ -348,22 +347,10 @@ export default function TenantHomePage({
       });
     }
 
-    switch (selectedSort) {
-      case "amenities":
-        filtered.sort(
-          (a, b) => (b.amenities?.length || 0) - (a.amenities?.length || 0),
-        );
-        break;
-      case "price":
-        filtered.sort((a, b) => (a.minPrice || 0) - (b.minPrice || 0));
-        break;
-      case "featured":
-      default:
-        break;
-    }
+
 
     setFilteredProperties(filtered);
-  }, [properties, selectedFilter, advancedFilters, searchQuery, selectedSort]);
+  }, [properties, selectedFilter, advancedFilters, searchQuery]);
 
   const handleFilterSelect = (filterValue) => {
     setSelectedFilter(filterValue);
@@ -648,16 +635,6 @@ export default function TenantHomePage({
     }
 
     console.log("Like pressed for:", id);
-  };
-  
-  const handleProfilePress = () => { // eslint-disable-line no-unused-vars
-    if (isGuest) {
-      if (onAuthRequired) {
-        onAuthRequired();
-      }
-    } else {
-      navigation.navigate("Profile");
-    }
   };
 
   const handleHeaderLayout = useCallback((event) => {

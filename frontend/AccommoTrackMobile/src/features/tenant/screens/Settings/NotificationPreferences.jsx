@@ -54,7 +54,6 @@ export default function NotificationPreferences() {
 
         return normalizePrefs(res.data?.notification_preferences);
       } catch (error) {
-        console.warn('Load prefs error', error);
         return DEFAULT_PREFS;
       }
     },
@@ -90,7 +89,6 @@ export default function NotificationPreferences() {
         await AsyncStorage.setItem('user', JSON.stringify(parsed));
       }
     } catch (e) {
-      console.warn('Save pref error', e);
       showError("Error", "Failed to save preferences to the server.");
       // Rollback on fail
       setPrefs(previousPrefs);

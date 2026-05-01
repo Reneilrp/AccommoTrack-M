@@ -8,6 +8,7 @@ import { getStyles } from '../../../../styles/Tenant/MessagesPage.js';
 import { useTheme } from '../../../../contexts/ThemeContext.jsx';
 import MessageService from '../../../../services/MessageService.js';
 import { showSuccess, showError } from '../../../../utils/toast.js';
+import { logger } from '../../../../utils/logger.js';
 import MessagesList from './MessagesList.jsx';
 import { navigate as rootNavigate } from '../../../../navigation/RootNavigation.js';
 import {
@@ -128,7 +129,7 @@ export default function MessagesPage({ navigation, route }) {
                 const conv = result.data?.conversation || result.data;
                 // Clear the start params immediately
                 navigation.setParams({ startConversation: false, recipient: null, property: null, room: null });
-                
+
                 if (conv?.id) {
                     // Invalidate and refetch conversations
                     queryClient.invalidateQueries({ queryKey: tenantQueryKeys.messagesConversations() });
@@ -203,7 +204,7 @@ export default function MessagesPage({ navigation, route }) {
                 rootNavigate('TenantHome');
                 break;
             default:
-                console.log('Menu item pressed:', itemTitle);
+                logger.debug('Menu item pressed:', itemTitle);
         }
     };
 
@@ -211,14 +212,14 @@ export default function MessagesPage({ navigation, route }) {
     const properties = useMemo(() => {
         const props = [];
         const seen = new Set();
-        
+
         conversations.forEach(conv => {
             if (conv.property && !seen.has(conv.property.id)) {
                 seen.add(conv.property.id);
                 props.push(conv.property);
             }
         });
-        
+
         return props;
     }, [conversations]);
 
@@ -228,7 +229,7 @@ export default function MessagesPage({ navigation, route }) {
             const name = `${otherUser.first_name || ''} ${otherUser.last_name || ''}`.toLowerCase();
             const matchesSearch = name.includes(searchQuery.toLowerCase());
             const matchesProperty = !selectedPropertyId || conv.property?.id === selectedPropertyId;
-            
+
             return matchesSearch && matchesProperty;
         });
 

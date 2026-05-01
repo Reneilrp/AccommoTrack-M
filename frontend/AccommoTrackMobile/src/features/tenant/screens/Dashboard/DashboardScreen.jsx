@@ -31,6 +31,55 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
+/**
+ * Setup real-time Echo listeners for dashboard updates.
+ * Listens to payment, invoice, and booking events to auto-refresh data.
+ */
+const useEchoListeners = (refetch, userId) => {
+  useEffect(() => {
+    if (!userId) return;
+
+    const echo = createEcho();
+    if (!echo) return;
+
+    // Private channel for user-specific events
+    const userChannel = echo.private(`App.Models.User.${userId}`);
+
+    // Listen for payment events
+    userChannel
+      .listen('.payment.created', () => {
+        console.log('[Echo] Payment created - refreshing dashboard');
+        refetch();
+      })
+      .listen('.payment.updated', () => {
+        console.log('[Echo] Payment updated - refreshing dashboard');
+        refetch();
+      })
+      .listen('.invoice.updated', () => {
+        console.log('[Echo] Invoice updated - refreshing dashboard');
+        refetch();
+      })
+      .listen('.booking.updated', () => {
+        console.log('[Echo] Booking updated - refreshing dashboard');
+        refetch();
+      })
+      .listen('.booking.status.changed', () => {
+        console.log('[Echo] Booking status changed - refreshing dashboard');
+        refetch();
+      });
+
+    // Cleanup on unmount
+    return () => {
+      userChannel.stopListening('.payment.created');
+      userChannel.stopListening('.payment.updated');
+      userChannel.stopListening('.invoice.updated');
+      userChannel.stopListening('.booking.updated');
+      userChannel.stopListening('.booking.status.changed');
+      echo.leave(`App.Models.User.${userId}`);
+    };
+  }, [refetch, userId]);
+};
+
 const formatCurrency = (amount) => formatPrice(amount);
 const formatPeso = (amount) => formatPrice(amount, { isCents: false });
 
@@ -142,6 +191,9 @@ const DashboardScreen = () => {
 
   const [refreshing, setRefreshing] = useState(false);
   const [expandedPanel, setExpandedPanel] = useState(null);
+  
+  // Get current user ID for Echo listeners
+  const userId = useAuthStore((state) => state.user?.id);
 
   // Guard: Check if user is authenticated
   useEffect(() => {
@@ -190,6 +242,9 @@ const DashboardScreen = () => {
     setRefreshing,
     refetchers: dashboardRefetchers,
   });
+
+  // Setup real-time Echo listeners for automatic dashboard updates
+  useEchoListeners(bundleQuery.refetch, userId);
 
   const loading = bundleQuery.isLoading;
 
